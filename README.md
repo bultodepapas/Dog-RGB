@@ -56,13 +56,12 @@ Battery:
 - ~5000 mAh
 - 18.5 Wh nominal energy
 
-LED power budget (65 LEDs, average current per LED):
+LED power budget (example, 2 strips x 20 LEDs):
 
-- 5 mA -> ~1.6 W -> ~10 hours
-- 10 mA -> ~3.25 W -> ~5 hours
-- 20 mA -> ~6.5 W -> ~2.5 hours
+- 3-5 mA per LED (idle UI) -> 120-200 mA total LEDs
+- Higher brightness and animations will increase draw
 
-Design goal: 5-10 mA per LED average
+Design goal: keep average LED current low for battery life
 
 ---
 
@@ -72,7 +71,7 @@ Design goal: 5-10 mA per LED average
 21700 Battery (3.0-4.2V)
    -> BMS 1S + USB-C charger
    -> 5V boost converter (>=2A continuous)
-   -> APA102 LED strip
+   -> SK6812 LED strips
    -> 3.3V regulator -> ESP32-S3 + sensors
 ```
 
@@ -112,10 +111,10 @@ Inputs:
 
 Outputs:
 
-- Color mapping:
-  - Resting -> Blue
-  - Walking -> Purple
-  - Running -> Red
+- Color mapping (Segment B, GPS speed):
+  - Low speed -> Blue
+  - Medium speed -> Purple
+  - High speed -> Red
 - Brightness scales with activity
 - Effects:
   - Breathing (idle)
@@ -191,6 +190,7 @@ Phase 4 - Miniaturization (Small Dogs)
 - Max/avg speed metrics
 - NVS persistence (periodic save)
 - Serial heartbeat logs
+- Configurable ranges and strip settings in `firmware/esp32s3_base/include/config.h`
 
 Base project: `firmware/esp32s3_base/`
 
