@@ -20,7 +20,7 @@
   - LED B data: GPIO12
 
   Dependencies:
-  - Adafruit NeoPixel
+  - FastLED
   - ESP32 Arduino core (WiFi, WebServer, ESPmDNS)
 
   Build/flash (PlatformIO):
@@ -41,7 +41,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
-#include <Adafruit_NeoPixel.h>
+#include <FastLED.h>
 #include "pins.h"
 #include "config.h"
 
@@ -102,8 +102,18 @@ static unsigned long last_ok_ms = 0;
 
 // Speed-to-color ranges are defined in config.h.
 
-static Adafruit_NeoPixel strip_a(LED_STRIP_COUNT, PIN_LED_A_DATA, NEO_GRB + NEO_KHZ800);
-static Adafruit_NeoPixel strip_b(LED_STRIP_COUNT, PIN_LED_B_DATA, NEO_GRB + NEO_KHZ800);
+static CRGB leds_a[LED_STRIP_COUNT];
+static CRGB leds_b[LED_STRIP_COUNT];
+static uint8_t heat_a[LED_STRIP_COUNT];
+static uint8_t heat_b[LED_STRIP_COUNT];
+
+struct EffectState {
+  uint8_t hue = 0;
+  uint16_t pos = 0;
+};
+
+static EffectState state_a;
+static EffectState state_b;
 
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
@@ -379,32 +389,209 @@ static String html_wifi_page() {
 }
 
 static void led_begin() {
-  strip_a.begin();
-  strip_a.setBrightness(LED_BRIGHTNESS);
-  strip_a.show();
+  FastLED.addLeds<SK6812, PIN_LED_A_DATA, GRB>(leds_a, LED_STRIP_COUNT);
   if (LED_STRIP_MODE == 2) {
-    strip_b.begin();
-    strip_b.setBrightness(LED_BRIGHTNESS);
-    strip_b.show();
+    FastLED.addLeds<SK6812, PIN_LED_B_DATA, GRB>(leds_b, LED_STRIP_COUNT);
+  }
+  FastLED.setBrightness(LED_BRIGHTNESS);
+  FastLED.clear(true);
+}
+
+static void fill_range(CRGB *leds, int start, int count, const CRGB &color) {
+  for (int i = start; i < start + count; ++i) {
+    leds[i] = color;
   }
 }
 
-static void strip_fill_segment(Adafruit_NeoPixel &strip,
-                               uint8_t status_r,
-                               uint8_t status_g,
-                               uint8_t status_b,
-                               uint8_t body_r,
-                               uint8_t body_g,
-                               uint8_t body_b,
-                               bool body_on) {
-  for (int i = 0; i < LED_STRIP_COUNT; ++i) {
-    if (i < LED_STATUS_COUNT) {
-      strip.setPixelColor(i, strip.Color(status_r, status_g, status_b));
-    } else if (body_on) {
-      strip.setPixelColor(i, strip.Color(body_r, body_g, body_b));
-    } else {
-      strip.setPixelColor(i, strip.Color(0, 0, 0));
+static void fade_range(CRGB *leds, int start, int count, uint8_t amount) {
+  for (int i = start; i < start + count; ++i) {
+    leds[i].fadeToBlackBy(amount);
+  }
+}
+
+static uint8_t speed_range(float kph) {
+  if (kph <= SPEED_RANGE_1_KPH) return 1;
+  if (kph <= SPEED_RANGE_2_KPH) return 2;
+  if (kph <= SPEED_RANGE_3_KPH) return 3;
+  if (kph <= SPEED_RANGE_4_KPH) return 4;
+  if (kph <= SPEED_RANGE_5_KPH) return 5;
+  return 6;
+}
+
+static void get_range_config(uint8_t range,
+                             int &effect_a,
+                             int &effect_b,
+                             uint8_t &speed,
+                             uint8_t &intensity) {
+  switch (range) {
+    case 1:
+      effect_a = RANGE_1_EFFECT_A;
+      effect_b = RANGE_1_EFFECT_B;
+      speed = RANGE_1_SPEED;
+      intensity = RANGE_1_INTENSITY;
+      break;
+    case 2:
+      effect_a = RANGE_2_EFFECT_A;
+      effect_b = RANGE_2_EFFECT_B;
+      speed = RANGE_2_SPEED;
+      intensity = RANGE_2_INTENSITY;
+      break;
+    case 3:
+      effect_a = RANGE_3_EFFECT_A;
+      effect_b = RANGE_3_EFFECT_B;
+      speed = RANGE_3_SPEED;
+      intensity = RANGE_3_INTENSITY;
+      break;
+    case 4:
+      effect_a = RANGE_4_EFFECT_A;
+      effect_b = RANGE_4_EFFECT_B;
+      speed = RANGE_4_SPEED;
+      intensity = RANGE_4_INTENSITY;
+      break;
+    case 5:
+      effect_a = RANGE_5_EFFECT_A;
+      effect_b = RANGE_5_EFFECT_B;
+      speed = RANGE_5_SPEED;
+      intensity = RANGE_5_INTENSITY;
+      break;
+    default:
+      effect_a = RANGE_6_EFFECT_A;
+      effect_b = RANGE_6_EFFECT_B;
+      speed = RANGE_6_SPEED;
+      intensity = RANGE_6_INTENSITY;
+      break;
+  }
+}
+
+static CRGB base_color_for_range(uint8_t range) {
+  switch (range) {
+    case 1:
+      return CRGB(0, 0, 60);
+    case 2:
+      return CRGB(20, 0, 60);
+    case 3:
+      return CRGB(40, 0, 60);
+    case 4:
+      return CRGB(60, 0, 40);
+    case 5:
+      return CRGB(60, 0, 20);
+    default:
+      return CRGB(60, 0, 0);
+  }
+}
+
+static void apply_fire(CRGB *leds,
+                       uint8_t *heat,
+                       int start,
+                       int count,
+                       uint8_t intensity,
+                       uint8_t speed) {
+  const uint8_t cooling = map(255 - intensity, 0, 255, 20, 80);
+  const uint8_t sparking = map(intensity, 0, 255, 20, 120);
+  for (int i = start; i < start + count; ++i) {
+    heat[i] = qsub8(heat[i], random8(0, ((cooling * 10) / count) + 2));
+  }
+  for (int k = start + count - 1; k >= start + 2; --k) {
+    heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
+  }
+  if (random8() < sparking) {
+    const int y = start + random8(min(count, 7));
+    heat[y] = qadd8(heat[y], random8(160, 255));
+  }
+  for (int j = start; j < start + count; ++j) {
+    leds[j] = HeatColor(heat[j]);
+  }
+  (void)speed;
+}
+
+static void apply_effect(int effect_id,
+                         CRGB *leds,
+                         uint8_t *heat,
+                         int start,
+                         int count,
+                         const CRGB &base,
+                         uint8_t speed,
+                         uint8_t intensity,
+                         EffectState &state) {
+  const uint8_t fade_amt = map(255 - intensity, 0, 255, 10, 80);
+  const uint8_t bpm = map(speed, 0, 255, 10, 90);
+
+  switch (effect_id) {
+    case 0: // SOLID
+      fill_range(leds, start, count, base);
+      break;
+    case 1: { // PULSE
+      const uint8_t beat = beatsin8(bpm, 10, 255);
+      CRGB c = base;
+      c.nscale8(beat);
+      fill_range(leds, start, count, c);
+      break;
     }
+    case 2: { // BREATH
+      const uint8_t beat = beatsin8(bpm, 20, 200);
+      CRGB c = base;
+      c.nscale8(beat);
+      fill_range(leds, start, count, c);
+      break;
+    }
+    case 3: { // CHASE
+      fade_range(leds, start, count, fade_amt);
+      state.pos = (state.pos + max<uint8_t>(1, speed / 32)) % count;
+      leds[start + state.pos] = base;
+      break;
+    }
+    case 4: { // COMET
+      fade_range(leds, start, count, fade_amt);
+      state.pos = (state.pos + max<uint8_t>(1, speed / 24)) % count;
+      leds[start + state.pos] = base;
+      break;
+    }
+    case 5: { // SINELON
+      fade_range(leds, start, count, fade_amt);
+      const int pos = start + beatsin16(bpm, 0, count - 1);
+      leds[pos] = base;
+      break;
+    }
+    case 6: { // CONFETTI
+      fade_range(leds, start, count, fade_amt);
+      const int pos = start + random16(count);
+      leds[pos] += base;
+      break;
+    }
+    case 7: { // JUGGLE
+      fade_range(leds, start, count, fade_amt);
+      for (uint8_t i = 0; i < 4; ++i) {
+        leds[start + beatsin16(bpm + i * 2, 0, count - 1)] |= base;
+      }
+      break;
+    }
+    case 8: { // BPM
+      const uint8_t beat = beatsin8(bpm, 64, 255);
+      for (int i = start; i < start + count; ++i) {
+        leds[i] = base;
+        leds[i].nscale8(beat);
+      }
+      break;
+    }
+    case 9: { // RAINBOW
+      state.hue += max<uint8_t>(1, speed / 16);
+      fill_rainbow(&leds[start], count, state.hue, 7);
+      break;
+    }
+    case 10: // FIRE
+      apply_fire(leds, heat, start, count, intensity, speed);
+      break;
+    case 11: { // GRADIENT_WAVE
+      state.hue += max<uint8_t>(1, speed / 24);
+      for (int i = start; i < start + count; ++i) {
+        const uint8_t offset = (state.hue + (i * 8));
+        leds[i] = CHSV(offset, 200, 255);
+      }
+      break;
+    }
+    default:
+      fill_range(leds, start, count, base);
+      break;
   }
 }
 

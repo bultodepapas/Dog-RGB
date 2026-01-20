@@ -212,6 +212,7 @@ Base project: `firmware/esp32s3_base/`
 - BOM + power budget: [`docs/bom_power_budget.md`](docs/bom_power_budget.md)
 - Config params: [`docs/config_params.md`](docs/config_params.md)
 - LED effects plan: [`docs/led_effects_plan.md`](docs/led_effects_plan.md)
+- Manual de uso: [`docs/manual_de_uso.md`](docs/manual_de_uso.md)
 
 ---
 
