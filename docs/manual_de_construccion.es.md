@@ -27,6 +27,7 @@ Guia practica para construir el prototipo (hardware) del collar.
 
 ### Nivel logico y proteccion
 - Level shifter 5V: 74AHCT125 (o equivalente)
+- Opcion sin level shifter (prototipo): conectar data directo a SK6812 y mantener cables cortos
 - Resistencia serie: 330-470 ohm (2 unidades, una por cada data line)
 - Condensador: 1000 uF electrolitico (5V rail, cerca del primer LED)
 - Condensador: 0.1 uF ceramico (cerca del primer LED, opcional)
@@ -85,12 +86,17 @@ Ver el diagrama en `docs/manual_de_uso.md`.
    - VCC segun modulo (3.3V si aplica)
 
 ### Paso 3: Level shifting y LEDs
-1) Alimenta el 74AHCT125 con 5V y GND.
-2) Conecta data lines:
-   - GPIO11 -> IN1 -> OUT1 -> 330-470R -> DIN LED A
-   - GPIO12 -> IN2 -> OUT2 -> 330-470R -> DIN LED B
-3) Conecta VDD y GND de las tiras a 5V y GND.
-4) Coloca el condensador de 1000 uF en 5V cerca del primer LED.
+1) Alimenta el 74AHCT125 con 5V y GND (si se usa).
+2) Conecta data lines segun el numero de tiras:
+   - Dos tiras:
+     - GPIO11 -> IN1 -> OUT1 -> 330-470R -> DIN LED A
+     - GPIO12 -> IN2 -> OUT2 -> 330-470R -> DIN LED B
+   - Una sola tira:
+     - GPIO11 -> IN1 -> OUT1 -> 330-470R -> DIN LED A
+     - No usar GPIO12
+3) Si NO usas level shifter (prototipo): conecta GPIO11/GPIO12 directo a DIN con resistor serie, y manten cables cortos.
+4) Conecta VDD y GND de las tiras a 5V y GND.
+5) Coloca el condensador de 1000 uF en 5V cerca del primer LED.
 
 ### Paso 4: LED de estado (opcional)
 1) GPIO3 -> resistencia -> LED -> GND.
