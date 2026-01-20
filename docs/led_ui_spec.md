@@ -16,6 +16,14 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 
 - Segmento A (LED 0-2): indicadores de estado.
 - Segmento B (LED 3-fin): modo normal o idle.
+- Aplica por tira si se usan dos tiras independientes.
+
+---
+
+## Configuracion base
+
+- LED_STRIP_COUNT (por tira): 20 (min 10, max 50)
+- LED_STRIP_MODE: 1 (tira unica) o 2 (doble tira)
 
 ---
 

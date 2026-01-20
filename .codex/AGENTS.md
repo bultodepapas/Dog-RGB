@@ -8,7 +8,7 @@
 
 ## 1) Project Context (minimum)
 This repo builds a **smart, high-visibility LED dog collar**:
-- LEDs: **APA102 / SK9822 (5V clocked)**
+- LEDs: **SK6812 (5V single-wire)**
 - MCU: **ESP32-S3** (Seeed Studio XIAO ESP32-S3)
 - GNSS (Phase 1 MVP): **EBYTE E108-GN02 (10 Hz)** over UART (9600)
 - Future: IMU, BLE app, advanced activity modes

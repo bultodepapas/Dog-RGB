@@ -12,8 +12,12 @@
   - GNSS: EBYTE E108-GN02 (UART 9600)
   - LEDs: SK6812 (single-wire)
 
-  Pin table (see firmware/esp32s3_base/include/pins.h):
-  - GNSS RX/TX, status LED, LED strip data pins.
+  Pin table (XIAO ESP32-S3):
+  - GNSS RX: D6 / GPIO7
+  - GNSS TX: D7 / GPIO8
+  - Status LED: D2 / GPIO3
+  - LED A data: GPIO11
+  - LED B data: GPIO12
 
   Dependencies:
   - Adafruit NeoPixel
@@ -392,9 +396,11 @@ static void led_begin() {
   strip_a.begin();
   strip_a.setBrightness(LED_BRIGHTNESS);
   strip_a.show();
-  strip_b.begin();
-  strip_b.setBrightness(LED_BRIGHTNESS);
-  strip_b.show();
+  if (LED_STRIP_MODE == 2) {
+    strip_b.begin();
+    strip_b.setBrightness(LED_BRIGHTNESS);
+    strip_b.show();
+  }
 }
 
 static void strip_fill_segment(Adafruit_NeoPixel &strip,
@@ -459,8 +465,12 @@ static void update_led_ui() {
   }
 
   if (full_override) {
-    led_write_strip(PIN_LED_A_DATA, PIN_LED_A_CLOCK, full_r, full_g, full_b, full_r, full_g, full_b, true);
-    led_write_strip(PIN_LED_B_DATA, PIN_LED_B_CLOCK, full_r, full_g, full_b, full_r, full_g, full_b, true);
+    strip_fill_segment(strip_a, full_r, full_g, full_b, full_r, full_g, full_b, true);
+    strip_a.show();
+    if (LED_STRIP_MODE == 2) {
+      strip_fill_segment(strip_b, full_r, full_g, full_b, full_r, full_g, full_b, true);
+      strip_b.show();
+    }
     return;
   }
 
@@ -493,8 +503,12 @@ static void update_led_ui() {
   const uint8_t body_g = body_on ? 20 : 0;
   const uint8_t body_b = body_on ? 20 : 0;
 
-  led_write_strip(PIN_LED_A_DATA, PIN_LED_A_CLOCK, r, g, b, body_r, body_g, body_b, body_on);
-  led_write_strip(PIN_LED_B_DATA, PIN_LED_B_CLOCK, r, g, b, body_r, body_g, body_b, body_on);
+  strip_fill_segment(strip_a, r, g, b, body_r, body_g, body_b, body_on);
+  strip_a.show();
+  if (LED_STRIP_MODE == 2) {
+    strip_fill_segment(strip_b, r, g, b, body_r, body_g, body_b, body_on);
+    strip_b.show();
+  }
 }
 
 static void handle_root() {
@@ -662,7 +676,7 @@ void setup() {
   prefs.begin("dogrgb", false);
   load_metrics();
   if (LED_UI_ENABLED) {
-    led_gpio_begin();
+    led_begin();
   }
   setup_wifi();
   setup_http();

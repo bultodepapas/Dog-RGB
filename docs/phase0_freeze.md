@@ -8,6 +8,7 @@ Este documento fija los parametros base para comenzar la implementacion del MVP.
 
 - GNSS: EBYTE E108-GN02 Series (10 Hz, BDS/GPS/GLONASS)
 - MCU: Seeed Studio XIAO ESP32-S3
+- LEDs: SK6812 (5V, single-wire), una o dos tiras
 
 ---
 
@@ -18,6 +19,8 @@ Objetivo: pines estables, faciles de cablear y sin conflicto con USB.
 - GPS RX (ESP32 recibe): D6 / GPIO7
 - GPS TX (ESP32 transmite, opcional): D7 / GPIO8
 - LED de estado: D2 / GPIO3 (LED externo con resistencia)
+- LED A data: GPIO11
+- LED B data: GPIO12
 
 Notas:
 - Se evita usar el LED RGB integrado para no mezclar con futuras tiras LED.

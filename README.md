@@ -34,22 +34,17 @@ Build a collar that is:
 
 ## LED System
 
-Recommended LEDs:
+Selected LEDs (Phase 1):
 
-- APA102 / SK9822 (5V, clocked)
-- Density: 144 LEDs/m
-- Length: 45 cm
-- Total LEDs: ~65
+- SK6812 (5V, single-wire)
+- Default count per strip: 20 (min 10, max 50)
+- Configurable single or dual strips (independent data pins)
 
-Why APA102/SK9822:
-
-- Smooth animations at low brightness
-- Better stability than WS2812
-- High-quality color control
-
-Note:
+Notes:
 
 - Requires regulated 5V (do not power directly from battery)
+- Brightness limited to ~30% for safety and battery life
+- SK6812 data may require 5V logic; consider a level shifter and proper decoupling
 
 ---
 
@@ -176,11 +171,14 @@ Phase 4 - Miniaturization (Small Dogs)
 
 - MCU: Seeed Studio XIAO ESP32-S3
 - GNSS: EBYTE E108-GN02 (10 Hz)
+- LEDs: SK6812 (single-wire), dual strips
 - GPS UART: 9600 baud
 - Pins (XIAO ESP32-S3):
   - GPS RX: D6 / GPIO7
   - GPS TX: D7 / GPIO8
   - Status LED: D2 / GPIO3 (external LED)
+  - LED A data: GPIO11
+  - LED B data: GPIO12
 
 ---
 
