@@ -29,7 +29,7 @@ Guia completa para construir el prototipo con enfoque en buenas practicas de ele
 ### Nivel logico y proteccion
 - Level shifter 5V: 74AHCT125 (o equivalente)
 - Opcion sin level shifter (prototipo): data directo con cables cortos
-- Resistencia serie: 330-470 ohm (2 unidades)
+- Resistencia serie: 330-470 ohm (2 unidades, una por data line)
 - Condensador: 1000 uF electrolitico (5V rail, cerca del primer LED)
 - Condensador: 0.1 uF ceramico (opcional, cerca del primer LED)
 
@@ -102,6 +102,28 @@ Ver el diagrama en `docs/manual_de_uso.md`.
 
 ### Paso 4: LED de estado (opcional)
 1) GPIO3 -> resistencia -> LED -> GND.
+
+---
+
+## 6.1) Notas sobre tiras de 4 cables
+
+Las tiras SK6812 suelen tener 4 cables: +5V, GND, DIN y DOUT (o DI/DO).
+
+- Para una sola tira: conecta +5V, GND y DIN. No necesitas DOUT.
+- Para encadenar dos tiras en serie: conecta DOUT de la primera a DIN de la segunda.
+- Para dos tiras separadas (este proyecto): cada tira va a su propio DIN (GPIO11 y GPIO12).
+
+---
+
+## 6.2) Opcion sin level shifter (mejor practica)
+
+Si no usas level shifter, aplica estas reglas para maximizar estabilidad:
+
+- Resistor serie de 330-470 ohm en cada data line, lo mas cerca posible del MCU.
+- Cable de datos corto (ideal <10-15 cm).
+- GND comun y retorno directo al mismo punto de alimentacion.
+- Brillo bajo al inicio (30% o menos).
+- Si es posible, reduce VDD de LEDs a ~4.0-4.5 V para mejorar compatibilidad con 3.3V.
 
 ---
 

@@ -29,7 +29,7 @@ Complete guide to build the prototype with solid electronics practices.
 ### Level shifting and protection
 - 5V level shifter: 74AHCT125 (or equivalent)
 - No level shifter option (prototype): direct data with short wires
-- Series resistors: 330-470 ohm (2 units)
+- Series resistors: 330-470 ohm (2 units, one per data line)
 - Capacitor: 1000 uF electrolytic (5V rail, near first LED)
 - Capacitor: 0.1 uF ceramic (optional, near first LED)
 
@@ -102,6 +102,28 @@ See the diagram in `docs/manual_de_uso.md`.
 
 ### Step 4: Status LED (optional)
 1) GPIO3 -> resistor -> LED -> GND.
+
+---
+
+## 6.1) Notes on 4-wire LED strips
+
+SK6812 strips usually have 4 wires: +5V, GND, DIN, and DOUT (or DI/DO).
+
+- Single strip: connect +5V, GND, and DIN. DOUT is not needed.
+- Chained strips: connect DOUT of the first to DIN of the second.
+- Two separate strips (this project): each strip uses its own DIN (GPIO11 and GPIO12).
+
+---
+
+## 6.2) No level shifter option (best practice)
+
+If you skip level shifting, use these rules for stability:
+
+- 330-470 ohm series resistor on each data line, as close to the MCU as possible.
+- Keep data wires short (ideal <10-15 cm).
+- Common GND with a direct return to the same power point.
+- Start with low brightness (30% or less).
+- If possible, reduce LED VDD to ~4.0-4.5 V for better 3.3V logic margin.
 
 ---
 
