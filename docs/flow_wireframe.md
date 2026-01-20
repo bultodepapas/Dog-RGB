@@ -57,3 +57,69 @@
 Estados alternos:
 - Sin conexion: "Acercate al collar"
 - Sin GPS: "Esperando GPS"
+
+---
+
+# Diagrama de estados BLE (Conectado/Desconectado)
+
+```
+            +--------------------+
+            |   Desconectado     |
+            | (Idle/Advertising) |
+            +----------+---------+
+                       |
+                       | Scan + Connect
+                       v
+            +--------------------+
+            |     Conectado      |
+            |  (Ready to Read)   |
+            +----+----+-----+----+
+                 |    |     |
+         Read OK |    |     | Timeout/Error
+                 |    |     v
+                 |    |  +-----------------+
+                 |    |  | Error/Retry     |
+                 |    |  | (Retry/Backoff) |
+                 |    |  +--------+--------+
+                 |    |           |
+                 |    |           | Give up
+                 |    |           v
+                 |    |    +-----------------------------+
+                 |    |    |        Desconectado         |
+                 |    |    |    (Idle/Advertising)       |
+                 |    |    +-----------------------------+
+                 |    |
+                 |    v
+                 |  +--------------------+
+                 |  |  Sin GPS Fix       |
+                 |  | (Mostrar aviso)    |
+                 |  +---------+----------+
+                 |            |
+                 |  Reintentar lectura
+                 |            v
+                 |     +----------------+
+                 |     |  Datos leidos  |
+                 |     | (Summary OK)   |
+                 |     +--------+-------+
+                 |              |
+                 |              | User disconnect
+                 v              v
+     +----------------+   +-----------------------------+
+     | Datos invalidos|   |        Desconectado         |
+     | (Checksum fail)|   |    (Idle/Advertising)       |
+     +--------+-------+   +-----------------------------+
+              |
+              | Retry read
+              v
+     +----------------+
+     |  Datos leidos  |
+     | (Summary OK)   |
+     +--------+-------+
+              |
+              | User disconnect
+              v
+            +-----------------------------+
+            |        Desconectado         |
+            |    (Idle/Advertising)       |
+            +-----------------------------+
+```
