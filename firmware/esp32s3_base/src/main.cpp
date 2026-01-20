@@ -1,3 +1,34 @@
+/*
+  Dog-RGB GPS-first firmware (ESP32-S3 / XIAO ESP32-S3).
+
+  Purpose:
+  - Read GNSS (RMC) and compute distance/avg/max speed.
+  - Serve local Wi-Fi portal (AP/STA) with daily summary JSON.
+  - Provide BLE read-only summary (future).
+  - Drive SK6812 LED strips as system UI.
+
+  Supported hardware:
+  - MCU: Seeed Studio XIAO ESP32-S3
+  - GNSS: EBYTE E108-GN02 (UART 9600)
+  - LEDs: SK6812 (single-wire)
+
+  Pin table (see firmware/esp32s3_base/include/pins.h):
+  - GNSS RX/TX, status LED, LED strip data pins.
+
+  Dependencies:
+  - Adafruit NeoPixel
+  - ESP32 Arduino core (WiFi, WebServer, ESPmDNS)
+
+  Build/flash (PlatformIO):
+  - pio run -e esp32s3
+  - pio run -e esp32s3 -t upload
+  - pio device monitor -e esp32s3
+
+  Power/safety notes:
+  - SK6812 requires 5V and good decoupling; avoid brownouts.
+  - Keep brightness low (30%) to reduce heat and battery draw.
+*/
+
 #include <Arduino.h>
 #include <Preferences.h>
 #include <BLEDevice.h>
@@ -6,7 +37,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
-#include <SPI.h>
+#include <Adafruit_NeoPixel.h>
 #include "pins.h"
 
 // Heartbeat for status LED and periodic serial logs.
@@ -69,16 +100,20 @@ static String wifi_pass;
 static bool wifi_sta_connected = false;
 static unsigned long last_wifi_check_ms = 0;
 
-// LED strip configuration (APA102/SK9822).
+// LED strip configuration (SK6812).
 static const bool LED_UI_ENABLED = true;
-static const int LED_COUNT = 65;
-static const int LED_STATUS_COUNT = 3;
-static const uint8_t LED_BRIGHTNESS_MAX = 9;
+static const int LED_STRIP_MODE = 2; // 1 = single strip, 2 = dual strips.
+static const int LED_STRIP_COUNT = 20; // LEDs per strip (min 10, max 50).
+static const int LED_STATUS_COUNT = 3; // First N LEDs reserved for status.
+static const uint8_t LED_BRIGHTNESS = 77; // ~30% brightness (0-255).
 static const unsigned long LED_UPDATE_MS = 50;
 static unsigned long last_led_update_ms = 0;
 
 static unsigned long last_ok_ms = 0;
 static const unsigned long CRITICAL_NO_OK_MS = 600000;
+
+static Adafruit_NeoPixel strip_a(LED_STRIP_COUNT, PIN_LED_A_DATA, NEO_GRB + NEO_KHZ800);
+static Adafruit_NeoPixel strip_b(LED_STRIP_COUNT, PIN_LED_B_DATA, NEO_GRB + NEO_KHZ800);
 
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
@@ -353,49 +388,32 @@ static String html_wifi_page() {
   return page;
 }
 
-static void led_spi_begin() {
-  SPI.begin(PIN_LED_CLOCK, -1, PIN_LED_DATA, -1);
+static void led_begin() {
+  strip_a.begin();
+  strip_a.setBrightness(LED_BRIGHTNESS);
+  strip_a.show();
+  strip_b.begin();
+  strip_b.setBrightness(LED_BRIGHTNESS);
+  strip_b.show();
 }
 
-static void led_spi_show_segment(int start, int count, uint8_t r, uint8_t g, uint8_t b) {
-  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
-  for (int i = 0; i < 4; ++i) {
-    SPI.transfer(0x00);
-  }
-  for (int i = 0; i < LED_COUNT; ++i) {
-    const bool in_range = (i >= start && i < (start + count));
-    SPI.transfer(0xE0 | LED_BRIGHTNESS_MAX);
-    if (in_range) {
-      SPI.transfer(b);
-      SPI.transfer(g);
-      SPI.transfer(r);
+static void strip_fill_segment(Adafruit_NeoPixel &strip,
+                               uint8_t status_r,
+                               uint8_t status_g,
+                               uint8_t status_b,
+                               uint8_t body_r,
+                               uint8_t body_g,
+                               uint8_t body_b,
+                               bool body_on) {
+  for (int i = 0; i < LED_STRIP_COUNT; ++i) {
+    if (i < LED_STATUS_COUNT) {
+      strip.setPixelColor(i, strip.Color(status_r, status_g, status_b));
+    } else if (body_on) {
+      strip.setPixelColor(i, strip.Color(body_r, body_g, body_b));
     } else {
-      SPI.transfer(0x00);
-      SPI.transfer(0x00);
-      SPI.transfer(0x00);
+      strip.setPixelColor(i, strip.Color(0, 0, 0));
     }
   }
-  for (int i = 0; i < 4; ++i) {
-    SPI.transfer(0xFF);
-  }
-  SPI.endTransaction();
-}
-
-static void led_spi_show_all(uint8_t r, uint8_t g, uint8_t b) {
-  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
-  for (int i = 0; i < 4; ++i) {
-    SPI.transfer(0x00);
-  }
-  for (int i = 0; i < LED_COUNT; ++i) {
-    SPI.transfer(0xE0 | LED_BRIGHTNESS_MAX);
-    SPI.transfer(b);
-    SPI.transfer(g);
-    SPI.transfer(r);
-  }
-  for (int i = 0; i < 4; ++i) {
-    SPI.transfer(0xFF);
-  }
-  SPI.endTransaction();
 }
 
 static void update_led_ui() {
@@ -424,18 +442,29 @@ static void update_led_ui() {
   uint8_t b = 0;
   float scale = 1.0f;
 
+  bool full_override = false;
+  uint8_t full_r = 0;
+  uint8_t full_g = 0;
+  uint8_t full_b = 0;
+
   if (critical_error) {
     scale = (now_ms / 200) % 2 ? 1.0f : 0.0f;
-    r = clamp_u8(static_cast<int>(200 * scale));
-    led_spi_show_all(r, 0, 0);
+    full_override = true;
+    full_r = clamp_u8(static_cast<int>(60 * scale));
+  } else if (!sta_ok && wifi_ssid.length() > 0 && ap_mode) {
+    full_override = true;
+    full_r = 60;
+    full_g = 0;
+    full_b = 0;
+  }
+
+  if (full_override) {
+    led_write_strip(PIN_LED_A_DATA, PIN_LED_A_CLOCK, full_r, full_g, full_b, full_r, full_g, full_b, true);
+    led_write_strip(PIN_LED_B_DATA, PIN_LED_B_CLOCK, full_r, full_g, full_b, full_r, full_g, full_b, true);
     return;
   }
 
-  if (!sta_ok && wifi_ssid.length() > 0 && ap_mode) {
-    r = 60;
-    g = 0;
-    b = 0;
-  } else if (sta_ok) {
+  if (sta_ok) {
     r = 0;
     g = 60;
     b = 0;
@@ -459,12 +488,13 @@ static void update_led_ui() {
     b = clamp_u8(static_cast<int>(60 * scale));
   }
 
-  led_spi_show_segment(0, LED_STATUS_COUNT, r, g, b);
+  const bool body_on = (ap_mode || sta_ok || sta_try || gps_ok);
+  const uint8_t body_r = body_on ? 20 : 0;
+  const uint8_t body_g = body_on ? 20 : 0;
+  const uint8_t body_b = body_on ? 20 : 0;
 
-  // Segment B: placeholder idle for normal operation (soft white).
-  if (ap_mode || sta_ok || sta_try || gps_ok) {
-    led_spi_show_segment(LED_STATUS_COUNT, LED_COUNT - LED_STATUS_COUNT, 20, 20, 20);
-  }
+  led_write_strip(PIN_LED_A_DATA, PIN_LED_A_CLOCK, r, g, b, body_r, body_g, body_b, body_on);
+  led_write_strip(PIN_LED_B_DATA, PIN_LED_B_CLOCK, r, g, b, body_r, body_g, body_b, body_on);
 }
 
 static void handle_root() {
@@ -632,7 +662,7 @@ void setup() {
   prefs.begin("dogrgb", false);
   load_metrics();
   if (LED_UI_ENABLED) {
-    led_spi_begin();
+    led_gpio_begin();
   }
   setup_wifi();
   setup_http();
