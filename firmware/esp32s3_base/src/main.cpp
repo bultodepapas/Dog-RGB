@@ -1,44 +1,62 @@
 #include <Arduino.h>
 #include <Preferences.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
 #include "pins.h"
 
+// Heartbeat for status LED and periodic serial logs.
 static const unsigned long HEARTBEAT_MS = 1000;
 static unsigned long last_heartbeat_ms = 0;
 static bool led_state = false;
 
+// GPS UART settings.
 static const uint32_t GPS_BAUD = 9600;
 static HardwareSerial GPS(1);
 static Preferences prefs;
+static BLECharacteristic *summary_char = nullptr;
 
+// NMEA line buffer for incoming GPS sentences.
 static char nmea_line[128];
 static size_t nmea_len = 0;
 
+// Latest GPS state.
 static bool has_gps_fix = false;
 static float last_speed_kph = 0.0f;
 static unsigned long last_gps_ms = 0;
 
+// Behavior thresholds and sampling.
 static const float SPEED_ACTIVE_KPH = 0.7f;
 static const float SPEED_MAX_VALID_KPH = 40.0f;
 static const unsigned long GPS_SAMPLE_MS = 1000;
 
+// Rolling metrics for the current day.
 static unsigned long last_sample_ms = 0;
 static unsigned long active_time_ms = 0;
 static float total_distance_m = 0.0f;
 static float max_speed_kph = 0.0f;
 static uint16_t last_update_min = 0;
 
+// Last position for distance calculation.
 static bool has_last_point = false;
 static float last_lat_deg = 0.0f;
 static float last_lon_deg = 0.0f;
 
+// Daily reset date (YYYYMMDD from GPS).
 static uint32_t current_date_yyyymmdd = 0;
 static unsigned long last_save_ms = 0;
 static const unsigned long SAVE_INTERVAL_MS = 60000;
+
+// BLE identifiers for the daily summary.
+static const char *BLE_DEVICE_NAME = "Dog-Collar";
+static const char *BLE_SERVICE_UUID = "8b4c0001-6c1d-4f3c-a5b0-1e0c5a00a101";
+static const char *BLE_CHAR_UUID = "8b4c0002-6c1d-4f3c-a5b0-1e0c5a00a101";
 
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
 }
 
+// Convert NMEA degree-minute format to decimal degrees.
 static float nmea_to_decimal_degrees(const char *value, char hemi) {
   // NMEA format: DDMM.MMMM (lat) or DDDMM.MMMM (lon)
   const float raw = strtof(value, nullptr);
@@ -51,6 +69,7 @@ static float nmea_to_decimal_degrees(const char *value, char hemi) {
   return dec;
 }
 
+// Haversine distance between two lat/lon points in meters.
 static float haversine_m(float lat1, float lon1, float lat2, float lon2) {
   const float r = 6371000.0f;
   const float to_rad = 0.01745329252f;
@@ -63,6 +82,7 @@ static float haversine_m(float lat1, float lon1, float lat2, float lon2) {
   return r * c;
 }
 
+// Parse RMC sentence for position, speed, fix status, and date/time.
 static bool parse_rmc(const char *line,
                       float *lat_deg,
                       float *lon_deg,
@@ -143,6 +163,7 @@ static bool parse_rmc(const char *line,
   return true;
 }
 
+// Persist daily metrics to NVS (throttled by SAVE_INTERVAL_MS).
 static void save_metrics() {
   prefs.putUInt("date", current_date_yyyymmdd);
   prefs.putFloat("dist_m", total_distance_m);
@@ -151,6 +172,7 @@ static void save_metrics() {
   prefs.putUShort("upd_min", last_update_min);
 }
 
+// Restore persisted metrics from NVS on boot.
 static void load_metrics() {
   current_date_yyyymmdd = prefs.getUInt("date", 0);
   total_distance_m = prefs.getFloat("dist_m", 0.0f);
@@ -159,6 +181,70 @@ static void load_metrics() {
   last_update_min = prefs.getUShort("upd_min", 0);
 }
 
+// Build the 16-byte payload for BLE read.
+static void build_summary_payload(uint8_t *out, size_t len) {
+  if (len < 16) {
+    return;
+  }
+
+  const float avg_speed_kph = (active_time_ms > 0)
+                                  ? (total_distance_m / (active_time_ms / 1000.0f)) * 3.6f
+                                  : 0.0f;
+  const uint32_t distance_m = static_cast<uint32_t>(total_distance_m + 0.5f);
+  const uint16_t avg_speed_cmps = static_cast<uint16_t>(avg_speed_kph * 27.7778f);
+  const uint16_t max_speed_cmps = static_cast<uint16_t>(max_speed_kph * 27.7778f);
+
+  memset(out, 0, len);
+  out[0] = static_cast<uint8_t>(current_date_yyyymmdd & 0xFF);
+  out[1] = static_cast<uint8_t>((current_date_yyyymmdd >> 8) & 0xFF);
+  out[2] = static_cast<uint8_t>((current_date_yyyymmdd >> 16) & 0xFF);
+  out[3] = static_cast<uint8_t>((current_date_yyyymmdd >> 24) & 0xFF);
+
+  out[4] = static_cast<uint8_t>(distance_m & 0xFF);
+  out[5] = static_cast<uint8_t>((distance_m >> 8) & 0xFF);
+  out[6] = static_cast<uint8_t>((distance_m >> 16) & 0xFF);
+  out[7] = static_cast<uint8_t>((distance_m >> 24) & 0xFF);
+
+  out[8] = static_cast<uint8_t>(avg_speed_cmps & 0xFF);
+  out[9] = static_cast<uint8_t>((avg_speed_cmps >> 8) & 0xFF);
+  out[10] = static_cast<uint8_t>(max_speed_cmps & 0xFF);
+  out[11] = static_cast<uint8_t>((max_speed_cmps >> 8) & 0xFF);
+
+  out[12] = static_cast<uint8_t>(last_update_min & 0xFF);
+  out[13] = static_cast<uint8_t>((last_update_min >> 8) & 0xFF);
+
+  uint8_t flags = 0;
+  if (has_gps_fix) {
+    flags |= 0x01;
+  }
+  if (current_date_yyyymmdd != 0) {
+    flags |= 0x02;
+  }
+  out[14] = flags;
+
+  uint8_t checksum = 0;
+  for (size_t i = 0; i < 15; ++i) {
+    checksum ^= out[i];
+  }
+  out[15] = checksum;
+}
+
+// Expose the daily summary via BLE (read-only).
+static void setup_ble() {
+  BLEDevice::init(BLE_DEVICE_NAME);
+  BLEServer *server = BLEDevice::createServer();
+  BLEService *service = server->createService(BLE_SERVICE_UUID);
+  summary_char = service->createCharacteristic(
+      BLE_CHAR_UUID, BLECharacteristic::PROPERTY_READ);
+  summary_char->setValue("init");
+  service->start();
+  BLEAdvertising *adv = BLEDevice::getAdvertising();
+  adv->addServiceUUID(BLE_SERVICE_UUID);
+  adv->setScanResponse(true);
+  adv->start();
+}
+
+// Handle a single NMEA line and update rolling metrics.
 static void handle_nmea_line(const char *line) {
   float speed_kph = 0.0f;
   float lat_deg = 0.0f;
@@ -211,6 +297,7 @@ static void handle_nmea_line(const char *line) {
   }
 }
 
+// Read bytes from GPS UART and assemble NMEA lines.
 static void read_gps() {
   while (GPS.available() > 0) {
     const char c = static_cast<char>(GPS.read());
@@ -232,11 +319,14 @@ static void read_gps() {
 
 void setup() {
   Serial.begin(115200);
+  // GPS on UART1 with selected RX/TX pins.
   GPS.begin(GPS_BAUD, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
   pinMode(PIN_STATUS_LED, OUTPUT);
   digitalWrite(PIN_STATUS_LED, LOW);
+  // Open NVS namespace and restore last known metrics.
   prefs.begin("dogrgb", false);
   load_metrics();
+  setup_ble();
   Serial.println("Dog-RGB ESP32-S3 GPS-first base firmware");
 }
 
@@ -244,6 +334,7 @@ void loop() {
   const unsigned long now_ms = millis();
   read_gps();
 
+  // Periodic persistence to avoid flash wear.
   if (now_ms - last_save_ms >= SAVE_INTERVAL_MS) {
     last_save_ms = now_ms;
     save_metrics();
@@ -257,6 +348,7 @@ void loop() {
     const float avg_speed_kph = (active_time_ms > 0)
                                     ? (total_distance_m / (active_time_ms / 1000.0f)) * 3.6f
                                     : 0.0f;
+    // Serial log for quick field diagnostics.
     Serial.print("heartbeat | gps_fix=");
     Serial.print(has_gps_fix ? "1" : "0");
     Serial.print(" | speed_kph=");
@@ -268,6 +360,12 @@ void loop() {
     Serial.print(avg_speed_kph, 2);
     Serial.print(" max_kph=");
     Serial.println(max_speed_kph, 2);
+  }
+
+  if (summary_char != nullptr) {
+    uint8_t payload[16];
+    build_summary_payload(payload, sizeof(payload));
+    summary_char->setValue(payload, sizeof(payload));
   }
 
   // Placeholder for GPS-based LED mapping and patterns.

@@ -1,31 +1,28 @@
 # Smart LED Dog Collar
 
-🐾 A smart, high-visibility LED collar for medium-to-large dogs.
-Designed for safety, comfort, and future expansion (GPS, BLE app, advanced modes).
+Smart, high-visibility LED collar for medium-to-large dogs, designed for safety, comfort, and future expansion (GPS, BLE app, advanced modes).
 
 ---
 
-## 🤝 Team and Intent
+## Team and Intent
 
-Somos dos ingenieros (electrico e industrial) y este proyecto es un experimento que por fin vamos a probar:
-una idea que teniamos planeada desde hace mucho tiempo, ahora impulsada por nuestra experiencia y el apoyo
-de AI agents durante el desarrollo.
+Somos dos ingenieros (electrico e industrial). Este proyecto es un experimento que por fin vamos a probar: una idea planeada desde hace mucho tiempo, ahora impulsada por nuestra experiencia y el apoyo de AI agents durante el desarrollo.
 
 ---
 
-## 🎯 Objective
+## Objective
 
 Build a collar that is:
 
-- 🔦 Highly visible at night with premium LED animation quality.
-- 🏃 Motion- and speed-reactive for color and brightness changes.
-- 🔋 Efficient with a single 21700 Li-ion cell.
-- 🛡️ Safe, comfortable, and weather-resistant.
-- 🛰️ Ready for GPS and BLE expansion.
+- Highly visible at night with premium LED animation quality.
+- Motion- and speed-reactive for color and brightness changes.
+- Efficient with a single 21700 Li-ion cell.
+- Safe, comfortable, and weather-resistant.
+- Ready for GPS and BLE expansion.
 
 ---
 
-## 📐 Mechanical Design Targets
+## Mechanical Design Targets
 
 - Neck circumference: 40-55 cm (medium/large dogs)
 - Strap width: 20-25 mm
@@ -35,7 +32,7 @@ Build a collar that is:
 
 ---
 
-## 💡 LED System
+## LED System
 
 Recommended LEDs:
 
@@ -56,7 +53,7 @@ Note:
 
 ---
 
-## 🔋 Power System
+## Power System
 
 Battery:
 
@@ -74,7 +71,7 @@ Design goal: 5-10 mA per LED average
 
 ---
 
-## ⚡ Power Architecture
+## Power Architecture
 
 ```
 21700 Battery (3.0-4.2V)
@@ -92,7 +89,7 @@ Additional features:
 
 ---
 
-## 🧠 Control System
+## Control System
 
 MCU:
 
@@ -104,14 +101,14 @@ IMU options:
 - ICM-42688
 - (MPU6050 acceptable for prototypes)
 
-Optional GPS:
+Selected GPS (Phase 1):
 
-- u-blox M10 series
-- Powered only when movement is detected
+- EBYTE E108-GN02 (10 Hz, BDS/GPS/GLONASS)
+- UART 9600 baud
 
 ---
 
-## 🎨 Behavior Logic
+## Behavior Logic
 
 Inputs:
 
@@ -132,7 +129,7 @@ Outputs:
 
 ---
 
-## 🗺️ Development Roadmap
+## Development Roadmap
 
 Phase 1 - GPS-First MVP (Medium/Large Dogs)
 
@@ -161,11 +158,11 @@ Phase 4 - Miniaturization (Small Dogs)
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 - `docs/` product specs, architecture, decisions, roadmap
 - `hardware/` schematics, PCB, power design notes
-- `firmware/` embedded firmware source (future)
+- `firmware/` embedded firmware source
 - `software/` app/BLE tooling (future)
 - `assets/` diagrams, renders, images
 - `research/` datasheets, references, calculations
@@ -174,7 +171,42 @@ Phase 4 - Miniaturization (Small Dogs)
 
 ---
 
-## 🚀 Next Steps
+## Current Hardware (Phase 1 MVP)
+
+- MCU: Seeed Studio XIAO ESP32-S3
+- GNSS: EBYTE E108-GN02 (10 Hz)
+- GPS UART: 9600 baud
+- Pins (XIAO ESP32-S3):
+  - GPS RX: D6 / GPIO7
+  - GPS TX: D7 / GPIO8
+  - Status LED: D2 / GPIO3 (external LED)
+
+---
+
+## Firmware Status (Phase 1)
+
+- NMEA RMC parsing (lat/lon/speed/date/time)
+- Distance calculation (Haversine) with spike filtering
+- Active time tracking and speed thresholds
+- Daily reset using GPS date
+- Max/avg speed metrics
+- NVS persistence (periodic save)
+- Serial heartbeat logs
+
+Base project: `firmware/esp32s3_base/`
+
+---
+
+## Documentation Index
+
+- Phase 0 freeze: `docs/phase0_freeze.md`
+- Tasks backlog: `docs/tasks.md`
+- GPS -> calculation -> BLE flow: `docs/flow_wireframe.md`
+- Web portal spec: `docs/web_portal_spec.md`
+
+---
+
+## Next Steps
 
 - Build a detailed BOM and sourcing list
 - Create power budget with real component efficiencies
