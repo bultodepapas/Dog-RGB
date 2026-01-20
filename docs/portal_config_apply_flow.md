@@ -26,6 +26,7 @@ Este documento define como aplicar cambios del portal sin reiniciar todo el firm
 3) Aplicar cambios inmediatos en RAM
 4) Si hay cambios de Wi-Fi:
    - Reiniciar AP con nuevos valores
+   - Si ap_open=true, limpiar password y dejar AP abierto
    - Reiniciar mDNS si STA activo
 
 ---
