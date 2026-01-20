@@ -1,23 +1,23 @@
 # Smart LED Dog Collar
 
-[:paw_prints:] A smart, high-visibility LED collar for medium-to-large dogs.
+🐾 A smart, high-visibility LED collar for medium-to-large dogs.
 Designed for safety, comfort, and future expansion (GPS, BLE app, advanced modes).
 
 ---
 
-## [:dart:] Objective
+## 🎯 Objective
 
 Build a collar that is:
 
-- [:flashlight:] Highly visible at night with premium LED animation quality.
-- [:runner:] Motion- and speed-reactive for color and brightness changes.
-- [:battery:] Efficient with a single 21700 Li-ion cell.
-- [:shield:] Safe, comfortable, and weather-resistant.
-- [:satellite:] Ready for GPS and BLE expansion.
+- 🔦 Highly visible at night with premium LED animation quality.
+- 🏃 Motion- and speed-reactive for color and brightness changes.
+- 🔋 Efficient with a single 21700 Li-ion cell.
+- 🛡️ Safe, comfortable, and weather-resistant.
+- 🛰️ Ready for GPS and BLE expansion.
 
 ---
 
-## [:triangular_ruler:] Mechanical Design Targets
+## 📐 Mechanical Design Targets
 
 - Neck circumference: 40-55 cm (medium/large dogs)
 - Strap width: 20-25 mm
@@ -27,7 +27,7 @@ Build a collar that is:
 
 ---
 
-## [:bulb:] LED System
+## 💡 LED System
 
 Recommended LEDs:
 
@@ -48,7 +48,7 @@ Note:
 
 ---
 
-## [:battery:] Power System
+## 🔋 Power System
 
 Battery:
 
@@ -66,7 +66,7 @@ Design goal: 5-10 mA per LED average
 
 ---
 
-## [:electric_plug:] Power Architecture
+## ⚡ Power Architecture
 
 ```
 21700 Battery (3.0-4.2V)
@@ -84,7 +84,7 @@ Additional features:
 
 ---
 
-## [:brain:] Control System
+## 🧠 Control System
 
 MCU:
 
@@ -103,7 +103,7 @@ Optional GPS:
 
 ---
 
-## [:art:] Behavior Logic
+## 🎨 Behavior Logic
 
 Inputs:
 
@@ -124,7 +124,7 @@ Outputs:
 
 ---
 
-## [:map:] Development Roadmap
+## 🗺️ Development Roadmap
 
 Phase 1 - MVP (Medium/Large Dogs)
 
@@ -148,7 +148,7 @@ Phase 3 - Miniaturization (Small Dogs)
 
 ---
 
-## [:file_folder:] Repository Structure
+## 📁 Repository Structure
 
 - `docs/` product specs, architecture, decisions, roadmap
 - `hardware/` schematics, PCB, power design notes
@@ -161,7 +161,7 @@ Phase 3 - Miniaturization (Small Dogs)
 
 ---
 
-## [:rocket:] Next Steps
+## 🚀 Next Steps
 
 - Build a detailed BOM and sourcing list
 - Create power budget with real component efficiencies
