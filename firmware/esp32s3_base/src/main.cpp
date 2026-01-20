@@ -3,6 +3,9 @@
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
 #include "pins.h"
 
 // Heartbeat for status LED and periodic serial logs.
@@ -15,6 +18,7 @@ static const uint32_t GPS_BAUD = 9600;
 static HardwareSerial GPS(1);
 static Preferences prefs;
 static BLECharacteristic *summary_char = nullptr;
+static WebServer server(80);
 
 // NMEA line buffer for incoming GPS sentences.
 static char nmea_line[128];
@@ -51,6 +55,16 @@ static const unsigned long SAVE_INTERVAL_MS = 60000;
 static const char *BLE_DEVICE_NAME = "Dog-Collar";
 static const char *BLE_SERVICE_UUID = "8b4c0001-6c1d-4f3c-a5b0-1e0c5a00a101";
 static const char *BLE_CHAR_UUID = "8b4c0002-6c1d-4f3c-a5b0-1e0c5a00a101";
+
+// Wi-Fi settings (AP + STA). Change here to update default credentials.
+static const char *AP_SSID = "dog";
+static const char *AP_PASS = "dog";
+static const char *MDNS_NAME = "dog-collar";
+static const unsigned long STA_CONNECT_TIMEOUT_MS = 10000;
+
+static String wifi_ssid;
+static String wifi_pass;
+static bool wifi_sta_connected = false;
 
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
@@ -181,6 +195,18 @@ static void load_metrics() {
   last_update_min = prefs.getUShort("upd_min", 0);
 }
 
+static void load_wifi_creds() {
+  wifi_ssid = prefs.getString("wifi_ssid", "");
+  wifi_pass = prefs.getString("wifi_pass", "");
+}
+
+static void save_wifi_creds(const String &ssid, const String &pass) {
+  prefs.putString("wifi_ssid", ssid);
+  prefs.putString("wifi_pass", pass);
+  wifi_ssid = ssid;
+  wifi_pass = pass;
+}
+
 // Build the 16-byte payload for BLE read.
 static void build_summary_payload(uint8_t *out, size_t len) {
   if (len < 16) {
@@ -227,6 +253,132 @@ static void build_summary_payload(uint8_t *out, size_t len) {
     checksum ^= out[i];
   }
   out[15] = checksum;
+}
+
+static String build_summary_json() {
+  const float avg_speed_kph = (active_time_ms > 0)
+                                  ? (total_distance_m / (active_time_ms / 1000.0f)) * 3.6f
+                                  : 0.0f;
+  const uint32_t distance_m = static_cast<uint32_t>(total_distance_m + 0.5f);
+  const uint16_t avg_speed_cmps = static_cast<uint16_t>(avg_speed_kph * 27.7778f);
+  const uint16_t max_speed_cmps = static_cast<uint16_t>(max_speed_kph * 27.7778f);
+  const bool has_data = (current_date_yyyymmdd != 0);
+
+  String json = "{";
+  json += "\"date\":" + String(current_date_yyyymmdd);
+  json += ",\"distance_m\":" + String(distance_m);
+  json += ",\"avg_speed_cmps\":" + String(avg_speed_cmps);
+  json += ",\"max_speed_cmps\":" + String(max_speed_cmps);
+  json += ",\"last_update_min\":" + String(last_update_min);
+  json += ",\"gps_fix\":" + String(has_gps_fix ? "true" : "false");
+  json += ",\"has_data\":" + String(has_data ? "true" : "false");
+  json += "}";
+  return json;
+}
+
+static String html_page() {
+  return String(
+      "<!doctype html><html><head><meta charset='utf-8'>"
+      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<title>Dog Collar</title>"
+      "<style>body{font-family:Arial,sans-serif;margin:20px;color:#111}"
+      ".card{border:1px solid #ddd;border-radius:8px;padding:12px;margin:10px 0}"
+      "button{padding:10px 14px;border:0;border-radius:6px;background:#111;color:#fff}"
+      ".muted{color:#666;font-size:12px}</style></head><body>"
+      "<h1>Dog Collar</h1>"
+      "<div id='status' class='muted'>Estado: --</div>"
+      "<button onclick='loadData()'>Actualizar</button>"
+      "<div class='card'><div>Distancia (km)</div><div id='dist'>--</div></div>"
+      "<div class='card'><div>Velocidad promedio (km/h)</div><div id='avg'>--</div></div>"
+      "<div class='card'><div>Velocidad maxima (km/h)</div><div id='max'>--</div></div>"
+      "<div class='muted' id='updated'>Ultima lectura: --</div>"
+      "<p><a href='/wifi'>Configurar Wi-Fi</a></p>"
+      "<script>"
+      "function minToTime(m){var h=Math.floor(m/60);var mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}"
+      "function cmpsToKph(v){return (v*0.036).toFixed(1);}"
+      "function loadData(){fetch('/api/summary').then(r=>r.json()).then(d=>{"
+      "if(!d.has_data){document.getElementById('status').innerText='Estado: Sin datos';return;}"
+      "document.getElementById('dist').innerText=(d.distance_m/1000).toFixed(2);"
+      "document.getElementById('avg').innerText=cmpsToKph(d.avg_speed_cmps);"
+      "document.getElementById('max').innerText=cmpsToKph(d.max_speed_cmps);"
+      "document.getElementById('updated').innerText='Ultima lectura: '+minToTime(d.last_update_min);"
+      "document.getElementById('status').innerText='Estado: '+(d.gps_fix?'GPS OK':'Sin GPS');"
+      "}).catch(()=>{document.getElementById('status').innerText='Estado: Error';});}"
+      "loadData();"
+      "</script></body></html>");
+}
+
+static String html_wifi_page() {
+  String page = "<!doctype html><html><head><meta charset='utf-8'>"
+                "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                "<title>Wi-Fi</title></head><body><h1>Configurar Wi-Fi</h1>"
+                "<form method='post' action='/api/wifi'>"
+                "<label>SSID</label><br><input name='ssid' value='" + wifi_ssid + "'><br>"
+                "<label>Password</label><br><input name='pass' type='password'><br><br>"
+                "<button type='submit'>Guardar y conectar</button>"
+                "</form><p><a href='/'>Volver</a></p></body></html>";
+  return page;
+}
+
+static void handle_root() {
+  server.send(200, "text/html", html_page());
+}
+
+static void handle_wifi_page() {
+  server.send(200, "text/html", html_wifi_page());
+}
+
+static void handle_summary() {
+  server.send(200, "application/json", build_summary_json());
+}
+
+static void handle_wifi_save() {
+  if (!server.hasArg("ssid")) {
+    server.send(400, "text/plain", "missing ssid");
+    return;
+  }
+  const String ssid = server.arg("ssid");
+  const String pass = server.arg("pass");
+  save_wifi_creds(ssid, pass);
+  server.send(200, "text/plain", "saved");
+}
+
+static void start_ap_mode() {
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(AP_SSID, AP_PASS);
+  wifi_sta_connected = false;
+}
+
+static void start_sta_mode() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
+  const unsigned long start_ms = millis();
+  while (WiFi.status() != WL_CONNECTED &&
+         (millis() - start_ms) < STA_CONNECT_TIMEOUT_MS) {
+    delay(200);
+  }
+  wifi_sta_connected = (WiFi.status() == WL_CONNECTED);
+  if (wifi_sta_connected) {
+    MDNS.begin(MDNS_NAME);
+  }
+}
+
+static void setup_wifi() {
+  load_wifi_creds();
+  if (wifi_ssid.length() > 0) {
+    start_sta_mode();
+  }
+  if (!wifi_sta_connected) {
+    start_ap_mode();
+  }
+}
+
+static void setup_http() {
+  server.on("/", HTTP_GET, handle_root);
+  server.on("/api/summary", HTTP_GET, handle_summary);
+  server.on("/wifi", HTTP_GET, handle_wifi_page);
+  server.on("/api/wifi", HTTP_POST, handle_wifi_save);
+  server.begin();
 }
 
 // Expose the daily summary via BLE (read-only).
@@ -326,6 +478,8 @@ void setup() {
   // Open NVS namespace and restore last known metrics.
   prefs.begin("dogrgb", false);
   load_metrics();
+  setup_wifi();
+  setup_http();
   setup_ble();
   Serial.println("Dog-RGB ESP32-S3 GPS-first base firmware");
 }
@@ -367,6 +521,8 @@ void loop() {
     build_summary_payload(payload, sizeof(payload));
     summary_char->setValue(payload, sizeof(payload));
   }
+
+  server.handleClient();
 
   // Placeholder for GPS-based LED mapping and patterns.
 }
