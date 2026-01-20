@@ -51,7 +51,7 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 
 5) Modo normal
 - Segmento: B (LED 3-fin)
-- Modo: color estable segun velocidad (rangos definidos en firmware)
+- Modo: efecto por rango de velocidad (FastLED, configurable en `config.h`)
 
 ---
 

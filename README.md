@@ -191,6 +191,7 @@ Phase 4 - Miniaturization (Small Dogs)
 - NVS persistence (periodic save)
 - Serial heartbeat logs
 - Configurable ranges and strip settings in `firmware/esp32s3_base/include/config.h`
+- FastLED effects per speed range (Segment B)
 
 Base project: `firmware/esp32s3_base/`
 

@@ -638,12 +638,11 @@ static void update_led_ui() {
   }
 
   if (full_override) {
-    strip_fill_segment(strip_a, full_r, full_g, full_b, full_r, full_g, full_b, true);
-    strip_a.show();
+    fill_solid(leds_a, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
     if (LED_STRIP_MODE == 2) {
-      strip_fill_segment(strip_b, full_r, full_g, full_b, full_r, full_g, full_b, true);
-      strip_b.show();
+      fill_solid(leds_b, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
     }
+    FastLED.show();
     return;
   }
 
@@ -672,43 +671,33 @@ static void update_led_ui() {
   }
 
   const bool body_on = gps_ok;
-  uint8_t body_r = 0;
-  uint8_t body_g = 0;
-  uint8_t body_b = 0;
-  if (body_on) {
-    if (last_speed_kph <= SPEED_RANGE_1_KPH) {
-      body_r = 0;
-      body_g = 0;
-      body_b = 60;
-    } else if (last_speed_kph <= SPEED_RANGE_2_KPH) {
-      body_r = 20;
-      body_g = 0;
-      body_b = 60;
-    } else if (last_speed_kph <= SPEED_RANGE_3_KPH) {
-      body_r = 40;
-      body_g = 0;
-      body_b = 60;
-    } else if (last_speed_kph <= SPEED_RANGE_4_KPH) {
-      body_r = 60;
-      body_g = 0;
-      body_b = 40;
-    } else if (last_speed_kph <= SPEED_RANGE_5_KPH) {
-      body_r = 60;
-      body_g = 0;
-      body_b = 20;
-    } else {
-      body_r = 60;
-      body_g = 0;
-      body_b = 0;
+  const int seg_start = LED_STATUS_COUNT;
+  const int seg_count = LED_STRIP_COUNT - LED_STATUS_COUNT;
+  const uint8_t range = speed_range(last_speed_kph);
+  int effect_a = RANGE_1_EFFECT_A;
+  int effect_b = RANGE_1_EFFECT_B;
+  uint8_t eff_speed = RANGE_1_SPEED;
+  uint8_t eff_intensity = RANGE_1_INTENSITY;
+  get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
+  const CRGB base = base_color_for_range(range);
+
+  if (body_on && seg_count > 0) {
+    apply_effect(effect_a, leds_a, heat_a, seg_start, seg_count, base, eff_speed, eff_intensity, state_a);
+    if (LED_STRIP_MODE == 2) {
+      apply_effect(effect_b, leds_b, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
+    }
+  } else if (seg_count > 0) {
+    fill_range(leds_a, seg_start, seg_count, CRGB(0, 0, 0));
+    if (LED_STRIP_MODE == 2) {
+      fill_range(leds_b, seg_start, seg_count, CRGB(0, 0, 0));
     }
   }
 
-  strip_fill_segment(strip_a, r, g, b, body_r, body_g, body_b, body_on);
-  strip_a.show();
+  fill_range(leds_a, 0, LED_STATUS_COUNT, CRGB(r, g, b));
   if (LED_STRIP_MODE == 2) {
-    strip_fill_segment(strip_b, r, g, b, body_r, body_g, body_b, body_on);
-    strip_b.show();
+    fill_range(leds_b, 0, LED_STATUS_COUNT, CRGB(r, g, b));
   }
+  FastLED.show();
 }
 
 static void handle_root() {

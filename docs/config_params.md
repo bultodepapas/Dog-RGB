@@ -69,6 +69,22 @@ Estos valores viven en `firmware/esp32s3_base/include/config.h` y el firmware lo
 - SPEED_RANGE_4_KPH: 6.0
 - SPEED_RANGE_5_KPH: 7.5
 
+Efectos por rango (FastLED, ver `docs/led_effects_plan.md`):
+- RANGE_1_EFFECT_A / RANGE_1_EFFECT_B
+- RANGE_2_EFFECT_A / RANGE_2_EFFECT_B
+- RANGE_3_EFFECT_A / RANGE_3_EFFECT_B
+- RANGE_4_EFFECT_A / RANGE_4_EFFECT_B
+- RANGE_5_EFFECT_A / RANGE_5_EFFECT_B
+- RANGE_6_EFFECT_A / RANGE_6_EFFECT_B
+
+Velocidad e intensidad por rango:
+- RANGE_1_SPEED / RANGE_1_INTENSITY
+- RANGE_2_SPEED / RANGE_2_INTENSITY
+- RANGE_3_SPEED / RANGE_3_INTENSITY
+- RANGE_4_SPEED / RANGE_4_INTENSITY
+- RANGE_5_SPEED / RANGE_5_INTENSITY
+- RANGE_6_SPEED / RANGE_6_INTENSITY
+
 Mapeo de color:
 - 0.0 - 1.5 km/h: Azul (0, 0, 60)
 - 1.5 - 3.0 km/h: Azul/Violeta (20, 0, 60)
