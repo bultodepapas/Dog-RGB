@@ -51,7 +51,7 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 
 5) Modo normal
 - Segmento: B (LED 3-fin)
-- Modo: respiracion suave o color estable (definir luego)
+- Modo: color estable segun velocidad (rangos definidos en firmware)
 
 ---
 
@@ -90,6 +90,15 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 - STA intentando: wifi_ssid definido y WL_CONNECTED = false
 - AP activo: modo AP
 - Error critico: sin GPS y sin Wi-Fi por > 10 min
+
+---
+
+## Mapeo velocidad -> color (Segmento B)
+
+- 0.0 - 1.5 km/h: Azul (0, 0, 60)
+- 1.5 - 4.0 km/h: Morado (40, 0, 60)
+- 4.0 - 7.0 km/h: Naranja (60, 0, 20)
+- > 7.0 km/h: Rojo (60, 0, 0)
 
 ---
 

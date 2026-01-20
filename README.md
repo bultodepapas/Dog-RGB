@@ -209,6 +209,8 @@ Base project: `firmware/esp32s3_base/`
 - Wi-Fi portal state diagram: [`docs/wifi_portal_state_diagram.md`](docs/wifi_portal_state_diagram.md)
 - LED UI spec: [`docs/led_ui_spec.md`](docs/led_ui_spec.md)
 - SK6812 wiring guide: [`docs/sk6812_wiring.md`](docs/sk6812_wiring.md)
+- BOM + power budget: [`docs/bom_power_budget.md`](docs/bom_power_budget.md)
+- Config params: [`docs/config_params.md`](docs/config_params.md)
 
 ---
 

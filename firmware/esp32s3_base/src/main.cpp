@@ -43,14 +43,14 @@
 #include <ESPmDNS.h>
 #include <Adafruit_NeoPixel.h>
 #include "pins.h"
+#include "config.h"
 
 // Heartbeat for status LED and periodic serial logs.
 static const unsigned long HEARTBEAT_MS = 1000;
 static unsigned long last_heartbeat_ms = 0;
 static bool led_state = false;
 
-// GPS UART settings.
-static const uint32_t GPS_BAUD = 9600;
+// GPS UART settings are defined in config.h.
 static HardwareSerial GPS(1);
 static Preferences prefs;
 static BLECharacteristic *summary_char = nullptr;
@@ -65,10 +65,7 @@ static bool has_gps_fix = false;
 static float last_speed_kph = 0.0f;
 static unsigned long last_gps_ms = 0;
 
-// Behavior thresholds and sampling.
-static const float SPEED_ACTIVE_KPH = 0.7f;
-static const float SPEED_MAX_VALID_KPH = 40.0f;
-static const unsigned long GPS_SAMPLE_MS = 1000;
+// Behavior thresholds and sampling are defined in config.h.
 
 // Rolling metrics for the current day.
 static unsigned long last_sample_ms = 0;
@@ -85,36 +82,25 @@ static float last_lon_deg = 0.0f;
 // Daily reset date (YYYYMMDD from GPS).
 static uint32_t current_date_yyyymmdd = 0;
 static unsigned long last_save_ms = 0;
-static const unsigned long SAVE_INTERVAL_MS = 60000;
 
 // BLE identifiers for the daily summary.
 static const char *BLE_DEVICE_NAME = "Dog-Collar";
 static const char *BLE_SERVICE_UUID = "8b4c0001-6c1d-4f3c-a5b0-1e0c5a00a101";
 static const char *BLE_CHAR_UUID = "8b4c0002-6c1d-4f3c-a5b0-1e0c5a00a101";
 
-// Wi-Fi settings (AP + STA). Change here to update default credentials.
-static const char *AP_SSID = "dog";
-static const char *AP_PASS = "Dog123456789";
-static const char *MDNS_NAME = "dog-collar";
-static const unsigned long STA_CONNECT_TIMEOUT_MS = 10000;
-static const unsigned long WIFI_RETRY_INTERVAL_MS = 10000;
+// Wi-Fi settings are defined in config.h.
 
 static String wifi_ssid;
 static String wifi_pass;
 static bool wifi_sta_connected = false;
 static unsigned long last_wifi_check_ms = 0;
 
-// LED strip configuration (SK6812).
-static const bool LED_UI_ENABLED = true;
-static const int LED_STRIP_MODE = 2; // 1 = single strip, 2 = dual strips.
-static const int LED_STRIP_COUNT = 20; // LEDs per strip (min 10, max 50).
-static const int LED_STATUS_COUNT = 3; // First N LEDs reserved for status.
-static const uint8_t LED_BRIGHTNESS = 77; // ~30% brightness (0-255).
-static const unsigned long LED_UPDATE_MS = 50;
+// LED strip configuration is defined in config.h.
 static unsigned long last_led_update_ms = 0;
 
 static unsigned long last_ok_ms = 0;
-static const unsigned long CRITICAL_NO_OK_MS = 600000;
+
+// Speed-to-color ranges are defined in config.h.
 
 static Adafruit_NeoPixel strip_a(LED_STRIP_COUNT, PIN_LED_A_DATA, NEO_GRB + NEO_KHZ800);
 static Adafruit_NeoPixel strip_b(LED_STRIP_COUNT, PIN_LED_B_DATA, NEO_GRB + NEO_KHZ800);
@@ -498,10 +484,29 @@ static void update_led_ui() {
     b = clamp_u8(static_cast<int>(60 * scale));
   }
 
-  const bool body_on = (ap_mode || sta_ok || sta_try || gps_ok);
-  const uint8_t body_r = body_on ? 20 : 0;
-  const uint8_t body_g = body_on ? 20 : 0;
-  const uint8_t body_b = body_on ? 20 : 0;
+  const bool body_on = gps_ok;
+  uint8_t body_r = 0;
+  uint8_t body_g = 0;
+  uint8_t body_b = 0;
+  if (body_on) {
+    if (last_speed_kph <= SPEED_RANGE_1_KPH) {
+      body_r = 0;
+      body_g = 0;
+      body_b = 60;
+    } else if (last_speed_kph <= SPEED_RANGE_2_KPH) {
+      body_r = 40;
+      body_g = 0;
+      body_b = 60;
+    } else if (last_speed_kph <= SPEED_RANGE_3_KPH) {
+      body_r = 60;
+      body_g = 0;
+      body_b = 20;
+    } else {
+      body_r = 60;
+      body_g = 0;
+      body_b = 0;
+    }
+  }
 
   strip_fill_segment(strip_a, r, g, b, body_r, body_g, body_b, body_on);
   strip_a.show();
