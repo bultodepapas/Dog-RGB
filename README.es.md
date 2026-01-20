@@ -1,6 +1,6 @@
 # Smart LED Dog Collar
 
-[English](README.en.md) | [Espanol](README.es.md) | [Manual de uso](docs/manual_de_uso.md)
+[English](README.en.md) | [Espanol](README.es.md) | [Manual de uso](docs/manual_de_uso.md) | [Manual de construccion](docs/manual_de_construccion.md)
 
 Collar LED inteligente y de alta visibilidad para perros medianos y grandes, disenado para seguridad, comodidad y expansion futura (GPS, app BLE, modos avanzados).
 
