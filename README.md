@@ -215,6 +215,8 @@ Base project: `firmware/esp32s3_base/`
 - LED effects plan: [`docs/led_effects_plan.md`](docs/led_effects_plan.md)
 - Manual de uso: [`docs/manual_de_uso.md`](docs/manual_de_uso.md)
 - Portal config plan: [`docs/portal_config_plan.md`](docs/portal_config_plan.md)
+- Portal config NVS plan: [`docs/portal_config_nvs_plan.md`](docs/portal_config_nvs_plan.md)
+- Portal config UI plan: [`docs/portal_config_ui_plan.md`](docs/portal_config_ui_plan.md)
 
 ---
 
