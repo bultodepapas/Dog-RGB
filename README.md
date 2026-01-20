@@ -217,6 +217,9 @@ Base project: `firmware/esp32s3_base/`
 - Portal config plan: [`docs/portal_config_plan.md`](docs/portal_config_plan.md)
 - Portal config NVS plan: [`docs/portal_config_nvs_plan.md`](docs/portal_config_nvs_plan.md)
 - Portal config UI plan: [`docs/portal_config_ui_plan.md`](docs/portal_config_ui_plan.md)
+- Portal config NVS schema: [`docs/portal_config_nvs_schema.md`](docs/portal_config_nvs_schema.md)
+- Portal config apply flow: [`docs/portal_config_apply_flow.md`](docs/portal_config_apply_flow.md)
+- Portal config presets: [`docs/portal_config_presets.md`](docs/portal_config_presets.md)
 
 ---
 
