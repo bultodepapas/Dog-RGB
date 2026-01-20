@@ -126,21 +126,26 @@ Outputs:
 
 ## 🗺️ Development Roadmap
 
-Phase 1 - MVP (Medium/Large Dogs)
+Phase 1 - GPS-First MVP (Medium/Large Dogs)
 
 - Battery + charger + boost
-- ESP32-S3 + IMU + LED control
+- ESP32-S3 + GPS + LED control
 - Basic patterns and brightness limits
 - Battery monitoring
 
-Phase 2 - Advanced Features
+Phase 2 - Motion-Based Logic
 
-- GPS integration
-- BLE configuration
-- Activity profiles
-- Expanded patterns
+- Add IMU for movement classification
+- Merge GPS speed + IMU intensity
+- Refine activity profiles
 
-Phase 3 - Miniaturization (Small Dogs)
+Phase 3 - Heart Rate Integration
+
+- Add heart-rate sensor
+- Use HR as additional activity signal
+- Calibrate thresholds and safety limits
+
+Phase 4 - Miniaturization (Small Dogs)
 
 - Reduced electronics footprint
 - Lower weight battery options
