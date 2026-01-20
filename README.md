@@ -1,62 +1,170 @@
 # Smart LED Dog Collar
 
-## Overview
+[:paw_prints:] A smart, high-visibility LED collar for medium-to-large dogs.
+Designed for safety, comfort, and future expansion (GPS, BLE app, advanced modes).
 
-Smart illuminated collar for a 14 kg Siberian Husky using high-density addressable LEDs, motion-based behavior, and a single 21700 Li-ion cell. Designed for visibility, safety, and future expandability (GPS, BLE app, advanced modes).
+---
 
-## Key Goals
+## [:dart:] Objective
 
-- High visibility at night with premium LED animation quality.
-- Motion- and speed-reactive color and brightness.
-- Good battery life from a single 21700 cell.
-- Safe, comfortable, and weather-resistant mechanical design.
-- Expandable architecture for GPS and BLE configuration.
+Build a collar that is:
 
-## Core Specs (Initial Target)
+- [:flashlight:] Highly visible at night with premium LED animation quality.
+- [:runner:] Motion- and speed-reactive for color and brightness changes.
+- [:battery:] Efficient with a single 21700 Li-ion cell.
+- [:shield:] Safe, comfortable, and weather-resistant.
+- [:satellite:] Ready for GPS and BLE expansion.
 
-- Collar length: 45 cm
-- LED strip: APA102 / SK9822, 144 LEDs/m
-- LED count: ~65
-- MCU: ESP32-S3
-- IMU: BMI270 or ICM-42688 (MPU6050 acceptable)
-- Battery: 21700 Li-ion, ~5000 mAh
-- Power: 5V boost converter (>=2A continuous)
+---
 
-## Power Architecture
+## [:triangular_ruler:] Mechanical Design Targets
+
+- Neck circumference: 40-55 cm (medium/large dogs)
+- Strap width: 20-25 mm
+- LED diffuser: silicone tube over nylon strap
+- Total weight target: 120-160 g
+- Enclosure: compact, IP65-IP67, strain-relieved
+
+---
+
+## [:bulb:] LED System
+
+Recommended LEDs:
+
+- APA102 / SK9822 (5V, clocked)
+- Density: 144 LEDs/m
+- Length: 45 cm
+- Total LEDs: ~65
+
+Why APA102/SK9822:
+
+- Smooth animations at low brightness
+- Better stability than WS2812
+- High-quality color control
+
+Note:
+
+- Requires regulated 5V (do not power directly from battery)
+
+---
+
+## [:battery:] Power System
+
+Battery:
+
+- 21700 Li-ion
+- ~5000 mAh
+- 18.5 Wh nominal energy
+
+LED power budget (65 LEDs, average current per LED):
+
+- 5 mA -> ~1.6 W -> ~10 hours
+- 10 mA -> ~3.25 W -> ~5 hours
+- 20 mA -> ~6.5 W -> ~2.5 hours
+
+Design goal: 5-10 mA per LED average
+
+---
+
+## [:electric_plug:] Power Architecture
 
 ```
 21700 Battery (3.0-4.2V)
    -> BMS 1S + USB-C charger
-   -> 5V boost converter
+   -> 5V boost converter (>=2A continuous)
    -> APA102 LED strip
    -> 3.3V regulator -> ESP32-S3 + sensors
 ```
 
-## Behavior Logic (High Level)
+Additional features:
 
-- Color transitions from blue to red as activity increases.
-- Brightness scales with movement intensity.
-- Effects: breathing (idle), pulsing (medium), chase/strobe (high).
+- Battery voltage monitoring
+- Low-battery protection
+- Physical switch or Hall sensor
 
-## Project Phases
+---
 
-1) MVP: LED + IMU + ESP32-S3 + battery + boost + button
-2) Advanced: GPS, BLE app, profiles, extended patterns
+## [:brain:] Control System
 
-## Repository Structure
+MCU:
+
+- ESP32-S3 (BLE-ready, LED control, sensor processing)
+
+IMU options:
+
+- BMI270
+- ICM-42688
+- (MPU6050 acceptable for prototypes)
+
+Optional GPS:
+
+- u-blox M10 series
+- Powered only when movement is detected
+
+---
+
+## [:art:] Behavior Logic
+
+Inputs:
+
+- IMU movement intensity
+- GPS speed (when enabled)
+
+Outputs:
+
+- Color mapping:
+  - Resting -> Blue
+  - Walking -> Purple
+  - Running -> Red
+- Brightness scales with activity
+- Effects:
+  - Breathing (idle)
+  - Pulsing (medium)
+  - Chase or strobe (high)
+
+---
+
+## [:map:] Development Roadmap
+
+Phase 1 - MVP (Medium/Large Dogs)
+
+- Battery + charger + boost
+- ESP32-S3 + IMU + LED control
+- Basic patterns and brightness limits
+- Battery monitoring
+
+Phase 2 - Advanced Features
+
+- GPS integration
+- BLE configuration
+- Activity profiles
+- Expanded patterns
+
+Phase 3 - Miniaturization (Small Dogs)
+
+- Reduced electronics footprint
+- Lower weight battery options
+- Smaller LED density and strap width variants
+
+---
+
+## [:file_folder:] Repository Structure
 
 - `docs/` product specs, architecture, decisions, roadmap
 - `hardware/` schematics, PCB, power design notes
-- `firmware/` embedded firmware source (later)
-- `software/` app/BLE tooling (later)
+- `firmware/` embedded firmware source (future)
+- `software/` app/BLE tooling (future)
 - `assets/` diagrams, renders, images
 - `research/` datasheets, references, calculations
-- `tests/` test plans and validation notes
-- `tools/` scripts and utilities (later)
+- `tests/` validation and test plans
+- `tools/` scripts and utilities
 
-## Next Steps
+---
 
-- Collect parts list and sourcing options
-- Draft electrical schematic and power budget
-- Define IMU thresholds and LED profiles
-- Sketch enclosure and strain relief
+## [:rocket:] Next Steps
+
+- Build a detailed BOM and sourcing list
+- Create power budget with real component efficiencies
+- Draft schematic for power + LEDs + IMU
+- Define IMU thresholds for activity levels
+- Sketch enclosure and cable routing
