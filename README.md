@@ -200,13 +200,15 @@ Base project: `firmware/esp32s3_base/`
 
 ## Documentation Index
 
-- Phase 0 freeze: `docs/phase0_freeze.md`
-- Tasks backlog: `docs/tasks.md`
-- GPS -> calculation -> BLE flow: `docs/flow_wireframe.md`
-- Web portal spec: `docs/web_portal_spec.md`
-- BLE spec: `docs/ble_spec.md`
-- App MVP spec: `docs/app_mvp_spec.md`
-- Wi-Fi portal spec: `docs/wifi_portal_spec.md`
+- Phase 0 freeze: [`docs/phase0_freeze.md`](docs/phase0_freeze.md)
+- Tasks backlog: [`docs/tasks.md`](docs/tasks.md)
+- GPS -> calculation -> BLE flow: [`docs/flow_wireframe.md`](docs/flow_wireframe.md)
+- Web portal spec: [`docs/web_portal_spec.md`](docs/web_portal_spec.md)
+- BLE spec: [`docs/ble_spec.md`](docs/ble_spec.md)
+- App MVP spec (future): [`docs/app_mvp_spec.md`](docs/app_mvp_spec.md)
+- Wi-Fi portal spec: [`docs/wifi_portal_spec.md`](docs/wifi_portal_spec.md)
+- Wi-Fi portal plan: [`docs/wifi_portal_plan.md`](docs/wifi_portal_plan.md)
+- Wi-Fi portal state diagram: [`docs/wifi_portal_state_diagram.md`](docs/wifi_portal_state_diagram.md)
 
 ---
 

@@ -61,10 +61,12 @@ static const char *AP_SSID = "dog";
 static const char *AP_PASS = "Dog123456789";
 static const char *MDNS_NAME = "dog-collar";
 static const unsigned long STA_CONNECT_TIMEOUT_MS = 10000;
+static const unsigned long WIFI_RETRY_INTERVAL_MS = 10000;
 
 static String wifi_ssid;
 static String wifi_pass;
 static bool wifi_sta_connected = false;
+static unsigned long last_wifi_check_ms = 0;
 
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
@@ -340,7 +342,13 @@ static void handle_wifi_save() {
   const String ssid = server.arg("ssid");
   const String pass = server.arg("pass");
   save_wifi_creds(ssid, pass);
-  server.send(200, "text/plain", "saved");
+  start_sta_mode();
+  if (wifi_sta_connected) {
+    server.send(200, "text/plain", "saved and connected");
+    return;
+  }
+  start_ap_mode();
+  server.send(200, "text/plain", "saved, fallback to AP");
 }
 
 static void start_ap_mode() {
@@ -520,6 +528,18 @@ void loop() {
     uint8_t payload[16];
     build_summary_payload(payload, sizeof(payload));
     summary_char->setValue(payload, sizeof(payload));
+  }
+
+  if (now_ms - last_wifi_check_ms >= WIFI_RETRY_INTERVAL_MS) {
+    last_wifi_check_ms = now_ms;
+    if (wifi_sta_connected && WiFi.status() != WL_CONNECTED) {
+      start_ap_mode();
+    } else if (!wifi_sta_connected && wifi_ssid.length() > 0) {
+      start_sta_mode();
+      if (!wifi_sta_connected) {
+        start_ap_mode();
+      }
+    }
   }
 
   server.handleClient();
