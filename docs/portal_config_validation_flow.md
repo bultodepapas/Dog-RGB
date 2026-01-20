@@ -10,7 +10,7 @@ Este documento define el flujo de validacion para el formulario de configuracion
 2) Rangos: 5 valores numericos y ascendentes
 3) Efectos: id 0..11
 4) Speed/intensity: 0..255
-5) Password AP: >= 8
+5) Password AP: >= 8 (si no se marca AP abierto)
 6) mDNS: solo letras, numeros y guiones
 
 Si falla: mostrar mensaje y bloquear envio.

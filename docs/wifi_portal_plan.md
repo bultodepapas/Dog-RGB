@@ -85,7 +85,7 @@ Campos:
 
 ## 8. Seguridad basica
 
-- AP con password simple configurable.
+- AP con password configurable (opcionalmente abierto).
 - No exponer password en frontend.
 - Limitar endpoints a LAN.
 

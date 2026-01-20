@@ -40,7 +40,7 @@ Solo se exponen:
   },
   "wifi": {
     "ap_ssid": "dog",
-    "ap_pass": "Dog123456789",
+    "has_ap_pass": true,
     "mdns": "dog-collar"
   }
 }
@@ -55,7 +55,8 @@ Solo se exponen:
 - effect ids: 0..11
 - effect speed/intensity: 0..255
 - ap_ssid: 1..32
-- ap_pass: >= 8
+- ap_pass: >= 8 (si se envia)
+- ap_open: true/false (si true, AP sin password)
 - mdns: 1..32 (solo letras, numeros y guiones)
 
 ---
@@ -69,6 +70,7 @@ Solo se exponen:
   - Efectos
 - Para Wi-Fi:
   - Reiniciar AP con nuevo SSID/PASS
+  - Si ap_open=true, limpiar password y dejar AP abierto
   - Reiniciar mDNS si STA activo
 
 ---

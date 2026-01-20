@@ -26,6 +26,7 @@ Este documento define la pantalla de configuracion para parametros runtime.
 ### Seccion 4: Wi-Fi AP
 - SSID
 - Password
+- Checkbox: "AP abierto (sin password)"
 - mDNS
  - Aviso: cambiar AP puede desconectar la sesion
 
@@ -41,7 +42,7 @@ Este documento define la pantalla de configuracion para parametros runtime.
 - Brillo 1..255
 - Effect id 0..11
 - Speed/intensity 0..255
-- Password >= 8
+- Password >= 8 (si no se marca AP abierto)
 
 ---
 

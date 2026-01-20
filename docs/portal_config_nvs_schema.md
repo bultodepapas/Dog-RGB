@@ -23,7 +23,7 @@ Este documento define el esquema de almacenamiento para configuracion runtime en
 ### Valores simples
 - `brightness` (uint8)
 - `ap_ssid` (string)
-- `ap_pass` (string)
+- `ap_pass` (string, puede estar vacio para AP abierto)
 - `mdns` (string)
 
 ### Rangos de velocidad
@@ -54,6 +54,7 @@ Este documento define el esquema de almacenamiento para configuracion runtime en
 - Guardar solo cuando el usuario pulsa "Guardar".
 - Validar antes de escribir.
 - Si falta alguna clave, usar default de `config.h`.
+- Si se solicita AP abierto, guardar `ap_pass` como string vacio.
 
 ---
 

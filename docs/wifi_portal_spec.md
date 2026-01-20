@@ -108,7 +108,7 @@ Este documento describe un portal web ultra simple que funciona en dos modos:
 
 ## Seguridad basica
 
-- AP con password simple (configurable).
+- AP con password configurable (opcionalmente abierto).
 - No exponer credenciales en el frontend.
 - Limitar endpoints solo a la red local.
 

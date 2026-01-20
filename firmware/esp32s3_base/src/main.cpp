@@ -823,6 +823,7 @@ static String html_config_page() {
       "<h3>Wi-Fi AP</h3>"
       "<div><label>SSID</label><input id='ap_ssid' type='text'></div>"
       "<div><label>Password</label><input id='ap_pass' type='password' placeholder='(sin cambio)'></div>"
+      "<div><label><input id='ap_open' type='checkbox'> AP abierto (sin password)</label></div>"
       "<div id='ap_hint' style='font-size:12px;color:#666'></div>"
       "<div id='ap_warn' style='font-size:12px;color:#b00'></div>"
       "<div><label>mDNS</label><input id='mdns' type='text'></div>"
@@ -855,10 +856,11 @@ static String html_config_page() {
       "}"
       "document.getElementById('ap_ssid').value=c.wifi.ap_ssid;"
       "document.getElementById('mdns').value=c.wifi.mdns;"
-      "document.getElementById('ap_hint').innerText=c.wifi.has_ap_pass?'Password configurada':'Password vacia';"
+      "document.getElementById('ap_open').checked=!c.wifi.has_ap_pass;"
+      "document.getElementById('ap_hint').innerText=c.wifi.has_ap_pass?'Password configurada':'AP abierto';"
       "});"
       "function saveCfg(){"
-      "if(ap_ssid.value!==''||ap_pass.value!==''||mdns.value!==''){"
+      "if(ap_ssid.value!==''||ap_pass.value!==''||mdns.value!==''||ap_open.checked){"
       "ap_warn.innerText='Nota: cambiar AP puede desconectar la sesion.';"
       "if(!confirm('Guardar cambios? El AP puede reiniciarse.')){return;}"
       "}"
@@ -870,7 +872,7 @@ static String html_config_page() {
       "b:parseInt(document.getElementById('e'+i+'b').value),"
       "speed:parseInt(document.getElementById('e'+i+'s').value),"
       "intensity:parseInt(document.getElementById('e'+i+'i').value)};}"
-      "cfg.wifi={ap_ssid:ap_ssid.value,ap_pass:ap_pass.value,mdns:mdns.value};"
+      "cfg.wifi={ap_ssid:ap_ssid.value,ap_pass:ap_pass.value,ap_open:ap_open.checked,mdns:mdns.value};"
       "fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)})"
       ".then(r=>r.json()).then(r=>{"
       "status.innerText=r.status+(r.wifi_restart?' (reiniciando AP)':'');"
@@ -1003,12 +1005,13 @@ static void handle_config_post() {
 
   const String ap_ssid = doc["wifi"]["ap_ssid"] | next.ap_ssid;
   const String ap_pass = doc["wifi"]["ap_pass"] | String("");
+  const bool ap_open = doc["wifi"]["ap_open"] | false;
   const String mdns = doc["wifi"]["mdns"] | next.mdns;
   if (ap_ssid.length() < 1 || ap_ssid.length() > 32) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ssid\"}");
     return;
   }
-  if (ap_pass.length() > 0 && ap_pass.length() < 8) {
+  if (!ap_open && ap_pass.length() > 0 && ap_pass.length() < 8) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"pass\"}");
     return;
   }
@@ -1017,7 +1020,9 @@ static void handle_config_post() {
     return;
   }
   next.ap_ssid = ap_ssid;
-  if (ap_pass.length() > 0) {
+  if (ap_open) {
+    next.ap_pass = "";
+  } else if (ap_pass.length() > 0) {
     next.ap_pass = ap_pass;
   }
   next.mdns = mdns;
@@ -1061,23 +1066,21 @@ static void handle_wifi_save() {
   const String pass = server.arg("pass");
   save_wifi_creds(ssid, pass);
   start_sta_mode();
-  if (wifi_sta_connected) {
-    server.send(200, "text/plain", "saved and connected");
-    return;
-  }
-  start_ap_mode();
-  server.send(200, "text/plain", "saved, fallback to AP");
+  server.send(200, "text/plain", "saved, connecting");
 }
 
 static void start_ap_mode() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
   wifi_sta_connected = false;
+  wifi_sta_connecting = false;
 }
 
 static void start_sta_mode() {
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
   WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
+  wifi_sta_connected = false;
   wifi_sta_connecting = true;
   wifi_sta_start_ms = millis();
 }
@@ -1131,9 +1134,7 @@ static void handle_nmea_line(const char *line) {
     has_gps_fix = valid_fix;
     last_speed_kph = speed_kph;
     last_gps_ms = millis();
-    if (time_min > 0) {
-      last_update_min = time_min;
-    }
+    last_update_min = time_min;
 
     if (date_yyyymmdd != 0 && date_yyyymmdd != current_date_yyyymmdd) {
       current_date_yyyymmdd = date_yyyymmdd;
@@ -1252,14 +1253,18 @@ void loop() {
   if (now_ms - last_wifi_check_ms >= WIFI_RETRY_INTERVAL_MS) {
     last_wifi_check_ms = now_ms;
     if (wifi_sta_connected && WiFi.status() != WL_CONNECTED) {
-      start_ap_mode();
       wifi_sta_connected = false;
-      wifi_sta_connecting = false;
+      if (wifi_ssid.length() > 0) {
+        start_sta_mode();
+      } else {
+        start_ap_mode();
+      }
     } else if (wifi_sta_connecting) {
       if (WiFi.status() == WL_CONNECTED) {
         wifi_sta_connected = true;
         wifi_sta_connecting = false;
         MDNS.begin(g_cfg.mdns.c_str());
+        WiFi.softAPdisconnect(true);
       } else if ((now_ms - wifi_sta_start_ms) >= STA_CONNECT_TIMEOUT_MS) {
         wifi_sta_connecting = false;
         start_ap_mode();

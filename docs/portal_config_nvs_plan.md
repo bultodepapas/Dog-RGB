@@ -22,7 +22,7 @@ Claves sugeridas:
 - `ranges` (blob de 5 floats)
 - `effects` (blob de 6 structs)
 - `ap_ssid` (string)
-- `ap_pass` (string)
+- `ap_pass` (string, puede estar vacio para AP abierto)
 - `mdns` (string)
 
 ---
@@ -41,6 +41,7 @@ Claves sugeridas:
 - Rangos: aplicar inmediato.
 - Efectos: aplicar inmediato.
 - Wi-Fi: reiniciar AP con nuevo SSID/PASS.
+- Si se solicita AP abierto, guardar `ap_pass` vacio.
 - mDNS: reiniciar si STA activo.
 
 ---
