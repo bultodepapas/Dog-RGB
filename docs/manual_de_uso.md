@@ -50,6 +50,15 @@ Este manual explica como encender, conectar y leer el collar en la Fase 1 (GPS +
 
 ---
 
+## 4.1) Configuracion avanzada
+
+- Abre `http://192.168.4.1/config` (AP) o `http://dog-collar.local/config` (STA).
+- Ajusta brillo, rangos y efectos por velocidad.
+- Presiona "Guardar" para aplicar cambios.
+- Presiona "Restaurar defaults" para volver a valores de fabrica.
+
+---
+
 ## 5) Estados LED (resumen)
 
 - Azul pulsante: GPS buscando.

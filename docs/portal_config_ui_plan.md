@@ -27,6 +27,7 @@ Este documento define la pantalla de configuracion para parametros runtime.
 - SSID
 - Password
 - mDNS
+ - Aviso: cambiar AP puede desconectar la sesion
 
 ### Acciones
 - Boton "Guardar"

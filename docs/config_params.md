@@ -23,6 +23,7 @@ Este documento centraliza los parametros que se definen al inicio del proyecto p
 
 Valores actuales (default) y recomendados para inicio.
 Estos valores viven en `firmware/esp32s3_base/include/config.h` y el firmware los usa en compilacion.
+Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en NVS.
 
 | Parametro | Default | Recomendado | Nota |
 | --- | --- | --- | --- |

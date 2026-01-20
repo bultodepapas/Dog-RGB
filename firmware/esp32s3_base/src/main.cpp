@@ -21,6 +21,7 @@
 
   Dependencies:
   - FastLED
+  - ArduinoJson
   - ESP32 Arduino core (WiFi, WebServer, ESPmDNS)
 
   Build/flash (PlatformIO):
@@ -31,6 +32,7 @@
   Power/safety notes:
   - SK6812 requires 5V and good decoupling; avoid brownouts.
   - Keep brightness low (30%) to reduce heat and battery draw.
+  - Runtime parameters can be adjusted via /config on the portal.
 */
 
 #include <Arduino.h>
@@ -42,6 +44,7 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <FastLED.h>
+#include <ArduinoJson.h>
 #include "pins.h"
 #include "config.h"
 
@@ -53,6 +56,7 @@ static bool led_state = false;
 // GPS UART settings are defined in config.h.
 static HardwareSerial GPS(1);
 static Preferences prefs;
+static Preferences prefs_cfg;
 static BLECharacteristic *summary_char = nullptr;
 static WebServer server(80);
 
@@ -114,6 +118,28 @@ struct EffectState {
 
 static EffectState state_a;
 static EffectState state_b;
+
+struct RangeEffect {
+  uint8_t effect_a;
+  uint8_t effect_b;
+  uint8_t speed;
+  uint8_t intensity;
+};
+
+struct RuntimeConfig {
+  uint8_t brightness;
+  float ranges[5];
+  RangeEffect effects[6];
+  String ap_ssid;
+  String ap_pass;
+  String mdns;
+};
+
+static RuntimeConfig g_cfg;
+static const uint8_t CONFIG_VERSION = 1;
+static bool pending_ap_restart = false;
+static unsigned long pending_ap_at_ms = 0;
+static const unsigned long AP_RESTART_DELAY_MS = 500;
 
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
@@ -344,6 +370,101 @@ static String build_summary_json() {
   return json;
 }
 
+static bool validate_ranges(const float *ranges) {
+  for (int i = 1; i < 5; ++i) {
+    if (!(ranges[i] > ranges[i - 1])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool validate_effects(const RangeEffect *effects) {
+  for (int i = 0; i < 6; ++i) {
+    if (effects[i].effect_a > 11 || effects[i].effect_b > 11) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static void set_default_config() {
+  g_cfg.brightness = LED_BRIGHTNESS;
+  g_cfg.ranges[0] = SPEED_RANGE_1_KPH;
+  g_cfg.ranges[1] = SPEED_RANGE_2_KPH;
+  g_cfg.ranges[2] = SPEED_RANGE_3_KPH;
+  g_cfg.ranges[3] = SPEED_RANGE_4_KPH;
+  g_cfg.ranges[4] = SPEED_RANGE_5_KPH;
+
+  g_cfg.effects[0] = {static_cast<uint8_t>(RANGE_1_EFFECT_A), static_cast<uint8_t>(RANGE_1_EFFECT_B),
+                      RANGE_1_SPEED, RANGE_1_INTENSITY};
+  g_cfg.effects[1] = {static_cast<uint8_t>(RANGE_2_EFFECT_A), static_cast<uint8_t>(RANGE_2_EFFECT_B),
+                      RANGE_2_SPEED, RANGE_2_INTENSITY};
+  g_cfg.effects[2] = {static_cast<uint8_t>(RANGE_3_EFFECT_A), static_cast<uint8_t>(RANGE_3_EFFECT_B),
+                      RANGE_3_SPEED, RANGE_3_INTENSITY};
+  g_cfg.effects[3] = {static_cast<uint8_t>(RANGE_4_EFFECT_A), static_cast<uint8_t>(RANGE_4_EFFECT_B),
+                      RANGE_4_SPEED, RANGE_4_INTENSITY};
+  g_cfg.effects[4] = {static_cast<uint8_t>(RANGE_5_EFFECT_A), static_cast<uint8_t>(RANGE_5_EFFECT_B),
+                      RANGE_5_SPEED, RANGE_5_INTENSITY};
+  g_cfg.effects[5] = {static_cast<uint8_t>(RANGE_6_EFFECT_A), static_cast<uint8_t>(RANGE_6_EFFECT_B),
+                      RANGE_6_SPEED, RANGE_6_INTENSITY};
+
+  g_cfg.ap_ssid = AP_SSID;
+  g_cfg.ap_pass = AP_PASS;
+  g_cfg.mdns = MDNS_NAME;
+}
+
+static void save_config() {
+  prefs_cfg.putUChar("ver", CONFIG_VERSION);
+  prefs_cfg.putUChar("brightness", g_cfg.brightness);
+  prefs_cfg.putBytes("ranges", g_cfg.ranges, sizeof(g_cfg.ranges));
+  prefs_cfg.putBytes("effects", g_cfg.effects, sizeof(g_cfg.effects));
+  prefs_cfg.putString("ap_ssid", g_cfg.ap_ssid);
+  prefs_cfg.putString("ap_pass", g_cfg.ap_pass);
+  prefs_cfg.putString("mdns", g_cfg.mdns);
+}
+
+static void load_config() {
+  if (prefs_cfg.getUChar("ver", 0) != CONFIG_VERSION) {
+    set_default_config();
+    save_config();
+    return;
+  }
+
+  g_cfg.brightness = prefs_cfg.getUChar("brightness", LED_BRIGHTNESS);
+  if (g_cfg.brightness < 1) {
+    g_cfg.brightness = LED_BRIGHTNESS;
+  }
+  if (prefs_cfg.getBytes("ranges", g_cfg.ranges, sizeof(g_cfg.ranges)) != sizeof(g_cfg.ranges)) {
+    set_default_config();
+    save_config();
+    return;
+  }
+  if (prefs_cfg.getBytes("effects", g_cfg.effects, sizeof(g_cfg.effects)) != sizeof(g_cfg.effects)) {
+    set_default_config();
+    save_config();
+    return;
+  }
+  g_cfg.ap_ssid = prefs_cfg.getString("ap_ssid", AP_SSID);
+  g_cfg.ap_pass = prefs_cfg.getString("ap_pass", AP_PASS);
+  g_cfg.mdns = prefs_cfg.getString("mdns", MDNS_NAME);
+
+  if (!validate_ranges(g_cfg.ranges) || !validate_effects(g_cfg.effects)) {
+    set_default_config();
+    save_config();
+  }
+}
+
+static void apply_config(const RuntimeConfig &previous) {
+  FastLED.setBrightness(g_cfg.brightness);
+  if (g_cfg.mdns != previous.mdns) {
+    if (wifi_sta_connected) {
+      MDNS.end();
+      MDNS.begin(g_cfg.mdns.c_str());
+    }
+  }
+}
+
 static String html_page() {
   return String(
       "<!doctype html><html><head><meta charset='utf-8'>"
@@ -360,7 +481,7 @@ static String html_page() {
       "<div class='card'><div>Velocidad promedio (km/h)</div><div id='avg'>--</div></div>"
       "<div class='card'><div>Velocidad maxima (km/h)</div><div id='max'>--</div></div>"
       "<div class='muted' id='updated'>Ultima lectura: --</div>"
-      "<p><a href='/wifi'>Configurar Wi-Fi</a></p>"
+      "<p><a href='/wifi'>Configurar Wi-Fi</a> | <a href='/config'>Config</a></p>"
       "<script>"
       "function minToTime(m){var h=Math.floor(m/60);var mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}"
       "function cmpsToKph(v){return (v*0.036).toFixed(1);}"
@@ -393,7 +514,7 @@ static void led_begin() {
   if (LED_STRIP_MODE == 2) {
     FastLED.addLeds<SK6812, PIN_LED_B_DATA, GRB>(leds_b, LED_STRIP_COUNT);
   }
-  FastLED.setBrightness(LED_BRIGHTNESS);
+  FastLED.setBrightness(g_cfg.brightness);
   FastLED.clear(true);
 }
 
@@ -415,11 +536,11 @@ static uint8_t step_from_speed(uint8_t speed, uint8_t divisor) {
 }
 
 static uint8_t speed_range(float kph) {
-  if (kph <= SPEED_RANGE_1_KPH) return 1;
-  if (kph <= SPEED_RANGE_2_KPH) return 2;
-  if (kph <= SPEED_RANGE_3_KPH) return 3;
-  if (kph <= SPEED_RANGE_4_KPH) return 4;
-  if (kph <= SPEED_RANGE_5_KPH) return 5;
+  if (kph <= g_cfg.ranges[0]) return 1;
+  if (kph <= g_cfg.ranges[1]) return 2;
+  if (kph <= g_cfg.ranges[2]) return 3;
+  if (kph <= g_cfg.ranges[3]) return 4;
+  if (kph <= g_cfg.ranges[4]) return 5;
   return 6;
 }
 
@@ -428,44 +549,11 @@ static void get_range_config(uint8_t range,
                              int &effect_b,
                              uint8_t &speed,
                              uint8_t &intensity) {
-  switch (range) {
-    case 1:
-      effect_a = RANGE_1_EFFECT_A;
-      effect_b = RANGE_1_EFFECT_B;
-      speed = RANGE_1_SPEED;
-      intensity = RANGE_1_INTENSITY;
-      break;
-    case 2:
-      effect_a = RANGE_2_EFFECT_A;
-      effect_b = RANGE_2_EFFECT_B;
-      speed = RANGE_2_SPEED;
-      intensity = RANGE_2_INTENSITY;
-      break;
-    case 3:
-      effect_a = RANGE_3_EFFECT_A;
-      effect_b = RANGE_3_EFFECT_B;
-      speed = RANGE_3_SPEED;
-      intensity = RANGE_3_INTENSITY;
-      break;
-    case 4:
-      effect_a = RANGE_4_EFFECT_A;
-      effect_b = RANGE_4_EFFECT_B;
-      speed = RANGE_4_SPEED;
-      intensity = RANGE_4_INTENSITY;
-      break;
-    case 5:
-      effect_a = RANGE_5_EFFECT_A;
-      effect_b = RANGE_5_EFFECT_B;
-      speed = RANGE_5_SPEED;
-      intensity = RANGE_5_INTENSITY;
-      break;
-    default:
-      effect_a = RANGE_6_EFFECT_A;
-      effect_b = RANGE_6_EFFECT_B;
-      speed = RANGE_6_SPEED;
-      intensity = RANGE_6_INTENSITY;
-      break;
-  }
+  const uint8_t idx = (range > 0 && range <= 6) ? static_cast<uint8_t>(range - 1) : 0;
+  effect_a = g_cfg.effects[idx].effect_a;
+  effect_b = g_cfg.effects[idx].effect_b;
+  speed = g_cfg.effects[idx].speed;
+  intensity = g_cfg.effects[idx].intensity;
 }
 
 static CRGB base_color_for_range(uint8_t range) {
@@ -705,6 +793,87 @@ static void update_led_ui() {
   FastLED.show();
 }
 
+static String html_config_page() {
+  return String(
+      "<!doctype html><html><head><meta charset='utf-8'>"
+      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<title>Config</title>"
+      "<style>body{font-family:Arial,sans-serif;margin:20px;color:#111}"
+      "input{width:100%;padding:8px;margin:4px 0}"
+      ".row{display:grid;grid-template-columns:1fr 1fr;gap:10px}"
+      "button{padding:10px 14px;border:0;border-radius:6px;background:#111;color:#fff}"
+      "</style></head><body>"
+      "<h1>Config</h1>"
+      "<div><label>Brightness</label><input id='brightness' type='number' min='1' max='255'></div>"
+      "<h3>Speed ranges (kph)</h3>"
+      "<div class='row'>"
+      "<input id='r1' type='number' step='0.1'><input id='r2' type='number' step='0.1'>"
+      "<input id='r3' type='number' step='0.1'><input id='r4' type='number' step='0.1'>"
+      "<input id='r5' type='number' step='0.1'>"
+      "</div>"
+      "<h3>Effects (range 1-6)</h3>"
+      "<div id='effects'></div>"
+      "<h3>Wi-Fi AP</h3>"
+      "<div><label>SSID</label><input id='ap_ssid' type='text'></div>"
+      "<div><label>Password</label><input id='ap_pass' type='password' placeholder='(sin cambio)'></div>"
+      "<div id='ap_hint' style='font-size:12px;color:#666'></div>"
+      "<div id='ap_warn' style='font-size:12px;color:#b00'></div>"
+      "<div><label>mDNS</label><input id='mdns' type='text'></div>"
+      "<button onclick='saveCfg()'>Guardar</button> "
+      "<button onclick='resetCfg()'>Restaurar defaults</button>"
+      "<p id='status'></p>"
+      "<p><a href='/'>Volver</a></p>"
+      "<script>"
+      "const effectsDiv=document.getElementById('effects');"
+      "for(let i=1;i<=6;i++){"
+      "effectsDiv.innerHTML+=`<div class='row'>"
+      "<input id='e${i}a' type='number' min='0' max='11' placeholder='R${i} A'>"
+      "<input id='e${i}b' type='number' min='0' max='11' placeholder='R${i} B'>"
+      "<input id='e${i}s' type='number' min='0' max='255' placeholder='R${i} Speed'>"
+      "<input id='e${i}i' type='number' min='0' max='255' placeholder='R${i} Intensity'>"
+      "</div>`;}"
+      "fetch('/api/config').then(r=>r.json()).then(c=>{"
+      "document.getElementById('brightness').value=c.led.brightness;"
+      "document.getElementById('r1').value=c.speed_ranges_kph[0];"
+      "document.getElementById('r2').value=c.speed_ranges_kph[1];"
+      "document.getElementById('r3').value=c.speed_ranges_kph[2];"
+      "document.getElementById('r4').value=c.speed_ranges_kph[3];"
+      "document.getElementById('r5').value=c.speed_ranges_kph[4];"
+      "for(let i=1;i<=6;i++){"
+      "const e=c.effects['range'+i];"
+      "document.getElementById('e'+i+'a').value=e.a;"
+      "document.getElementById('e'+i+'b').value=e.b;"
+      "document.getElementById('e'+i+'s').value=e.speed;"
+      "document.getElementById('e'+i+'i').value=e.intensity;"
+      "}"
+      "document.getElementById('ap_ssid').value=c.wifi.ap_ssid;"
+      "document.getElementById('mdns').value=c.wifi.mdns;"
+      "document.getElementById('ap_hint').innerText=c.wifi.has_ap_pass?'Password configurada':'Password vacia';"
+      "});"
+      "function saveCfg(){"
+      "if(ap_ssid.value!==''||ap_pass.value!==''||mdns.value!==''){"
+      "ap_warn.innerText='Nota: cambiar AP puede desconectar la sesion.';"
+      "}"
+      "const cfg={version:1,led:{brightness:parseInt(brightness.value)},"
+      "speed_ranges_kph:[parseFloat(r1.value),parseFloat(r2.value),parseFloat(r3.value),parseFloat(r4.value),parseFloat(r5.value)],"
+      "effects:{}};"
+      "for(let i=1;i<=6;i++){cfg.effects['range'+i]={"
+      "a:parseInt(document.getElementById('e'+i+'a').value),"
+      "b:parseInt(document.getElementById('e'+i+'b').value),"
+      "speed:parseInt(document.getElementById('e'+i+'s').value),"
+      "intensity:parseInt(document.getElementById('e'+i+'i').value)};}"
+      "cfg.wifi={ap_ssid:ap_ssid.value,ap_pass:ap_pass.value,mdns:mdns.value};"
+      "fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)})"
+      ".then(r=>r.json()).then(r=>{status.innerText=r.status;}).catch(()=>{status.innerText='error'});"
+      "}"
+      "function resetCfg(){"
+      "if(!confirm('Restaurar defaults y reiniciar AP si aplica?')){return;}"
+      "fetch('/api/config/reset',{method:'POST'})"
+      ".then(r=>r.json()).then(r=>{status.innerText=r.status;}).catch(()=>{status.innerText='error'});"
+      "}"
+      "</script></body></html>");
+}
+
 static void handle_root() {
   server.send(200, "text/html", html_page());
 }
@@ -715,6 +884,162 @@ static void handle_wifi_page() {
 
 static void handle_summary() {
   server.send(200, "application/json", build_summary_json());
+}
+
+static void handle_config_get() {
+  StaticJsonDocument<1536> doc;
+  doc["version"] = CONFIG_VERSION;
+  doc["led"]["brightness"] = g_cfg.brightness;
+  JsonArray ranges = doc.createNestedArray("speed_ranges_kph");
+  for (int i = 0; i < 5; ++i) {
+    ranges.add(g_cfg.ranges[i]);
+  }
+  JsonObject effects = doc.createNestedObject("effects");
+  for (int i = 0; i < 6; ++i) {
+    JsonObject r = effects.createNestedObject(String("range") + String(i + 1));
+    r["a"] = g_cfg.effects[i].effect_a;
+    r["b"] = g_cfg.effects[i].effect_b;
+    r["speed"] = g_cfg.effects[i].speed;
+    r["intensity"] = g_cfg.effects[i].intensity;
+  }
+  doc["wifi"]["ap_ssid"] = g_cfg.ap_ssid;
+  doc["wifi"]["has_ap_pass"] = (g_cfg.ap_pass.length() >= 8);
+  doc["wifi"]["mdns"] = g_cfg.mdns;
+
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
+}
+
+static bool valid_mdns(const String &value) {
+  if (value.length() < 1 || value.length() > 32) {
+    return false;
+  }
+  for (size_t i = 0; i < value.length(); ++i) {
+    const char c = value[i];
+    const bool ok = (c >= 'a' && c <= 'z') ||
+                    (c >= 'A' && c <= 'Z') ||
+                    (c >= '0' && c <= '9') ||
+                    (c == '-');
+    if (!ok) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static void handle_config_post() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
+    return;
+  }
+  StaticJsonDocument<2048> doc;
+  const DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
+    return;
+  }
+
+  RuntimeConfig next = g_cfg;
+  const int brightness = doc["led"]["brightness"] | g_cfg.brightness;
+  if (brightness < 1 || brightness > 255) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"brightness\"}");
+    return;
+  }
+  next.brightness = static_cast<uint8_t>(brightness);
+
+  JsonArray ranges = doc["speed_ranges_kph"].as<JsonArray>();
+  if (ranges.size() != 5) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ranges\"}");
+    return;
+  }
+  for (int i = 0; i < 5; ++i) {
+    next.ranges[i] = ranges[i].as<float>();
+    if (next.ranges[i] <= 0.0f) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ranges value\"}");
+      return;
+    }
+  }
+  if (!validate_ranges(next.ranges)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ranges order\"}");
+    return;
+  }
+
+  JsonObject effects = doc["effects"].as<JsonObject>();
+  for (int i = 0; i < 6; ++i) {
+    JsonObject r = effects[String("range") + String(i + 1)];
+    if (r.isNull()) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effects\"}");
+      return;
+    }
+    const int eff_a = r["a"] | next.effects[i].effect_a;
+    const int eff_b = r["b"] | next.effects[i].effect_b;
+    const int eff_speed = r["speed"] | next.effects[i].speed;
+    const int eff_intensity = r["intensity"] | next.effects[i].intensity;
+    if (eff_a < 0 || eff_a > 11 || eff_b < 0 || eff_b > 11 ||
+        eff_speed < 0 || eff_speed > 255 || eff_intensity < 0 || eff_intensity > 255) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effect values\"}");
+      return;
+    }
+    next.effects[i].effect_a = static_cast<uint8_t>(eff_a);
+    next.effects[i].effect_b = static_cast<uint8_t>(eff_b);
+    next.effects[i].speed = static_cast<uint8_t>(eff_speed);
+    next.effects[i].intensity = static_cast<uint8_t>(eff_intensity);
+  }
+  if (!validate_effects(next.effects)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effect id\"}");
+    return;
+  }
+
+  const String ap_ssid = doc["wifi"]["ap_ssid"] | next.ap_ssid;
+  const String ap_pass = doc["wifi"]["ap_pass"] | String("");
+  const String mdns = doc["wifi"]["mdns"] | next.mdns;
+  if (ap_ssid.length() < 1 || ap_ssid.length() > 32) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ssid\"}");
+    return;
+  }
+  if (ap_pass.length() > 0 && ap_pass.length() < 8) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"pass\"}");
+    return;
+  }
+  if (!valid_mdns(mdns)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"mdns\"}");
+    return;
+  }
+  next.ap_ssid = ap_ssid;
+  if (ap_pass.length() > 0) {
+    next.ap_pass = ap_pass;
+  }
+  next.mdns = mdns;
+
+  RuntimeConfig previous = g_cfg;
+  g_cfg = next;
+  save_config();
+  apply_config(previous);
+  const bool wifi_restart = (g_cfg.ap_ssid != previous.ap_ssid || g_cfg.ap_pass != previous.ap_pass);
+  if (wifi_restart) {
+    pending_ap_restart = true;
+    pending_ap_at_ms = millis();
+  }
+  server.send(200, "application/json", wifi_restart ? "{\"status\":\"ok\",\"wifi_restart\":true}"
+                                                     : "{\"status\":\"ok\",\"wifi_restart\":false}");
+}
+
+static void handle_config_reset() {
+  prefs_cfg.clear();
+  RuntimeConfig previous = g_cfg;
+  set_default_config();
+  save_config();
+  apply_config(previous);
+  if (g_cfg.ap_ssid != previous.ap_ssid || g_cfg.ap_pass != previous.ap_pass) {
+    pending_ap_restart = true;
+    pending_ap_at_ms = millis();
+  }
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+static void handle_config_page() {
+  server.send(200, "text/html", html_config_page());
 }
 
 static void handle_wifi_save() {
@@ -736,7 +1061,7 @@ static void handle_wifi_save() {
 
 static void start_ap_mode() {
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(AP_SSID, AP_PASS);
+  WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
   wifi_sta_connected = false;
 }
 
@@ -750,7 +1075,7 @@ static void start_sta_mode() {
   }
   wifi_sta_connected = (WiFi.status() == WL_CONNECTED);
   if (wifi_sta_connected) {
-    MDNS.begin(MDNS_NAME);
+    MDNS.begin(g_cfg.mdns.c_str());
   }
 }
 
@@ -767,6 +1092,10 @@ static void setup_wifi() {
 static void setup_http() {
   server.on("/", HTTP_GET, handle_root);
   server.on("/api/summary", HTTP_GET, handle_summary);
+  server.on("/api/config", HTTP_GET, handle_config_get);
+  server.on("/api/config", HTTP_POST, handle_config_post);
+  server.on("/api/config/reset", HTTP_POST, handle_config_reset);
+  server.on("/config", HTTP_GET, handle_config_page);
   server.on("/wifi", HTTP_GET, handle_wifi_page);
   server.on("/api/wifi", HTTP_POST, handle_wifi_save);
   server.begin();
@@ -868,7 +1197,9 @@ void setup() {
   digitalWrite(PIN_STATUS_LED, LOW);
   // Open NVS namespace and restore last known metrics.
   prefs.begin("dogrgb", false);
+  prefs_cfg.begin("dogrgb_cfg", false);
   load_metrics();
+  load_config();
   if (LED_UI_ENABLED) {
     led_begin();
   }
@@ -926,6 +1257,16 @@ void loop() {
         start_ap_mode();
       }
     }
+  }
+
+  if (pending_ap_restart && (now_ms - pending_ap_at_ms) >= AP_RESTART_DELAY_MS) {
+    pending_ap_restart = false;
+    if (wifi_sta_connected) {
+      WiFi.mode(WIFI_AP_STA);
+    } else {
+      WiFi.mode(WIFI_AP);
+    }
+    WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
   }
 
   update_led_ui();
