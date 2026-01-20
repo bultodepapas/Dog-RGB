@@ -133,10 +133,29 @@ Si no usas level shifter, aplica estas reglas para maximizar estabilidad:
 2) Energiza solo MCU y GNSS: confirma lectura GPS en serial.
 3) Energiza LEDs con brillo bajo: confirma encendido de ambas tiras.
 4) Verifica portal Wi-Fi (AP y STA) y ruta `/config`.
+5) Para uso diario y configuracion, ve al Manual de uso: [docs/manual_de_uso.md](docs/manual_de_uso.md).
 
 ---
 
-## 8) Ensamble final
+## 8) Descargar y flashear el ESP32
+
+Este firmware usa PlatformIO.
+
+1) Instala PlatformIO (VS Code o CLI).
+2) Abre `firmware/esp32s3_base/` como proyecto.
+3) Conecta el XIAO ESP32-S3 por USB.
+4) Compila:
+   - `pio run -e esp32s3`
+5) Flashea:
+   - `pio run -e esp32s3 -t upload`
+6) Monitor serial:
+   - `pio device monitor -e esp32s3`
+
+Si el puerto no aparece, revisa el cable USB y drivers.
+
+---
+
+## 9) Ensamble final
 
 1) Asegura conexiones con termorretractil.
 2) Fija la tira LED dentro del difusor sin tension en cables.
@@ -145,7 +164,7 @@ Si no usas level shifter, aplica estas reglas para maximizar estabilidad:
 
 ---
 
-## 9) Mantenimiento y ajustes
+## 10) Mantenimiento y ajustes
 
 - Recarga la bateria con el cargador USB-C.
 - Limpia con pano humedo (no sumergir si no es IP67).
@@ -154,7 +173,7 @@ Si no usas level shifter, aplica estas reglas para maximizar estabilidad:
 
 ---
 
-## 10) Errores comunes y prevencion
+## 11) Errores comunes y prevencion
 
 - LED sin encender: revisa 5V, GND comun y direccion DIN.
 - GPS sin fix: prueba en exterior y revisa TX/RX cruzados.

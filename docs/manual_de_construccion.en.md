@@ -133,10 +133,29 @@ If you skip level shifting, use these rules for stability:
 2) Power only MCU and GNSS: confirm GPS output on serial.
 3) Power LEDs at low brightness: confirm both strips light.
 4) Verify Wi-Fi portal (AP and STA) and `/config` route.
+5) For daily use and configuration, see the user manual: [docs/manual_de_uso.md](docs/manual_de_uso.md).
 
 ---
 
-## 8) Final assembly
+## 8) Download and flash the ESP32
+
+This firmware uses PlatformIO.
+
+1) Install PlatformIO (VS Code or CLI).
+2) Open `firmware/esp32s3_base/` as a project.
+3) Connect the XIAO ESP32-S3 via USB.
+4) Build:
+   - `pio run -e esp32s3`
+5) Upload:
+   - `pio run -e esp32s3 -t upload`
+6) Serial monitor:
+   - `pio device monitor -e esp32s3`
+
+If the port does not appear, check the USB cable and drivers.
+
+---
+
+## 9) Final assembly
 
 1) Secure connections with heat-shrink.
 2) Fix LED strip inside diffuser with no cable strain.
@@ -145,7 +164,7 @@ If you skip level shifting, use these rules for stability:
 
 ---
 
-## 9) Maintenance and tuning
+## 10) Maintenance and tuning
 
 - Recharge via USB-C charger.
 - Wipe clean with a damp cloth (do not submerge unless IP67).
@@ -154,7 +173,7 @@ If you skip level shifting, use these rules for stability:
 
 ---
 
-## 10) Common mistakes and prevention
+## 11) Common mistakes and prevention
 
 - LEDs not lighting: check 5V, common GND, and DIN direction.
 - GPS no fix: test outdoors and verify TX/RX crossed.
