@@ -5,6 +5,14 @@ Designed for safety, comfort, and future expansion (GPS, BLE app, advanced modes
 
 ---
 
+## 🤝 Team and Intent
+
+Somos dos ingenieros (electrico e industrial) y este proyecto es un experimento que por fin vamos a probar:
+una idea que teniamos planeada desde hace mucho tiempo, ahora impulsada por nuestra experiencia y el apoyo
+de AI agents durante el desarrollo.
+
+---
+
 ## 🎯 Objective
 
 Build a collar that is:
