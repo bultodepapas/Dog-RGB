@@ -72,7 +72,8 @@ static unsigned long last_wifi_check_ms = 0;
 // LED strip configuration (APA102/SK9822).
 static const bool LED_UI_ENABLED = true;
 static const int LED_COUNT = 65;
-static const uint8_t LED_BRIGHTNESS_MAX = 31;
+static const int LED_STATUS_COUNT = 3;
+static const uint8_t LED_BRIGHTNESS_MAX = 9;
 static const unsigned long LED_UPDATE_MS = 50;
 static unsigned long last_led_update_ms = 0;
 
@@ -356,7 +357,31 @@ static void led_spi_begin() {
   SPI.begin(PIN_LED_CLOCK, -1, PIN_LED_DATA, -1);
 }
 
-static void led_spi_show(uint8_t r, uint8_t g, uint8_t b) {
+static void led_spi_show_segment(int start, int count, uint8_t r, uint8_t g, uint8_t b) {
+  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+  for (int i = 0; i < 4; ++i) {
+    SPI.transfer(0x00);
+  }
+  for (int i = 0; i < LED_COUNT; ++i) {
+    const bool in_range = (i >= start && i < (start + count));
+    SPI.transfer(0xE0 | LED_BRIGHTNESS_MAX);
+    if (in_range) {
+      SPI.transfer(b);
+      SPI.transfer(g);
+      SPI.transfer(r);
+    } else {
+      SPI.transfer(0x00);
+      SPI.transfer(0x00);
+      SPI.transfer(0x00);
+    }
+  }
+  for (int i = 0; i < 4; ++i) {
+    SPI.transfer(0xFF);
+  }
+  SPI.endTransaction();
+}
+
+static void led_spi_show_all(uint8_t r, uint8_t g, uint8_t b) {
   SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
   for (int i = 0; i < 4; ++i) {
     SPI.transfer(0x00);
@@ -402,35 +427,44 @@ static void update_led_ui() {
   if (critical_error) {
     scale = (now_ms / 200) % 2 ? 1.0f : 0.0f;
     r = clamp_u8(static_cast<int>(200 * scale));
-  } else if (!sta_ok && wifi_ssid.length() > 0 && ap_mode) {
-    r = 200;
+    led_spi_show_all(r, 0, 0);
+    return;
+  }
+
+  if (!sta_ok && wifi_ssid.length() > 0 && ap_mode) {
+    r = 60;
     g = 0;
     b = 0;
   } else if (sta_ok) {
     r = 0;
-    g = 200;
+    g = 60;
     b = 0;
   } else if (sta_try) {
     scale = pulse_scale(1500);
     r = 0;
-    g = clamp_u8(static_cast<int>(200 * scale));
+    g = clamp_u8(static_cast<int>(60 * scale));
     b = 0;
   } else if (ap_mode) {
-    r = 200;
-    g = 160;
+    r = 60;
+    g = 45;
     b = 0;
   } else if (gps_ok) {
     r = 0;
     g = 0;
-    b = 200;
+    b = 60;
   } else {
     scale = pulse_scale(1500);
     r = 0;
     g = 0;
-    b = clamp_u8(static_cast<int>(200 * scale));
+    b = clamp_u8(static_cast<int>(60 * scale));
   }
 
-  led_spi_show(r, g, b);
+  led_spi_show_segment(0, LED_STATUS_COUNT, r, g, b);
+
+  // Segment B: placeholder idle for normal operation (soft white).
+  if (ap_mode || sta_ok || sta_try || gps_ok) {
+    led_spi_show_segment(LED_STATUS_COUNT, LED_COUNT - LED_STATUS_COUNT, 20, 20, 20);
+  }
 }
 
 static void handle_root() {
