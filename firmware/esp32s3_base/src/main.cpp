@@ -58,7 +58,7 @@ static const char *BLE_CHAR_UUID = "8b4c0002-6c1d-4f3c-a5b0-1e0c5a00a101";
 
 // Wi-Fi settings (AP + STA). Change here to update default credentials.
 static const char *AP_SSID = "dog";
-static const char *AP_PASS = "dog";
+static const char *AP_PASS = "Dog123456789";
 static const char *MDNS_NAME = "dog-collar";
 static const unsigned long STA_CONNECT_TIMEOUT_MS = 10000;
 
