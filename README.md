@@ -208,6 +208,7 @@ Base project: `firmware/esp32s3_base/`
 - Wi-Fi portal plan: [`docs/wifi_portal_plan.md`](docs/wifi_portal_plan.md)
 - Wi-Fi portal state diagram: [`docs/wifi_portal_state_diagram.md`](docs/wifi_portal_state_diagram.md)
 - LED UI spec: [`docs/led_ui_spec.md`](docs/led_ui_spec.md)
+- SK6812 wiring guide: [`docs/sk6812_wiring.md`](docs/sk6812_wiring.md)
 
 ---
 
