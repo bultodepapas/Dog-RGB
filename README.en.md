@@ -233,3 +233,4 @@ Base project: `firmware/esp32s3_base/`
 - Draft schematic for power + LEDs + IMU
 - Define IMU thresholds for activity levels
 - Sketch enclosure and cable routing
+
