@@ -6,6 +6,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
+#include <SPI.h>
 #include "pins.h"
 
 // Heartbeat for status LED and periodic serial logs.
@@ -68,8 +69,37 @@ static String wifi_pass;
 static bool wifi_sta_connected = false;
 static unsigned long last_wifi_check_ms = 0;
 
+// LED strip configuration (APA102/SK9822).
+static const bool LED_UI_ENABLED = true;
+static const int LED_COUNT = 65;
+static const uint8_t LED_BRIGHTNESS_MAX = 31;
+static const unsigned long LED_UPDATE_MS = 50;
+static unsigned long last_led_update_ms = 0;
+
+static unsigned long last_ok_ms = 0;
+static const unsigned long CRITICAL_NO_OK_MS = 600000;
+
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
+}
+
+static uint8_t clamp_u8(int value) {
+  if (value < 0) {
+    return 0;
+  }
+  if (value > 255) {
+    return 255;
+  }
+  return static_cast<uint8_t>(value);
+}
+
+static float pulse_scale(unsigned long period_ms) {
+  const unsigned long now_ms = millis();
+  const float phase = static_cast<float>(now_ms % period_ms) / static_cast<float>(period_ms);
+  if (phase < 0.5f) {
+    return phase * 2.0f;
+  }
+  return (1.0f - phase) * 2.0f;
 }
 
 // Convert NMEA degree-minute format to decimal degrees.
@@ -322,6 +352,87 @@ static String html_wifi_page() {
   return page;
 }
 
+static void led_spi_begin() {
+  SPI.begin(PIN_LED_CLOCK, -1, PIN_LED_DATA, -1);
+}
+
+static void led_spi_show(uint8_t r, uint8_t g, uint8_t b) {
+  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+  for (int i = 0; i < 4; ++i) {
+    SPI.transfer(0x00);
+  }
+  for (int i = 0; i < LED_COUNT; ++i) {
+    SPI.transfer(0xE0 | LED_BRIGHTNESS_MAX);
+    SPI.transfer(b);
+    SPI.transfer(g);
+    SPI.transfer(r);
+  }
+  for (int i = 0; i < 4; ++i) {
+    SPI.transfer(0xFF);
+  }
+  SPI.endTransaction();
+}
+
+static void update_led_ui() {
+  if (!LED_UI_ENABLED) {
+    return;
+  }
+  const unsigned long now_ms = millis();
+  if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
+    return;
+  }
+  last_led_update_ms = now_ms;
+
+  const bool gps_ok = has_gps_fix;
+  const bool sta_ok = (wifi_sta_connected && WiFi.status() == WL_CONNECTED);
+  const bool sta_try = (!sta_ok && wifi_ssid.length() > 0 && WiFi.getMode() == WIFI_STA);
+  const bool ap_mode = (WiFi.getMode() == WIFI_AP);
+
+  if (gps_ok || sta_ok) {
+    last_ok_ms = now_ms;
+  }
+
+  const bool critical_error = (!gps_ok && !sta_ok && (now_ms - last_ok_ms) > CRITICAL_NO_OK_MS);
+
+  uint8_t r = 0;
+  uint8_t g = 0;
+  uint8_t b = 0;
+  float scale = 1.0f;
+
+  if (critical_error) {
+    scale = (now_ms / 200) % 2 ? 1.0f : 0.0f;
+    r = clamp_u8(static_cast<int>(200 * scale));
+  } else if (!sta_ok && wifi_ssid.length() > 0 && ap_mode) {
+    r = 200;
+    g = 0;
+    b = 0;
+  } else if (sta_ok) {
+    r = 0;
+    g = 200;
+    b = 0;
+  } else if (sta_try) {
+    scale = pulse_scale(1500);
+    r = 0;
+    g = clamp_u8(static_cast<int>(200 * scale));
+    b = 0;
+  } else if (ap_mode) {
+    r = 200;
+    g = 160;
+    b = 0;
+  } else if (gps_ok) {
+    r = 0;
+    g = 0;
+    b = 200;
+  } else {
+    scale = pulse_scale(1500);
+    r = 0;
+    g = 0;
+    b = clamp_u8(static_cast<int>(200 * scale));
+  }
+
+  led_spi_show(r, g, b);
+}
+
 static void handle_root() {
   server.send(200, "text/html", html_page());
 }
@@ -486,6 +597,9 @@ void setup() {
   // Open NVS namespace and restore last known metrics.
   prefs.begin("dogrgb", false);
   load_metrics();
+  if (LED_UI_ENABLED) {
+    led_spi_begin();
+  }
   setup_wifi();
   setup_http();
   setup_ble();
@@ -542,6 +656,7 @@ void loop() {
     }
   }
 
+  update_led_ui();
   server.handleClient();
 
   // Placeholder for GPS-based LED mapping and patterns.
