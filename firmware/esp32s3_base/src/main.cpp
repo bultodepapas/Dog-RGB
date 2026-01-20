@@ -97,6 +97,8 @@ static const char *BLE_CHAR_UUID = "8b4c0002-6c1d-4f3c-a5b0-1e0c5a00a101";
 static String wifi_ssid;
 static String wifi_pass;
 static bool wifi_sta_connected = false;
+static bool wifi_sta_connecting = false;
+static unsigned long wifi_sta_start_ms = 0;
 static unsigned long last_wifi_check_ms = 0;
 
 // LED strip configuration is defined in config.h.
@@ -210,12 +212,14 @@ static bool parse_rmc(const char *line,
   char time_buf[8] = {0};
   char lat_buf[16] = {0};
   char lon_buf[16] = {0};
+  char speed_buf[12] = {0};
   char ns = 'N';
   char ew = 'E';
   char date_buf[8] = {0};
   int time_len = 0;
   int lat_len = 0;
   int lon_len = 0;
+  int speed_len = 0;
   int date_len = 0;
 
   for (const char *p = line; *p != '\0' && *p != '*'; ++p) {
@@ -241,8 +245,8 @@ static bool parse_rmc(const char *line,
     if (field == 6) {
       ew = *p;
     }
-    if (field == 7) {
-      knots = strtof(p, nullptr);
+    if (field == 7 && speed_len < 11) {
+      speed_buf[speed_len++] = *p;
     }
     if (field == 9 && date_len < 6) {
       date_buf[date_len++] = *p;
@@ -250,6 +254,9 @@ static bool parse_rmc(const char *line,
   }
 
   *valid_fix = (status == 'A');
+  if (speed_len > 0) {
+    knots = strtof(speed_buf, nullptr);
+  }
   *speed_kph = knots_to_kph(knots);
   if (lat_len > 0 && lon_len > 0) {
     *lat_deg = nmea_to_decimal_degrees(lat_buf, ns);
@@ -1071,23 +1078,15 @@ static void start_ap_mode() {
 static void start_sta_mode() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
-  const unsigned long start_ms = millis();
-  while (WiFi.status() != WL_CONNECTED &&
-         (millis() - start_ms) < STA_CONNECT_TIMEOUT_MS) {
-    delay(200);
-  }
-  wifi_sta_connected = (WiFi.status() == WL_CONNECTED);
-  if (wifi_sta_connected) {
-    MDNS.begin(g_cfg.mdns.c_str());
-  }
+  wifi_sta_connecting = true;
+  wifi_sta_start_ms = millis();
 }
 
 static void setup_wifi() {
   load_wifi_creds();
   if (wifi_ssid.length() > 0) {
     start_sta_mode();
-  }
-  if (!wifi_sta_connected) {
+  } else {
     start_ap_mode();
   }
 }
@@ -1254,11 +1253,19 @@ void loop() {
     last_wifi_check_ms = now_ms;
     if (wifi_sta_connected && WiFi.status() != WL_CONNECTED) {
       start_ap_mode();
-    } else if (!wifi_sta_connected && wifi_ssid.length() > 0) {
-      start_sta_mode();
-      if (!wifi_sta_connected) {
+      wifi_sta_connected = false;
+      wifi_sta_connecting = false;
+    } else if (wifi_sta_connecting) {
+      if (WiFi.status() == WL_CONNECTED) {
+        wifi_sta_connected = true;
+        wifi_sta_connecting = false;
+        MDNS.begin(g_cfg.mdns.c_str());
+      } else if ((now_ms - wifi_sta_start_ms) >= STA_CONNECT_TIMEOUT_MS) {
+        wifi_sta_connecting = false;
         start_ap_mode();
       }
+    } else if (!wifi_sta_connected && wifi_ssid.length() > 0) {
+      start_sta_mode();
     }
   }
 
