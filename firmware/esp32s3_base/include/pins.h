@@ -5,5 +5,7 @@
 static const int PIN_STATUS_LED = 2;
 static const int PIN_LED_DATA = 11;
 static const int PIN_LED_CLOCK = 12;
+static const int PIN_GPS_RX = 16; // ESP32-S3 RX, connect to GPS TX
+static const int PIN_GPS_TX = 17; // ESP32-S3 TX, connect to GPS RX (optional)
 
 #endif
