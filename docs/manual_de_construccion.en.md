@@ -2,15 +2,16 @@
 
 [Espanol](manual_de_construccion.es.md) | [English](manual_de_construccion.en.md)
 
-Practical guide to build the hardware prototype.
+Complete guide to build the prototype with solid electronics practices.
 
 ---
 
-## 1) Scope and warnings
+## 1) Scope and safety
 
-- This manual covers the Phase 1 MVP (GPS + Wi-Fi portal + SK6812 LEDs).
+- Covers the Phase 1 MVP: GPS + Wi-Fi portal + SK6812 LEDs.
 - Basic electronics and soldering skills required.
-- Test everything on the bench before sealing the enclosure.
+- Do not assemble with the battery connected.
+- Verify polarity and continuity before powering on.
 
 ---
 
@@ -27,9 +28,10 @@ Practical guide to build the hardware prototype.
 
 ### Level shifting and protection
 - 5V level shifter: 74AHCT125 (or equivalent)
-- Series resistors: 330-470 ohm (2 units, one per data line)
+- No level shifter option (prototype): direct data with short wires
+- Series resistors: 330-470 ohm (2 units)
 - Capacitor: 1000 uF electrolytic (5V rail, near first LED)
-- Capacitor: 0.1 uF ceramic (near first LED, optional)
+- Capacitor: 0.1 uF ceramic (optional, near first LED)
 
 ### Mechanical
 - Nylon strap (20-25 mm width)
@@ -38,16 +40,16 @@ Practical guide to build the hardware prototype.
 - Silicone wire (AWG 22-24 for 5V/LEDs, AWG 26-28 for signals)
 
 ### Extras
-- External status LED + resistor (if used)
+- External status LED + resistor
 - Physical switch or Hall sensor (optional)
 - Heat-shrink, double-sided tape, epoxy adhesive
 
 ---
 
-## 3) Tools
+## 3) Recommended tools
 
 - Soldering iron and solder
-- Multimeter
+- Multimeter (continuity and voltage)
 - Tweezers and cutters
 - Heat gun (heat-shrink)
 - Bench power supply (optional, recommended)
@@ -62,22 +64,23 @@ See the diagram in `docs/manual_de_uso.md`.
 
 ## 5) Preparation
 
-1) Cut the strap and diffuser to length.
-2) Prepare power and data wires.
-3) Label pins and cables to avoid mistakes.
+1) Cut strap and diffuser to length.
+2) Prepare wires (short strip, pre-tin).
+3) Label 5V, GND, and data lines.
+4) Plan wire routing inside diffuser and enclosure.
 
 ---
 
 ## 6) Step-by-step assembly
 
-### Step 1: Power
-1) Connect battery to the BMS.
-2) Connect the BMS to the USB-C charger.
-3) Connect the 5V boost to the BMS output.
-4) Verify 5.0V output with a multimeter.
+### Step 1: Power system
+1) Connect battery -> BMS -> USB-C charger.
+2) Connect BMS output to the 5V boost.
+3) Verify stable 5.0V with a multimeter.
+4) Do NOT connect LED strips or MCU yet.
 
 ### Step 2: MCU and GNSS
-1) Power the XIAO ESP32-S3 (3.3V).
+1) Power the XIAO ESP32-S3 at 3.3V.
 2) Connect GNSS:
    - GPS TX -> GPIO7 (D6) on MCU
    - GPS RX -> GPIO8 (D7) on MCU (optional)
@@ -85,46 +88,53 @@ See the diagram in `docs/manual_de_uso.md`.
    - VCC per module (3.3V if applicable)
 
 ### Step 3: Level shifting and LEDs
-1) Power the 74AHCT125 with 5V and GND.
-2) Connect data lines:
-   - GPIO11 -> IN1 -> OUT1 -> 330-470R -> LED A DIN
-   - GPIO12 -> IN2 -> OUT2 -> 330-470R -> LED B DIN
-3) Connect LED strips VDD/GND to 5V/GND.
-4) Place 1000 uF capacitor on 5V near the first LED.
+1) Power the 74AHCT125 with 5V and GND (if used).
+2) Connect data lines by strip count:
+   - Two strips:
+     - GPIO11 -> IN1 -> OUT1 -> 330-470R -> LED A DIN
+     - GPIO12 -> IN2 -> OUT2 -> 330-470R -> LED B DIN
+   - Single strip:
+     - GPIO11 -> IN1 -> OUT1 -> 330-470R -> LED A DIN
+     - Do not use GPIO12
+3) If NO level shifter (prototype): connect GPIO11/GPIO12 directly to DIN with a series resistor and keep wires short.
+4) Connect LED strips VDD/GND to 5V/GND.
+5) Place 1000 uF capacitor on 5V near the first LED.
 
 ### Step 4: Status LED (optional)
 1) GPIO3 -> resistor -> LED -> GND.
 
 ---
 
-## 7) Basic tests before closing
+## 7) Bench tests (before closing)
 
-1) Check continuity and absence of shorts.
-2) Power on and confirm MCU boot.
-3) Verify GPS response and fix.
-4) Verify LEDs light and change with speed.
-5) Verify Wi-Fi portal (AP and STA).
+1) Continuity: confirm common GND and no 5V-GND shorts.
+2) Power only MCU and GNSS: confirm GPS output on serial.
+3) Power LEDs at low brightness: confirm both strips light.
+4) Verify Wi-Fi portal (AP and STA) and `/config` route.
 
 ---
 
 ## 8) Final assembly
 
 1) Secure connections with heat-shrink.
-2) Install enclosure with strain relief.
-3) Fix LED strip inside diffuser.
+2) Fix LED strip inside diffuser with no cable strain.
+3) Install enclosure with strain relief.
 4) Ensure no sharp points or rigid pressure spots.
 
 ---
 
-## 9) Maintenance
+## 9) Maintenance and tuning
 
 - Recharge via USB-C charger.
-- Wipe clean with a damp cloth.
-- Inspect cables and connectors periodically.
+- Wipe clean with a damp cloth (do not submerge unless IP67).
+- Update pins in `firmware/esp32s3_base/include/pins.h` if wiring changes.
+- Update parameters in `firmware/esp32s3_base/include/config.h` if LED count changes.
 
 ---
 
-## 10) Final notes
+## 10) Common mistakes and prevention
 
-- Update pins in `firmware/esp32s3_base/include/pins.h` if wiring changes.
-- Update parameters in `firmware/esp32s3_base/include/config.h` if LED count changes.
+- LEDs not lighting: check 5V, common GND, and DIN direction.
+- GPS no fix: test outdoors and verify TX/RX crossed.
+- MCU resets: check 5V sag and ground integrity.
+- LED flicker: use level shifter and series resistor.

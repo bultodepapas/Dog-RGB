@@ -2,15 +2,16 @@
 
 [Espanol](manual_de_construccion.es.md) | [English](manual_de_construccion.en.md)
 
-Guia practica para construir el prototipo (hardware) del collar.
+Guia completa para construir el prototipo con enfoque en buenas practicas de electronica.
 
 ---
 
-## 1) Alcance y advertencias
+## 1) Alcance y seguridad
 
-- Este manual cubre el MVP de Fase 1 (GPS + Wi-Fi portal + LEDs SK6812).
+- Cubre el MVP Fase 1: GPS + portal Wi-Fi + LEDs SK6812.
 - Requiere conocimientos basicos de electronica y soldadura.
-- Prueba todo primero en banco antes de sellar el enclosure.
+- No trabajes con la bateria conectada durante el armado.
+- Verifica polaridad y continuidad antes de energizar.
 
 ---
 
@@ -27,10 +28,10 @@ Guia practica para construir el prototipo (hardware) del collar.
 
 ### Nivel logico y proteccion
 - Level shifter 5V: 74AHCT125 (o equivalente)
-- Opcion sin level shifter (prototipo): conectar data directo a SK6812 y mantener cables cortos
-- Resistencia serie: 330-470 ohm (2 unidades, una por cada data line)
+- Opcion sin level shifter (prototipo): data directo con cables cortos
+- Resistencia serie: 330-470 ohm (2 unidades)
 - Condensador: 1000 uF electrolitico (5V rail, cerca del primer LED)
-- Condensador: 0.1 uF ceramico (cerca del primer LED, opcional)
+- Condensador: 0.1 uF ceramico (opcional, cerca del primer LED)
 
 ### Mecanica
 - Correa de nylon (20-25 mm ancho)
@@ -39,16 +40,16 @@ Guia practica para construir el prototipo (hardware) del collar.
 - Cables de silicona (AWG 22-24 para 5V/LEDs, AWG 26-28 para senales)
 
 ### Extras
-- LED externo de estado + resistencia (si se usa)
+- LED externo de estado + resistencia
 - Interruptor fisico o sensor Hall (opcional)
 - Termorretractil, cinta de doble cara, adhesivo epoxico
 
 ---
 
-## 3) Herramientas
+## 3) Herramientas recomendadas
 
 - Cautin y esta?o
-- Multimetro
+- Multimetro (continuidad y voltaje)
 - Pinzas y cortadores
 - Pistola de calor (termorretractil)
 - Fuente de laboratorio (opcional, recomendado)
@@ -63,26 +64,27 @@ Ver el diagrama en `docs/manual_de_uso.md`.
 
 ## 5) Preparacion
 
-1) Corta la correa y el tubo difusor a la longitud requerida.
-2) Prepara los cables de alimentacion y datos.
-3) Identifica y etiqueta pines y cables para evitar errores.
+1) Corta correa y difusor a la longitud deseada.
+2) Prepara cables (pelado corto, esta?o previo).
+3) Etiqueta cables de 5V, GND y data.
+4) Define la ruta de cables dentro del difusor y del enclosure.
 
 ---
 
 ## 6) Ensamble paso a paso
 
-### Paso 1: Power
-1) Conecta la bateria al BMS.
-2) Conecta el BMS al cargador USB-C.
-3) Conecta el boost 5V a la salida del BMS.
-4) Verifica con multimetro que el boost entrega 5.0V.
+### Paso 1: Sistema de energia
+1) Conecta bateria -> BMS -> cargador USB-C.
+2) Conecta salida del BMS al boost 5V.
+3) Verifica 5.0V estables con multimetro.
+4) NO conectes aun las tiras LED ni el MCU.
 
 ### Paso 2: MCU y GNSS
-1) Alimenta el XIAO ESP32-S3 (3.3V).
+1) Alimenta el XIAO ESP32-S3 a 3.3V.
 2) Conecta GNSS:
    - GPS TX -> GPIO7 (D6) del MCU
    - GPS RX -> GPIO8 (D7) del MCU (opcional)
-   - GND com?n
+   - GND comun
    - VCC segun modulo (3.3V si aplica)
 
 ### Paso 3: Level shifting y LEDs
@@ -94,7 +96,7 @@ Ver el diagrama en `docs/manual_de_uso.md`.
    - Una sola tira:
      - GPIO11 -> IN1 -> OUT1 -> 330-470R -> DIN LED A
      - No usar GPIO12
-3) Si NO usas level shifter (prototipo): conecta GPIO11/GPIO12 directo a DIN con resistor serie, y manten cables cortos.
+3) Si NO usas level shifter (prototipo): conecta GPIO11/GPIO12 directo a DIN con resistor serie y cables cortos.
 4) Conecta VDD y GND de las tiras a 5V y GND.
 5) Coloca el condensador de 1000 uF en 5V cerca del primer LED.
 
@@ -103,35 +105,36 @@ Ver el diagrama en `docs/manual_de_uso.md`.
 
 ---
 
-## 7) Pruebas basicas antes de cerrar
+## 7) Pruebas de banco (antes de cerrar)
 
-1) Verifica continuidad y ausencia de cortos.
-2) Enciende y confirma que el MCU inicia.
-3) Verifica que el GPS responde y obtiene fix.
-4) Verifica que los LEDs encienden y cambian segun velocidad.
-5) Verifica el portal Wi-Fi (AP y STA).
+1) Continuidad: confirma GND comun y sin cortos 5V-GND.
+2) Energiza solo MCU y GNSS: confirma lectura GPS en serial.
+3) Energiza LEDs con brillo bajo: confirma encendido de ambas tiras.
+4) Verifica portal Wi-Fi (AP y STA) y ruta `/config`.
 
 ---
 
-## 8) Cierre y ensamblaje final
+## 8) Ensamble final
 
 1) Asegura conexiones con termorretractil.
-2) Coloca el enclosure con alivio de tension.
-3) Fija la tira LED dentro del difusor.
-4) Verifica que no haya puntos rigidos o cortantes.
+2) Fija la tira LED dentro del difusor sin tension en cables.
+3) Coloca el enclosure con alivio de tension.
+4) Verifica que no queden puntos rigidos o cortantes.
 
 ---
 
-## 9) Mantenimiento
+## 9) Mantenimiento y ajustes
 
 - Recarga la bateria con el cargador USB-C.
-- Limpia el collar con un pano humedo.
-- Revisa cables y conectores cada cierto tiempo.
+- Limpia con pano humedo (no sumergir si no es IP67).
+- Ajusta pines en `firmware/esp32s3_base/include/pins.h` si cambias wiring.
+- Ajusta parametros en `firmware/esp32s3_base/include/config.h` si cambias LEDs.
 
 ---
 
-## 10) Notas finales
+## 10) Errores comunes y prevencion
 
-- Ajusta pines en `firmware/esp32s3_base/include/pins.h` si cambias wiring.
-- Ajusta parametros en `firmware/esp32s3_base/include/config.h` si cambias el numero de LEDs.
-
+- LED sin encender: revisa 5V, GND comun y direccion DIN.
+- GPS sin fix: prueba en exterior y revisa TX/RX cruzados.
+- Reinicios del MCU: revisa caida de voltaje en 5V y GND.
+- Flicker en LEDs: usa level shifter y resistor serie.
