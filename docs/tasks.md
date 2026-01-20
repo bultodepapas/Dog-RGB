@@ -1,117 +1,102 @@
 # Tareas Pendientes (Plan Detallado)
 
-Este documento lista todas las tareas pendientes para implementar la Fase 1 y preparar el camino a fases futuras.
+Este documento lista todas las tareas pendientes para implementar la Fase 1 (GPS + Wi-Fi portal) y preparar fases futuras.
 
-## Fase 1 - MVP GPS-First (Sin Backend)
+## Fase 1 - GPS-First MVP (Sin App, Portal Wi-Fi)
+
+### Hardware Base
+- Confirmar cableado final: XIAO ESP32-S3 + EBYTE E108-GN02.
+- Revisar alimentacion GNSS (3.3 V estable) y GND comun.
+- Definir LED de estado externo y resistencia.
 
 ### Firmware (ESP32-S3 + GPS)
-- Definir pines finales de GPS RX/TX y LED de estado en `include/pins.h`.
-- Validar baudrate del GPS y ajustar si es necesario.
-- Implementar parser NMEA robusto (RMC y/o VTG) para velocidad.
-- Filtrado de picos GPS (l?mite de velocidad y salto de distancia).
-- C?lculo de distancia total (Haversine entre puntos v?lidos).
-- C?lculo de velocidad promedio (distancia / tiempo activo).
-- C?lculo de velocidad m?xima con filtros.
-- L?gica de ?tiempo activo? (umbral de velocidad + pausa).
-- Manejo de cambio de d?a usando hora GPS.
-- Persistencia de m?tricas diarias en NVS/flash con write throttling.
-- Exponer bloque BLE con resumen diario (layout acordado).
-- Estado de GPS fix y flags de datos disponibles.
-- Logs b?sicos por Serial para diagn?stico.
+- Verificar pines finales en `firmware/esp32s3_base/include/pins.h`.
+- Validar baudrate del GNSS (9600) y frecuencia 10 Hz.
+- Mantener parser RMC y filtros actuales.
+- Confirmar umbrales: 0.7 km/h activo, 40 km/h max valida, 1 s sample.
+- Validar reset diario con fecha GPS.
+- Validar persistencia NVS (guardado cada 60 s).
+- Estabilizar logs de diagnostico.
 
-### BLE (Perfil Simple)
-- Definir UUIDs del servicio y caracter?stica.
-- Especificar layout exacto del bloque de datos (byte layout + endian).
-- Definir checksum simple (XOR) y validaci?n en app.
-- Confirmar tama?o m?ximo de payload BLE.
-
-### App M?vil (MVP)
-- App con 1 pantalla (dashboard).
-- Bot?n ?Sincronizar? (lectura BLE).
-- Mostrar 3 m?tricas (distancia, promedio, m?xima).
-- Mostrar estado: conectado/no conectado y GPS OK/no fix.
-- Manejo de errores de conexi?n y reintentos.
-- Conversi?n de unidades (km/h y km).
-- Persistencia local de la ?ltima lectura.
+### Portal Wi-Fi (AP + STA)
+- Definir modo por defecto: AP si no hay credenciales.
+- Implementar pagina principal con 3 metricas.
+- Implementar `/api/summary` JSON.
+- Implementar pagina de setup Wi-Fi (STA) y endpoint `/api/wifi`.
+- Implementar mDNS opcional (`dog-collar.local`) en STA.
+- Mensajes simples: sin GPS, sin datos, conectado.
 
 ### UX y Copys
-- Redactar textos simples para estado (Esperando GPS, Ac?rcate al collar, etc.).
-- Validar legibilidad para usuarios no t?cnicos.
+- Definir textos exactos para estados:
+  - "Esperando GPS"
+  - "Sin datos, intenta mas tarde"
+  - "Conectado al collar"
+  - "Conectado a Wi-Fi"
 
-### Validaci?n
-- Prueba est?tica (distancia = 0).
-- Prueba caminata corta con comparaci?n a app GPS del tel?fono.
-- Prueba velocidad m?xima en trote/carrera.
-- Verificaci?n de estabilidad BLE (conexi?n en <10 s).
-
----
-
-## Fase 1.1 - Pulido
-
-### Firmware
-- Ajuste fino de umbrales (velocidad m?nima y tiempo de pausa).
-- Protecci?n contra p?rdida temporal de GPS.
-- Optimizaci?n de consumo (sleep ligero si no hay movimiento).
-
-### App
-- Selector simple de fecha ?Hoy/Ayer? (si hay datos guardados localmente).
-- Export simple (captura o compartir). 
+### Validacion
+- Prueba estatica (distancia cercana a 0).
+- Prueba caminata corta (200-500 m) comparando con GPS telefono.
+- Prueba trote (velocidad maxima coherente).
+- Verificar portal carga en <2 s.
 
 ---
 
 ## Fase 2 - Motion (IMU)
 
 ### Hardware
-- Selecci?n final IMU (BMI270 / ICM-42688) y ubicaci?n f?sica.
-- Integraci?n de alimentaci?n y filtrado.
+- Seleccion final IMU (BMI270 / ICM-42688).
+- Integracion fisica y alimentacion.
 
 ### Firmware
-- Driver IMU y calibraci?n b?sica.
-- Clasificaci?n de movimiento (bajo/medio/alto).
-- Fusi?n de datos GPS + IMU.
-- Refinar patrones de LED basados en actividad.
+- Driver IMU y calibracion basica.
+- Clasificacion de movimiento.
+- Fusion GPS + IMU.
 
 ---
 
 ## Fase 3 - Heart Rate
 
 ### Hardware
-- Selecci?n de sensor HR y montaje seguro.
-- Aislamiento mec?nico para lectura estable.
+- Seleccion de sensor HR y montaje.
 
 ### Firmware
-- Driver HR + validaci?n de se?al.
-- Definir rangos seguros y umbrales.
-- Combinar HR con IMU y GPS para perfiles.
+- Driver HR + validacion de se?al.
+- Integrar HR en perfiles de actividad.
 
 ---
 
-## Fase 4 - Miniaturizaci?n
+## Fase 4 - Miniaturizacion
 
 ### Mec?nico
-- Dise?o de carcasa compacta.
-- Reducci?n de peso total y tama?os de bater?a.
+- Reduccion de tama?o y peso.
+- Carcasa compacta.
 
-### El?ctrico
-- Reducci?n de PCB y selecci?n de componentes SMD.
-- Optimizar consumo y disipaci?n t?rmica.
-
----
-
-## Infraestructura y Documentaci?n
-
-- Documento BLE Spec (servicio + characteristic + layout de bytes).
-- Documento de c?lculo GPS (distancia/velocidad) con f?rmulas y l?mites.
-- Especificaci?n de pruebas con tolerancias aceptables.
-- Lista de materiales MVP (BOM) con proveedores y costos.
-- Esquema el?ctrico preliminar.
-- Diagrama de bloques actualizado.
+### Electrico
+- PCB mas pequeno y optimizado.
+- Reduccion de consumo.
 
 ---
 
-## Gesti?n y Operaci?n
+## Documentacion y Especificaciones
 
-- Definir qui?n implementa firmware vs app.
-- Estimar tiempos por tarea.
-- Lista de riesgos (GPS sin fix, BLE inestable, consumo alto).
-- Plan de iteraci?n con pruebas r?pidas en campo.
+- BLE spec: `docs/ble_spec.md` (fase futura)
+- Portal Wi-Fi: `docs/wifi_portal_spec.md`
+- Web portal general: `docs/web_portal_spec.md`
+- Flow BLE: `docs/flow_wireframe.md`
+- App MVP (futuro): `docs/app_mvp_spec.md`
+
+---
+
+## Gestion y Riesgos
+
+- Riesgo: GPS sin fix en interiores.
+- Riesgo: portal no accesible por cambio de red.
+- Mitigacion: modo AP siempre disponible.
+
+---
+
+## Estado actual (implementado)
+
+- Firmware GPS con calculo de distancia, promedio y max.
+- Persistencia NVS activa.
+- BLE payload definido y documentado (no usado en Fase 1).
