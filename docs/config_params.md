@@ -64,14 +64,18 @@ Estos valores viven en `firmware/esp32s3_base/include/config.h` y el firmware lo
 ## 3) Velocidad -> Color (Segmento B)
 
 - SPEED_RANGE_1_KPH: 1.5
-- SPEED_RANGE_2_KPH: 4.0
-- SPEED_RANGE_3_KPH: 7.0
+- SPEED_RANGE_2_KPH: 3.0
+- SPEED_RANGE_3_KPH: 4.5
+- SPEED_RANGE_4_KPH: 6.0
+- SPEED_RANGE_5_KPH: 7.5
 
 Mapeo de color:
 - 0.0 - 1.5 km/h: Azul (0, 0, 60)
-- 1.5 - 4.0 km/h: Morado (40, 0, 60)
-- 4.0 - 7.0 km/h: Naranja (60, 0, 20)
-- > 7.0 km/h: Rojo (60, 0, 0)
+- 1.5 - 3.0 km/h: Azul/Violeta (20, 0, 60)
+- 3.0 - 4.5 km/h: Morado (40, 0, 60)
+- 4.5 - 6.0 km/h: Magenta/Naranja (60, 0, 40)
+- 6.0 - 7.5 km/h: Naranja (60, 0, 20)
+- > 7.5 km/h: Rojo (60, 0, 0)
 
 ---
 
