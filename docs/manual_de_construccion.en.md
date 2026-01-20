@@ -30,8 +30,8 @@ Complete guide to build the prototype with solid electronics practices.
 - 5V level shifter: 74AHCT125 (or equivalent)
 - No level shifter option (prototype): direct data with short wires
 - Series resistors: 330-470 ohm (2 units, one per data line)
-- Capacitor: 1000 uF electrolytic (5V rail, near first LED)
-- Capacitor: 0.1 uF ceramic (optional, near first LED)
+- Capacitor: 1000 uF electrolytic, >=6.3V (1 unit, near first LED)
+- Capacitor: 0.1 uF ceramic (1 optional unit, near first LED)
 
 ### Mechanical
 - Nylon strap (20-25 mm width)
@@ -96,7 +96,7 @@ See the diagram in `docs/manual_de_uso.md`.
    - Single strip:
      - GPIO11 -> IN1 -> OUT1 -> 330-470R -> LED A DIN
      - Do not use GPIO12
-3) If NO level shifter (prototype): connect GPIO11/GPIO12 directly to DIN with a series resistor and keep wires short.
+3) If NO level shifter (prototype): connect GPIO11/GPIO12 directly to DIN with a 330-470 ohm series resistor and keep wires short.
 4) Connect LED strips VDD/GND to 5V/GND.
 5) Place 1000 uF capacitor on 5V near the first LED.
 

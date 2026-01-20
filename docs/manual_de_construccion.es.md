@@ -29,9 +29,9 @@ Guia completa para construir el prototipo con enfoque en buenas practicas de ele
 ### Nivel logico y proteccion
 - Level shifter 5V: 74AHCT125 (o equivalente)
 - Opcion sin level shifter (prototipo): data directo con cables cortos
-- Resistencia serie: 330-470 ohm (2 unidades, una por data line)
-- Condensador: 1000 uF electrolitico (5V rail, cerca del primer LED)
-- Condensador: 0.1 uF ceramico (opcional, cerca del primer LED)
+- Resistencias serie: 330-470 ohm (2 unidades, una por data line)
+- Condensador: 1000 uF electrolitico, >=6.3V (1 unidad, cerca del primer LED)
+- Condensador: 0.1 uF ceramico (1 unidad opcional, cerca del primer LED)
 
 ### Mecanica
 - Correa de nylon (20-25 mm ancho)
@@ -96,7 +96,7 @@ Ver el diagrama en `docs/manual_de_uso.md`.
    - Una sola tira:
      - GPIO11 -> IN1 -> OUT1 -> 330-470R -> DIN LED A
      - No usar GPIO12
-3) Si NO usas level shifter (prototipo): conecta GPIO11/GPIO12 directo a DIN con resistor serie y cables cortos.
+3) Si NO usas level shifter (prototipo): conecta GPIO11/GPIO12 directo a DIN con resistor serie de 330-470 ohm y cables cortos.
 4) Conecta VDD y GND de las tiras a 5V y GND.
 5) Coloca el condensador de 1000 uF en 5V cerca del primer LED.
 
