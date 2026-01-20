@@ -2,160 +2,114 @@
 
 [English](README.en.md) | [Espanol](README.es.md) | [Manual de uso](docs/manual_de_uso.md) | [Manual de construccion](docs/manual_de_construccion.md)
 
-Collar LED inteligente y de alta visibilidad para perros medianos y grandes, disenado para seguridad, comodidad y expansion futura (GPS, app BLE, modos avanzados).
+Collar LED inteligente y de alta visibilidad para perros medianos y grandes. Disenado para seguridad, comodidad y expansion futura (GPS, BLE, modos avanzados).
 
 ---
 
-## Equipo e intencion
+## Enlaces rapidos
 
-Somos dos ingenieros (electrico e industrial). Este proyecto es un experimento que queriamos construir desde hace mucho tiempo, ahora impulsado por nuestra experiencia y agentes de AI durante el desarrollo.
-
----
-
-## Objetivo
-
-Construir un collar que sea:
-
-- Muy visible de noche con animaciones LED de alta calidad.
-- Reactivo al movimiento y a la velocidad para color y brillo.
-- Eficiente con una sola celda Li-ion 21700.
-- Seguro, comodo y resistente al clima.
-- Listo para expansion GPS y BLE.
+- Manual de uso: [docs/manual_de_uso.md](docs/manual_de_uso.md)
+- Manual de construccion: [docs/manual_de_construccion.md](docs/manual_de_construccion.md)
+- Arquitectura: [docs/architecture.md](docs/architecture.md)
+- Requisitos: [docs/requirements.md](docs/requirements.md)
+- Roadmap: [docs/roadmap.md](docs/roadmap.md)
+- Tareas: [docs/tasks.md](docs/tasks.md)
 
 ---
 
-## Metas de diseno mecanico
+## Que es
 
-- Circunferencia de cuello: 40-55 cm (perros medianos/grandes)
-- Ancho de correa: 20-25 mm
-- Difusor LED: tubo de silicona sobre correa de nylon
-- Peso total objetivo: 120-160 g
-- Enclosure: compacto, IP65-IP67, con alivio de tension
+Un collar wearable con telemetria GPS, comportamiento LED configurable y un portal Wi-Fi local (AP/STA) para datos y ajustes runtime.
 
 ---
 
-## Sistema LED
+## Resumen del sistema
 
-LEDs seleccionados (Fase 1):
+- MCU: Seeed Studio XIAO ESP32-S3
+- GNSS: EBYTE E108-GN02 (10 Hz)
+- LEDs: SK6812 (5V, single-wire), dos tiras
+- Energia: 21700 Li-ion + BMS + boost 5V (>=3A)
+- Portal: AP + STA con dashboard local y UI de configuracion
 
-- SK6812 (5V, single-wire)
-- Cantidad por tira: 20 (min 10, max 50)
-- Tira simple o dual (pines de datos independientes)
-
-Notas:
-
-- Requiere 5V regulados (no alimentar directo desde bateria)
-- Brillo limitado a ~30% por seguridad y bateria
-- Datos SK6812 pueden requerir logica 5V; usar level shifter y buen desacoplo
-
----
-
-## Sistema de energia
-
-Bateria:
-
-- 21700 Li-ion
-- ~5000 mAh
-- 18.5 Wh energia nominal
-
-Presupuesto LED (ejemplo, 2 tiras x 20 LEDs):
-
-- 3-5 mA por LED (UI idle) -> 120-200 mA total LEDs
-- Mas brillo y animaciones incrementan consumo
-
-Objetivo: mantener corriente promedio baja para buena autonomia
+Mas detalles:
+- Freeze hardware: [docs/phase0_freeze.md](docs/phase0_freeze.md)
+- Wiring: [docs/sk6812_wiring.md](docs/sk6812_wiring.md)
+- Presupuesto de energia: [docs/bom_power_budget.md](docs/bom_power_budget.md)
 
 ---
 
-## Arquitectura de energia
+## Firmware (Estado actual)
 
-```
-21700 Bateria (3.0-4.2V)
-   -> BMS 1S + cargador USB-C
-   -> Boost 5V (>=3A continuo)
-   -> Tiras SK6812
-   -> Regulador 3.3V -> ESP32-S3 + sensores
-```
+El firmware base esta en [firmware/esp32s3_base](firmware/esp32s3_base) con:
 
-Funciones adicionales:
+- Parsing NMEA RMC (lat/lon/velocidad/fecha/hora)
+- Calculo de distancia (Haversine) con filtro de picos
+- Tracking de tiempo activo y umbrales de velocidad
+- Reset diario usando fecha GPS
+- Metricas max/promedio
+- Persistencia NVS (guardado periodico)
+- Configuracion runtime editable en el portal `/config`
 
-- Monitoreo de voltaje de bateria
-- Proteccion por bateria baja
-- Interruptor fisico o sensor Hall
-
----
-
-## Sistema de control
-
-MCU:
-
-- ESP32-S3 (BLE, control LED, procesamiento sensores)
-
-Opciones de IMU:
-
-- BMI270
-- ICM-42688
-- (MPU6050 aceptable en prototipos)
-
-GPS seleccionado (Fase 1):
-
-- EBYTE E108-GN02 (10 Hz, BDS/GPS/GLONASS)
-- UART 9600 baud
+Archivos clave:
+- Entrypoint firmware: [firmware/esp32s3_base/src/main.cpp](firmware/esp32s3_base/src/main.cpp)
+- Pines: [firmware/esp32s3_base/include/pins.h](firmware/esp32s3_base/include/pins.h)
+- Defaults runtime: [firmware/esp32s3_base/include/config.h](firmware/esp32s3_base/include/config.h)
+- Build config: [firmware/esp32s3_base/platformio.ini](firmware/esp32s3_base/platformio.ini)
 
 ---
 
-## Logica de comportamiento
+## Configuracion del portal (Runtime)
 
-Entradas:
+El portal expone configuracion runtime via `/config` y `/api/config`.
 
-- Intensidad de movimiento IMU
-- Velocidad GPS (cuando este habilitado)
+- Plan: [docs/portal_config_plan.md](docs/portal_config_plan.md)
+- UI spec: [docs/portal_config_ui_plan.md](docs/portal_config_ui_plan.md)
+- Validation flow: [docs/portal_config_validation_flow.md](docs/portal_config_validation_flow.md)
+- Apply flow: [docs/portal_config_apply_flow.md](docs/portal_config_apply_flow.md)
+- NVS plan: [docs/portal_config_nvs_plan.md](docs/portal_config_nvs_plan.md)
+- NVS schema: [docs/portal_config_nvs_schema.md](docs/portal_config_nvs_schema.md)
+- Presets: [docs/portal_config_presets.md](docs/portal_config_presets.md)
 
-Salidas:
-
-- Mapeo de color (Segmento B, velocidad GPS):
-  - Baja velocidad -> Azul
-  - Media velocidad -> Morado
-  - Alta velocidad -> Rojo
-- Brillo escala con actividad
-- Efectos:
-  - Breathing (idle)
-  - Pulsing (medio)
-  - Chase o strobe (alto)
+Docs del portal Wi-Fi:
+- Wi-Fi spec: [docs/wifi_portal_spec.md](docs/wifi_portal_spec.md)
+- Wi-Fi plan: [docs/wifi_portal_plan.md](docs/wifi_portal_plan.md)
+- Diagrama de estados: [docs/wifi_portal_state_diagram.md](docs/wifi_portal_state_diagram.md)
 
 ---
 
-## Roadmap de desarrollo
+## Comportamiento LED
 
-Fase 1 - MVP GPS-First (Perros medianos/grandes)
-
-- Bateria + cargador + boost
-- ESP32-S3 + GPS + control LED
-- Patrones basicos y limites de brillo
-- Monitoreo de bateria
-- Portal Wi-Fi (AP + STA)
-
-Fase 2 - Logica basada en movimiento
-
-- Agregar IMU para clasificacion de movimiento
-- Combinar velocidad GPS + intensidad IMU
-- Refinar perfiles de actividad
-
-Fase 3 - Integracion de ritmo cardiaco
-
-- Agregar sensor HR
-- Usar HR como senal de actividad
-- Calibrar umbrales y limites de seguridad
-
-Fase 4 - Miniaturizacion (perros pequenos)
-
-- Reducir footprint electronico
-- Bateria mas ligera
-- Menor densidad LED y correas mas delgadas
+- UI spec: [docs/led_ui_spec.md](docs/led_ui_spec.md)
+- Plan de efectos: [docs/led_effects_plan.md](docs/led_effects_plan.md)
 
 ---
 
-## Estructura del repositorio
+## Specs y docs de producto
+
+- Requisitos: [docs/requirements.md](docs/requirements.md)
+- Arquitectura: [docs/architecture.md](docs/architecture.md)
+- App MVP spec: [docs/app_mvp_spec.md](docs/app_mvp_spec.md)
+- BLE spec: [docs/ble_spec.md](docs/ble_spec.md)
+- Web portal spec: [docs/web_portal_spec.md](docs/web_portal_spec.md)
+
+---
+
+## Hardware Setup (Fase 1 MVP)
+
+Pines (XIAO ESP32-S3):
+- GPS RX: D6 / GPIO7
+- GPS TX: D7 / GPIO8
+- LED estado: D2 / GPIO3 (LED externo)
+- LED A data: GPIO11
+- LED B data: GPIO12
+
+Referencia de wiring:
+- [docs/manual_de_uso.md](docs/manual_de_uso.md)
+- [docs/sk6812_wiring.md](docs/sk6812_wiring.md)
+
+---
+
+## Estructura del repo
 
 - `docs/` specs, arquitectura, decisiones, roadmap
 - `hardware/` esquemas, PCB, notas de energia
@@ -168,68 +122,10 @@ Fase 4 - Miniaturizacion (perros pequenos)
 
 ---
 
-## Hardware actual (Fase 1 MVP)
-
-- MCU: Seeed Studio XIAO ESP32-S3
-- GNSS: EBYTE E108-GN02 (10 Hz)
-- LEDs: SK6812 (single-wire), dos tiras
-- GPS UART: 9600 baud
-- Pines (XIAO ESP32-S3):
-  - GPS RX: D6 / GPIO7
-  - GPS TX: D7 / GPIO8
-  - LED estado: D2 / GPIO3 (LED externo)
-  - LED A data: GPIO11
-  - LED B data: GPIO12
-
----
-
-## Estado del firmware (Fase 1)
-
-- Parsing NMEA RMC (lat/lon/velocidad/fecha/hora)
-- Calculo de distancia (Haversine) con filtro de picos
-- Tracking de tiempo activo y umbrales
-- Reset diario usando fecha GPS
-- Metricas max/promedio
-- Persistencia NVS (guardado periodico)
-- Logs seriales heartbeat
-- Rangos y tiras configurables en `firmware/esp32s3_base/include/config.h`
-- Efectos FastLED por rango de velocidad (Segmento B)
-- Configuracion runtime editable en `/config`
-
-Proyecto base: `firmware/esp32s3_base/`
-
----
-
-## Indice de documentacion
-
-- Phase 0 freeze: [`docs/phase0_freeze.md`](docs/phase0_freeze.md)
-- Tasks backlog: [`docs/tasks.md`](docs/tasks.md)
-- GPS -> calculation -> BLE flow: [`docs/flow_wireframe.md`](docs/flow_wireframe.md)
-- Web portal spec: [`docs/web_portal_spec.md`](docs/web_portal_spec.md)
-- BLE spec: [`docs/ble_spec.md`](docs/ble_spec.md)
-- App MVP spec (future): [`docs/app_mvp_spec.md`](docs/app_mvp_spec.md)
-- Wi-Fi portal spec: [`docs/wifi_portal_spec.md`](docs/wifi_portal_spec.md)
-- Wi-Fi portal plan: [`docs/wifi_portal_plan.md`](docs/wifi_portal_plan.md)
-- Wi-Fi portal state diagram: [`docs/wifi_portal_state_diagram.md`](docs/wifi_portal_state_diagram.md)
-- LED UI spec: [`docs/led_ui_spec.md`](docs/led_ui_spec.md)
-- SK6812 wiring guide: [`docs/sk6812_wiring.md`](docs/sk6812_wiring.md)
-- BOM + power budget: [`docs/bom_power_budget.md`](docs/bom_power_budget.md)
-- Config params: [`docs/config_params.md`](docs/config_params.md)
-- LED effects plan: [`docs/led_effects_plan.md`](docs/led_effects_plan.md)
-- Manual de uso: [`docs/manual_de_uso.md`](docs/manual_de_uso.md)
-- Portal config plan: [`docs/portal_config_plan.md`](docs/portal_config_plan.md)
-- Portal config NVS plan: [`docs/portal_config_nvs_plan.md`](docs/portal_config_nvs_plan.md)
-- Portal config UI plan: [`docs/portal_config_ui_plan.md`](docs/portal_config_ui_plan.md)
-- Portal config NVS schema: [`docs/portal_config_nvs_schema.md`](docs/portal_config_nvs_schema.md)
-- Portal config apply flow: [`docs/portal_config_apply_flow.md`](docs/portal_config_apply_flow.md)
-- Portal config presets: [`docs/portal_config_presets.md`](docs/portal_config_presets.md)
-
----
-
 ## Proximos pasos
 
 - Construir BOM detallado y sourcing
-- Crear presupuesto de energia con eficiencias reales
+- Validar presupuesto de energia con eficiencias reales
 - Borrador de esquema para energia + LEDs + IMU
 - Definir umbrales IMU para niveles de actividad
 - Boceto de enclosure y routing de cables

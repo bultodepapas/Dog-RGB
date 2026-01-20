@@ -2,163 +2,117 @@
 
 [English](README.en.md) | [Espanol](README.es.md) | [User Manual](docs/manual_de_uso.md) | [Build Manual](docs/manual_de_construccion.md)
 
-Smart, high-visibility LED collar for medium-to-large dogs, designed for safety, comfort, and future expansion (GPS, BLE app, advanced modes).
+Smart, high-visibility LED collar for medium-to-large dogs. Built for safety, comfort, and future expansion (GPS, BLE, advanced modes).
 
 ---
 
-## Team and Intent
+## Quick Links
 
-We are two engineers (electrical and industrial). This project is an experiment we have wanted to build for a long time, now powered by our experience and AI agents during development.
-
----
-
-## Objective
-
-Build a collar that is:
-
-- Highly visible at night with premium LED animation quality.
-- Motion- and speed-reactive for color and brightness changes.
-- Efficient with a single 21700 Li-ion cell.
-- Safe, comfortable, and weather-resistant.
-- Ready for GPS and BLE expansion.
+- User guide: [docs/manual_de_uso.md](docs/manual_de_uso.md)
+- Build guide: [docs/manual_de_construccion.md](docs/manual_de_construccion.md)
+- Architecture: [docs/architecture.md](docs/architecture.md)
+- Requirements: [docs/requirements.md](docs/requirements.md)
+- Roadmap: [docs/roadmap.md](docs/roadmap.md)
+- Tasks: [docs/tasks.md](docs/tasks.md)
 
 ---
 
-## Mechanical Design Targets
+## What This Is
 
-- Neck circumference: 40-55 cm (medium/large dogs)
-- Strap width: 20-25 mm
-- LED diffuser: silicone tube over nylon strap
-- Total weight target: 120-160 g
-- Enclosure: compact, IP65-IP67, strain-relieved
+A wearable LED collar with GPS-first telemetry, configurable LED behavior, and a local Wi-Fi portal (AP/STA) for data and runtime settings.
 
 ---
 
-## LED System
+## System Summary
 
-Selected LEDs (Phase 1):
+- MCU: Seeed Studio XIAO ESP32-S3
+- GNSS: EBYTE E108-GN02 (10 Hz)
+- LEDs: SK6812 (5V, single-wire), dual strips
+- Power: 21700 Li-ion + BMS + 5V boost (>=3A)
+- Portal: AP + STA with local dashboard and config UI
 
-- SK6812 (5V, single-wire)
-- Default count per strip: 20 (min 10, max 50)
-- Configurable single or dual strips (independent data pins)
-
-Notes:
-
-- Requires regulated 5V (do not power directly from battery)
-- Brightness limited to ~30% for safety and battery life
-- SK6812 data may require 5V logic; use a level shifter and proper decoupling
-
----
-
-## Power System
-
-Battery:
-
-- 21700 Li-ion
-- ~5000 mAh
-- 18.5 Wh nominal energy
-
-LED power budget (example, 2 strips x 20 LEDs):
-
-- 3-5 mA per LED (idle UI) -> 120-200 mA total LEDs
-- Higher brightness and animations will increase draw
-
-Design goal: keep average LED current low for battery life
+More details:
+- Hardware freeze: [docs/phase0_freeze.md](docs/phase0_freeze.md)
+- Wiring: [docs/sk6812_wiring.md](docs/sk6812_wiring.md)
+- Power budget: [docs/bom_power_budget.md](docs/bom_power_budget.md)
 
 ---
 
-## Power Architecture
+## Firmware (Current Status)
 
-```
-21700 Battery (3.0-4.2V)
-   -> BMS 1S + USB-C charger
-   -> 5V boost converter (>=3A continuous)
-   -> SK6812 LED strips
-   -> 3.3V regulator -> ESP32-S3 + sensors
-```
+The base firmware is in [firmware/esp32s3_base](firmware/esp32s3_base) with:
 
-Additional features:
+- NMEA RMC parsing (lat/lon/speed/date/time)
+- Distance calculation (Haversine) with spike filtering
+- Active time tracking and speed thresholds
+- Daily reset using GPS date
+- Max/avg speed metrics
+- NVS persistence (periodic save)
+- Runtime config editable in the portal at `/config`
 
-- Battery voltage monitoring
-- Low-battery protection
-- Physical switch or Hall sensor
-
----
-
-## Control System
-
-MCU:
-
-- ESP32-S3 (BLE-ready, LED control, sensor processing)
-
-IMU options:
-
-- BMI270
-- ICM-42688
-- (MPU6050 acceptable for prototypes)
-
-Selected GPS (Phase 1):
-
-- EBYTE E108-GN02 (10 Hz, BDS/GPS/GLONASS)
-- UART 9600 baud
+Key files:
+- Firmware entrypoint: [firmware/esp32s3_base/src/main.cpp](firmware/esp32s3_base/src/main.cpp)
+- Pin mapping: [firmware/esp32s3_base/include/pins.h](firmware/esp32s3_base/include/pins.h)
+- Runtime defaults: [firmware/esp32s3_base/include/config.h](firmware/esp32s3_base/include/config.h)
+- Build config: [firmware/esp32s3_base/platformio.ini](firmware/esp32s3_base/platformio.ini)
 
 ---
 
-## Behavior Logic
+## Portal Configuration (Runtime)
 
-Inputs:
+The portal exposes runtime config via `/config` and `/api/config`.
 
-- IMU movement intensity
-- GPS speed (when enabled)
+- Plan: [docs/portal_config_plan.md](docs/portal_config_plan.md)
+- UI spec: [docs/portal_config_ui_plan.md](docs/portal_config_ui_plan.md)
+- Validation flow: [docs/portal_config_validation_flow.md](docs/portal_config_validation_flow.md)
+- Apply flow: [docs/portal_config_apply_flow.md](docs/portal_config_apply_flow.md)
+- NVS plan: [docs/portal_config_nvs_plan.md](docs/portal_config_nvs_plan.md)
+- NVS schema: [docs/portal_config_nvs_schema.md](docs/portal_config_nvs_schema.md)
+- Presets: [docs/portal_config_presets.md](docs/portal_config_presets.md)
 
-Outputs:
-
-- Color mapping (Segment B, GPS speed):
-  - Low speed -> Blue
-  - Medium speed -> Purple
-  - High speed -> Red
-- Brightness scales with activity
-- Effects:
-  - Breathing (idle)
-  - Pulsing (medium)
-  - Chase or strobe (high)
+Wi-Fi portal docs:
+- Wi-Fi spec: [docs/wifi_portal_spec.md](docs/wifi_portal_spec.md)
+- Wi-Fi plan: [docs/wifi_portal_plan.md](docs/wifi_portal_plan.md)
+- State diagram: [docs/wifi_portal_state_diagram.md](docs/wifi_portal_state_diagram.md)
 
 ---
 
-## Development Roadmap
+## LED Behavior
 
-Phase 1 - GPS-First MVP (Medium/Large Dogs)
-
-- Battery + charger + boost
-- ESP32-S3 + GPS + LED control
-- Basic patterns and brightness limits
-- Battery monitoring
-- Wi-Fi portal (AP + STA)
-
-Phase 2 - Motion-Based Logic
-
-- Add IMU for movement classification
-- Merge GPS speed + IMU intensity
-- Refine activity profiles
-
-Phase 3 - Heart Rate Integration
-
-- Add heart-rate sensor
-- Use HR as additional activity signal
-- Calibrate thresholds and safety limits
-
-Phase 4 - Miniaturization (Small Dogs)
-
-- Reduced electronics footprint
-- Lower weight battery options
-- Smaller LED density and strap width variants
+- UI spec: [docs/led_ui_spec.md](docs/led_ui_spec.md)
+- Effects plan: [docs/led_effects_plan.md](docs/led_effects_plan.md)
 
 ---
 
-## Repository Structure
+## Specs and Product Docs
 
-- `docs/` product specs, architecture, decisions, roadmap
-- `hardware/` schematics, PCB, power design notes
+- Requirements: [docs/requirements.md](docs/requirements.md)
+- Architecture: [docs/architecture.md](docs/architecture.md)
+- App MVP spec: [docs/app_mvp_spec.md](docs/app_mvp_spec.md)
+- BLE spec: [docs/ble_spec.md](docs/ble_spec.md)
+- Web portal spec: [docs/web_portal_spec.md](docs/web_portal_spec.md)
+
+---
+
+## Hardware Setup (Phase 1 MVP)
+
+Pins (XIAO ESP32-S3):
+- GPS RX: D6 / GPIO7
+- GPS TX: D7 / GPIO8
+- Status LED: D2 / GPIO3 (external LED)
+- LED A data: GPIO11
+- LED B data: GPIO12
+
+Wiring reference:
+- [docs/manual_de_uso.md](docs/manual_de_uso.md)
+- [docs/sk6812_wiring.md](docs/sk6812_wiring.md)
+
+---
+
+## Repo Structure
+
+- `docs/` specs, architecture, decisions, roadmap
+- `hardware/` schematics, PCB, power notes
 - `firmware/` embedded firmware source
 - `software/` app/BLE tooling (future)
 - `assets/` diagrams, renders, images
@@ -168,68 +122,10 @@ Phase 4 - Miniaturization (Small Dogs)
 
 ---
 
-## Current Hardware (Phase 1 MVP)
-
-- MCU: Seeed Studio XIAO ESP32-S3
-- GNSS: EBYTE E108-GN02 (10 Hz)
-- LEDs: SK6812 (single-wire), dual strips
-- GPS UART: 9600 baud
-- Pins (XIAO ESP32-S3):
-  - GPS RX: D6 / GPIO7
-  - GPS TX: D7 / GPIO8
-  - Status LED: D2 / GPIO3 (external LED)
-  - LED A data: GPIO11
-  - LED B data: GPIO12
-
----
-
-## Firmware Status (Phase 1)
-
-- NMEA RMC parsing (lat/lon/speed/date/time)
-- Distance calculation (Haversine) with spike filtering
-- Active time tracking and speed thresholds
-- Daily reset using GPS date
-- Max/avg speed metrics
-- NVS persistence (periodic save)
-- Serial heartbeat logs
-- Configurable ranges and strip settings in `firmware/esp32s3_base/include/config.h`
-- FastLED effects per speed range (Segment B)
-- Runtime config editable in the portal at `/config`
-
-Base project: `firmware/esp32s3_base/`
-
----
-
-## Documentation Index
-
-- Phase 0 freeze: [`docs/phase0_freeze.md`](docs/phase0_freeze.md)
-- Tasks backlog: [`docs/tasks.md`](docs/tasks.md)
-- GPS -> calculation -> BLE flow: [`docs/flow_wireframe.md`](docs/flow_wireframe.md)
-- Web portal spec: [`docs/web_portal_spec.md`](docs/web_portal_spec.md)
-- BLE spec: [`docs/ble_spec.md`](docs/ble_spec.md)
-- App MVP spec (future): [`docs/app_mvp_spec.md`](docs/app_mvp_spec.md)
-- Wi-Fi portal spec: [`docs/wifi_portal_spec.md`](docs/wifi_portal_spec.md)
-- Wi-Fi portal plan: [`docs/wifi_portal_plan.md`](docs/wifi_portal_plan.md)
-- Wi-Fi portal state diagram: [`docs/wifi_portal_state_diagram.md`](docs/wifi_portal_state_diagram.md)
-- LED UI spec: [`docs/led_ui_spec.md`](docs/led_ui_spec.md)
-- SK6812 wiring guide: [`docs/sk6812_wiring.md`](docs/sk6812_wiring.md)
-- BOM + power budget: [`docs/bom_power_budget.md`](docs/bom_power_budget.md)
-- Config params: [`docs/config_params.md`](docs/config_params.md)
-- LED effects plan: [`docs/led_effects_plan.md`](docs/led_effects_plan.md)
-- Manual de uso: [`docs/manual_de_uso.md`](docs/manual_de_uso.md)
-- Portal config plan: [`docs/portal_config_plan.md`](docs/portal_config_plan.md)
-- Portal config NVS plan: [`docs/portal_config_nvs_plan.md`](docs/portal_config_nvs_plan.md)
-- Portal config UI plan: [`docs/portal_config_ui_plan.md`](docs/portal_config_ui_plan.md)
-- Portal config NVS schema: [`docs/portal_config_nvs_schema.md`](docs/portal_config_nvs_schema.md)
-- Portal config apply flow: [`docs/portal_config_apply_flow.md`](docs/portal_config_apply_flow.md)
-- Portal config presets: [`docs/portal_config_presets.md`](docs/portal_config_presets.md)
-
----
-
 ## Next Steps
 
 - Build a detailed BOM and sourcing list
-- Create power budget with real component efficiencies
+- Validate the power budget with real component efficiencies
 - Draft schematic for power + LEDs + IMU
 - Define IMU thresholds for activity levels
 - Sketch enclosure and cable routing
