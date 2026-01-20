@@ -409,6 +409,11 @@ static void fade_range(CRGB *leds, int start, int count, uint8_t amount) {
   }
 }
 
+static uint8_t step_from_speed(uint8_t speed, uint8_t divisor) {
+  const uint8_t step = speed / divisor;
+  return step < 1 ? 1 : step;
+}
+
 static uint8_t speed_range(float kph) {
   if (kph <= SPEED_RANGE_1_KPH) return 1;
   if (kph <= SPEED_RANGE_2_KPH) return 2;
@@ -536,13 +541,13 @@ static void apply_effect(int effect_id,
     }
     case 3: { // CHASE
       fade_range(leds, start, count, fade_amt);
-      state.pos = (state.pos + max<uint8_t>(1, speed / 32)) % count;
+      state.pos = (state.pos + step_from_speed(speed, 32)) % count;
       leds[start + state.pos] = base;
       break;
     }
     case 4: { // COMET
       fade_range(leds, start, count, fade_amt);
-      state.pos = (state.pos + max<uint8_t>(1, speed / 24)) % count;
+      state.pos = (state.pos + step_from_speed(speed, 24)) % count;
       leds[start + state.pos] = base;
       break;
     }
@@ -574,7 +579,7 @@ static void apply_effect(int effect_id,
       break;
     }
     case 9: { // RAINBOW
-      state.hue += max<uint8_t>(1, speed / 16);
+      state.hue += step_from_speed(speed, 16);
       fill_rainbow(&leds[start], count, state.hue, 7);
       break;
     }
@@ -582,7 +587,7 @@ static void apply_effect(int effect_id,
       apply_fire(leds, heat, start, count, intensity, speed);
       break;
     case 11: { // GRADIENT_WAVE
-      state.hue += max<uint8_t>(1, speed / 24);
+      state.hue += step_from_speed(speed, 24);
       for (int i = start; i < start + count; ++i) {
         const uint8_t offset = (state.hue + (i * 8));
         leds[i] = CHSV(offset, 200, 255);
