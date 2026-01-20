@@ -9,6 +9,36 @@ static const float SPEED_RANGE_3_KPH = 4.5f;
 static const float SPEED_RANGE_4_KPH = 6.0f;
 static const float SPEED_RANGE_5_KPH = 7.5f;
 
+// Effect selection for Segment B (planned for FastLED).
+// 0=SOLID, 1=PULSE, 2=BREATH, 3=CHASE, 4=COMET, 5=SINELON,
+// 6=CONFETTI, 7=JUGGLE, 8=BPM, 9=RAINBOW, 10=FIRE, 11=GRADIENT_WAVE
+static const int RANGE_1_EFFECT_A = 0;
+static const int RANGE_1_EFFECT_B = 1;
+static const int RANGE_2_EFFECT_A = 1;
+static const int RANGE_2_EFFECT_B = 3;
+static const int RANGE_3_EFFECT_A = 6;
+static const int RANGE_3_EFFECT_B = 5;
+static const int RANGE_4_EFFECT_A = 7;
+static const int RANGE_4_EFFECT_B = 8;
+static const int RANGE_5_EFFECT_A = 9;
+static const int RANGE_5_EFFECT_B = 4;
+static const int RANGE_6_EFFECT_A = 10;
+static const int RANGE_6_EFFECT_B = 3;
+
+// Effect tuning per range (0-255).
+static const uint8_t RANGE_1_SPEED = 40;
+static const uint8_t RANGE_1_INTENSITY = 80;
+static const uint8_t RANGE_2_SPEED = 60;
+static const uint8_t RANGE_2_INTENSITY = 100;
+static const uint8_t RANGE_3_SPEED = 80;
+static const uint8_t RANGE_3_INTENSITY = 120;
+static const uint8_t RANGE_4_SPEED = 110;
+static const uint8_t RANGE_4_INTENSITY = 150;
+static const uint8_t RANGE_5_SPEED = 140;
+static const uint8_t RANGE_5_INTENSITY = 180;
+static const uint8_t RANGE_6_SPEED = 170;
+static const uint8_t RANGE_6_INTENSITY = 200;
+
 // Motion filters and activity thresholds.
 static const float SPEED_ACTIVE_KPH = 0.7f; // Min speed to count as "active".
 static const float SPEED_MAX_VALID_KPH = 40.0f; // Reject GPS spikes above this.

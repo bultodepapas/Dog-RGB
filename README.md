@@ -211,6 +211,7 @@ Base project: `firmware/esp32s3_base/`
 - SK6812 wiring guide: [`docs/sk6812_wiring.md`](docs/sk6812_wiring.md)
 - BOM + power budget: [`docs/bom_power_budget.md`](docs/bom_power_budget.md)
 - Config params: [`docs/config_params.md`](docs/config_params.md)
+- LED effects plan: [`docs/led_effects_plan.md`](docs/led_effects_plan.md)
 
 ---
 
