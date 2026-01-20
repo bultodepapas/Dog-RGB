@@ -35,16 +35,16 @@ No incluye:
 
 Opciones posibles (se elige una para implementar):
 
-### Opcion A (Recomendada para MVP)
-- Collar -> BLE -> App puente (movil/desktop) -> API -> Web
-- Web lee datos desde backend.
+### Opcion A (Seleccionada para Fase 1)
+- Collar -> Wi-Fi (AP o STA) -> Portal web local
+- Sin backend en Fase 1
 
-### Opcion B (Web Bluetooth directo)
-- Collar -> BLE -> Navegador (Web Bluetooth)
-- Sin backend. Limitado a navegadores compatibles.
+### Opcion B (Fase futura)
+- Collar -> BLE -> App puente -> API -> Web
+- Requiere app movil y backend
 
 Notas:
-- El ESP32 no provee portal web en Fase 1.
+- En Fase 1 el ESP32 si provee portal web local (AP/STA).
 - Fase 1 prioriza simplicidad y accesibilidad para usuarios normales.
 
 ---

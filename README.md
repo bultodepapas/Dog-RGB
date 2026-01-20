@@ -137,6 +137,7 @@ Phase 1 - GPS-First MVP (Medium/Large Dogs)
 - ESP32-S3 + GPS + LED control
 - Basic patterns and brightness limits
 - Battery monitoring
+- Wi-Fi portal (AP + STA)
 
 Phase 2 - Motion-Based Logic
 
@@ -203,6 +204,9 @@ Base project: `firmware/esp32s3_base/`
 - Tasks backlog: `docs/tasks.md`
 - GPS -> calculation -> BLE flow: `docs/flow_wireframe.md`
 - Web portal spec: `docs/web_portal_spec.md`
+- BLE spec: `docs/ble_spec.md`
+- App MVP spec: `docs/app_mvp_spec.md`
+- Wi-Fi portal spec: `docs/wifi_portal_spec.md`
 
 ---
 
