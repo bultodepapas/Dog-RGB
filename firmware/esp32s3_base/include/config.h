@@ -73,6 +73,11 @@ static const uint8_t LED_BRIGHTNESS = 77; // ~30% brightness (0-255).
 // LED UI timing.
 static const unsigned long LED_UPDATE_MS = 50; // Refresh interval for LED UI.
 static const uint8_t LED_GPS_SEARCH_RAINBOW_STEP = 20; // Hue step per update while GPS is searching.
+static const uint8_t LED_GPS_STAR_RAINBOW_SPREAD = 7; // Hue delta per LED in GPS search effect.
+static const unsigned long LED_GPS_STAR_PULSE_MS = 700; // Pulse period for GPS search effect.
+static const uint8_t LED_GPS_STAR_PULSE_MIN_SCALE = 180; // Min scale for GPS search pulse (0-255).
+static const uint8_t LED_GPS_STAR_TWINKLE_CHANCE = 80; // Chance (0-255) of white sparkle per tick.
+static const uint8_t LED_GPS_STAR_TWINKLE_WHITE = 255; // White sparkle intensity (0-255).
 static const unsigned long CRITICAL_NO_OK_MS = 600000; // Error if no GPS/Wi-Fi for this long.
 static const bool LED_UI_ENABLED = true; // Disable to turn off LED UI logic.
 

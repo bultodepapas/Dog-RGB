@@ -10,7 +10,7 @@ Este manual explica que significa cada color segun el firmware activo en `Platfo
 - Segmento Resto (el resto de la tira): del LED 2 al final (LED 2-23).
 - Brillo global default: 77 (~30%).
 - El estado (Segmento Estado) tiene prioridad, excepto en modo homogeneo (Wi-Fi OFF + GPS OK >5 min).
-- El Segmento Resto muestra rainbow si no hay GPS fix, y usa rangos cuando hay GPS OK.
+- El Segmento Resto muestra un efecto tipo “estrella” (rainbow rapido + pulso + destellos blancos) si no hay GPS fix, y usa rangos cuando hay GPS OK.
 
 ---
 
@@ -41,7 +41,7 @@ Notas:
 
 ## 3) Velocidad -> color (Segmento Resto)
 
-Si no hay GPS fix, el Segmento Resto muestra un rainbow animado (el tono avanza `LED_GPS_SEARCH_RAINBOW_STEP` por tick de `LED_UPDATE_MS`).
+Si no hay GPS fix, el Segmento Resto muestra un efecto tipo “estrella”: rainbow rapido, pulso suave y destellos blancos. El tono avanza `LED_GPS_SEARCH_RAINBOW_STEP` por tick de `LED_UPDATE_MS`.
 
 Con GPS OK, se usan los rangos por defecto (km/h) y color base (RGB):
 
@@ -82,7 +82,12 @@ Nota: el firmware descarta picos por encima de 40 km/h (SPEED_MAX_VALID_KPH).
 - LED_STRIP_COUNT = 20 (LEDs por tira)
 - LED_STATUS_COUNT = 3 (LEDs reservados para estado)
 - LED_BRIGHTNESS = 77 (~30%)
-- LED_GPS_SEARCH_RAINBOW_STEP = 6 (avance de tono por tick sin GPS fix)
+- LED_GPS_SEARCH_RAINBOW_STEP = 20 (avance de tono por tick sin GPS fix)
+- LED_GPS_STAR_RAINBOW_SPREAD = 7 (separacion de tono entre LEDs en modo sin fix)
+- LED_GPS_STAR_PULSE_MS = 700 (periodo del pulso en modo sin fix)
+- LED_GPS_STAR_PULSE_MIN_SCALE = 180 (brillo minimo del pulso en modo sin fix)
+- LED_GPS_STAR_TWINKLE_CHANCE = 80 (probabilidad de destello blanco por tick)
+- LED_GPS_STAR_TWINKLE_WHITE = 255 (intensidad del destello blanco)
 - SPEED_RANGE_1..9 = 2.0 / 4.0 / 6.0 / 8.0 / 12.0 / 16.0 / 22.0 / 28.0 / 34.0 km/h
 
 ---

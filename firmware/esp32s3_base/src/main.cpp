@@ -661,6 +661,23 @@ static void apply_fire(CRGB *leds,
   (void)speed;
 }
 
+static void apply_gps_search_star(CRGB *leds, int start, int count, uint8_t base_hue) {
+  fill_rainbow(&leds[start], count, base_hue, LED_GPS_STAR_RAINBOW_SPREAD);
+  const float pulse = pulse_scale(LED_GPS_STAR_PULSE_MS);
+  const uint8_t scale = static_cast<uint8_t>(
+      LED_GPS_STAR_PULSE_MIN_SCALE +
+      (255 - LED_GPS_STAR_PULSE_MIN_SCALE) * pulse);
+  for (int i = start; i < start + count; ++i) {
+    leds[i].nscale8(scale);
+  }
+  if (random8() < LED_GPS_STAR_TWINKLE_CHANCE) {
+    const int pos = start + random16(count);
+    leds[pos] = CRGB(LED_GPS_STAR_TWINKLE_WHITE,
+                     LED_GPS_STAR_TWINKLE_WHITE,
+                     LED_GPS_STAR_TWINKLE_WHITE);
+  }
+}
+
 static void apply_effect(int effect_id,
                          CRGB *leds,
                          uint8_t *heat,
@@ -811,13 +828,9 @@ static void update_led_ui() {
     }
   } else if (seg_count > 0) {
     body_idle_hue = static_cast<uint8_t>(body_idle_hue + LED_GPS_SEARCH_RAINBOW_STEP);
-    for (int i = 0; i < seg_count; ++i) {
-      leds_a[seg_start + i] = CHSV(static_cast<uint8_t>(body_idle_hue + (i * 7)), 255, 255);
-    }
+    apply_gps_search_star(leds_a, seg_start, seg_count, body_idle_hue);
     if (LED_STRIP_MODE == 2) {
-      for (int i = 0; i < seg_count; ++i) {
-        leds_b[seg_start + i] = CHSV(static_cast<uint8_t>(body_idle_hue + (i * 7)), 255, 255);
-      }
+      apply_gps_search_star(leds_b, seg_start, seg_count, body_idle_hue);
     }
   }
 
