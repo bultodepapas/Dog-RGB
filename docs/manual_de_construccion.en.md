@@ -84,8 +84,8 @@ Official XIAO ESP32-S3 pinout reference: `xiao_s3_pin.md`.
 ### Step 2: MCU and GNSS
 1) Power the XIAO ESP32-S3 at 3.3V.
 2) Connect GNSS:
-   - GPS TX -> GPIO7 (D8) on MCU
-   - GPS RX -> GPIO8 (D9) on MCU (optional)
+   - GPS TX -> GPIO44 (D7) on MCU
+   - GPS RX -> GPIO43 (D6) on MCU (optional)
    - Common GND
    - VCC per module (3.3V if applicable)
 3) Add 10-47 uF + 0.1 uF between GNSS VCC and GND, as close to the module as possible.

@@ -2,7 +2,7 @@
 
 [English](README.en.md) | [Espanol](README.es.md) | [Manual de uso](docs/manual_de_uso.md) | [Manual de construccion](docs/manual_de_construccion.md)
 
-Collar LED inteligente y de alta visibilidad para perros medianos y grandes. Disenado para seguridad, comodidad y expansion futura (GPS, BLE, modos avanzados).
+Collar LED inteligente y de alta visibilidad para perros medianos y grandes. Disenado para seguridad, comodidad y telemetria GPS con portal Wi-Fi local y configuracion runtime de LEDs.
 
 ---
 
@@ -10,6 +10,7 @@ Collar LED inteligente y de alta visibilidad para perros medianos y grandes. Dis
 
 - Manual de uso: [docs/manual_de_uso.md](docs/manual_de_uso.md)
 - Manual de construccion: [docs/manual_de_construccion.md](docs/manual_de_construccion.md)
+- Referencia de colores: [docs/manual_de_colores.md](docs/manual_de_colores.md)
 - Pinout XIAO ESP32-S3 (oficial): [xiao_s3_pin.md](xiao_s3_pin.md)
 - Arquitectura: [docs/architecture.md](docs/architecture.md)
 - Requisitos: [docs/requirements.md](docs/requirements.md)
@@ -28,9 +29,10 @@ Un collar wearable con telemetria GPS, comportamiento LED configurable y un port
 
 - MCU: Seeed Studio XIAO ESP32-S3
 - GNSS: EBYTE E108-GN02 (10 Hz)
-- LEDs: SK6812 RGBW (5V, single-wire), dos tiras (Adafruit NeoPixel)
+- LEDs: SK6812 RGBW (5V, single-wire), dos tiras
 - Energia: 21700 Li-ion + BMS + boost 5V (>=3A)
 - Portal: AP + STA con dashboard local y UI de configuracion
+- BLE: caracteristica de resumen diario en modo solo lectura
 
 Mas detalles:
 - Freeze hardware: [docs/phase0_freeze.md](docs/phase0_freeze.md)
@@ -43,13 +45,16 @@ Mas detalles:
 
 El proyecto de firmware activo esta en [Platformio/Dog-RGB](Platformio/Dog-RGB) con:
 
-- Parsing NMEA RMC (lat/lon/velocidad/fecha/hora)
+- Parsing NMEA RMC + GGA (fix, velocidad, satelites)
 - Calculo de distancia (Haversine) con filtro de picos
 - Tracking de tiempo activo y umbrales de velocidad
 - Reset diario usando fecha GPS
 - Metricas max/promedio
-- Persistencia NVS (guardado periodico)
-- Configuracion runtime editable en el portal `/config`
+- Persistencia NVS para metricas + config runtime
+- Portal Wi-Fi (AP/STA) con `/`, `/api/summary`, `/wifi`
+- UI de configuracion en `/config` con `/api/config` + `/api/config/reset`
+- Resumen BLE diario en modo lectura
+- UI LED con 12 efectos, configurable por rangos de velocidad
 
 Archivos clave:
 - Entrypoint firmware: [Platformio/Dog-RGB/src/main.cpp](Platformio/Dog-RGB/src/main.cpp)
@@ -61,7 +66,7 @@ Archivos clave:
 
 ## Configuracion del portal (Runtime)
 
-El portal expone configuracion runtime via `/config` y `/api/config`.
+El portal expone configuracion runtime via `/config` y `/api/config` (mas `/api/config/reset`).
 
 - Plan: [docs/portal_config_plan.md](docs/portal_config_plan.md)
 - UI spec: [docs/portal_config_ui_plan.md](docs/portal_config_ui_plan.md)
@@ -81,7 +86,8 @@ Docs del portal Wi-Fi:
 ## Comportamiento LED
 
 - UI spec: [docs/led_ui_spec.md](docs/led_ui_spec.md)
-- Plan de efectos: [docs/led_effects_plan.md](docs/led_effects_plan.md)
+- Referencia de efectos: [docs/led_effects_plan.md](docs/led_effects_plan.md)
+- Referencia de colores: [docs/manual_de_colores.md](docs/manual_de_colores.md)
 
 ---
 
@@ -112,21 +118,18 @@ Referencia de wiring:
 
 ## Estructura del repo
 
+- `Datasheets/` datasheets de componentes
 - `docs/` specs, arquitectura, decisiones, roadmap
-- `hardware/` esquemas, PCB, notas de energia
+- `firmware/` notas y referencias de firmware
+- `hardware/` notas de hardware
 - `Platformio/` proyecto de firmware activo (PlatformIO)
 - `software/` app/BLE (futuro)
-- `assets/` diagramas, renders, imagenes
-- `research/` datasheets, referencias, calculos
-- `tests/` validacion y planes de prueba
-- `tools/` scripts y utilidades
 
 ---
 
 ## Proximos pasos
 
-- Construir BOM detallado y sourcing
 - Validar presupuesto de energia con eficiencias reales
-- Borrador de esquema para energia + LEDs + IMU
-- Definir umbrales IMU para niveles de actividad
+- Finalizar BOM y sourcing
 - Boceto de enclosure y routing de cables
+- Agregar IMU para clasificacion de movimiento (Fase 2)

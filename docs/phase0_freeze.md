@@ -16,14 +16,15 @@ Este documento fija los parametros base para comenzar la implementacion del MVP.
 
 Objetivo: pines estables, faciles de cablear y sin conflicto con USB.
 
-- GPS RX (ESP32 recibe): D8 / GPIO7
-- GPS TX (ESP32 transmite, opcional): D9 / GPIO8
+- GPS RX (ESP32 recibe): D7 / GPIO44
+- GPS TX (ESP32 transmite, opcional): D6 / GPIO43
 - LED de estado: D2 / GPIO3 (LED externo con resistencia)
 - LED A data: D0 / GPIO1
 - LED B data: D1 / GPIO2
 
 Notas:
 - Se evita usar el LED RGB integrado para no mezclar con futuras tiras LED.
+- Se usa D6/D7 para evitar conflicto con pines SD/SPI.
 - Si se decide usar otro pin por disponibilidad, se actualiza en `pins.h`.
 
 ---
@@ -32,7 +33,7 @@ Notas:
 
 - Baudrate: 9600
 - Frecuencia de actualizacion: 10 Hz
-- Mensajes requeridos: RMC (speed) y opcional VTG
+- Mensajes requeridos: RMC (speed/fecha) + GGA (fix/sats)
 
 ---
 
@@ -40,8 +41,8 @@ Notas:
 
 - Intervalo GPS: 1 s
 - Umbral movimiento (activo): 0.7 km/h
-- Tiempo de pausa: 10 s sin movimiento
 - Velocidad maxima valida: 40 km/h
+- Filtro de distancia: descartar saltos grandes (>50 m)
 
 ---
 
@@ -70,5 +71,5 @@ Notas:
 
 ## Siguiente paso
 
-- Actualizar firmware con pines y parametros definidos.
-- Definir UUIDs BLE y documentar el servicio.
+- Validar cableado final con D6/D7.
+- UUIDs BLE definidos y documentados en `docs/ble_spec.md`.

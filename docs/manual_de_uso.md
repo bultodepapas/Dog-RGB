@@ -43,8 +43,8 @@ Guia practica para instalar, usar y configurar el collar en Fase 1 (GPS + portal
 XIAO ESP32-S3 (3.3V)
   D0 / GPIO1 (LED A data) -------+--> 74AHCT125 IN1 -> OUT1 -> DIN A (330-470R)
   D1 / GPIO2 (LED B data) -------+--> 74AHCT125 IN2 -> OUT2 -> DIN B (330-470R)
-  GPIO7  (GPS RX / D8) <--------------------------- GPS TX
-  GPIO8  (GPS TX / D9) ---------------------------> GPS RX (opcional)
+  GPIO44 (GPS RX / D7) <--------------------------- GPS TX
+  GPIO43 (GPS TX / D6) ---------------------------> GPS RX (opcional)
   GPIO3  (Status LED) ----[R]----> LED externo -> GND
   3V3 ---------------------------> GPS VCC (si 3.3V)
   GND ----------------------------> GPS GND
@@ -55,7 +55,7 @@ Notas:
 - Usa resistor serie de 330-470 ohm en cada data line, cerca de DIN.
 - Decoupling recomendado: 1000 uF en 5V cerca del primer LED (ideal uno por tira).
 - GNSS: 10-47 uF + 0.1 uF cerca de VCC, cables cortos y lejos del boost/5V de LEDs.
-- En este proyecto: 2 tiras LED. Los primeros 3 LEDs de cada tira son de estado.
+- En este proyecto: 2 tiras LED. Los primeros 2 LEDs de cada tira son de estado.
 
 ---
 

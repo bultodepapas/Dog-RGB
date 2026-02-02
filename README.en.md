@@ -2,7 +2,7 @@
 
 [English](README.en.md) | [Espanol](README.es.md) | [User Manual](docs/manual_de_uso.md) | [Build Manual](docs/manual_de_construccion.md)
 
-Smart, high-visibility LED collar for medium-to-large dogs. Built for safety, comfort, and future expansion (GPS, BLE, advanced modes).
+Smart, high-visibility LED collar for medium-to-large dogs. Built for safety, comfort, and GPS-first telemetry with a local Wi-Fi portal and runtime LED configuration.
 
 ---
 
@@ -10,6 +10,7 @@ Smart, high-visibility LED collar for medium-to-large dogs. Built for safety, co
 
 - User guide: [docs/manual_de_uso.md](docs/manual_de_uso.md)
 - Build guide: [docs/manual_de_construccion.md](docs/manual_de_construccion.md)
+- Color reference: [docs/manual_de_colores.md](docs/manual_de_colores.md)
 - XIAO ESP32-S3 pinout (official): [xiao_s3_pin.md](xiao_s3_pin.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Requirements: [docs/requirements.md](docs/requirements.md)
@@ -28,9 +29,10 @@ A wearable LED collar with GPS-first telemetry, configurable LED behavior, and a
 
 - MCU: Seeed Studio XIAO ESP32-S3
 - GNSS: EBYTE E108-GN02 (10 Hz)
-- LEDs: SK6812 RGBW (5V, single-wire), dual strips (Adafruit NeoPixel)
+- LEDs: SK6812 RGBW (5V, single-wire), dual strips
 - Power: 21700 Li-ion + BMS + 5V boost (>=3A)
 - Portal: AP + STA with local dashboard and config UI
+- BLE: read-only daily summary characteristic
 
 More details:
 - Hardware freeze: [docs/phase0_freeze.md](docs/phase0_freeze.md)
@@ -43,13 +45,16 @@ More details:
 
 The active firmware project is in [Platformio/Dog-RGB](Platformio/Dog-RGB) with:
 
-- NMEA RMC parsing (lat/lon/speed/date/time)
+- NMEA RMC + GGA parsing (fix, speed, satellites)
 - Distance calculation (Haversine) with spike filtering
 - Active time tracking and speed thresholds
 - Daily reset using GPS date
 - Max/avg speed metrics
-- NVS persistence (periodic save)
-- Runtime config editable in the portal at `/config`
+- NVS persistence for metrics + runtime config
+- Wi-Fi portal (AP/STA) with `/`, `/api/summary`, `/wifi`
+- Runtime config UI at `/config` with `/api/config` + `/api/config/reset`
+- BLE read-only daily summary payload
+- LED UI with 12 effects, configurable per speed range
 
 Key files:
 - Firmware entrypoint: [Platformio/Dog-RGB/src/main.cpp](Platformio/Dog-RGB/src/main.cpp)
@@ -61,7 +66,7 @@ Key files:
 
 ## Portal Configuration (Runtime)
 
-The portal exposes runtime config via `/config` and `/api/config`.
+The portal exposes runtime config via `/config` and `/api/config` (plus `/api/config/reset`).
 
 - Plan: [docs/portal_config_plan.md](docs/portal_config_plan.md)
 - UI spec: [docs/portal_config_ui_plan.md](docs/portal_config_ui_plan.md)
@@ -81,7 +86,8 @@ Wi-Fi portal docs:
 ## LED Behavior
 
 - UI spec: [docs/led_ui_spec.md](docs/led_ui_spec.md)
-- Effects plan: [docs/led_effects_plan.md](docs/led_effects_plan.md)
+- Effects reference: [docs/led_effects_plan.md](docs/led_effects_plan.md)
+- Color reference: [docs/manual_de_colores.md](docs/manual_de_colores.md)
 
 ---
 
@@ -112,21 +118,18 @@ Wiring reference:
 
 ## Repo Structure
 
+- `Datasheets/` component datasheets
 - `docs/` specs, architecture, decisions, roadmap
-- `hardware/` schematics, PCB, power notes
+- `firmware/` firmware notes and references
+- `hardware/` hardware notes
 - `Platformio/` active PlatformIO firmware project
 - `software/` app/BLE tooling (future)
-- `assets/` diagrams, renders, images
-- `research/` datasheets, references, calculations
-- `tests/` validation and test plans
-- `tools/` scripts and utilities
 
 ---
 
 ## Next Steps
 
-- Build a detailed BOM and sourcing list
 - Validate the power budget with real component efficiencies
-- Draft schematic for power + LEDs + IMU
-- Define IMU thresholds for activity levels
-- Sketch enclosure and cable routing
+- Finalize BOM and sourcing list
+- Draft enclosure and cable routing
+- Add IMU motion classification (Phase 2)
