@@ -721,32 +721,16 @@ static void update_led_ui() {
   uint8_t b = 0;
   float scale = 1.0f;
 
-  bool full_override = false;
-  uint8_t full_r = 0;
-  uint8_t full_g = 0;
-  uint8_t full_b = 0;
-
   if (critical_error) {
     scale = (now_ms / 200) % 2 ? 1.0f : 0.0f;
-    full_override = true;
-    full_r = clamp_u8(static_cast<int>(60 * scale));
+    r = clamp_u8(static_cast<int>(60 * scale));
+    g = 0;
+    b = 0;
   } else if (!sta_ok && wifi_ssid.length() > 0 && ap_mode) {
-    full_override = true;
-    full_r = 60;
-    full_g = 0;
-    full_b = 0;
-  }
-
-  if (full_override) {
-    fill_solid(leds_a, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
-    if (LED_STRIP_MODE == 2) {
-      fill_solid(leds_b, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
-    }
-    FastLED.show();
-    return;
-  }
-
-  if (sta_ok) {
+    r = 60;
+    g = 0;
+    b = 0;
+  } else if (sta_ok) {
     r = 0;
     g = 60;
     b = 0;

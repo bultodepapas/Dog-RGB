@@ -42,10 +42,10 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 - STA conectado: Segmento A verde fijo
 - STA intentando: Segmento A verde pulsante (ciclo 1.5 s)
 - AP activo: Segmento A amarillo fijo
-- Error Wi-Fi: toda la tira rojo fijo
+- Error Wi-Fi: Segmento A rojo fijo
 
 4) Error critico
-- Segmento: toda la tira
+- Segmento: A
 - Color: rojo
 - Modo: parpadeo rapido (200 ms)
 
@@ -57,8 +57,8 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 
 ## Prioridad de estados
 
-1) Error critico (rojo rapido, toda la tira)
-2) Error Wi-Fi (rojo fijo, toda la tira)
+1) Error critico (rojo rapido, Segmento A)
+2) Error Wi-Fi (rojo fijo, Segmento A)
 3) Arranque (blanco suave, toda la tira)
 4) Wi-Fi / GPS (Segmento A)
 5) Modo normal (Segmento B)
@@ -95,12 +95,12 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 
 ## Mapeo velocidad -> color (Segmento B)
 
-- 0.0 - 1.5 km/h: Azul (0, 0, 60)
-- 1.5 - 3.0 km/h: Azul/Violeta (20, 0, 60)
-- 3.0 - 4.5 km/h: Morado (40, 0, 60)
-- 4.5 - 6.0 km/h: Magenta/Naranja (60, 0, 40)
-- 6.0 - 7.5 km/h: Naranja (60, 0, 20)
-- > 7.5 km/h: Rojo (60, 0, 0)
+- 0.0 - 2.0 km/h: Azul (0, 0, 60)
+- 2.0 - 6.0 km/h: Azul/Violeta (20, 0, 60)
+- 6.0 - 12.0 km/h: Morado (40, 0, 60)
+- 12.0 - 20.0 km/h: Magenta/Naranja (60, 0, 40)
+- 20.0 - 30.0 km/h: Naranja (60, 0, 20)
+- > 30.0 km/h: Rojo (60, 0, 0)
 
 ---
 
@@ -108,5 +108,5 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 
 - Un solo estado activo a la vez.
 - Segmento A siempre reservado a estados.
-- Segmento B se apaga si hay error critico o error Wi-Fi.
+- Segmento B no se sobreescribe por estados; solo se enciende si hay GPS OK.
 - La prioridad evita estados confusos.

@@ -3,11 +3,11 @@
 
 // Speed-to-color ranges for Segment B (km/h).
 // Adjust these first to tune activity colors (6 ranges).
-static const float SPEED_RANGE_1_KPH = 1.5f;
-static const float SPEED_RANGE_2_KPH = 3.0f;
-static const float SPEED_RANGE_3_KPH = 4.5f;
-static const float SPEED_RANGE_4_KPH = 6.0f;
-static const float SPEED_RANGE_5_KPH = 7.5f;
+static const float SPEED_RANGE_1_KPH = 2.0f;
+static const float SPEED_RANGE_2_KPH = 6.0f;
+static const float SPEED_RANGE_3_KPH = 12.0f;
+static const float SPEED_RANGE_4_KPH = 20.0f;
+static const float SPEED_RANGE_5_KPH = 30.0f;
 
 // Effect selection for Segment B (planned for FastLED).
 // 0=SOLID, 1=PULSE, 2=BREATH, 3=CHASE, 4=COMET, 5=SINELON,

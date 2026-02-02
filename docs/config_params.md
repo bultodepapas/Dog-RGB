@@ -50,8 +50,8 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
   - Amarillo: 60, 45, 0
   - Rojo: 60, 0, 0
 - Prioridad de estados (de mayor a menor):
-  1) Error critico (rojo rapido, toda la tira)
-  2) Error Wi-Fi (rojo fijo, toda la tira)
+  1) Error critico (rojo rapido, segmento A)
+  2) Error Wi-Fi (rojo fijo, segmento A)
   3) Arranque (blanco suave, toda la tira)
   4) Estados Wi-Fi/GPS (segmento A)
   5) Modo normal (segmento B)
@@ -64,11 +64,11 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
 
 ## 3) Velocidad -> Color (Segmento B)
 
-- SPEED_RANGE_1_KPH: 1.5
-- SPEED_RANGE_2_KPH: 3.0
-- SPEED_RANGE_3_KPH: 4.5
-- SPEED_RANGE_4_KPH: 6.0
-- SPEED_RANGE_5_KPH: 7.5
+- SPEED_RANGE_1_KPH: 2.0
+- SPEED_RANGE_2_KPH: 6.0
+- SPEED_RANGE_3_KPH: 12.0
+- SPEED_RANGE_4_KPH: 20.0
+- SPEED_RANGE_5_KPH: 30.0
 
 Efectos por rango (FastLED, ver `docs/led_effects_plan.md`):
 - RANGE_1_EFFECT_A / RANGE_1_EFFECT_B
@@ -87,12 +87,12 @@ Velocidad e intensidad por rango:
 - RANGE_6_SPEED / RANGE_6_INTENSITY
 
 Mapeo de color:
-- 0.0 - 1.5 km/h: Azul (0, 0, 60)
-- 1.5 - 3.0 km/h: Azul/Violeta (20, 0, 60)
-- 3.0 - 4.5 km/h: Morado (40, 0, 60)
-- 4.5 - 6.0 km/h: Magenta/Naranja (60, 0, 40)
-- 6.0 - 7.5 km/h: Naranja (60, 0, 20)
-- > 7.5 km/h: Rojo (60, 0, 0)
+- 0.0 - 2.0 km/h: Azul (0, 0, 60)
+- 2.0 - 6.0 km/h: Azul/Violeta (20, 0, 60)
+- 6.0 - 12.0 km/h: Morado (40, 0, 60)
+- 12.0 - 20.0 km/h: Magenta/Naranja (60, 0, 40)
+- 20.0 - 30.0 km/h: Naranja (60, 0, 20)
+- > 30.0 km/h: Rojo (60, 0, 0)
 
 ---
 
