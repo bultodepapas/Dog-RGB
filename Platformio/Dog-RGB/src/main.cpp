@@ -578,22 +578,22 @@ static String html_wifi_page() {
 }
 
 static void led_begin() {
-  FastLED.addLeds<SK6812RGBW, PIN_LED_A_DATA, GRBW>(leds_a, LED_STRIP_COUNT);
+  if (LED_TEST_MODE) {
+    test_strip_a.begin();
+    test_strip_a.setBrightness(LED_TEST_BRIGHTNESS);
+    if (LED_STRIP_MODE == 2) {
+      test_strip_b.begin();
+      test_strip_b.setBrightness(LED_TEST_BRIGHTNESS);
+    }
+    led_test_init = true;
+    return;
+  }
+  FastLED.addLeds<SK6812, PIN_LED_A_DATA, GRB>(leds_a, LED_STRIP_COUNT);
   if (LED_STRIP_MODE == 2) {
-    FastLED.addLeds<SK6812RGBW, PIN_LED_B_DATA, GRBW>(leds_b, LED_STRIP_COUNT);
+    FastLED.addLeds<SK6812, PIN_LED_B_DATA, GRB>(leds_b, LED_STRIP_COUNT);
   }
   FastLED.setBrightness(g_cfg.brightness);
   FastLED.clear(true);
-}
-
-static void push_leds() {
-  for (int i = 0; i < LED_STRIP_COUNT; ++i) {
-    leds_a[i] = CRGBW(leds_a_rgb[i].r, leds_a_rgb[i].g, leds_a_rgb[i].b, 0);
-    if (LED_STRIP_MODE == 2) {
-      leds_b[i] = CRGBW(leds_b_rgb[i].r, leds_b_rgb[i].g, leds_b_rgb[i].b, 0);
-    }
-  }
-  FastLED.show();
 }
 
 static void fill_range(CRGB *leds, int start, int count, const CRGB &color) {
@@ -772,14 +772,25 @@ static void update_led_ui() {
   }
   if (LED_TEST_MODE) {
     if (!led_test_init) {
-      FastLED.setBrightness(LED_TEST_BRIGHTNESS);
+      test_strip_a.begin();
+      test_strip_a.setBrightness(LED_TEST_BRIGHTNESS);
+      if (LED_STRIP_MODE == 2) {
+        test_strip_b.begin();
+        test_strip_b.setBrightness(LED_TEST_BRIGHTNESS);
+      }
       led_test_init = true;
     }
-    fill_solid(leds_a_rgb, LED_STRIP_COUNT, CRGB(LED_TEST_R, LED_TEST_G, LED_TEST_B));
-    if (LED_STRIP_MODE == 2) {
-      fill_solid(leds_b_rgb, LED_STRIP_COUNT, CRGB(LED_TEST_R, LED_TEST_G, LED_TEST_B));
+    const uint32_t color = test_strip_a.Color(LED_TEST_R, LED_TEST_G, LED_TEST_B, 0);
+    for (int i = 0; i < LED_STRIP_COUNT; ++i) {
+      test_strip_a.setPixelColor(i, color);
+      if (LED_STRIP_MODE == 2) {
+        test_strip_b.setPixelColor(i, color);
+      }
     }
-    push_leds();
+    test_strip_a.show();
+    if (LED_STRIP_MODE == 2) {
+      test_strip_b.show();
+    }
     return;
   }
   const unsigned long now_ms = millis();
@@ -821,11 +832,11 @@ static void update_led_ui() {
   }
 
   if (full_override) {
-    fill_solid(leds_a_rgb, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
+    fill_solid(leds_a, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
     if (LED_STRIP_MODE == 2) {
-      fill_solid(leds_b_rgb, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
+      fill_solid(leds_b, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
     }
-    push_leds();
+    FastLED.show();
     return;
   }
 
@@ -865,22 +876,22 @@ static void update_led_ui() {
   const CRGB base = base_color_for_range(range);
 
   if (body_on && seg_count > 0) {
-    apply_effect(effect_a, leds_a_rgb, heat_a, seg_start, seg_count, base, eff_speed, eff_intensity, state_a);
+    apply_effect(effect_a, leds_a, heat_a, seg_start, seg_count, base, eff_speed, eff_intensity, state_a);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(effect_b, leds_b_rgb, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
+      apply_effect(effect_b, leds_b, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
     }
   } else if (seg_count > 0) {
-    fill_range(leds_a_rgb, seg_start, seg_count, CRGB(0, 0, 0));
+    fill_range(leds_a, seg_start, seg_count, CRGB(0, 0, 0));
     if (LED_STRIP_MODE == 2) {
-      fill_range(leds_b_rgb, seg_start, seg_count, CRGB(0, 0, 0));
+      fill_range(leds_b, seg_start, seg_count, CRGB(0, 0, 0));
     }
   }
 
-  fill_range(leds_a_rgb, 0, LED_STATUS_COUNT, CRGB(r, g, b));
+  fill_range(leds_a, 0, LED_STATUS_COUNT, CRGB(r, g, b));
   if (LED_STRIP_MODE == 2) {
-    fill_range(leds_b_rgb, 0, LED_STATUS_COUNT, CRGB(r, g, b));
+    fill_range(leds_b, 0, LED_STATUS_COUNT, CRGB(r, g, b));
   }
-  push_leds();
+  FastLED.show();
 }
 
 static String html_config_page() {
