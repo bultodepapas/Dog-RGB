@@ -72,7 +72,7 @@ static const uint8_t LED_BRIGHTNESS = 77; // ~30% brightness (0-255).
 
 // LED UI timing.
 static const unsigned long LED_UPDATE_MS = 50; // Refresh interval for LED UI.
-static const uint8_t LED_GPS_SEARCH_RAINBOW_STEP = 6; // Hue step per update while GPS is searching.
+static const uint8_t LED_GPS_SEARCH_RAINBOW_STEP = 20; // Hue step per update while GPS is searching.
 static const unsigned long CRITICAL_NO_OK_MS = 600000; // Error if no GPS/Wi-Fi for this long.
 static const bool LED_UI_ENABLED = true; // Disable to turn off LED UI logic.
 
