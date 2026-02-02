@@ -25,18 +25,22 @@ Solo se exponen:
 
 ```
 {
-  "version": 1,
+  "version": 2,
   "led": {
     "brightness": 77
   },
-  "speed_ranges_kph": [1.5, 3.0, 4.5, 6.0, 7.5],
+  "speed_ranges_kph": [2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 22.0, 28.0, 34.0],
   "effects": {
     "range1": {"a": 0, "b": 1, "speed": 40, "intensity": 80},
-    "range2": {"a": 1, "b": 3, "speed": 60, "intensity": 100},
-    "range3": {"a": 6, "b": 5, "speed": 80, "intensity": 120},
-    "range4": {"a": 7, "b": 8, "speed": 110, "intensity": 150},
-    "range5": {"a": 9, "b": 4, "speed": 140, "intensity": 180},
-    "range6": {"a": 10, "b": 3, "speed": 170, "intensity": 200}
+    "range2": {"a": 1, "b": 2, "speed": 58, "intensity": 95},
+    "range3": {"a": 2, "b": 3, "speed": 76, "intensity": 110},
+    "range4": {"a": 3, "b": 4, "speed": 94, "intensity": 125},
+    "range5": {"a": 5, "b": 6, "speed": 112, "intensity": 140},
+    "range6": {"a": 7, "b": 8, "speed": 130, "intensity": 155},
+    "range7": {"a": 8, "b": 9, "speed": 148, "intensity": 170},
+    "range8": {"a": 9, "b": 11, "speed": 166, "intensity": 180},
+    "range9": {"a": 11, "b": 4, "speed": 184, "intensity": 190},
+    "range10": {"a": 10, "b": 3, "speed": 200, "intensity": 200}
   },
   "wifi": {
     "ap_ssid": "dog",
@@ -51,7 +55,7 @@ Solo se exponen:
 ## Validaciones (POST /api/config)
 
 - brightness: 1..255
-- speed_ranges_kph: 5 valores en orden ascendente
+- speed_ranges_kph: 9 valores en orden ascendente
 - effect ids: 0..11
 - effect speed/intensity: 0..255
 - ap_ssid: 1..32

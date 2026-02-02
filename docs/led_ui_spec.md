@@ -96,11 +96,15 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 ## Mapeo velocidad -> color (Segmento B)
 
 - 0.0 - 2.0 km/h: Azul (0, 0, 60)
-- 2.0 - 6.0 km/h: Azul/Violeta (20, 0, 60)
-- 6.0 - 12.0 km/h: Morado (40, 0, 60)
-- 12.0 - 20.0 km/h: Magenta/Naranja (60, 0, 40)
-- 20.0 - 30.0 km/h: Naranja (60, 0, 20)
-- > 30.0 km/h: Rojo (60, 0, 0)
+- 2.0 - 4.0 km/h: Azul/Violeta (10, 0, 60)
+- 4.0 - 6.0 km/h: Violeta (20, 0, 60)
+- 6.0 - 8.0 km/h: Violeta intenso (30, 0, 60)
+- 8.0 - 12.0 km/h: Magenta frio (40, 0, 60)
+- 12.0 - 16.0 km/h: Magenta (50, 0, 50)
+- 16.0 - 22.0 km/h: Magenta/Naranja (60, 0, 40)
+- 22.0 - 28.0 km/h: Naranja tenue (60, 0, 30)
+- 28.0 - 34.0 km/h: Naranja (60, 0, 20)
+- > 34.0 km/h: Rojo (60, 0, 0)
 
 ---
 

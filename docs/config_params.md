@@ -65,10 +65,14 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
 ## 3) Velocidad -> Color (Segmento B)
 
 - SPEED_RANGE_1_KPH: 2.0
-- SPEED_RANGE_2_KPH: 6.0
-- SPEED_RANGE_3_KPH: 12.0
-- SPEED_RANGE_4_KPH: 20.0
-- SPEED_RANGE_5_KPH: 30.0
+- SPEED_RANGE_2_KPH: 4.0
+- SPEED_RANGE_3_KPH: 6.0
+- SPEED_RANGE_4_KPH: 8.0
+- SPEED_RANGE_5_KPH: 12.0
+- SPEED_RANGE_6_KPH: 16.0
+- SPEED_RANGE_7_KPH: 22.0
+- SPEED_RANGE_8_KPH: 28.0
+- SPEED_RANGE_9_KPH: 34.0
 
 Efectos por rango (FastLED, ver `docs/led_effects_plan.md`):
 - RANGE_1_EFFECT_A / RANGE_1_EFFECT_B
@@ -77,6 +81,10 @@ Efectos por rango (FastLED, ver `docs/led_effects_plan.md`):
 - RANGE_4_EFFECT_A / RANGE_4_EFFECT_B
 - RANGE_5_EFFECT_A / RANGE_5_EFFECT_B
 - RANGE_6_EFFECT_A / RANGE_6_EFFECT_B
+- RANGE_7_EFFECT_A / RANGE_7_EFFECT_B
+- RANGE_8_EFFECT_A / RANGE_8_EFFECT_B
+- RANGE_9_EFFECT_A / RANGE_9_EFFECT_B
+- RANGE_10_EFFECT_A / RANGE_10_EFFECT_B
 
 Velocidad e intensidad por rango:
 - RANGE_1_SPEED / RANGE_1_INTENSITY
@@ -85,14 +93,22 @@ Velocidad e intensidad por rango:
 - RANGE_4_SPEED / RANGE_4_INTENSITY
 - RANGE_5_SPEED / RANGE_5_INTENSITY
 - RANGE_6_SPEED / RANGE_6_INTENSITY
+- RANGE_7_SPEED / RANGE_7_INTENSITY
+- RANGE_8_SPEED / RANGE_8_INTENSITY
+- RANGE_9_SPEED / RANGE_9_INTENSITY
+- RANGE_10_SPEED / RANGE_10_INTENSITY
 
 Mapeo de color:
 - 0.0 - 2.0 km/h: Azul (0, 0, 60)
-- 2.0 - 6.0 km/h: Azul/Violeta (20, 0, 60)
-- 6.0 - 12.0 km/h: Morado (40, 0, 60)
-- 12.0 - 20.0 km/h: Magenta/Naranja (60, 0, 40)
-- 20.0 - 30.0 km/h: Naranja (60, 0, 20)
-- > 30.0 km/h: Rojo (60, 0, 0)
+- 2.0 - 4.0 km/h: Azul/Violeta (10, 0, 60)
+- 4.0 - 6.0 km/h: Violeta (20, 0, 60)
+- 6.0 - 8.0 km/h: Violeta intenso (30, 0, 60)
+- 8.0 - 12.0 km/h: Magenta frio (40, 0, 60)
+- 12.0 - 16.0 km/h: Magenta (50, 0, 50)
+- 16.0 - 22.0 km/h: Magenta/Naranja (60, 0, 40)
+- 22.0 - 28.0 km/h: Naranja tenue (60, 0, 30)
+- 28.0 - 34.0 km/h: Naranja (60, 0, 20)
+- > 34.0 km/h: Rojo (60, 0, 0)
 
 ---
 

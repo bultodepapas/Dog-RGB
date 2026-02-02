@@ -19,8 +19,8 @@ Namespace: `dogrgb_cfg`
 Claves sugeridas:
 - `ver` (uint8) -> version de config
 - `brightness` (uint8)
-- `ranges` (blob de 5 floats)
-- `effects` (blob de 6 structs)
+- `ranges` (blob de 9 floats)
+- `effects` (blob de 10 structs)
 - `ap_ssid` (string)
 - `ap_pass` (string, puede estar vacio para AP abierto)
 - `mdns` (string)

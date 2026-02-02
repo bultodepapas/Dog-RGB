@@ -130,15 +130,15 @@ struct RangeEffect {
 
 struct RuntimeConfig {
   uint8_t brightness;
-  float ranges[5];
-  RangeEffect effects[6];
+  float ranges[9];
+  RangeEffect effects[10];
   String ap_ssid;
   String ap_pass;
   String mdns;
 };
 
 static RuntimeConfig g_cfg;
-static const uint8_t CONFIG_VERSION = 1;
+static const uint8_t CONFIG_VERSION = 2;
 static bool pending_ap_restart = false;
 static unsigned long pending_ap_at_ms = 0;
 static const unsigned long AP_RESTART_DELAY_MS = 500;
@@ -378,7 +378,7 @@ static String build_summary_json() {
 }
 
 static bool validate_ranges(const float *ranges) {
-  for (int i = 1; i < 5; ++i) {
+  for (int i = 1; i < 9; ++i) {
     if (!(ranges[i] > ranges[i - 1])) {
       return false;
     }
@@ -387,7 +387,7 @@ static bool validate_ranges(const float *ranges) {
 }
 
 static bool validate_effects(const RangeEffect *effects) {
-  for (int i = 0; i < 6; ++i) {
+  for (int i = 0; i < 10; ++i) {
     if (effects[i].effect_a > 11 || effects[i].effect_b > 11) {
       return false;
     }
@@ -402,6 +402,10 @@ static void set_default_config() {
   g_cfg.ranges[2] = SPEED_RANGE_3_KPH;
   g_cfg.ranges[3] = SPEED_RANGE_4_KPH;
   g_cfg.ranges[4] = SPEED_RANGE_5_KPH;
+  g_cfg.ranges[5] = SPEED_RANGE_6_KPH;
+  g_cfg.ranges[6] = SPEED_RANGE_7_KPH;
+  g_cfg.ranges[7] = SPEED_RANGE_8_KPH;
+  g_cfg.ranges[8] = SPEED_RANGE_9_KPH;
 
   g_cfg.effects[0] = {static_cast<uint8_t>(RANGE_1_EFFECT_A), static_cast<uint8_t>(RANGE_1_EFFECT_B),
                       RANGE_1_SPEED, RANGE_1_INTENSITY};
@@ -415,6 +419,14 @@ static void set_default_config() {
                       RANGE_5_SPEED, RANGE_5_INTENSITY};
   g_cfg.effects[5] = {static_cast<uint8_t>(RANGE_6_EFFECT_A), static_cast<uint8_t>(RANGE_6_EFFECT_B),
                       RANGE_6_SPEED, RANGE_6_INTENSITY};
+  g_cfg.effects[6] = {static_cast<uint8_t>(RANGE_7_EFFECT_A), static_cast<uint8_t>(RANGE_7_EFFECT_B),
+                      RANGE_7_SPEED, RANGE_7_INTENSITY};
+  g_cfg.effects[7] = {static_cast<uint8_t>(RANGE_8_EFFECT_A), static_cast<uint8_t>(RANGE_8_EFFECT_B),
+                      RANGE_8_SPEED, RANGE_8_INTENSITY};
+  g_cfg.effects[8] = {static_cast<uint8_t>(RANGE_9_EFFECT_A), static_cast<uint8_t>(RANGE_9_EFFECT_B),
+                      RANGE_9_SPEED, RANGE_9_INTENSITY};
+  g_cfg.effects[9] = {static_cast<uint8_t>(RANGE_10_EFFECT_A), static_cast<uint8_t>(RANGE_10_EFFECT_B),
+                      RANGE_10_SPEED, RANGE_10_INTENSITY};
 
   g_cfg.ap_ssid = AP_SSID;
   g_cfg.ap_pass = AP_PASS;
@@ -548,7 +560,11 @@ static uint8_t speed_range(float kph) {
   if (kph <= g_cfg.ranges[2]) return 3;
   if (kph <= g_cfg.ranges[3]) return 4;
   if (kph <= g_cfg.ranges[4]) return 5;
-  return 6;
+  if (kph <= g_cfg.ranges[5]) return 6;
+  if (kph <= g_cfg.ranges[6]) return 7;
+  if (kph <= g_cfg.ranges[7]) return 8;
+  if (kph <= g_cfg.ranges[8]) return 9;
+  return 10;
 }
 
 static void get_range_config(uint8_t range,
@@ -556,7 +572,7 @@ static void get_range_config(uint8_t range,
                              int &effect_b,
                              uint8_t &speed,
                              uint8_t &intensity) {
-  const uint8_t idx = (range > 0 && range <= 6) ? static_cast<uint8_t>(range - 1) : 0;
+  const uint8_t idx = (range > 0 && range <= 10) ? static_cast<uint8_t>(range - 1) : 0;
   effect_a = g_cfg.effects[idx].effect_a;
   effect_b = g_cfg.effects[idx].effect_b;
   speed = g_cfg.effects[idx].speed;
@@ -568,12 +584,20 @@ static CRGB base_color_for_range(uint8_t range) {
     case 1:
       return CRGB(0, 0, 60);
     case 2:
-      return CRGB(20, 0, 60);
+      return CRGB(10, 0, 60);
     case 3:
-      return CRGB(40, 0, 60);
+      return CRGB(20, 0, 60);
     case 4:
-      return CRGB(60, 0, 40);
+      return CRGB(30, 0, 60);
     case 5:
+      return CRGB(40, 0, 60);
+    case 6:
+      return CRGB(50, 0, 50);
+    case 7:
+      return CRGB(60, 0, 40);
+    case 8:
+      return CRGB(60, 0, 30);
+    case 9:
       return CRGB(60, 0, 20);
     default:
       return CRGB(60, 0, 0);
@@ -800,9 +824,11 @@ static String html_config_page() {
       "<div class='row'>"
       "<input id='r1' type='number' step='0.1'><input id='r2' type='number' step='0.1'>"
       "<input id='r3' type='number' step='0.1'><input id='r4' type='number' step='0.1'>"
-      "<input id='r5' type='number' step='0.1'>"
+      "<input id='r5' type='number' step='0.1'><input id='r6' type='number' step='0.1'>"
+      "<input id='r7' type='number' step='0.1'><input id='r8' type='number' step='0.1'>"
+      "<input id='r9' type='number' step='0.1'>"
       "</div>"
-      "<h3>Effects (range 1-6)</h3>"
+      "<h3>Effects (range 1-10)</h3>"
       "<div id='effects'></div>"
       "<h3>Wi-Fi AP</h3>"
       "<div><label>SSID</label><input id='ap_ssid' type='text'></div>"
@@ -817,7 +843,7 @@ static String html_config_page() {
       "<p><a href='/'>Volver</a></p>"
       "<script>"
       "const effectsDiv=document.getElementById('effects');"
-      "for(let i=1;i<=6;i++){"
+      "for(let i=1;i<=10;i++){"
       "effectsDiv.innerHTML+=`<div class='row'>"
       "<input id='e${i}a' type='number' min='0' max='11' placeholder='R${i} A'>"
       "<input id='e${i}b' type='number' min='0' max='11' placeholder='R${i} B'>"
@@ -831,7 +857,11 @@ static String html_config_page() {
       "document.getElementById('r3').value=c.speed_ranges_kph[2];"
       "document.getElementById('r4').value=c.speed_ranges_kph[3];"
       "document.getElementById('r5').value=c.speed_ranges_kph[4];"
-      "for(let i=1;i<=6;i++){"
+      "document.getElementById('r6').value=c.speed_ranges_kph[5];"
+      "document.getElementById('r7').value=c.speed_ranges_kph[6];"
+      "document.getElementById('r8').value=c.speed_ranges_kph[7];"
+      "document.getElementById('r9').value=c.speed_ranges_kph[8];"
+      "for(let i=1;i<=10;i++){"
       "const e=c.effects['range'+i];"
       "document.getElementById('e'+i+'a').value=e.a;"
       "document.getElementById('e'+i+'b').value=e.b;"
@@ -848,10 +878,11 @@ static String html_config_page() {
       "ap_warn.innerText='Nota: cambiar AP puede desconectar la sesion.';"
       "if(!confirm('Guardar cambios? El AP puede reiniciarse.')){return;}"
       "}"
-      "const cfg={version:1,led:{brightness:parseInt(brightness.value)},"
-      "speed_ranges_kph:[parseFloat(r1.value),parseFloat(r2.value),parseFloat(r3.value),parseFloat(r4.value),parseFloat(r5.value)],"
+      "const cfg={version:2,led:{brightness:parseInt(brightness.value)},"
+      "speed_ranges_kph:[parseFloat(r1.value),parseFloat(r2.value),parseFloat(r3.value),parseFloat(r4.value),parseFloat(r5.value),"
+      "parseFloat(r6.value),parseFloat(r7.value),parseFloat(r8.value),parseFloat(r9.value)],"
       "effects:{}};"
-      "for(let i=1;i<=6;i++){cfg.effects['range'+i]={"
+      "for(let i=1;i<=10;i++){cfg.effects['range'+i]={"
       "a:parseInt(document.getElementById('e'+i+'a').value),"
       "b:parseInt(document.getElementById('e'+i+'b').value),"
       "speed:parseInt(document.getElementById('e'+i+'s').value),"
@@ -883,15 +914,15 @@ static void handle_summary() {
 }
 
 static void handle_config_get() {
-  StaticJsonDocument<1536> doc;
+  StaticJsonDocument<3072> doc;
   doc["version"] = CONFIG_VERSION;
   doc["led"]["brightness"] = g_cfg.brightness;
   JsonArray ranges = doc.createNestedArray("speed_ranges_kph");
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 9; ++i) {
     ranges.add(g_cfg.ranges[i]);
   }
   JsonObject effects = doc.createNestedObject("effects");
-  for (int i = 0; i < 6; ++i) {
+  for (int i = 0; i < 10; ++i) {
     JsonObject r = effects.createNestedObject(String("range") + String(i + 1));
     r["a"] = g_cfg.effects[i].effect_a;
     r["b"] = g_cfg.effects[i].effect_b;
@@ -929,7 +960,7 @@ static void handle_config_post() {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
   }
-  StaticJsonDocument<2048> doc;
+  StaticJsonDocument<4096> doc;
   const DeserializationError err = deserializeJson(doc, server.arg("plain"));
   if (err) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
@@ -945,11 +976,11 @@ static void handle_config_post() {
   next.brightness = static_cast<uint8_t>(brightness);
 
   JsonArray ranges = doc["speed_ranges_kph"].as<JsonArray>();
-  if (ranges.size() != 5) {
+  if (ranges.size() != 9) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ranges\"}");
     return;
   }
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 9; ++i) {
     next.ranges[i] = ranges[i].as<float>();
     if (next.ranges[i] <= 0.0f) {
       server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ranges value\"}");
@@ -962,7 +993,7 @@ static void handle_config_post() {
   }
 
   JsonObject effects = doc["effects"].as<JsonObject>();
-  for (int i = 0; i < 6; ++i) {
+  for (int i = 0; i < 10; ++i) {
     JsonObject r = effects[String("range") + String(i + 1)];
     if (r.isNull()) {
       server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effects\"}");

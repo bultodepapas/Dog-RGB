@@ -36,14 +36,18 @@ Este documento define un sistema de presets para guardar combinaciones de rangos
 {
   "name": "Calm",
   "brightness": 60,
-  "speed_ranges_kph": [1.5, 3.0, 4.5, 6.0, 7.5],
+  "speed_ranges_kph": [2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 22.0, 28.0, 34.0],
   "effects": {
     "range1": {"a": 0, "b": 2, "speed": 30, "intensity": 60},
     "range2": {"a": 1, "b": 2, "speed": 40, "intensity": 70},
     "range3": {"a": 2, "b": 2, "speed": 50, "intensity": 80},
     "range4": {"a": 3, "b": 3, "speed": 60, "intensity": 90},
     "range5": {"a": 3, "b": 4, "speed": 70, "intensity": 100},
-    "range6": {"a": 4, "b": 4, "speed": 80, "intensity": 110}
+    "range6": {"a": 4, "b": 4, "speed": 80, "intensity": 110},
+    "range7": {"a": 4, "b": 5, "speed": 90, "intensity": 120},
+    "range8": {"a": 5, "b": 5, "speed": 100, "intensity": 130},
+    "range9": {"a": 5, "b": 6, "speed": 110, "intensity": 140},
+    "range10": {"a": 6, "b": 6, "speed": 120, "intensity": 150}
   }
 }
 ```

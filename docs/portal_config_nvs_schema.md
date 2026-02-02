@@ -13,7 +13,7 @@ Este documento define el esquema de almacenamiento para configuracion runtime en
 ## Versionado
 
 - Key: `ver` (uint8)
-- Version actual: 1
+- Version actual: 2
 - Si `ver` es distinto, usar defaults y reescribir.
 
 ---
@@ -28,11 +28,11 @@ Este documento define el esquema de almacenamiento para configuracion runtime en
 
 ### Rangos de velocidad
 - `ranges` (blob)
-  - 5 floats en orden: r1, r2, r3, r4, r5
+  - 9 floats en orden: r1..r9
 
 ### Efectos por rango
 - `effects` (blob)
-  - 6 entradas (range1..range6)
+  - 10 entradas (range1..range10)
   - Cada entrada:
     - effect_a (uint8)
     - effect_b (uint8)
@@ -43,9 +43,9 @@ Este documento define el esquema de almacenamiento para configuracion runtime en
 
 ## Tamano estimado
 
-- ranges: 5 * 4 = 20 bytes
-- effects: 6 * 4 = 24 bytes
-- Total binario: ~44 bytes + strings
+- ranges: 9 * 4 = 36 bytes
+- effects: 10 * 4 = 40 bytes
+- Total binario: ~76 bytes + strings
 
 ---
 

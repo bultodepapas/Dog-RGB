@@ -2,12 +2,16 @@
 #define DOG_RGB_CONFIG_H
 
 // Speed-to-color ranges for Segment B (km/h).
-// Adjust these first to tune activity colors (6 ranges).
+// Adjust these first to tune activity colors (10 ranges / 9 thresholds).
 static const float SPEED_RANGE_1_KPH = 2.0f;
-static const float SPEED_RANGE_2_KPH = 6.0f;
-static const float SPEED_RANGE_3_KPH = 12.0f;
-static const float SPEED_RANGE_4_KPH = 20.0f;
-static const float SPEED_RANGE_5_KPH = 30.0f;
+static const float SPEED_RANGE_2_KPH = 4.0f;
+static const float SPEED_RANGE_3_KPH = 6.0f;
+static const float SPEED_RANGE_4_KPH = 8.0f;
+static const float SPEED_RANGE_5_KPH = 12.0f;
+static const float SPEED_RANGE_6_KPH = 16.0f;
+static const float SPEED_RANGE_7_KPH = 22.0f;
+static const float SPEED_RANGE_8_KPH = 28.0f;
+static const float SPEED_RANGE_9_KPH = 34.0f;
 
 // Effect selection for Segment B (planned for FastLED).
 // 0=SOLID, 1=PULSE, 2=BREATH, 3=CHASE, 4=COMET, 5=SINELON,
@@ -15,29 +19,45 @@ static const float SPEED_RANGE_5_KPH = 30.0f;
 static const int RANGE_1_EFFECT_A = 0;
 static const int RANGE_1_EFFECT_B = 1;
 static const int RANGE_2_EFFECT_A = 1;
-static const int RANGE_2_EFFECT_B = 3;
-static const int RANGE_3_EFFECT_A = 6;
-static const int RANGE_3_EFFECT_B = 5;
-static const int RANGE_4_EFFECT_A = 7;
-static const int RANGE_4_EFFECT_B = 8;
-static const int RANGE_5_EFFECT_A = 9;
-static const int RANGE_5_EFFECT_B = 4;
-static const int RANGE_6_EFFECT_A = 10;
-static const int RANGE_6_EFFECT_B = 3;
+static const int RANGE_2_EFFECT_B = 2;
+static const int RANGE_3_EFFECT_A = 2;
+static const int RANGE_3_EFFECT_B = 3;
+static const int RANGE_4_EFFECT_A = 3;
+static const int RANGE_4_EFFECT_B = 4;
+static const int RANGE_5_EFFECT_A = 5;
+static const int RANGE_5_EFFECT_B = 6;
+static const int RANGE_6_EFFECT_A = 7;
+static const int RANGE_6_EFFECT_B = 8;
+static const int RANGE_7_EFFECT_A = 8;
+static const int RANGE_7_EFFECT_B = 9;
+static const int RANGE_8_EFFECT_A = 9;
+static const int RANGE_8_EFFECT_B = 11;
+static const int RANGE_9_EFFECT_A = 11;
+static const int RANGE_9_EFFECT_B = 4;
+static const int RANGE_10_EFFECT_A = 10;
+static const int RANGE_10_EFFECT_B = 3;
 
 // Effect tuning per range (0-255).
 static const uint8_t RANGE_1_SPEED = 40;
 static const uint8_t RANGE_1_INTENSITY = 80;
-static const uint8_t RANGE_2_SPEED = 60;
-static const uint8_t RANGE_2_INTENSITY = 100;
-static const uint8_t RANGE_3_SPEED = 80;
-static const uint8_t RANGE_3_INTENSITY = 120;
-static const uint8_t RANGE_4_SPEED = 110;
-static const uint8_t RANGE_4_INTENSITY = 150;
-static const uint8_t RANGE_5_SPEED = 140;
-static const uint8_t RANGE_5_INTENSITY = 180;
-static const uint8_t RANGE_6_SPEED = 170;
-static const uint8_t RANGE_6_INTENSITY = 200;
+static const uint8_t RANGE_2_SPEED = 58;
+static const uint8_t RANGE_2_INTENSITY = 95;
+static const uint8_t RANGE_3_SPEED = 76;
+static const uint8_t RANGE_3_INTENSITY = 110;
+static const uint8_t RANGE_4_SPEED = 94;
+static const uint8_t RANGE_4_INTENSITY = 125;
+static const uint8_t RANGE_5_SPEED = 112;
+static const uint8_t RANGE_5_INTENSITY = 140;
+static const uint8_t RANGE_6_SPEED = 130;
+static const uint8_t RANGE_6_INTENSITY = 155;
+static const uint8_t RANGE_7_SPEED = 148;
+static const uint8_t RANGE_7_INTENSITY = 170;
+static const uint8_t RANGE_8_SPEED = 166;
+static const uint8_t RANGE_8_INTENSITY = 180;
+static const uint8_t RANGE_9_SPEED = 184;
+static const uint8_t RANGE_9_INTENSITY = 190;
+static const uint8_t RANGE_10_SPEED = 200;
+static const uint8_t RANGE_10_INTENSITY = 200;
 
 // Motion filters and activity thresholds.
 static const float SPEED_ACTIVE_KPH = 0.7f; // Min speed to count as "active".

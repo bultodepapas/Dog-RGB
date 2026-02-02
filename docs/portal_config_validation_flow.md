@@ -7,7 +7,7 @@ Este documento define el flujo de validacion para el formulario de configuracion
 ## 1) Validacion en frontend
 
 1) Brillo: 1..255
-2) Rangos: 5 valores numericos y ascendentes
+2) Rangos: 9 valores numericos y ascendentes
 3) Efectos: id 0..11
 4) Speed/intensity: 0..255
 5) Password AP: >= 8 (si no se marca AP abierto)

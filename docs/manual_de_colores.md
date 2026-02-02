@@ -14,7 +14,7 @@ Este manual explica que significa cada color segun el firmware activo en `Platfo
 
 ---
 
-## 2) Estados del sistema (Segmento Estado o toda la tira)
+## 2) Estados del sistema (Segmento Estado)
 
 Si ves estos colores en los primeros LEDs, el estado es:
 
@@ -36,25 +36,34 @@ Notas:
 
 Rangos por defecto (km/h) y color base (RGB):
 
-- 0.0 - 2.0  : Azul           (0, 0, 60)
-- 2.0 - 6.0  : Azul/Violeta   (20, 0, 60)
-- 6.0 - 12.0 : Morado         (40, 0, 60)
-- 12.0 - 20.0: Magenta/Naranja(60, 0, 40)
-- 20.0 - 30.0: Naranja        (60, 0, 20)
-- > 30.0     : Rojo           (60, 0, 0)
+- 0.0 - 2.0  : Azul            (0, 0, 60)
+- 2.0 - 4.0  : Azul/Violeta    (10, 0, 60)
+- 4.0 - 6.0  : Violeta         (20, 0, 60)
+- 6.0 - 8.0  : Violeta intenso (30, 0, 60)
+- 8.0 - 12.0 : Magenta frio    (40, 0, 60)
+- 12.0 - 16.0: Magenta         (50, 0, 50)
+- 16.0 - 22.0: Magenta/Naranja (60, 0, 40)
+- 22.0 - 28.0: Naranja tenue   (60, 0, 30)
+- 28.0 - 34.0: Naranja         (60, 0, 20)
+- > 34.0     : Rojo            (60, 0, 0)
 
 El color base define el "tono" general por rango; algunos efectos (RAINBOW, FIRE) no mantienen un color fijo.
+Nota: el firmware descarta picos por encima de 40 km/h (SPEED_MAX_VALID_KPH).
 
 ---
 
 ## 4) Efectos default por rango (tira A / tira B)
 
 - R1 (<=2.0): SOLID / PULSE (speed 40, intensity 80)
-- R2 (<=6.0): PULSE / CHASE (60, 100)
-- R3 (<=12.0): CONFETTI / SINELON (80, 120)
-- R4 (<=20.0): JUGGLE / BPM (110, 150)
-- R5 (<=30.0): RAINBOW / COMET (140, 180)
-- R6 (>30.0): FIRE / CHASE (170, 200)
+- R2 (<=4.0): PULSE / BREATH (58, 95)
+- R3 (<=6.0): BREATH / CHASE (76, 110)
+- R4 (<=8.0): CHASE / COMET (94, 125)
+- R5 (<=12.0): SINELON / CONFETTI (112, 140)
+- R6 (<=16.0): JUGGLE / BPM (130, 155)
+- R7 (<=22.0): BPM / RAINBOW (148, 170)
+- R8 (<=28.0): RAINBOW / GRADIENT_WAVE (166, 180)
+- R9 (<=34.0): GRADIENT_WAVE / COMET (184, 190)
+- R10 (>34.0): FIRE / CHASE (200, 200)
 
 ---
 
@@ -64,7 +73,7 @@ El color base define el "tono" general por rango; algunos efectos (RAINBOW, FIRE
 - LED_STRIP_COUNT = 24 (LEDs por tira)
 - LED_STATUS_COUNT = 2 (LEDs reservados para estado)
 - LED_BRIGHTNESS = 77 (~30%)
-- SPEED_RANGE_1..5 = 2.0 / 6.0 / 12.0 / 20.0 / 30.0 km/h
+- SPEED_RANGE_1..9 = 2.0 / 4.0 / 6.0 / 8.0 / 12.0 / 16.0 / 22.0 / 28.0 / 34.0 km/h
 
 ---
 
