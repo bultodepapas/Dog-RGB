@@ -2,6 +2,8 @@
 
 Este documento define un sistema de presets para guardar combinaciones de rangos, efectos y brillo.
 
+Estado: no implementado en el firmware actual.
+
 ---
 
 ## Objetivo

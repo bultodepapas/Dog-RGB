@@ -56,7 +56,7 @@ Override critico:
 
 ## Homogeneo
 
-- Si Wi-Fi esta OFF y GPS OK estable por >5 min, el Segmento A replica el Segmento B.
+- Si Wi-Fi esta OFF y GPS OK estable por >5 min, toda la tira usa el mismo efecto del rango (incluye LEDs de estado).
 
 ---
 

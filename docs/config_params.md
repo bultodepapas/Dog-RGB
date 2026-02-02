@@ -51,16 +51,15 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
   - Rojo: 60, 0, 0
 - Prioridad de estados (de mayor a menor):
   1) Error critico (rojo rapido, segmento A)
-  2) Error Wi-Fi (rojo fijo, segmento A)
-  3) Arranque (blanco suave, toda la tira)
-  4) Estados Wi-Fi/GPS (segmento A)
-  5) Modo normal (segmento B)
+  2) Modo homogeneo (Wi-Fi OFF + GPS OK estable, toda la tira con efecto de rango)
+  3) Estados Wi-Fi/GPS (segmento A)
+  4) Modo normal (segmento B)
 - Animaciones:
   - Pulso lento: 1.5 s
   - Parpadeo rapido: 200 ms
 - Error critico: sin GPS y sin Wi-Fi por > 10 min
 - Segmento B: si no hay GPS fix, mostrar rainbow animado; con GPS OK, usar rangos de velocidad
-- Segmento A (LED_STATUS_COUNT=2): LED0 Wi-Fi/AP, LED1 GPS; en Wi-Fi OFF + GPS OK estable, ambos siguen el segmento B
+- Segmento A (LED_STATUS_COUNT=2): LED0 Wi-Fi/AP, LED1 GPS; en modo homogeneo los LEDs de estado usan el mismo efecto del segmento B
 
 ---
 
@@ -76,7 +75,7 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
 - SPEED_RANGE_8_KPH: 28.0
 - SPEED_RANGE_9_KPH: 34.0
 
-Efectos por rango (motor actual, ver `docs/led_effects_plan.md`):
+Efectos por rango (motor actual, ver `docs/led_effects.md`):
 - RANGE_1_EFFECT_A / RANGE_1_EFFECT_B
 - RANGE_2_EFFECT_A / RANGE_2_EFFECT_B
 - RANGE_3_EFFECT_A / RANGE_3_EFFECT_B
@@ -152,6 +151,6 @@ Mapeo de color:
 ## Notas
 
 - Este documento debe mantenerse sincronizado con `Platformio/Dog-RGB/src/main.cpp`.
-- En fase futura, estos parametros se exponen en el portal web.
+- Estos parametros ya se exponen en el portal web y se guardan en NVS.
 - Detalles de estados y prioridades: `docs/led_ui_spec.md`.
-- Portal Wi-Fi: `docs/wifi_portal_spec.md` y `docs/wifi_portal_plan.md`.
+- Portal Wi-Fi: `docs/wifi_portal_spec.md`.

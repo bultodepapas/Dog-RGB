@@ -68,17 +68,12 @@ Archivos clave:
 
 El portal expone configuracion runtime via `/config` y `/api/config` (mas `/api/config/reset`).
 
-- Plan: [docs/portal_config_plan.md](docs/portal_config_plan.md)
-- UI spec: [docs/portal_config_ui_plan.md](docs/portal_config_ui_plan.md)
-- Validation flow: [docs/portal_config_validation_flow.md](docs/portal_config_validation_flow.md)
-- Apply flow: [docs/portal_config_apply_flow.md](docs/portal_config_apply_flow.md)
-- NVS plan: [docs/portal_config_nvs_plan.md](docs/portal_config_nvs_plan.md)
-- NVS schema: [docs/portal_config_nvs_schema.md](docs/portal_config_nvs_schema.md)
-- Presets: [docs/portal_config_presets.md](docs/portal_config_presets.md)
+- Portal config (runtime): [docs/portal_config.md](docs/portal_config.md)
+- Presets (no implementado): [docs/portal_config_presets.md](docs/portal_config_presets.md)
 
 Docs del portal Wi-Fi:
 - Wi-Fi spec: [docs/wifi_portal_spec.md](docs/wifi_portal_spec.md)
-- Wi-Fi plan: [docs/wifi_portal_plan.md](docs/wifi_portal_plan.md)
+- Wi-Fi spec: [docs/wifi_portal_spec.md](docs/wifi_portal_spec.md)
 - Diagrama de estados: [docs/wifi_portal_state_diagram.md](docs/wifi_portal_state_diagram.md)
 
 ---
@@ -86,7 +81,7 @@ Docs del portal Wi-Fi:
 ## Comportamiento LED
 
 - UI spec: [docs/led_ui_spec.md](docs/led_ui_spec.md)
-- Referencia de efectos: [docs/led_effects_plan.md](docs/led_effects_plan.md)
+- Referencia de efectos: [docs/led_effects.md](docs/led_effects.md)
 - Referencia de colores: [docs/manual_de_colores.md](docs/manual_de_colores.md)
 
 ---
@@ -104,8 +99,8 @@ Docs del portal Wi-Fi:
 ## Hardware Setup (Fase 1 MVP)
 
 Pines (XIAO ESP32-S3):
-- GPS RX: D8 / GPIO7
-- GPS TX: D9 / GPIO8
+- GPS RX: D7 / GPIO44
+- GPS TX: D6 / GPIO43
 - LED estado: D2 / GPIO3 (LED externo)
 - LED A data: D0 / GPIO1
 - LED B data: D1 / GPIO2

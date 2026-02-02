@@ -22,10 +22,12 @@ Este documento describe el portal web local del collar y su comportamiento en AP
 3) Abre `http://192.168.4.1`.
 4) Ve la pagina con las metricas y boton "Actualizar".
 
-### Defaults
+### Defaults (runtime)
 - SSID: `dog`
 - Password: `Dog123456789`
 - AP abierto: opcional via `/config` (sin password)
+
+Los valores por defecto vienen de `config.h`, pero se pueden cambiar en runtime desde `/config`.
 
 ---
 
@@ -36,6 +38,8 @@ Este documento describe el portal web local del collar y su comportamiento en AP
 2) Pagina de configuracion solicita SSID y password.
 3) Collar guarda credenciales y se conecta al router.
 4) Portal accesible por mDNS (ej: `http://dog-collar.local`).
+
+Mientras conecta, el firmware usa modo `AP+STA`. El AP puede apagarse despues por politica de energia.
 
 ### Fallback
 - Si STA no conecta en `STA_CONNECT_TIMEOUT_MS`, vuelve a AP.
@@ -67,10 +71,10 @@ Este documento describe el portal web local del collar y su comportamiento en AP
 - `GET /` pagina principal
 - `GET /api/summary` JSON con metricas
 - `GET /wifi` pagina de setup Wi-Fi
-- `POST /api/wifi` guardar SSID/password
+- `POST /api/wifi` guardar SSID/password (form-data, respuesta texto "saved, connecting")
 - `GET /config` UI de configuracion runtime
-- `GET /api/config` leer config runtime
-- `POST /api/config` guardar config runtime
+- `GET /api/config` leer config runtime (JSON)
+- `POST /api/config` guardar config runtime (JSON)
 - `POST /api/config/reset` restaurar defaults
 
 ---
@@ -101,8 +105,15 @@ Este documento describe el portal web local del collar y su comportamiento en AP
 
 ---
 
+## Persistencia
+
+- Credenciales STA se guardan en NVS (`wifi_ssid`, `wifi_pass`, namespace `dogrgb`).
+- Resumen diario y metricas tambien se guardan en NVS (`dogrgb`).
+
+---
+
 ## Seguridad basica
 
 - AP con password configurable (opcionalmente abierto).
-- No exponer credenciales en el frontend.
+- `GET /api/config` no expone el password del AP.
 - Limitar endpoints a LAN.
