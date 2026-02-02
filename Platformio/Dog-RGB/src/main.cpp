@@ -20,8 +20,7 @@
   - LED B data: D1 / GPIO2
 
   Dependencies:
-  - FastLED (effects + color math)
-  - Adafruit_NeoPixel (RGBW output)
+  - Adafruit_NeoPixel (RGBW output + effects)
   - ArduinoJson
   - ESP32 Arduino core (WiFi, WebServer, ESPmDNS)
 
@@ -37,6 +36,7 @@
 */
 
 #include <Arduino.h>
+#include <math.h>
 #include <Preferences.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -44,7 +44,6 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
-#include <FastLED.h>
 #include <Adafruit_NeoPixel.h>
 #include <ArduinoJson.h>
 #include "pins.h"
@@ -127,8 +126,14 @@ static unsigned long last_ok_ms = 0;
 
 // Speed-to-color ranges are defined in config.h.
 
-static CRGB leds_a[LED_STRIP_COUNT];
-static CRGB leds_b[LED_STRIP_COUNT];
+struct Rgb {
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+};
+
+static Rgb leds_a[LED_STRIP_COUNT];
+static Rgb leds_b[LED_STRIP_COUNT];
 static uint8_t heat_a[LED_STRIP_COUNT];
 static uint8_t heat_b[LED_STRIP_COUNT];
 
@@ -182,6 +187,79 @@ static uint8_t clamp_u8(int value) {
     return 255;
   }
   return static_cast<uint8_t>(value);
+}
+
+static Rgb make_rgb(uint8_t r, uint8_t g, uint8_t b) {
+  return Rgb{r, g, b};
+}
+
+static uint8_t scale8(uint8_t value, uint8_t scale) {
+  return static_cast<uint8_t>((static_cast<uint16_t>(value) * scale) / 255);
+}
+
+static void fade_rgb(Rgb &c, uint8_t amount) {
+  const uint8_t scale = static_cast<uint8_t>(255 - amount);
+  c.r = scale8(c.r, scale);
+  c.g = scale8(c.g, scale);
+  c.b = scale8(c.b, scale);
+}
+
+static void add_rgb(Rgb &dst, const Rgb &src) {
+  dst.r = clamp_u8(dst.r + src.r);
+  dst.g = clamp_u8(dst.g + src.g);
+  dst.b = clamp_u8(dst.b + src.b);
+}
+
+static uint8_t random8(uint8_t max_val = 255) {
+  return static_cast<uint8_t>(random(0, static_cast<long>(max_val) + 1));
+}
+
+static uint8_t random8(uint8_t min_val, uint8_t max_val) {
+  if (max_val <= min_val) {
+    return min_val;
+  }
+  return static_cast<uint8_t>(random(min_val, static_cast<long>(max_val) + 1));
+}
+
+static uint8_t qsub8(uint8_t i, uint8_t j) {
+  return (i > j) ? static_cast<uint8_t>(i - j) : 0;
+}
+
+static uint8_t qadd8(uint8_t i, uint8_t j) {
+  const uint16_t sum = static_cast<uint16_t>(i) + j;
+  return (sum > 255) ? 255 : static_cast<uint8_t>(sum);
+}
+
+static Rgb hsv_to_rgb(uint8_t hue, uint8_t sat, uint8_t val) {
+  const uint8_t region = hue / 43;
+  const uint8_t remainder = (hue - (region * 43)) * 6;
+
+  const uint8_t p = scale8(val, 255 - sat);
+  const uint8_t q = scale8(val, 255 - scale8(sat, remainder));
+  const uint8_t t = scale8(val, 255 - scale8(sat, 255 - remainder));
+
+  switch (region) {
+    case 0: return make_rgb(val, t, p);
+    case 1: return make_rgb(q, val, p);
+    case 2: return make_rgb(p, val, t);
+    case 3: return make_rgb(p, q, val);
+    case 4: return make_rgb(t, p, val);
+    default: return make_rgb(val, p, q);
+  }
+}
+
+static uint8_t beat8(uint8_t bpm, uint8_t low, uint8_t high) {
+  const float t = millis() / 1000.0f;
+  const float phase = sinf(2.0f * 3.14159265f * (static_cast<float>(bpm) / 60.0f) * t);
+  const float norm = (phase + 1.0f) * 0.5f;
+  return static_cast<uint8_t>(low + (high - low) * norm);
+}
+
+static uint16_t beat16(uint16_t bpm, uint16_t low, uint16_t high) {
+  const float t = millis() / 1000.0f;
+  const float phase = sinf(2.0f * 3.14159265f * (static_cast<float>(bpm) / 60.0f) * t);
+  const float norm = (phase + 1.0f) * 0.5f;
+  return static_cast<uint16_t>(low + (high - low) * norm);
 }
 
 static float pulse_scale(unsigned long period_ms) {
@@ -617,15 +695,15 @@ static void show_leds() {
   }
 }
 
-static void fill_range(CRGB *leds, int start, int count, const CRGB &color) {
+static void fill_range(Rgb *leds, int start, int count, const Rgb &color) {
   for (int i = start; i < start + count; ++i) {
     leds[i] = color;
   }
 }
 
-static void fade_range(CRGB *leds, int start, int count, uint8_t amount) {
+static void fade_range(Rgb *leds, int start, int count, uint8_t amount) {
   for (int i = start; i < start + count; ++i) {
-    leds[i].fadeToBlackBy(amount);
+    fade_rgb(leds[i], amount);
   }
 }
 
@@ -655,24 +733,54 @@ static void get_range_config(uint8_t range,
   intensity = g_cfg.effects[idx].intensity;
 }
 
-static CRGB base_color_for_range(uint8_t range) {
+static Rgb base_color_for_range(uint8_t range) {
   switch (range) {
     case 1:
-      return CRGB(0, 0, 60);
+      return make_rgb(0, 0, 60);
     case 2:
-      return CRGB(20, 0, 60);
+      return make_rgb(20, 0, 60);
     case 3:
-      return CRGB(40, 0, 60);
+      return make_rgb(40, 0, 60);
     case 4:
-      return CRGB(60, 0, 40);
+      return make_rgb(60, 0, 40);
     case 5:
-      return CRGB(60, 0, 20);
+      return make_rgb(60, 0, 20);
     default:
-      return CRGB(60, 0, 0);
+      return make_rgb(60, 0, 0);
   }
 }
 
-static void apply_fire(CRGB *leds,
+static const char *effect_name(uint8_t effect_id) {
+  switch (effect_id) {
+    case 0: return "SOLID";
+    case 1: return "PULSE";
+    case 2: return "BREATH";
+    case 3: return "CHASE";
+    case 4: return "COMET";
+    case 5: return "SINELON";
+    case 6: return "CONFETTI";
+    case 7: return "JUGGLE";
+    case 8: return "BPM";
+    case 9: return "RAINBOW";
+    case 10: return "FIRE";
+    case 11: return "GRADIENT_WAVE";
+    default: return "UNKNOWN";
+  }
+}
+
+static Rgb heat_color(uint8_t temperature) {
+  const uint8_t t192 = static_cast<uint8_t>((temperature * 191) / 255);
+  const uint8_t heatramp = (t192 & 0x3F) << 2;
+  if (t192 > 0x80) {
+    return make_rgb(255, 255, heatramp);
+  }
+  if (t192 > 0x40) {
+    return make_rgb(255, heatramp, 0);
+  }
+  return make_rgb(heatramp, 0, 0);
+}
+
+static void apply_fire(Rgb *leds,
                        uint8_t *heat,
                        int start,
                        int count,
@@ -684,24 +792,24 @@ static void apply_fire(CRGB *leds,
     heat[i] = qsub8(heat[i], random8(0, ((cooling * 10) / count) + 2));
   }
   for (int k = start + count - 1; k >= start + 2; --k) {
-    heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
+    heat[k] = static_cast<uint8_t>((heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3);
   }
   if (random8() < sparking) {
     const int y = start + random8(min(count, 7));
     heat[y] = qadd8(heat[y], random8(160, 255));
   }
   for (int j = start; j < start + count; ++j) {
-    leds[j] = HeatColor(heat[j]);
+    leds[j] = heat_color(heat[j]);
   }
   (void)speed;
 }
 
 static void apply_effect(int effect_id,
-                         CRGB *leds,
+                         Rgb *leds,
                          uint8_t *heat,
                          int start,
                          int count,
-                         const CRGB &base,
+                         const Rgb &base,
                          uint8_t speed,
                          uint8_t intensity,
                          EffectState &state) {
@@ -713,16 +821,20 @@ static void apply_effect(int effect_id,
       fill_range(leds, start, count, base);
       break;
     case 1: { // PULSE
-      const uint8_t beat = beatsin8(bpm, 10, 255);
-      CRGB c = base;
-      c.nscale8(beat);
+      const uint8_t beat = beat8(bpm, 10, 255);
+      Rgb c = base;
+      c.r = scale8(c.r, beat);
+      c.g = scale8(c.g, beat);
+      c.b = scale8(c.b, beat);
       fill_range(leds, start, count, c);
       break;
     }
     case 2: { // BREATH
-      const uint8_t beat = beatsin8(bpm, 20, 200);
-      CRGB c = base;
-      c.nscale8(beat);
+      const uint8_t beat = beat8(bpm, 20, 200);
+      Rgb c = base;
+      c.r = scale8(c.r, beat);
+      c.g = scale8(c.g, beat);
+      c.b = scale8(c.b, beat);
       fill_range(leds, start, count, c);
       break;
     }
@@ -740,34 +852,39 @@ static void apply_effect(int effect_id,
     }
     case 5: { // SINELON
       fade_range(leds, start, count, fade_amt);
-      const int pos = start + beatsin16(bpm, 0, count - 1);
-      leds[pos] = base;
+      const uint16_t pos = beat16(bpm, 0, count - 1);
+      add_rgb(leds[start + pos], base);
       break;
     }
     case 6: { // CONFETTI
       fade_range(leds, start, count, fade_amt);
-      const int pos = start + random16(count);
-      leds[pos] += base;
+      const int pos = start + random8(count - 1);
+      add_rgb(leds[pos], base);
       break;
     }
     case 7: { // JUGGLE
       fade_range(leds, start, count, fade_amt);
-      for (uint8_t i = 0; i < 4; ++i) {
-        leds[start + beatsin16(bpm + i * 2, 0, count - 1)] |= base;
+      for (int i = 0; i < 4; ++i) {
+        const uint16_t pos = beat16(bpm + i * 2, 0, count - 1);
+        add_rgb(leds[start + pos], base);
       }
       break;
     }
     case 8: { // BPM
-      const uint8_t beat = beatsin8(bpm, 64, 255);
+      const uint8_t beat = beat8(bpm, 64, 255);
       for (int i = start; i < start + count; ++i) {
         leds[i] = base;
-        leds[i].nscale8(beat);
+        leds[i].r = scale8(leds[i].r, beat);
+        leds[i].g = scale8(leds[i].g, beat);
+        leds[i].b = scale8(leds[i].b, beat);
       }
       break;
     }
     case 9: { // RAINBOW
       state.hue += step_from_speed(speed, 16);
-      fill_rainbow(&leds[start], count, state.hue, 7);
+      for (int i = start; i < start + count; ++i) {
+        leds[i] = hsv_to_rgb(static_cast<uint8_t>(state.hue + (i * 7)), 255, 255);
+      }
       break;
     }
     case 10: // FIRE
@@ -776,8 +893,7 @@ static void apply_effect(int effect_id,
     case 11: { // GRADIENT_WAVE
       state.hue += step_from_speed(speed, 24);
       for (int i = start; i < start + count; ++i) {
-        const uint8_t offset = (state.hue + (i * 8));
-        leds[i] = CHSV(offset, 200, 255);
+        leds[i] = hsv_to_rgb(static_cast<uint8_t>(state.hue + (i * 8)), 200, 255);
       }
       break;
     }
@@ -830,9 +946,9 @@ static void update_led_ui() {
   }
 
   if (full_override) {
-    fill_solid(leds_a, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
+    fill_range(leds_a, 0, LED_STRIP_COUNT, make_rgb(full_r, full_g, full_b));
     if (LED_STRIP_MODE == 2) {
-      fill_solid(leds_b, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
+      fill_range(leds_b, 0, LED_STRIP_COUNT, make_rgb(full_r, full_g, full_b));
     }
     show_leds();
     return;
@@ -871,7 +987,7 @@ static void update_led_ui() {
   uint8_t eff_speed = RANGE_1_SPEED;
   uint8_t eff_intensity = RANGE_1_INTENSITY;
   get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
-  const CRGB base = base_color_for_range(range);
+  const Rgb base = base_color_for_range(range);
 
   if (body_on && seg_count > 0) {
     apply_effect(effect_a, leds_a, heat_a, seg_start, seg_count, base, eff_speed, eff_intensity, state_a);
@@ -879,15 +995,15 @@ static void update_led_ui() {
       apply_effect(effect_b, leds_b, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
     }
   } else if (seg_count > 0) {
-    fill_range(leds_a, seg_start, seg_count, CRGB(0, 0, 0));
+    fill_range(leds_a, seg_start, seg_count, make_rgb(0, 0, 0));
     if (LED_STRIP_MODE == 2) {
-      fill_range(leds_b, seg_start, seg_count, CRGB(0, 0, 0));
+      fill_range(leds_b, seg_start, seg_count, make_rgb(0, 0, 0));
     }
   }
 
-  fill_range(leds_a, 0, LED_STATUS_COUNT, CRGB(r, g, b));
+  fill_range(leds_a, 0, LED_STATUS_COUNT, make_rgb(r, g, b));
   if (LED_STRIP_MODE == 2) {
-    fill_range(leds_b, 0, LED_STATUS_COUNT, CRGB(r, g, b));
+    fill_range(leds_b, 0, LED_STATUS_COUNT, make_rgb(r, g, b));
   }
   show_leds();
 }
@@ -1428,6 +1544,105 @@ void loop() {
     Serial.print(avg_speed_kph, 2);
     Serial.print(" max_kph=");
     Serial.println(max_speed_kph, 2);
+
+    const bool gps_ok = has_gps_fix;
+    const bool sta_ok = (wifi_sta_connected && WiFi.status() == WL_CONNECTED);
+    const bool sta_try = (!sta_ok && wifi_ssid.length() > 0 && WiFi.getMode() == WIFI_STA);
+    const bool ap_mode = (WiFi.getMode() == WIFI_AP);
+    const bool critical_error = (!gps_ok && !sta_ok && (now_ms - last_ok_ms) > CRITICAL_NO_OK_MS);
+
+    const char *status_text = "GPS_SEARCH";
+    if (critical_error) {
+      status_text = "CRITICAL";
+    } else if (!sta_ok && wifi_ssid.length() > 0 && ap_mode) {
+      status_text = "AP_FALLBACK";
+    } else if (sta_ok) {
+      status_text = "STA_OK";
+    } else if (sta_try) {
+      status_text = "STA_CONNECTING";
+    } else if (ap_mode) {
+      status_text = "AP_MODE";
+    } else if (gps_ok) {
+      status_text = "GPS_OK";
+    }
+
+    const int seg_start = LED_STATUS_COUNT;
+    const int seg_count = LED_STRIP_COUNT - LED_STATUS_COUNT;
+    const uint8_t range = speed_range(last_speed_kph);
+    int effect_a = RANGE_1_EFFECT_A;
+    int effect_b = RANGE_1_EFFECT_B;
+    uint8_t eff_speed = RANGE_1_SPEED;
+    uint8_t eff_intensity = RANGE_1_INTENSITY;
+    get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
+    const Rgb base = base_color_for_range(range);
+
+    uint8_t sr = 0;
+    uint8_t sg = 0;
+    uint8_t sb = 0;
+    float sscale = 1.0f;
+    if (critical_error) {
+      sscale = (now_ms / 200) % 2 ? 1.0f : 0.0f;
+      sr = clamp_u8(static_cast<int>(60 * sscale));
+    } else if (!sta_ok && wifi_ssid.length() > 0 && ap_mode) {
+      sr = 60;
+      sg = 0;
+      sb = 0;
+    } else if (sta_ok) {
+      sr = 0;
+      sg = 60;
+      sb = 0;
+    } else if (sta_try) {
+      sscale = pulse_scale(1500);
+      sr = 0;
+      sg = clamp_u8(static_cast<int>(60 * sscale));
+      sb = 0;
+    } else if (ap_mode) {
+      sr = 60;
+      sg = 45;
+      sb = 0;
+    } else if (gps_ok) {
+      sr = 0;
+      sg = 0;
+      sb = 60;
+    } else {
+      sscale = pulse_scale(1500);
+      sr = 0;
+      sg = 0;
+      sb = clamp_u8(static_cast<int>(60 * sscale));
+    }
+
+    Serial.print("led_status | status_leds=0..");
+    Serial.print(LED_STATUS_COUNT - 1);
+    Serial.print(" | status=");
+    Serial.print(status_text);
+    Serial.print(" | status_rgb=");
+    Serial.print(sr);
+    Serial.print(",");
+    Serial.print(sg);
+    Serial.print(",");
+    Serial.print(sb);
+    Serial.print(" | body_on=");
+    Serial.print(gps_ok ? "1" : "0");
+    Serial.print(" | range=");
+    Serial.print(range);
+    Serial.print(" | effect_a=");
+    Serial.print(effect_name(static_cast<uint8_t>(effect_a)));
+    Serial.print(" | effect_b=");
+    Serial.print(effect_name(static_cast<uint8_t>(effect_b)));
+    Serial.print(" | base_rgb=");
+    Serial.print(base.r);
+    Serial.print(",");
+    Serial.print(base.g);
+    Serial.print(",");
+    Serial.print(base.b);
+    Serial.print(" | speed=");
+    Serial.print(eff_speed);
+    Serial.print(" | intensity=");
+    Serial.print(eff_intensity);
+    Serial.print(" | seg=");
+    Serial.print(seg_start);
+    Serial.print("..");
+    Serial.println(seg_start + seg_count - 1);
   }
 
   if (summary_char != nullptr) {

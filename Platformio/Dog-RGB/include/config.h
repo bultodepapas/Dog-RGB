@@ -9,7 +9,7 @@ static const float SPEED_RANGE_3_KPH = 4.5f;
 static const float SPEED_RANGE_4_KPH = 6.0f;
 static const float SPEED_RANGE_5_KPH = 7.5f;
 
-// Effect selection for Segment B (planned for FastLED).
+// Effect selection for Segment B.
 // 0=SOLID, 1=PULSE, 2=BREATH, 3=CHASE, 4=COMET, 5=SINELON,
 // 6=CONFETTI, 7=JUGGLE, 8=BPM, 9=RAINBOW, 10=FIRE, 11=GRADIENT_WAVE
 static const int RANGE_1_EFFECT_A = 0;
