@@ -59,6 +59,7 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
   - Pulso lento: 1.5 s
   - Parpadeo rapido: 200 ms
 - Error critico: sin GPS y sin Wi-Fi por > 10 min
+- Segmento B: si no hay GPS fix, mostrar rainbow animado; con GPS OK, usar rangos de velocidad
 
 ---
 

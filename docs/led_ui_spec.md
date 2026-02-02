@@ -51,7 +51,7 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 
 5) Modo normal
 - Segmento: B (LED 3-fin)
-- Modo: efecto por rango de velocidad (FastLED, configurable en `config.h`)
+- Modo: si no hay GPS fix, rainbow animado. Con GPS OK, efecto por rango de velocidad (FastLED, configurable en `config.h`)
 
 ---
 
@@ -112,5 +112,5 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 
 - Un solo estado activo a la vez.
 - Segmento A siempre reservado a estados.
-- Segmento B no se sobreescribe por estados; solo se enciende si hay GPS OK.
+- Segmento B no se sobreescribe por estados; si no hay GPS fix usa rainbow, con GPS OK usa rangos.
 - La prioridad evita estados confusos.

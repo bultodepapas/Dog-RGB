@@ -70,6 +70,9 @@ Los primeros LEDs muestran estado del sistema:
 - Rojo fijo: credenciales guardadas pero STA no conecta (fallback a AP).
 - Rojo parpadeo rapido: error critico (sin GPS ni Wi-Fi por mucho tiempo).
 
+Segmento resto:
+- Si no hay GPS fix, muestra rainbow animado.
+
 Nota: durante intento STA con AP activo, el color puede seguir mostrando GPS
 y no hay indicador exclusivo de "conectando".
 

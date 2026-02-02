@@ -10,7 +10,7 @@ Este manual explica que significa cada color segun el firmware activo en `Platfo
 - Segmento Resto (el resto de la tira): del LED 2 al final (LED 2-23).
 - Brillo global default: 77 (~30%).
 - El estado (Segmento Estado) siempre tiene prioridad.
-- El Segmento Resto solo se enciende si hay GPS OK (fix).
+- El Segmento Resto muestra rainbow si no hay GPS fix, y usa rangos cuando hay GPS OK.
 
 ---
 
@@ -34,7 +34,9 @@ Notas:
 
 ## 3) Velocidad -> color (Segmento Resto)
 
-Rangos por defecto (km/h) y color base (RGB):
+Si no hay GPS fix, el Segmento Resto muestra un rainbow animado.
+
+Con GPS OK, se usan los rangos por defecto (km/h) y color base (RGB):
 
 - 0.0 - 2.0  : Azul            (0, 0, 60)
 - 2.0 - 4.0  : Azul/Violeta    (10, 0, 60)

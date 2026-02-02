@@ -150,6 +150,7 @@ struct EffectState {
 
 static EffectState state_a;
 static EffectState state_b;
+static uint8_t body_idle_hue = 0;
 
 struct RangeEffect {
   uint8_t effect_a;
@@ -1005,9 +1006,14 @@ static void update_led_ui() {
       apply_effect(effect_b, leds_b, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
     }
   } else if (seg_count > 0) {
-    fill_range(leds_a, seg_start, seg_count, make_rgb(0, 0, 0));
+    body_idle_hue = static_cast<uint8_t>(body_idle_hue + 2);
+    for (int i = 0; i < seg_count; ++i) {
+      leds_a[seg_start + i] = hsv_to_rgb(static_cast<uint8_t>(body_idle_hue + (i * 7)), 255, 255);
+    }
     if (LED_STRIP_MODE == 2) {
-      fill_range(leds_b, seg_start, seg_count, make_rgb(0, 0, 0));
+      for (int i = 0; i < seg_count; ++i) {
+        leds_b[seg_start + i] = hsv_to_rgb(static_cast<uint8_t>(body_idle_hue + (i * 7)), 255, 255);
+      }
     }
   }
 
