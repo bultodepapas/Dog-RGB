@@ -86,6 +86,9 @@ static const unsigned long AP_STATIONARY_MS = 120000; // AP on if speed <= thres
 static const unsigned long AP_CLIENT_POLL_MS = 1000; // Station count polling interval.
 static const float AP_STATIONARY_ON_KPH = 2.0f; // Enter stationary when <= this speed.
 static const float AP_STATIONARY_OFF_KPH = 2.5f; // Exit stationary when >= this speed.
+static const unsigned long WIFI_OFF_GPS_FIX_MS = 300000; // Homogeneous LED mode after GPS fix stable.
+static const unsigned long AP_OFF_PULSE_PERIOD_MS = 3000; // AP off double-pulse period.
+static const unsigned long AP_OFF_PULSE_MS = 200; // AP off pulse width.
 
 // GNSS settings (rare changes).
 static const uint32_t GPS_BAUD = 9600; // GNSS UART baudrate.

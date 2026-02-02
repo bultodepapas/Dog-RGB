@@ -63,23 +63,32 @@ Notas:
 
 Los primeros LEDs muestran estado del sistema:
 
+LED0 = Wi-Fi/AP
+- Verde fijo: STA conectado.
+- Verde pulsante: STA intentando conectar.
+- Amarillo fijo: AP activo sin clientes.
+- Amarillo pulsante: AP activo con clientes.
+- Rojo fijo: STA fallo (fallback a AP).
+- Ambar doble pulso: Wi-Fi apagado por ahorro.
+
+LED1 = GPS
+- Azul fijo: GPS OK.
 - Azul pulsante: GPS buscando (sin fix).
-- Azul fijo: GPS OK, sin Wi-Fi conectado.
-- Verde fijo: Wi-Fi STA conectado.
-- Amarillo fijo: AP activo sin intento STA.
-- Rojo fijo: credenciales guardadas pero STA no conecta (fallback a AP).
-- Rojo parpadeo rapido: error critico (sin GPS ni Wi-Fi por mucho tiempo).
+
+Override:
+- Rojo parpadeo rapido: sin GPS ni Wi-Fi por mucho tiempo.
 
 Segmento resto:
 - Si no hay GPS fix, muestra rainbow animado.
+- Si Wi-Fi esta OFF y GPS OK por >5 min, los LEDs de estado se igualan al segmento resto.
 
-Nota: durante intento STA con AP activo, el color puede seguir mostrando GPS
-y no hay indicador exclusivo de "conectando".
+Nota: el modo AP abierto (sin password) usa el mismo color que AP normal.
 
-AP auto:
+AP/Wi-Fi auto:
 - Si no hay GPS fix, el AP se mantiene encendido.
 - Si la velocidad es < 2 km/h por 2 min, el AP se enciende automaticamente.
 - Si no hay clientes conectados al AP por 5 min, el AP se apaga.
+- Si no hay STA conectado y no hay AP, el Wi-Fi se apaga para ahorrar bateria.
 
 ---
 

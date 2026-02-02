@@ -29,38 +29,36 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 
 ## Tabla de estados
 
-1) Arranque
-- Segmento: toda la tira
-- Color: Blanco suave
-- Modo: fijo 1-2 s
+Segmento A (LED 0-1) por tira:
+- LED0 = Wi-Fi/AP
+  - STA conectado: verde fijo
+  - STA intentando: verde pulsante (ciclo 1.5 s)
+  - AP activo sin clientes: amarillo fijo
+  - AP activo con clientes: amarillo pulsante suave
+  - STA fallo (fallback a AP): rojo fijo
+  - Wi-Fi apagado por ahorro: ambar doble pulso (cada ~3 s)
+- LED1 = GPS
+  - GPS OK: azul fijo
+  - GPS buscando: azul pulsante (ciclo 1.5 s)
 
-2) GPS
-- GPS OK: Segmento A en azul fijo
-- GPS buscando: Segmento A azul pulsante (ciclo 1.5 s)
+Override critico:
+- Sin GPS y sin Wi-Fi por >10 min: LED0 y LED1 rojo parpadeo rapido (200 ms)
 
-3) Wi-Fi
-- STA conectado: Segmento A verde fijo
-- STA intentando: Segmento A verde pulsante (ciclo 1.5 s)
-- AP activo: Segmento A amarillo fijo
-- Error Wi-Fi: Segmento A rojo fijo
+Modo normal (Segmento B):
+- Si no hay GPS fix: rainbow animado
+- Con GPS OK: efecto por rango de velocidad (FastLED, configurable en `config.h`)
 
-4) Error critico
-- Segmento: A
-- Color: rojo
-- Modo: parpadeo rapido (200 ms)
-
-5) Modo normal
-- Segmento: B (LED 3-fin)
-- Modo: si no hay GPS fix, rainbow animado. Con GPS OK, efecto por rango de velocidad (FastLED, configurable en `config.h`)
+Homogeneo:
+- Si Wi-Fi esta OFF y GPS OK por >5 min, LED0 y LED1 replican el color/efecto del Segmento B
 
 ---
 
 ## Prioridad de estados
 
-1) Error critico (rojo rapido, Segmento A)
-2) Error Wi-Fi (rojo fijo, Segmento A)
-3) Arranque (blanco suave, toda la tira)
-4) Wi-Fi / GPS (Segmento A)
+1) Error critico (LED0/LED1 rojo rapido)
+2) Homogeneo (Wi-Fi OFF + GPS OK >5 min)
+3) Wi-Fi/AP (LED0)
+4) GPS (LED1)
 5) Modo normal (Segmento B)
 
 ---
@@ -87,10 +85,12 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 - GPS OK: has_gps_fix = true
 - GPS buscando: has_gps_fix = false
 - STA conectado: wifi_sta_connected = true y WL_CONNECTED
-- STA intentando: wifi_ssid definido y WL_CONNECTED = false
-- AP activo: modo AP
+- STA intentando: wifi_sta_connecting = true
+- AP activo: ap_enabled = true
+- AP con clientes: softAPgetStationNum() > 0
+- Wi-Fi OFF: modo WIFI_OFF (sin STA ni AP)
 - Error critico: sin GPS y sin Wi-Fi por > 10 min
-- AP auto: sin GPS fix mantiene AP on; velocidad < 2 km/h por 2 min enciende AP; sin clientes por 5 min apaga AP
+- AP auto: sin GPS fix mantiene AP on; velocidad < 2 km/h por 2 min enciende AP; sin clientes por 5 min apaga AP; sin STA ni AP apaga Wi-Fi
 
 ---
 

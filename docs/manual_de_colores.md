@@ -9,25 +9,32 @@ Este manual explica que significa cada color segun el firmware activo en `Platfo
 - Segmento Estado (LEDs de estado): primeros 2 LEDs de cada tira (LED 0-1).
 - Segmento Resto (el resto de la tira): del LED 2 al final (LED 2-23).
 - Brillo global default: 77 (~30%).
-- El estado (Segmento Estado) siempre tiene prioridad.
+- El estado (Segmento Estado) tiene prioridad, excepto en modo homogeneo (Wi-Fi OFF + GPS OK >5 min).
 - El Segmento Resto muestra rainbow si no hay GPS fix, y usa rangos cuando hay GPS OK.
 
 ---
 
 ## 2) Estados del sistema (Segmento Estado)
 
-Si ves estos colores en los primeros LEDs, el estado es:
+LED0 = Wi-Fi/AP
+- Verde fijo: STA conectado.
+- Verde pulsante (~1.5 s): STA intentando conectar.
+- Amarillo fijo: AP activo sin clientes.
+- Amarillo pulsante suave: AP activo con clientes conectados.
+- Rojo fijo: STA fallo y quedo en AP (fallback).
+- Ambar doble pulso (cada ~3 s): Wi-Fi apagado por ahorro (sin STA/AP).
 
-- Azul fijo: GPS OK, sin Wi-Fi conectado.
+LED1 = GPS
+- Azul fijo: GPS OK.
 - Azul pulsante (~1.5 s): GPS buscando (sin fix).
-- Verde fijo: Wi-Fi STA conectado.
-- Verde pulsante (~1.5 s): Wi-Fi STA intentando conectar.
-- Amarillo fijo: AP activo (sin STA conectado).
-- Rojo fijo (Segmento Estado): credenciales guardadas, STA fallo y quedo en AP (fallback).
-- Rojo parpadeo rapido (Segmento Estado, 200 ms): error critico (sin GPS ni Wi-Fi por >10 min).
+
+Override critico:
+- LED0 y LED1 rojo parpadeo rapido (200 ms) si no hay GPS ni Wi-Fi por >10 min.
+
+Homogeneo:
+- Si Wi-Fi esta OFF y GPS OK por >5 min, LED0 y LED1 toman el mismo color/efecto del Segmento Resto.
 
 Notas:
-- Durante intento STA con AP+STA activo, no hay indicador exclusivo de "conectando"; puede verse el estado GPS.
 - El modo AP abierto (sin password) usa el mismo color que AP normal (amarillo).
 
 ---

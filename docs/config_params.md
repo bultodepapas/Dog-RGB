@@ -60,6 +60,7 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
   - Parpadeo rapido: 200 ms
 - Error critico: sin GPS y sin Wi-Fi por > 10 min
 - Segmento B: si no hay GPS fix, mostrar rainbow animado; con GPS OK, usar rangos de velocidad
+- Segmento A (LED_STATUS_COUNT=2): LED0 Wi-Fi/AP, LED1 GPS; en Wi-Fi OFF + GPS OK estable, ambos siguen el segmento B
 
 ---
 
@@ -126,6 +127,9 @@ Mapeo de color:
 - AP_CLIENT_POLL_MS: 1000
 - AP_STATIONARY_ON_KPH: 2.0
 - AP_STATIONARY_OFF_KPH: 2.5
+- WIFI_OFF_GPS_FIX_MS: 300000 (modo homogeneo tras GPS OK estable)
+- AP_OFF_PULSE_PERIOD_MS: 3000
+- AP_OFF_PULSE_MS: 200
 
 ---
 

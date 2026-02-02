@@ -121,10 +121,14 @@ static bool wifi_sta_connecting = false;
 static unsigned long wifi_sta_start_ms = 0;
 static unsigned long last_wifi_check_ms = 0;
 static bool ap_enabled = true;
+static bool wifi_off = false;
 static unsigned long last_ap_client_ms = 0;
 static unsigned long last_ap_poll_ms = 0;
+static uint8_t ap_station_count = 0;
 static unsigned long stationary_ms = 0;
 static unsigned long last_stationary_ms = 0;
+static unsigned long gps_fix_ms = 0;
+static unsigned long last_gps_fix_ms = 0;
 
 // LED strip configuration is defined in config.h.
 static unsigned long last_led_update_ms = 0;
@@ -184,6 +188,7 @@ static void start_ap_mode();
 static void start_sta_mode();
 static void enable_ap();
 static void disable_ap();
+static void set_wifi_off(bool off);
 static void update_ap_policy(unsigned long now_ms);
 
 static float knots_to_kph(float knots) {
@@ -206,6 +211,11 @@ static Rgb make_rgb(uint8_t r, uint8_t g, uint8_t b) {
 
 static uint8_t scale8(uint8_t value, uint8_t scale) {
   return static_cast<uint8_t>((static_cast<uint16_t>(value) * scale) / 255);
+}
+
+static Rgb scale_rgb(const Rgb &c, float scale) {
+  const uint8_t s = clamp_u8(static_cast<int>(scale * 255.0f));
+  return make_rgb(scale8(c.r, s), scale8(c.g, s), scale8(c.b, s));
 }
 
 static void fade_rgb(Rgb &c, uint8_t amount) {
@@ -280,6 +290,23 @@ static float pulse_scale(unsigned long period_ms) {
     return phase * 2.0f;
   }
   return (1.0f - phase) * 2.0f;
+}
+
+static float double_pulse_scale(unsigned long period_ms, unsigned long pulse_ms) {
+  const unsigned long t = millis() % period_ms;
+  if (t < pulse_ms) {
+    return static_cast<float>(t) / static_cast<float>(pulse_ms);
+  }
+  if (t < pulse_ms * 2) {
+    return static_cast<float>((pulse_ms * 2) - t) / static_cast<float>(pulse_ms);
+  }
+  if (t < pulse_ms * 3) {
+    return static_cast<float>(t - (pulse_ms * 2)) / static_cast<float>(pulse_ms);
+  }
+  if (t < pulse_ms * 4) {
+    return static_cast<float>((pulse_ms * 4) - t) / static_cast<float>(pulse_ms);
+  }
+  return 0.0f;
 }
 
 // Convert NMEA degree-minute format to decimal degrees.
@@ -950,52 +977,25 @@ static void update_led_ui() {
 
   const bool gps_ok = has_gps_fix;
   const bool sta_ok = (wifi_sta_connected && WiFi.status() == WL_CONNECTED);
-  const bool sta_try = (!sta_ok && wifi_ssid.length() > 0 && WiFi.getMode() == WIFI_STA);
-  const bool ap_mode = (WiFi.getMode() == WIFI_AP);
+  const bool sta_try = (!sta_ok && wifi_sta_connecting);
 
   if (gps_ok || sta_ok) {
     last_ok_ms = now_ms;
   }
 
-  const bool critical_error = (!gps_ok && !sta_ok && (now_ms - last_ok_ms) > CRITICAL_NO_OK_MS);
-
-  uint8_t r = 0;
-  uint8_t g = 0;
-  uint8_t b = 0;
-  float scale = 1.0f;
-
-  if (critical_error) {
-    scale = (now_ms / 200) % 2 ? 1.0f : 0.0f;
-    r = clamp_u8(static_cast<int>(60 * scale));
-    g = 0;
-    b = 0;
-  } else if (!sta_ok && wifi_ssid.length() > 0 && ap_mode) {
-    r = 60;
-    g = 0;
-    b = 0;
-  } else if (sta_ok) {
-    r = 0;
-    g = 60;
-    b = 0;
-  } else if (sta_try) {
-    scale = pulse_scale(1500);
-    r = 0;
-    g = clamp_u8(static_cast<int>(60 * scale));
-    b = 0;
-  } else if (ap_mode) {
-    r = 60;
-    g = 45;
-    b = 0;
-  } else if (gps_ok) {
-    r = 0;
-    g = 0;
-    b = 60;
-  } else {
-    scale = pulse_scale(1500);
-    r = 0;
-    g = 0;
-    b = clamp_u8(static_cast<int>(60 * scale));
+  if (last_gps_fix_ms == 0) {
+    last_gps_fix_ms = now_ms;
   }
+  const unsigned long fix_dt = now_ms - last_gps_fix_ms;
+  last_gps_fix_ms = now_ms;
+  if (gps_ok) {
+    gps_fix_ms = (gps_fix_ms + fix_dt > WIFI_OFF_GPS_FIX_MS) ? WIFI_OFF_GPS_FIX_MS : (gps_fix_ms + fix_dt);
+  } else {
+    gps_fix_ms = 0;
+  }
+
+  const bool critical_error = (!gps_ok && !sta_ok && (now_ms - last_ok_ms) > CRITICAL_NO_OK_MS);
+  const bool homogeneous_mode = (wifi_off && gps_fix_ms >= WIFI_OFF_GPS_FIX_MS);
 
   const bool body_on = gps_ok;
   const int seg_start = LED_STATUS_COUNT;
@@ -1007,6 +1007,15 @@ static void update_led_ui() {
   uint8_t eff_intensity = RANGE_1_INTENSITY;
   get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
   const Rgb base = base_color_for_range(range);
+
+  if (homogeneous_mode) {
+    apply_effect(effect_a, leds_a, heat_a, 0, LED_STRIP_COUNT, base, eff_speed, eff_intensity, state_a);
+    if (LED_STRIP_MODE == 2) {
+      apply_effect(effect_b, leds_b, heat_b, 0, LED_STRIP_COUNT, base, eff_speed, eff_intensity, state_b);
+    }
+    show_leds();
+    return;
+  }
 
   if (body_on && seg_count > 0) {
     apply_effect(effect_a, leds_a, heat_a, seg_start, seg_count, base, eff_speed, eff_intensity, state_a);
@@ -1025,9 +1034,60 @@ static void update_led_ui() {
     }
   }
 
-  fill_range(leds_a, 0, LED_STATUS_COUNT, make_rgb(r, g, b));
-  if (LED_STRIP_MODE == 2) {
-    fill_range(leds_b, 0, LED_STATUS_COUNT, make_rgb(r, g, b));
+  const Rgb wifi_base = make_rgb(0, 60, 0);
+  const Rgb ap_base = make_rgb(60, 45, 0);
+  const Rgb gps_base = make_rgb(0, 0, 60);
+  const Rgb err_base = make_rgb(60, 0, 0);
+
+  Rgb wifi_color = make_rgb(0, 0, 0);
+  Rgb gps_color = make_rgb(0, 0, 0);
+
+  if (critical_error) {
+    const float blink = (now_ms / 200) % 2 ? 1.0f : 0.0f;
+    wifi_color = scale_rgb(err_base, blink);
+    gps_color = wifi_color;
+  } else {
+    if (wifi_off) {
+      const float pulse = double_pulse_scale(AP_OFF_PULSE_PERIOD_MS, AP_OFF_PULSE_MS);
+      wifi_color = scale_rgb(ap_base, pulse);
+    } else if (!sta_ok && wifi_ssid.length() > 0 && ap_enabled && WiFi.getMode() == WIFI_AP) {
+      wifi_color = err_base;
+    } else if (sta_ok) {
+      wifi_color = wifi_base;
+    } else if (sta_try) {
+      wifi_color = scale_rgb(wifi_base, pulse_scale(1500));
+    } else if (ap_enabled) {
+      if (ap_station_count > 0) {
+        wifi_color = scale_rgb(ap_base, pulse_scale(1500));
+      } else {
+        wifi_color = ap_base;
+      }
+    }
+
+    if (gps_ok) {
+      gps_color = gps_base;
+    } else {
+      gps_color = scale_rgb(gps_base, pulse_scale(1500));
+    }
+  }
+
+  if (LED_STATUS_COUNT > 0) {
+    leds_a[0] = wifi_color;
+    if (LED_STRIP_MODE == 2) {
+      leds_b[0] = wifi_color;
+    }
+  }
+  if (LED_STATUS_COUNT > 1) {
+    leds_a[1] = gps_color;
+    if (LED_STRIP_MODE == 2) {
+      leds_b[1] = gps_color;
+    }
+  }
+  for (int i = 2; i < LED_STATUS_COUNT; ++i) {
+    leds_a[i] = make_rgb(0, 0, 0);
+    if (LED_STRIP_MODE == 2) {
+      leds_b[i] = make_rgb(0, 0, 0);
+    }
   }
   show_leds();
 }
@@ -1312,6 +1372,8 @@ static void start_ap_mode() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
   ap_enabled = true;
+  wifi_off = false;
+  ap_station_count = 0;
   last_ap_client_ms = millis();
   wifi_sta_connected = false;
   wifi_sta_connecting = false;
@@ -1321,10 +1383,12 @@ static void start_sta_mode() {
   if (ap_enabled) {
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
+    ap_station_count = 0;
     last_ap_client_ms = millis();
   } else {
     WiFi.mode(WIFI_STA);
   }
+  wifi_off = false;
   WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
   wifi_sta_connected = false;
   wifi_sta_connecting = true;
@@ -1342,6 +1406,8 @@ static void enable_ap() {
   }
   WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
   ap_enabled = true;
+  wifi_off = false;
+  ap_station_count = 0;
   last_ap_client_ms = millis();
 }
 
@@ -1351,13 +1417,42 @@ static void disable_ap() {
   }
   WiFi.softAPdisconnect(true);
   ap_enabled = false;
+  ap_station_count = 0;
   last_ap_client_ms = 0;
   WiFi.mode(WIFI_STA);
+}
+
+static void set_wifi_off(bool off) {
+  if (off) {
+    if (wifi_off) {
+      return;
+    }
+    WiFi.mode(WIFI_OFF);
+    wifi_off = true;
+    ap_enabled = false;
+    ap_station_count = 0;
+    wifi_sta_connected = false;
+    wifi_sta_connecting = false;
+    last_ap_client_ms = 0;
+    last_ap_poll_ms = 0;
+    return;
+  }
+  if (!wifi_off) {
+    return;
+  }
+  wifi_off = false;
+  ap_enabled = true;
+  if (wifi_ssid.length() > 0) {
+    start_sta_mode();
+  } else {
+    start_ap_mode();
+  }
 }
 
 static void setup_wifi() {
   load_wifi_creds();
   ap_enabled = true;
+  wifi_off = false;
   if (wifi_ssid.length() > 0) {
     start_sta_mode();
   } else {
@@ -1385,12 +1480,23 @@ static void update_ap_policy(unsigned long now_ms) {
   const bool ap_force_on = !has_gps_fix;
   const bool ap_request_on = (stationary_ms >= AP_STATIONARY_MS);
 
+  if (wifi_off) {
+    if (ap_force_on || ap_request_on) {
+      set_wifi_off(false);
+    } else {
+      return;
+    }
+  }
+
   if (ap_enabled && (now_ms - last_ap_poll_ms) >= AP_CLIENT_POLL_MS) {
     last_ap_poll_ms = now_ms;
     const int stations = WiFi.softAPgetStationNum();
+    ap_station_count = (stations > 0) ? static_cast<uint8_t>(stations) : 0;
     if (stations > 0) {
       last_ap_client_ms = now_ms;
     }
+  } else if (!ap_enabled) {
+    ap_station_count = 0;
   }
 
   if (ap_force_on) {
@@ -1412,6 +1518,9 @@ static void update_ap_policy(unsigned long now_ms) {
     if ((now_ms - last_ap_client_ms) >= AP_IDLE_TIMEOUT_MS) {
       disable_ap();
       stationary_ms = 0;
+      if (!wifi_sta_connected || wifi_ssid.length() == 0) {
+        set_wifi_off(true);
+      }
     }
   }
 }
@@ -1766,7 +1875,7 @@ void loop() {
     summary_char->setValue(payload, sizeof(payload));
   }
 
-  if (now_ms - last_wifi_check_ms >= WIFI_RETRY_INTERVAL_MS) {
+  if (!wifi_off && (now_ms - last_wifi_check_ms >= WIFI_RETRY_INTERVAL_MS)) {
     last_wifi_check_ms = now_ms;
     if (wifi_sta_connected && WiFi.status() != WL_CONNECTED) {
       wifi_sta_connected = false;
