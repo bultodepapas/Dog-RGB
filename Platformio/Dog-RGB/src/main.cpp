@@ -10,7 +10,7 @@
   Supported hardware:
   - MCU: Seeed Studio XIAO ESP32-S3
   - GNSS: EBYTE E108-GN02 (UART 9600)
-  - LEDs: SK6812 (single-wire)
+  - LEDs: SK6812 RGBW (single-wire)
 
   Pin table (XIAO ESP32-S3):
   - GNSS RX: D8 / GPIO7
@@ -20,7 +20,8 @@
   - LED B data: D1 / GPIO2
 
   Dependencies:
-  - FastLED
+  - FastLED (effects + color math)
+  - Adafruit_NeoPixel (RGBW output)
   - ArduinoJson
   - ESP32 Arduino core (WiFi, WebServer, ESPmDNS)
 
@@ -44,6 +45,7 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <FastLED.h>
+#include <Adafruit_NeoPixel.h>
 #include <ArduinoJson.h>
 #include "pins.h"
 #include "config.h"
@@ -129,6 +131,9 @@ static CRGB leds_a[LED_STRIP_COUNT];
 static CRGB leds_b[LED_STRIP_COUNT];
 static uint8_t heat_a[LED_STRIP_COUNT];
 static uint8_t heat_b[LED_STRIP_COUNT];
+
+static Adafruit_NeoPixel strip_a(LED_STRIP_COUNT, PIN_LED_A_DATA, NEO_GRBW + NEO_KHZ800);
+static Adafruit_NeoPixel strip_b(LED_STRIP_COUNT, PIN_LED_B_DATA, NEO_GRBW + NEO_KHZ800);
 
 
 struct EffectState {
@@ -520,7 +525,12 @@ static void load_config() {
 }
 
 static void apply_config(const RuntimeConfig &previous) {
-  FastLED.setBrightness(g_cfg.brightness);
+  if (LED_UI_ENABLED) {
+    strip_a.setBrightness(g_cfg.brightness);
+    if (LED_STRIP_MODE == 2) {
+      strip_b.setBrightness(g_cfg.brightness);
+    }
+  }
   if (g_cfg.mdns != previous.mdns) {
     if (wifi_sta_connected) {
       MDNS.end();
@@ -574,12 +584,37 @@ static String html_wifi_page() {
 }
 
 static void led_begin() {
-  FastLED.addLeds<SK6812, PIN_LED_A_DATA, GRB>(leds_a, LED_STRIP_COUNT);
+  strip_a.begin();
+  strip_a.setBrightness(g_cfg.brightness);
+  strip_a.clear();
+  strip_a.show();
   if (LED_STRIP_MODE == 2) {
-    FastLED.addLeds<SK6812, PIN_LED_B_DATA, GRB>(leds_b, LED_STRIP_COUNT);
+    strip_b.begin();
+    strip_b.setBrightness(g_cfg.brightness);
+    strip_b.clear();
+    strip_b.show();
   }
-  FastLED.setBrightness(g_cfg.brightness);
-  FastLED.clear(true);
+}
+
+static void show_leds() {
+  for (int i = 0; i < LED_STRIP_COUNT; ++i) {
+    const uint8_t r = leds_a[i].r;
+    const uint8_t g = leds_a[i].g;
+    const uint8_t b = leds_a[i].b;
+    const uint8_t w = min(r, min(g, b));
+    strip_a.setPixelColor(i, strip_a.Color(r - w, g - w, b - w, w));
+  }
+  strip_a.show();
+  if (LED_STRIP_MODE == 2) {
+    for (int i = 0; i < LED_STRIP_COUNT; ++i) {
+      const uint8_t r = leds_b[i].r;
+      const uint8_t g = leds_b[i].g;
+      const uint8_t b = leds_b[i].b;
+      const uint8_t w = min(r, min(g, b));
+      strip_b.setPixelColor(i, strip_b.Color(r - w, g - w, b - w, w));
+    }
+    strip_b.show();
+  }
 }
 
 static void fill_range(CRGB *leds, int start, int count, const CRGB &color) {
@@ -799,7 +834,7 @@ static void update_led_ui() {
     if (LED_STRIP_MODE == 2) {
       fill_solid(leds_b, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
     }
-    FastLED.show();
+    show_leds();
     return;
   }
 
@@ -854,7 +889,7 @@ static void update_led_ui() {
   if (LED_STRIP_MODE == 2) {
     fill_range(leds_b, 0, LED_STATUS_COUNT, CRGB(r, g, b));
   }
-  FastLED.show();
+  show_leds();
 }
 
 static String html_config_page() {

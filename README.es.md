@@ -28,7 +28,7 @@ Un collar wearable con telemetria GPS, comportamiento LED configurable y un port
 
 - MCU: Seeed Studio XIAO ESP32-S3
 - GNSS: EBYTE E108-GN02 (10 Hz)
-- LEDs: SK6812 (5V, single-wire), dos tiras
+- LEDs: SK6812 RGBW (5V, single-wire), dos tiras
 - Energia: 21700 Li-ion + BMS + boost 5V (>=3A)
 - Portal: AP + STA con dashboard local y UI de configuracion
 
@@ -41,7 +41,7 @@ Mas detalles:
 
 ## Firmware (Estado actual)
 
-El firmware base esta en [firmware/esp32s3_base](firmware/esp32s3_base) con:
+El proyecto de firmware activo esta en [Platformio/Dog-RGB](Platformio/Dog-RGB) con:
 
 - Parsing NMEA RMC (lat/lon/velocidad/fecha/hora)
 - Calculo de distancia (Haversine) con filtro de picos
@@ -52,10 +52,10 @@ El firmware base esta en [firmware/esp32s3_base](firmware/esp32s3_base) con:
 - Configuracion runtime editable en el portal `/config`
 
 Archivos clave:
-- Entrypoint firmware: [firmware/esp32s3_base/src/main.cpp](firmware/esp32s3_base/src/main.cpp)
-- Pines: [firmware/esp32s3_base/include/pins.h](firmware/esp32s3_base/include/pins.h)
-- Defaults runtime: [firmware/esp32s3_base/include/config.h](firmware/esp32s3_base/include/config.h)
-- Build config: [firmware/esp32s3_base/platformio.ini](firmware/esp32s3_base/platformio.ini)
+- Entrypoint firmware: [Platformio/Dog-RGB/src/main.cpp](Platformio/Dog-RGB/src/main.cpp)
+- Pines: [Platformio/Dog-RGB/include/pins.h](Platformio/Dog-RGB/include/pins.h)
+- Defaults runtime: [Platformio/Dog-RGB/include/config.h](Platformio/Dog-RGB/include/config.h)
+- Build config: [Platformio/Dog-RGB/platformio.ini](Platformio/Dog-RGB/platformio.ini)
 
 ---
 
@@ -114,7 +114,8 @@ Referencia de wiring:
 
 - `docs/` specs, arquitectura, decisiones, roadmap
 - `hardware/` esquemas, PCB, notas de energia
-- `firmware/` codigo embebido
+- `Platformio/` proyecto de firmware activo (PlatformIO)
+- `firmware/` codigo embebido legacy/base
 - `software/` app/BLE (futuro)
 - `assets/` diagramas, renders, imagenes
 - `research/` datasheets, referencias, calculos

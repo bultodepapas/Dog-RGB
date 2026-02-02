@@ -28,7 +28,7 @@ A wearable LED collar with GPS-first telemetry, configurable LED behavior, and a
 
 - MCU: Seeed Studio XIAO ESP32-S3
 - GNSS: EBYTE E108-GN02 (10 Hz)
-- LEDs: SK6812 (5V, single-wire), dual strips
+- LEDs: SK6812 RGBW (5V, single-wire), dual strips
 - Power: 21700 Li-ion + BMS + 5V boost (>=3A)
 - Portal: AP + STA with local dashboard and config UI
 
@@ -41,7 +41,7 @@ More details:
 
 ## Firmware (Current Status)
 
-The base firmware is in [firmware/esp32s3_base](firmware/esp32s3_base) with:
+The active firmware project is in [Platformio/Dog-RGB](Platformio/Dog-RGB) with:
 
 - NMEA RMC parsing (lat/lon/speed/date/time)
 - Distance calculation (Haversine) with spike filtering
@@ -52,10 +52,10 @@ The base firmware is in [firmware/esp32s3_base](firmware/esp32s3_base) with:
 - Runtime config editable in the portal at `/config`
 
 Key files:
-- Firmware entrypoint: [firmware/esp32s3_base/src/main.cpp](firmware/esp32s3_base/src/main.cpp)
-- Pin mapping: [firmware/esp32s3_base/include/pins.h](firmware/esp32s3_base/include/pins.h)
-- Runtime defaults: [firmware/esp32s3_base/include/config.h](firmware/esp32s3_base/include/config.h)
-- Build config: [firmware/esp32s3_base/platformio.ini](firmware/esp32s3_base/platformio.ini)
+- Firmware entrypoint: [Platformio/Dog-RGB/src/main.cpp](Platformio/Dog-RGB/src/main.cpp)
+- Pin mapping: [Platformio/Dog-RGB/include/pins.h](Platformio/Dog-RGB/include/pins.h)
+- Runtime defaults: [Platformio/Dog-RGB/include/config.h](Platformio/Dog-RGB/include/config.h)
+- Build config: [Platformio/Dog-RGB/platformio.ini](Platformio/Dog-RGB/platformio.ini)
 
 ---
 
@@ -114,7 +114,8 @@ Wiring reference:
 
 - `docs/` specs, architecture, decisions, roadmap
 - `hardware/` schematics, PCB, power notes
-- `firmware/` embedded firmware source
+- `Platformio/` active PlatformIO firmware project
+- `firmware/` legacy/base firmware source
 - `software/` app/BLE tooling (future)
 - `assets/` diagrams, renders, images
 - `research/` datasheets, references, calculations
@@ -130,4 +131,3 @@ Wiring reference:
 - Draft schematic for power + LEDs + IMU
 - Define IMU thresholds for activity levels
 - Sketch enclosure and cable routing
-
