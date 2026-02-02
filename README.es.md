@@ -101,8 +101,8 @@ Pines (XIAO ESP32-S3):
 - GPS RX: D8 / GPIO7
 - GPS TX: D9 / GPIO8
 - LED estado: D2 / GPIO3 (LED externo)
-- LED A data: GPIO11
-- LED B data: GPIO12
+- LED A data: D0 / GPIO1
+- LED B data: D1 / GPIO2
 
 Referencia de wiring:
 - [docs/manual_de_uso.md](docs/manual_de_uso.md)

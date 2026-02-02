@@ -95,13 +95,13 @@ Pinout oficial XIAO ESP32-S3: `xiao_s3_pin.md`.
 ### Paso 3: Level shifting y LEDs
 1) Alimenta el 74AHCT125 con 5V y GND (si se usa).
 2) Conecta data lines segun el numero de tiras:
-   - Dos tiras:
-     - GPIO11 -> IN1 -> OUT1 -> 330-470R (cerca de DIN) -> DIN LED A
-     - GPIO12 -> IN2 -> OUT2 -> 330-470R (cerca de DIN) -> DIN LED B
-   - Una sola tira:
-     - GPIO11 -> IN1 -> OUT1 -> 330-470R (cerca de DIN) -> DIN LED A
-     - No usar GPIO12
-3) Si NO usas level shifter (prototipo): conecta GPIO11/GPIO12 directo a DIN con resistor serie de 330-470 ohm y cables cortos.
+    - Dos tiras:
+      - D0 / GPIO1 -> IN1 -> OUT1 -> 330-470R (cerca de DIN) -> DIN LED A
+      - D1 / GPIO2 -> IN2 -> OUT2 -> 330-470R (cerca de DIN) -> DIN LED B
+    - Una sola tira:
+      - D0 / GPIO1 -> IN1 -> OUT1 -> 330-470R (cerca de DIN) -> DIN LED A
+      - No usar D1 / GPIO2
+3) Si NO usas level shifter (solo prototipo): conecta D0/D1 (GPIO1/GPIO2) directo a DIN con resistor serie de 330-470 ohm (cerca del DIN) y cables cortos.
 4) Conecta VDD y GND de las tiras a 5V y GND.
 5) Coloca el condensador de 1000 uF en 5V cerca del primer LED (ideal uno por tira).
 6) Lleva 5V y GND a cada tira en paralelo (no en serie); usa AWG 22-24 para 5V/GND.
@@ -118,7 +118,7 @@ Las tiras SK6812 suelen tener 4 cables: +5V, GND, DIN y DOUT (o DI/DO).
 
 - Para una sola tira: conecta +5V, GND y DIN. No necesitas DOUT.
 - Para encadenar dos tiras en serie: conecta DOUT de la primera a DIN de la segunda.
-- Para dos tiras separadas (este proyecto): cada tira va a su propio DIN (GPIO11 y GPIO12).
+- Para dos tiras separadas (este proyecto): cada tira va a su propio DIN (D0/GPIO1 y D1/GPIO2).
 
 ---
 

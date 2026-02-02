@@ -16,8 +16,8 @@
   - GNSS RX: D8 / GPIO7
   - GNSS TX: D9 / GPIO8
   - Status LED: D2 / GPIO3
-  - LED A data: GPIO11
-  - LED B data: GPIO12
+  - LED A data: D0 / GPIO1
+  - LED B data: D1 / GPIO2
 
   Dependencies:
   - FastLED

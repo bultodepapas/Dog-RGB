@@ -95,13 +95,13 @@ Official XIAO ESP32-S3 pinout reference: `xiao_s3_pin.md`.
 ### Step 3: Level shifting and LEDs
 1) Power the 74AHCT125 with 5V and GND (if used).
 2) Connect data lines by strip count:
-   - Two strips:
-     - GPIO11 -> IN1 -> OUT1 -> 330-470R (near DIN) -> LED A DIN
-     - GPIO12 -> IN2 -> OUT2 -> 330-470R (near DIN) -> LED B DIN
-   - Single strip:
-     - GPIO11 -> IN1 -> OUT1 -> 330-470R (near DIN) -> LED A DIN
-     - Do not use GPIO12
-3) If NO level shifter (prototype): connect GPIO11/GPIO12 directly to DIN with a 330-470 ohm series resistor and keep wires short.
+    - Two strips:
+     - D0 / GPIO1 -> IN1 -> OUT1 -> 330-470R (near DIN) -> LED A DIN
+     - D1 / GPIO2 -> IN2 -> OUT2 -> 330-470R (near DIN) -> LED B DIN
+    - Single strip:
+     - D0 / GPIO1 -> IN1 -> OUT1 -> 330-470R (near DIN) -> LED A DIN
+     - Do not use D1 / GPIO2
+3) If NO level shifter (prototype only): connect D0/D1 (GPIO1/GPIO2) directly to DIN with a 330-470 ohm series resistor (near DIN) and keep wires short.
 4) Connect LED strips VDD/GND to 5V/GND.
 5) Place a 1000 uF capacitor on 5V near the first LED (ideally one per strip).
 6) Run 5V and GND to each strip in parallel (not in series); use AWG 22-24 for 5V/GND.
@@ -118,7 +118,7 @@ SK6812 strips usually have 4 wires: +5V, GND, DIN, and DOUT (or DI/DO).
 
 - Single strip: connect +5V, GND, and DIN. DOUT is not needed.
 - Chained strips: connect DOUT of the first to DIN of the second.
-- Two separate strips (this project): each strip uses its own DIN (GPIO11 and GPIO12).
+- Two separate strips (this project): each strip uses its own DIN (D0/GPIO1 and D1/GPIO2).
 
 ---
 

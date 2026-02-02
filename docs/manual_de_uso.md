@@ -41,8 +41,8 @@ Guia practica para instalar, usar y configurar el collar en Fase 1 (GPS + portal
         XIAO ESP32-S3           GNSS (GPS)      10-47uF + 0.1uF
 
 XIAO ESP32-S3 (3.3V)
-  GPIO11 (LED A data) -----------+--> 74AHCT125 IN1 -> OUT1 -> DIN A (330-470R)
-  GPIO12 (LED B data) -----------+--> 74AHCT125 IN2 -> OUT2 -> DIN B (330-470R)
+  D0 / GPIO1 (LED A data) -------+--> 74AHCT125 IN1 -> OUT1 -> DIN A (330-470R)
+  D1 / GPIO2 (LED B data) -------+--> 74AHCT125 IN2 -> OUT2 -> DIN B (330-470R)
   GPIO7  (GPS RX / D8) <--------------------------- GPS TX
   GPIO8  (GPS TX / D9) ---------------------------> GPS RX (opcional)
   GPIO3  (Status LED) ----[R]----> LED externo -> GND

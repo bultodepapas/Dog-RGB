@@ -45,7 +45,7 @@ This guide covers safe wiring for SK6812 strips at 5V with a 3.3V MCU.
 
 ## Pins (XIAO ESP32-S3)
 
-- LED A data: GPIO11
-- LED B data: GPIO12
+- LED A data: D0 / GPIO1
+- LED B data: D1 / GPIO2
 
 Adjust in `firmware/esp32s3_base/include/pins.h` if needed.
