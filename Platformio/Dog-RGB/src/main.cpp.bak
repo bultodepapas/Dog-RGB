@@ -44,6 +44,7 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <FastLED.h>
+#include <Adafruit_NeoPixel.h>
 #include <ArduinoJson.h>
 #include "pins.h"
 #include "config.h"
@@ -120,6 +121,7 @@ static unsigned long last_wifi_check_ms = 0;
 
 // LED strip configuration is defined in config.h.
 static unsigned long last_led_update_ms = 0;
+static bool led_test_init = false;
 
 static unsigned long last_ok_ms = 0;
 
@@ -130,6 +132,8 @@ static CRGB leds_b[LED_STRIP_COUNT];
 static uint8_t heat_a[LED_STRIP_COUNT];
 static uint8_t heat_b[LED_STRIP_COUNT];
 
+static Adafruit_NeoPixel test_strip_a(LED_STRIP_COUNT, PIN_LED_A_DATA, NEO_GRBW + NEO_KHZ800);
+static Adafruit_NeoPixel test_strip_b(LED_STRIP_COUNT, PIN_LED_B_DATA, NEO_GRBW + NEO_KHZ800);
 
 struct EffectState {
   uint8_t hue = 0;
@@ -574,6 +578,16 @@ static String html_wifi_page() {
 }
 
 static void led_begin() {
+  if (LED_TEST_MODE) {
+    test_strip_a.begin();
+    test_strip_a.setBrightness(LED_TEST_BRIGHTNESS);
+    if (LED_STRIP_MODE == 2) {
+      test_strip_b.begin();
+      test_strip_b.setBrightness(LED_TEST_BRIGHTNESS);
+    }
+    led_test_init = true;
+    return;
+  }
   FastLED.addLeds<SK6812, PIN_LED_A_DATA, GRB>(leds_a, LED_STRIP_COUNT);
   if (LED_STRIP_MODE == 2) {
     FastLED.addLeds<SK6812, PIN_LED_B_DATA, GRB>(leds_b, LED_STRIP_COUNT);
@@ -754,6 +768,29 @@ static void apply_effect(int effect_id,
 
 static void update_led_ui() {
   if (!LED_UI_ENABLED) {
+    return;
+  }
+  if (LED_TEST_MODE) {
+    if (!led_test_init) {
+      test_strip_a.begin();
+      test_strip_a.setBrightness(LED_TEST_BRIGHTNESS);
+      if (LED_STRIP_MODE == 2) {
+        test_strip_b.begin();
+        test_strip_b.setBrightness(LED_TEST_BRIGHTNESS);
+      }
+      led_test_init = true;
+    }
+    const uint32_t color = test_strip_a.Color(LED_TEST_R, LED_TEST_G, LED_TEST_B, 0);
+    for (int i = 0; i < LED_STRIP_COUNT; ++i) {
+      test_strip_a.setPixelColor(i, color);
+      if (LED_STRIP_MODE == 2) {
+        test_strip_b.setPixelColor(i, color);
+      }
+    }
+    test_strip_a.show();
+    if (LED_STRIP_MODE == 2) {
+      test_strip_b.show();
+    }
     return;
   }
   const unsigned long now_ms = millis();
