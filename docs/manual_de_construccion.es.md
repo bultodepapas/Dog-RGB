@@ -159,7 +159,7 @@ Si no usas level shifter, aplica estas reglas para maximizar estabilidad:
 Este firmware usa PlatformIO.
 
 1) Instala PlatformIO (VS Code o CLI).
-2) Abre `firmware/esp32s3_base/` como proyecto.
+2) Abre `Platformio/Dog-RGB/` como proyecto.
 3) Conecta el XIAO ESP32-S3 por USB.
 4) Compila:
    - `pio run -e esp32s3`
@@ -185,8 +185,8 @@ Si el puerto no aparece, revisa el cable USB y drivers.
 
 - Recarga la bateria con el cargador USB-C.
 - Limpia con pano humedo (no sumergir si no es IP67).
-- Ajusta pines en `firmware/esp32s3_base/include/pins.h` si cambias wiring.
-- Ajusta parametros en `firmware/esp32s3_base/include/config.h` si cambias LEDs.
+- Ajusta pines en `Platformio/Dog-RGB/include/pins.h` si cambias wiring.
+- Ajusta parametros en `Platformio/Dog-RGB/include/config.h` si cambias LEDs.
 
 ---
 

@@ -10,7 +10,7 @@ Este documento centraliza los parametros que se definen al inicio del proyecto p
   - Controla si se usan una o dos tiras independientes.
 - LED_STRIP_COUNT: LEDs por tira (min 10, max 50)
   - Se usa para dimensionar todos los bucles y efectos.
-- LED_STATUS_COUNT: LEDs reservados para estados (default 3)
+- LED_STATUS_COUNT: LEDs reservados para estados (default 2)
   - Segmento A (estado) siempre tiene prioridad.
 - LED_BRIGHTNESS: brillo global (0-255)
   - Recomendado ~30% para bateria y calor.
@@ -22,14 +22,14 @@ Este documento centraliza los parametros que se definen al inicio del proyecto p
 ## Defaults vs Recommended
 
 Valores actuales (default) y recomendados para inicio.
-Estos valores viven en `firmware/esp32s3_base/include/config.h` y el firmware los usa en compilacion.
+Estos valores viven en `Platformio/Dog-RGB/include/config.h` y el firmware los usa en compilacion.
 Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en NVS.
 
 | Parametro | Default | Recomendado | Nota |
 | --- | --- | --- | --- |
 | LED_STRIP_MODE | 2 | 2 | Cambiar a 1 si solo hay una tira |
-| LED_STRIP_COUNT | 20 | 20 | Ajustar segun largo real |
-| LED_STATUS_COUNT | 3 | 3 | Mantener corto para estados |
+| LED_STRIP_COUNT | 24 | 24 | Ajustar segun largo real |
+| LED_STATUS_COUNT | 2 | 2 | Mantener corto para estados |
 | LED_BRIGHTNESS | 77 | 77 | ~30% brillo |
 | AP_SSID | dog | dog | Temporal |
 | AP_PASS | Dog123456789 | Dog123456789 | Temporal |
@@ -76,7 +76,7 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
 - SPEED_RANGE_8_KPH: 28.0
 - SPEED_RANGE_9_KPH: 34.0
 
-Efectos por rango (FastLED, ver `docs/led_effects_plan.md`):
+Efectos por rango (motor actual, ver `docs/led_effects_plan.md`):
 - RANGE_1_EFFECT_A / RANGE_1_EFFECT_B
 - RANGE_2_EFFECT_A / RANGE_2_EFFECT_B
 - RANGE_3_EFFECT_A / RANGE_3_EFFECT_B
@@ -151,7 +151,7 @@ Mapeo de color:
 
 ## Notas
 
-- Este documento debe mantenerse sincronizado con `firmware/esp32s3_base/src/main.cpp`.
+- Este documento debe mantenerse sincronizado con `Platformio/Dog-RGB/src/main.cpp`.
 - En fase futura, estos parametros se exponen en el portal web.
 - Detalles de estados y prioridades: `docs/led_ui_spec.md`.
 - Portal Wi-Fi: `docs/wifi_portal_spec.md` y `docs/wifi_portal_plan.md`.

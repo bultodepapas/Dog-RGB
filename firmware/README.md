@@ -2,4 +2,5 @@
 
 ESP32-S3 firmware and LED behavior logic.
 
-- Base starter project: `firmware/esp32s3_base/`
+- Active firmware project: `Platformio/Dog-RGB/`
+- Legacy archive (reference only): `firmware/legacy_esp32s3_base/`

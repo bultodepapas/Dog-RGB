@@ -159,7 +159,7 @@ If you skip level shifting, use these rules for stability:
 This firmware uses PlatformIO.
 
 1) Install PlatformIO (VS Code or CLI).
-2) Open `firmware/esp32s3_base/` as a project.
+2) Open `Platformio/Dog-RGB/` as a project.
 3) Connect the XIAO ESP32-S3 via USB.
 4) Build:
    - `pio run -e esp32s3`
@@ -185,8 +185,8 @@ If the port does not appear, check the USB cable and drivers.
 
 - Recharge via USB-C charger.
 - Wipe clean with a damp cloth (do not submerge unless IP67).
-- Update pins in `firmware/esp32s3_base/include/pins.h` if wiring changes.
-- Update parameters in `firmware/esp32s3_base/include/config.h` if LED count changes.
+- Update pins in `Platformio/Dog-RGB/include/pins.h` if wiring changes.
+- Update parameters in `Platformio/Dog-RGB/include/config.h` if LED count changes.
 
 ---
 

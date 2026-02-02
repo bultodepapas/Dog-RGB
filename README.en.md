@@ -115,7 +115,7 @@ Wiring reference:
 - `docs/` specs, architecture, decisions, roadmap
 - `hardware/` schematics, PCB, power notes
 - `Platformio/` active PlatformIO firmware project
-- `firmware/` legacy/base firmware source
+- `firmware/legacy_esp32s3_base/` archived legacy firmware (kept for reference)
 - `software/` app/BLE tooling (future)
 - `assets/` diagrams, renders, images
 - `research/` datasheets, references, calculations

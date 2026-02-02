@@ -10,7 +10,7 @@ Este documento lista todas las tareas pendientes para implementar la Fase 1 (GPS
 - Definir LED de estado externo y resistencia.
 
 ### Firmware (ESP32-S3 + GPS)
-- Verificar pines finales en `firmware/esp32s3_base/include/pins.h`.
+- Verificar pines finales en `Platformio/Dog-RGB/include/pins.h`.
 - Validar baudrate del GNSS (9600) y frecuencia 10 Hz.
 - Mantener parser RMC y filtros actuales.
 - Confirmar umbrales: 0.7 km/h activo, 40 km/h max valida, 1 s sample.

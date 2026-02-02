@@ -1,6 +1,8 @@
 #ifndef DOG_RGB_CONFIG_H
 #define DOG_RGB_CONFIG_H
 
+#include <stdint.h>
+
 // Speed-to-color ranges for Segment B (km/h).
 // Adjust these first to tune activity colors (10 ranges / 9 thresholds).
 static const float SPEED_RANGE_1_KPH = 2.0f;

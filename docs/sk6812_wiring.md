@@ -48,4 +48,4 @@ This guide covers safe wiring for SK6812 strips at 5V with a 3.3V MCU.
 - LED A data: D0 / GPIO1
 - LED B data: D1 / GPIO2
 
-Adjust in `firmware/esp32s3_base/include/pins.h` if needed.
+Adjust in `Platformio/Dog-RGB/include/pins.h` if needed.
