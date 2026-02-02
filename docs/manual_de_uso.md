@@ -34,22 +34,27 @@ Guia practica para instalar, usar y configurar el collar en Fase 1 (GPS + portal
      5V                      74AHCT125           SK6812 Strip A     SK6812 Strip B
       |                     (level shifter)         VDD/GND           VDD/GND
       |                         |
-     GND -----------------------+-------------------+------------------+---- GND (common)
-                                |
-XIAO ESP32-S3 (3.3V)             |
+     GND ----+------------------+-------------------+------------------+---- GND (star)
+            |
+        3V3 Reg (si aplica) ----+-------------------+
+            |                    |                  |
+        XIAO ESP32-S3           GNSS (GPS)      10-47uF + 0.1uF
+
+XIAO ESP32-S3 (3.3V)
   GPIO11 (LED A data) -----------+--> 74AHCT125 IN1 -> OUT1 -> DIN A (330-470R)
   GPIO12 (LED B data) -----------+--> 74AHCT125 IN2 -> OUT2 -> DIN B (330-470R)
-  GPIO7  (GPS RX / D6) <--------------------------- GPS TX
-  GPIO8  (GPS TX / D7) ---------------------------> GPS RX (opcional)
+  GPIO7  (GPS RX / D8) <--------------------------- GPS TX
+  GPIO8  (GPS TX / D9) ---------------------------> GPS RX (opcional)
   GPIO3  (Status LED) ----[R]----> LED externo -> GND
   3V3 ---------------------------> GPS VCC (si 3.3V)
   GND ----------------------------> GPS GND
 ```
 
 Notas:
-- Todos los GND deben ser comunes (MCU, GPS, LEDs, booster).
-- Usa resistor serie de 330-470 ohm en cada data line.
-- Decoupling recomendado: 1000 uF en 5V cerca del primer LED.
+- Todos los GND deben ser comunes (MCU, GPS, LEDs, booster) con punto estrella en la salida del boost.
+- Usa resistor serie de 330-470 ohm en cada data line, cerca de DIN.
+- Decoupling recomendado: 1000 uF en 5V cerca del primer LED (ideal uno por tira).
+- GNSS: 10-47 uF + 0.1 uF cerca de VCC, cables cortos y lejos del boost/5V de LEDs.
 - En este proyecto: 2 tiras LED. Los primeros 3 LEDs de cada tira son de estado.
 
 ---

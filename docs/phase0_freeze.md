@@ -16,8 +16,8 @@ Este documento fija los parametros base para comenzar la implementacion del MVP.
 
 Objetivo: pines estables, faciles de cablear y sin conflicto con USB.
 
-- GPS RX (ESP32 recibe): D6 / GPIO7
-- GPS TX (ESP32 transmite, opcional): D7 / GPIO8
+- GPS RX (ESP32 recibe): D8 / GPIO7
+- GPS TX (ESP32 transmite, opcional): D9 / GPIO8
 - LED de estado: D2 / GPIO3 (LED externo con resistencia)
 - LED A data: GPIO11
 - LED B data: GPIO12

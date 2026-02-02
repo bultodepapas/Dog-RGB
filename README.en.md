@@ -10,6 +10,7 @@ Smart, high-visibility LED collar for medium-to-large dogs. Built for safety, co
 
 - User guide: [docs/manual_de_uso.md](docs/manual_de_uso.md)
 - Build guide: [docs/manual_de_construccion.md](docs/manual_de_construccion.md)
+- XIAO ESP32-S3 pinout (official): [xiao_s3_pin.md](xiao_s3_pin.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Requirements: [docs/requirements.md](docs/requirements.md)
 - Roadmap: [docs/roadmap.md](docs/roadmap.md)
@@ -97,8 +98,8 @@ Wi-Fi portal docs:
 ## Hardware Setup (Phase 1 MVP)
 
 Pins (XIAO ESP32-S3):
-- GPS RX: D6 / GPIO7
-- GPS TX: D7 / GPIO8
+- GPS RX: D8 / GPIO7
+- GPS TX: D9 / GPIO8
 - Status LED: D2 / GPIO3 (external LED)
 - LED A data: GPIO11
 - LED B data: GPIO12

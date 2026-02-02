@@ -32,6 +32,7 @@ Guia completa para construir el prototipo con enfoque en buenas practicas de ele
 - Resistencias serie: 330-470 ohm (2 unidades, una por data line)
 - Condensador: 1000 uF electrolitico, >=6.3V (1 unidad, cerca del primer LED)
 - Condensador: 0.1 uF ceramico (1 unidad opcional, cerca del primer LED)
+- Condensadores GNSS: 10-47 uF + 0.1 uF ceramico (1 set, cerca del modulo)
 
 ### Mecanica
 - Correa de nylon (20-25 mm ancho)
@@ -59,6 +60,7 @@ Guia completa para construir el prototipo con enfoque en buenas practicas de ele
 ## 4) Diagrama de wiring (referencia)
 
 Ver el diagrama en `docs/manual_de_uso.md`.
+Pinout oficial XIAO ESP32-S3: `xiao_s3_pin.md`.
 
 ---
 
@@ -82,23 +84,28 @@ Ver el diagrama en `docs/manual_de_uso.md`.
 ### Paso 2: MCU y GNSS
 1) Alimenta el XIAO ESP32-S3 a 3.3V.
 2) Conecta GNSS:
-   - GPS TX -> GPIO7 (D6) del MCU
-   - GPS RX -> GPIO8 (D7) del MCU (opcional)
+   - GPS TX -> GPIO7 (D8) del MCU
+   - GPS RX -> GPIO8 (D9) del MCU (opcional)
    - GND comun
    - VCC segun modulo (3.3V si aplica)
+3) Coloca 10-47 uF + 0.1 uF entre VCC y GND del GNSS, lo mas cerca posible del modulo.
+4) Si alimentas el GNSS desde el 3V3 del XIAO, verifica margen de corriente; ideal un LDO dedicado si hay ruido.
+5) Mantener cables de GNSS cortos y lejos del boost y de los 5V de LEDs; evita bucles grandes.
 
 ### Paso 3: Level shifting y LEDs
 1) Alimenta el 74AHCT125 con 5V y GND (si se usa).
 2) Conecta data lines segun el numero de tiras:
    - Dos tiras:
-     - GPIO11 -> IN1 -> OUT1 -> 330-470R -> DIN LED A
-     - GPIO12 -> IN2 -> OUT2 -> 330-470R -> DIN LED B
+     - GPIO11 -> IN1 -> OUT1 -> 330-470R (cerca de DIN) -> DIN LED A
+     - GPIO12 -> IN2 -> OUT2 -> 330-470R (cerca de DIN) -> DIN LED B
    - Una sola tira:
-     - GPIO11 -> IN1 -> OUT1 -> 330-470R -> DIN LED A
+     - GPIO11 -> IN1 -> OUT1 -> 330-470R (cerca de DIN) -> DIN LED A
      - No usar GPIO12
 3) Si NO usas level shifter (prototipo): conecta GPIO11/GPIO12 directo a DIN con resistor serie de 330-470 ohm y cables cortos.
 4) Conecta VDD y GND de las tiras a 5V y GND.
-5) Coloca el condensador de 1000 uF en 5V cerca del primer LED.
+5) Coloca el condensador de 1000 uF en 5V cerca del primer LED (ideal uno por tira).
+6) Lleva 5V y GND a cada tira en paralelo (no en serie); usa AWG 22-24 para 5V/GND.
+7) Si hay caida de voltaje o tiras largas, inyecta 5V/GND al final de cada tira.
 
 ### Paso 4: LED de estado (opcional)
 1) GPIO3 -> resistencia -> LED -> GND.
@@ -124,6 +131,16 @@ Si no usas level shifter, aplica estas reglas para maximizar estabilidad:
 - GND comun y retorno directo al mismo punto de alimentacion.
 - Brillo bajo al inicio (30% o menos).
 - Si es posible, reduce VDD de LEDs a ~4.0-4.5 V para mejorar compatibilidad con 3.3V.
+
+---
+
+## 6.3) Buenas practicas de cableado (GPS + LEDs)
+
+- Usa punto estrella de GND en la salida del boost y desde ahi distribuye a MCU, GNSS y tiras.
+- Mantener GNSS y su antena lejos del boost y cables de 5V/LEDs (min 3-5 cm si es posible).
+- Si los cables son largos, torcer TX+GND del GNSS y evitar que corran paralelos a los 5V de LEDs.
+- Para tiras largas o caida de voltaje, inyecta 5V/GND en ambos extremos y agrega 1000 uF por tira.
+- Fija cables para evitar fatiga por flexion (alivio de tension interno).
 
 ---
 

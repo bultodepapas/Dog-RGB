@@ -13,8 +13,8 @@
   - LEDs: SK6812 (single-wire)
 
   Pin table (XIAO ESP32-S3):
-  - GNSS RX: D6 / GPIO7
-  - GNSS TX: D7 / GPIO8
+  - GNSS RX: D8 / GPIO7
+  - GNSS TX: D9 / GPIO8
   - Status LED: D2 / GPIO3
   - LED A data: GPIO11
   - LED B data: GPIO12
