@@ -28,7 +28,7 @@ A wearable LED collar with GPS-first telemetry, configurable LED behavior, and a
 
 - MCU: Seeed Studio XIAO ESP32-S3
 - GNSS: EBYTE E108-GN02 (10 Hz)
-- LEDs: SK6812 RGBW (5V, single-wire), dual strips
+- LEDs: SK6812 RGBW (5V, single-wire), dual strips (Adafruit NeoPixel)
 - Power: 21700 Li-ion + BMS + 5V boost (>=3A)
 - Portal: AP + STA with local dashboard and config UI
 
