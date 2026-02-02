@@ -161,6 +161,26 @@ static EffectState state_a;
 static EffectState state_b;
 static uint8_t body_idle_hue = 0;
 
+struct WelcomeState {
+  bool active = false;
+  uint8_t color_index = 0;
+  uint8_t laps_done = 0;
+};
+
+static WelcomeState welcome;
+static EffectState welcome_state_a;
+static EffectState welcome_state_b;
+static const uint8_t WELCOME_LAPS = 5;
+static const uint8_t WELCOME_SPEED = 32;
+static const uint8_t WELCOME_INTENSITY = 255;
+static const Rgb WELCOME_COLORS[5] = {
+  {255, 0, 0},     // rojo
+  {255, 255, 255}, // blanco
+  {255, 0, 128},   // rosado
+  {0, 0, 255},     // azul
+  {0, 255, 0}      // verde
+};
+
 struct RangeEffect {
   uint8_t effect_a;
   uint8_t effect_b;
@@ -965,11 +985,68 @@ static void apply_effect(int effect_id,
   }
 }
 
+static void start_welcome() {
+  welcome.active = true;
+  welcome.color_index = 0;
+  welcome.laps_done = 0;
+  welcome_state_a = {};
+  welcome_state_b = {};
+  strip_a.setBrightness(255);
+  if (LED_STRIP_MODE == 2) {
+    strip_b.setBrightness(255);
+  }
+  fill_range(leds_a, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
+  if (LED_STRIP_MODE == 2) {
+    fill_range(leds_b, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
+  }
+  show_leds();
+}
+
+static void update_welcome(unsigned long now_ms) {
+  if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
+    return;
+  }
+  last_led_update_ms = now_ms;
+
+  const Rgb base = WELCOME_COLORS[welcome.color_index];
+  const uint16_t prev_pos = welcome_state_a.pos;
+
+  apply_effect(3, leds_a, heat_a, 0, LED_STRIP_COUNT, base,
+               WELCOME_SPEED, WELCOME_INTENSITY, welcome_state_a);
+  if (LED_STRIP_MODE == 2) {
+    apply_effect(3, leds_b, heat_b, 0, LED_STRIP_COUNT, base,
+                 WELCOME_SPEED, WELCOME_INTENSITY, welcome_state_b);
+  }
+  show_leds();
+
+  if (welcome_state_a.pos < prev_pos) {
+    welcome.laps_done++;
+    if (welcome.laps_done >= WELCOME_LAPS) {
+      welcome.active = false;
+      strip_a.setBrightness(g_cfg.brightness);
+      if (LED_STRIP_MODE == 2) {
+        strip_b.setBrightness(g_cfg.brightness);
+      }
+      fill_range(leds_a, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
+      if (LED_STRIP_MODE == 2) {
+        fill_range(leds_b, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
+      }
+      show_leds();
+    } else {
+      welcome.color_index = static_cast<uint8_t>(welcome.color_index + 1);
+    }
+  }
+}
+
 static void update_led_ui() {
   if (!LED_UI_ENABLED) {
     return;
   }
   const unsigned long now_ms = millis();
+  if (welcome.active) {
+    update_welcome(now_ms);
+    return;
+  }
   if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
     return;
   }
@@ -1661,6 +1738,7 @@ void setup() {
   load_config();
   if (LED_UI_ENABLED) {
     led_begin();
+    start_welcome();
   }
   setup_wifi();
   setup_http();
