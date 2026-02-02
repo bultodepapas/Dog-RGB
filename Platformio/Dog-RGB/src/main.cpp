@@ -1107,16 +1107,16 @@ static void handle_summary() {
 }
 
 static void handle_config_get() {
-  StaticJsonDocument<1536> doc;
+  JsonDocument doc;
   doc["version"] = CONFIG_VERSION;
   doc["led"]["brightness"] = g_cfg.brightness;
-  JsonArray ranges = doc.createNestedArray("speed_ranges_kph");
+  JsonArray ranges = doc["speed_ranges_kph"].to<JsonArray>();
   for (int i = 0; i < 5; ++i) {
     ranges.add(g_cfg.ranges[i]);
   }
-  JsonObject effects = doc.createNestedObject("effects");
+  JsonObject effects = doc["effects"].to<JsonObject>();
   for (int i = 0; i < 6; ++i) {
-    JsonObject r = effects.createNestedObject(String("range") + String(i + 1));
+    JsonObject r = effects[String("range") + String(i + 1)].to<JsonObject>();
     r["a"] = g_cfg.effects[i].effect_a;
     r["b"] = g_cfg.effects[i].effect_b;
     r["speed"] = g_cfg.effects[i].speed;
@@ -1153,7 +1153,7 @@ static void handle_config_post() {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
   }
-  StaticJsonDocument<2048> doc;
+  JsonDocument doc;
   const DeserializationError err = deserializeJson(doc, server.arg("plain"));
   if (err) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
