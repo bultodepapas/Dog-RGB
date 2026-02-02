@@ -810,7 +810,7 @@ static void update_led_ui() {
       apply_effect(effect_b, leds_b, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
     }
   } else if (seg_count > 0) {
-    body_idle_hue = static_cast<uint8_t>(body_idle_hue + 2);
+    body_idle_hue = static_cast<uint8_t>(body_idle_hue + LED_GPS_SEARCH_RAINBOW_STEP);
     for (int i = 0; i < seg_count; ++i) {
       leds_a[seg_start + i] = CHSV(static_cast<uint8_t>(body_idle_hue + (i * 7)), 255, 255);
     }

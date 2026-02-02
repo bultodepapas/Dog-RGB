@@ -41,7 +41,7 @@ Notas:
 
 ## 3) Velocidad -> color (Segmento Resto)
 
-Si no hay GPS fix, el Segmento Resto muestra un rainbow animado.
+Si no hay GPS fix, el Segmento Resto muestra un rainbow animado (el tono avanza `LED_GPS_SEARCH_RAINBOW_STEP` por tick de `LED_UPDATE_MS`).
 
 Con GPS OK, se usan los rangos por defecto (km/h) y color base (RGB):
 
@@ -79,9 +79,10 @@ Nota: el firmware descarta picos por encima de 40 km/h (SPEED_MAX_VALID_KPH).
 ## 5) Defaults relevantes
 
 - LED_STRIP_MODE = 2 (doble tira)
-- LED_STRIP_COUNT = 24 (LEDs por tira)
-- LED_STATUS_COUNT = 2 (LEDs reservados para estado)
+- LED_STRIP_COUNT = 20 (LEDs por tira)
+- LED_STATUS_COUNT = 3 (LEDs reservados para estado)
 - LED_BRIGHTNESS = 77 (~30%)
+- LED_GPS_SEARCH_RAINBOW_STEP = 6 (avance de tono por tick sin GPS fix)
 - SPEED_RANGE_1..9 = 2.0 / 4.0 / 6.0 / 8.0 / 12.0 / 16.0 / 22.0 / 28.0 / 34.0 km/h
 
 ---
