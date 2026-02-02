@@ -46,7 +46,7 @@ static const float SPEED_MAX_VALID_KPH = 40.0f; // Reject GPS spikes above this.
 // LED hardware (strip size and layout).
 // These are common to change per collar size.
 static const int LED_STRIP_MODE = 2; // 1 = single strip, 2 = dual strips.
-static const int LED_STRIP_COUNT = 23; // LEDs per strip (min 10, max 50).
+static const int LED_STRIP_COUNT = 24; // LEDs per strip (min 10, max 50).
 static const int LED_STATUS_COUNT = 3; // First N LEDs reserved for status.
 static const uint8_t LED_BRIGHTNESS = 77; // ~30% brightness (0-255).
 

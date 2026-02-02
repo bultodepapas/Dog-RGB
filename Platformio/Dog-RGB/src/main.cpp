@@ -51,8 +51,10 @@
 
 // Heartbeat for status LED and periodic serial logs.
 static const unsigned long HEARTBEAT_MS = 1000;
+static const unsigned long LOG_MS = 3000;
 static const unsigned long GPS_NO_DATA_MS = 3000;
 static unsigned long last_heartbeat_ms = 0;
+static unsigned long last_log_ms = 0;
 static bool led_state = false;
 
 // GPS UART settings are defined in config.h.
@@ -1466,15 +1468,14 @@ void loop() {
     last_heartbeat_ms = now_ms;
     led_state = !led_state;
     digitalWrite(PIN_STATUS_LED, led_state ? HIGH : LOW);
+  }
 
+  if (now_ms - last_log_ms >= LOG_MS) {
+    last_log_ms = now_ms;
     const float avg_speed_kph = (active_time_ms > 0)
                                     ? (total_distance_m / (active_time_ms / 1000.0f)) * 3.6f
                                     : 0.0f;
     // Serial log for quick field diagnostics.
-    Serial.print("heartbeat | gps_fix=");
-    Serial.print(has_gps_fix ? "1" : "0");
-    Serial.print(" | speed_kph=");
-    Serial.println(last_speed_kph, 2);
 
     const unsigned long bytes_delta = gps_bytes_rx - gps_last_bytes_log;
     const unsigned long sentences_delta = gps_sentences_rx - gps_last_sentences_log;
@@ -1494,38 +1495,40 @@ void loop() {
       gps_link = rmc_active ? (has_gps_fix ? "FIX" : "NO_FIX") : "NO_RMC";
     }
 
-    Serial.print("gps | link=");
+    Serial.print("[GPS] fix=");
+    Serial.print(has_gps_fix ? "1" : "0");
+    Serial.print(" link=");
     Serial.print(gps_link);
-    Serial.print(" | uart_bps=");
+    Serial.print(" uart_bps=");
     Serial.print(bytes_delta);
-    Serial.print(" | nmea=");
+    Serial.print(" nmea=");
     Serial.print(gps_sentences_rx);
     Serial.print(" (");
     Serial.print(sentences_delta);
     Serial.print("/s)");
-    Serial.print(" | rmc=");
+    Serial.print(" rmc=");
     Serial.print(gps_rmc_seen);
     Serial.print(" (");
     Serial.print(rmc_delta);
     Serial.print("/s)");
-    Serial.print(" | fix_ok=");
+    Serial.print(" fix_ok=");
     Serial.print(gps_rmc_valid);
-    Serial.print(" | fixq=");
+    Serial.print(" fixq=");
     Serial.print(gps_fix_quality);
-    Serial.print(" | sats=");
+    Serial.print(" sats=");
     Serial.print(gps_sats);
-    Serial.print(" | age_ms=");
+    Serial.print(" age_ms=");
     Serial.print(age_byte_ms);
-    Serial.print(" | fix_age_ms=");
+    Serial.print(" fix_age_ms=");
     if (gps_last_fix_ms > 0) {
       Serial.print(age_fix_ms);
     } else {
       Serial.print("na");
     }
-    Serial.print(" | overflow=");
+    Serial.print(" overflow=");
     Serial.println(gps_overflow);
 
-    Serial.print("gps_pos | lat=");
+    Serial.print("[POS] lat=");
     if (has_last_point) {
       Serial.print(last_lat_deg, 6);
       Serial.print(" lon=");
@@ -1533,12 +1536,12 @@ void loop() {
     } else {
       Serial.print("na lon=na");
     }
-    Serial.print(" | rmc_age_ms=");
+    Serial.print(" rmc_age_ms=");
     Serial.print(age_rmc_ms);
-    Serial.print(" | gga_age_ms=");
+    Serial.print(" gga_age_ms=");
     Serial.println(age_gga_ms);
 
-    Serial.print("distance_m=");
+    Serial.print("[METRICS] dist_m=");
     Serial.print(total_distance_m, 1);
     Serial.print(" avg_kph=");
     Serial.print(avg_speed_kph, 2);
@@ -1611,35 +1614,35 @@ void loop() {
       sb = clamp_u8(static_cast<int>(60 * sscale));
     }
 
-    Serial.print("led_status | status_leds=0..");
+    Serial.print("[LED] status_leds=0..");
     Serial.print(LED_STATUS_COUNT - 1);
-    Serial.print(" | status=");
+    Serial.print(" status=");
     Serial.print(status_text);
-    Serial.print(" | status_rgb=");
+    Serial.print(" status_rgb=");
     Serial.print(sr);
     Serial.print(",");
     Serial.print(sg);
     Serial.print(",");
     Serial.print(sb);
-    Serial.print(" | body_on=");
+    Serial.print(" body_on=");
     Serial.print(gps_ok ? "1" : "0");
-    Serial.print(" | range=");
+    Serial.print(" range=");
     Serial.print(range);
-    Serial.print(" | effect_a=");
+    Serial.print(" effect_a=");
     Serial.print(effect_name(static_cast<uint8_t>(effect_a)));
-    Serial.print(" | effect_b=");
+    Serial.print(" effect_b=");
     Serial.print(effect_name(static_cast<uint8_t>(effect_b)));
-    Serial.print(" | base_rgb=");
+    Serial.print(" base_rgb=");
     Serial.print(base.r);
     Serial.print(",");
     Serial.print(base.g);
     Serial.print(",");
     Serial.print(base.b);
-    Serial.print(" | speed=");
+    Serial.print(" speed=");
     Serial.print(eff_speed);
-    Serial.print(" | intensity=");
+    Serial.print(" intensity=");
     Serial.print(eff_intensity);
-    Serial.print(" | seg=");
+    Serial.print(" seg=");
     Serial.print(seg_start);
     Serial.print("..");
     Serial.println(seg_start + seg_count - 1);
