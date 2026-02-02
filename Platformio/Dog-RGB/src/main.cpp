@@ -44,12 +44,14 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <FastLED.h>
+#include <Adafruit_NeoPixel.h>
 #include <ArduinoJson.h>
 #include "pins.h"
 #include "config.h"
 
 // Heartbeat for status LED and periodic serial logs.
 static const unsigned long HEARTBEAT_MS = 1000;
+static const unsigned long GPS_NO_DATA_MS = 3000;
 static unsigned long last_heartbeat_ms = 0;
 static bool led_state = false;
 
@@ -68,6 +70,22 @@ static size_t nmea_len = 0;
 static bool has_gps_fix = false;
 static float last_speed_kph = 0.0f;
 static unsigned long last_gps_ms = 0;
+static unsigned long gps_bytes_rx = 0;
+static unsigned long gps_sentences_rx = 0;
+static unsigned long gps_rmc_seen = 0;
+static unsigned long gps_rmc_valid = 0;
+static unsigned long gps_gga_seen = 0;
+static unsigned long gps_overflow = 0;
+static unsigned long gps_last_byte_ms = 0;
+static unsigned long gps_last_sentence_ms = 0;
+static unsigned long gps_last_rmc_ms = 0;
+static unsigned long gps_last_gga_ms = 0;
+static unsigned long gps_last_fix_ms = 0;
+static unsigned long gps_last_bytes_log = 0;
+static unsigned long gps_last_sentences_log = 0;
+static unsigned long gps_last_rmc_log = 0;
+static uint8_t gps_sats = 0;
+static uint8_t gps_fix_quality = 0;
 
 // Behavior thresholds and sampling are defined in config.h.
 
@@ -103,6 +121,7 @@ static unsigned long last_wifi_check_ms = 0;
 
 // LED strip configuration is defined in config.h.
 static unsigned long last_led_update_ms = 0;
+static bool led_test_init = false;
 
 static unsigned long last_ok_ms = 0;
 
@@ -112,6 +131,9 @@ static CRGB leds_a[LED_STRIP_COUNT];
 static CRGB leds_b[LED_STRIP_COUNT];
 static uint8_t heat_a[LED_STRIP_COUNT];
 static uint8_t heat_b[LED_STRIP_COUNT];
+
+static Adafruit_NeoPixel test_strip_a(LED_STRIP_COUNT, PIN_LED_A_DATA, NEO_GRBW + NEO_KHZ800);
+static Adafruit_NeoPixel test_strip_b(LED_STRIP_COUNT, PIN_LED_B_DATA, NEO_GRBW + NEO_KHZ800);
 
 struct EffectState {
   uint8_t hue = 0;
@@ -278,6 +300,41 @@ static bool parse_rmc(const char *line,
     const int hour = (time_buf[0] - '0') * 10 + (time_buf[1] - '0');
     const int min = (time_buf[2] - '0') * 10 + (time_buf[3] - '0');
     *time_min = static_cast<uint16_t>(hour * 60 + min);
+  }
+  return true;
+}
+
+// Parse GGA sentence for fix quality and satellites.
+static bool parse_gga(const char *line, uint8_t *fix_quality, uint8_t *sats) {
+  if (strncmp(line, "$GPGGA,", 7) != 0 && strncmp(line, "$GNGGA,", 7) != 0) {
+    return false;
+  }
+
+  // GGA fields: 1 time, 2 lat, 3 N/S, 4 lon, 5 E/W, 6 fix quality, 7 satellites
+  int field = 0;
+  char fix_buf[4] = {0};
+  char sat_buf[4] = {0};
+  int fix_len = 0;
+  int sat_len = 0;
+
+  for (const char *p = line; *p != '\0' && *p != '*'; ++p) {
+    if (*p == ',') {
+      field++;
+      continue;
+    }
+    if (field == 6 && fix_len < 3) {
+      fix_buf[fix_len++] = *p;
+    }
+    if (field == 7 && sat_len < 3) {
+      sat_buf[sat_len++] = *p;
+    }
+  }
+
+  if (fix_len > 0) {
+    *fix_quality = static_cast<uint8_t>(atoi(fix_buf));
+  }
+  if (sat_len > 0) {
+    *sats = static_cast<uint8_t>(atoi(sat_buf));
   }
   return true;
 }
@@ -521,12 +578,22 @@ static String html_wifi_page() {
 }
 
 static void led_begin() {
-  FastLED.addLeds<SK6812, PIN_LED_A_DATA, GRB>(leds_a, LED_STRIP_COUNT);
+  FastLED.addLeds<SK6812RGBW, PIN_LED_A_DATA, GRBW>(leds_a, LED_STRIP_COUNT);
   if (LED_STRIP_MODE == 2) {
-    FastLED.addLeds<SK6812, PIN_LED_B_DATA, GRB>(leds_b, LED_STRIP_COUNT);
+    FastLED.addLeds<SK6812RGBW, PIN_LED_B_DATA, GRBW>(leds_b, LED_STRIP_COUNT);
   }
   FastLED.setBrightness(g_cfg.brightness);
   FastLED.clear(true);
+}
+
+static void push_leds() {
+  for (int i = 0; i < LED_STRIP_COUNT; ++i) {
+    leds_a[i] = CRGBW(leds_a_rgb[i].r, leds_a_rgb[i].g, leds_a_rgb[i].b, 0);
+    if (LED_STRIP_MODE == 2) {
+      leds_b[i] = CRGBW(leds_b_rgb[i].r, leds_b_rgb[i].g, leds_b_rgb[i].b, 0);
+    }
+  }
+  FastLED.show();
 }
 
 static void fill_range(CRGB *leds, int start, int count, const CRGB &color) {
@@ -703,6 +770,18 @@ static void update_led_ui() {
   if (!LED_UI_ENABLED) {
     return;
   }
+  if (LED_TEST_MODE) {
+    if (!led_test_init) {
+      FastLED.setBrightness(LED_TEST_BRIGHTNESS);
+      led_test_init = true;
+    }
+    fill_solid(leds_a_rgb, LED_STRIP_COUNT, CRGB(LED_TEST_R, LED_TEST_G, LED_TEST_B));
+    if (LED_STRIP_MODE == 2) {
+      fill_solid(leds_b_rgb, LED_STRIP_COUNT, CRGB(LED_TEST_R, LED_TEST_G, LED_TEST_B));
+    }
+    push_leds();
+    return;
+  }
   const unsigned long now_ms = millis();
   if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
     return;
@@ -742,11 +821,11 @@ static void update_led_ui() {
   }
 
   if (full_override) {
-    fill_solid(leds_a, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
+    fill_solid(leds_a_rgb, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
     if (LED_STRIP_MODE == 2) {
-      fill_solid(leds_b, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
+      fill_solid(leds_b_rgb, LED_STRIP_COUNT, CRGB(full_r, full_g, full_b));
     }
-    FastLED.show();
+    push_leds();
     return;
   }
 
@@ -786,22 +865,22 @@ static void update_led_ui() {
   const CRGB base = base_color_for_range(range);
 
   if (body_on && seg_count > 0) {
-    apply_effect(effect_a, leds_a, heat_a, seg_start, seg_count, base, eff_speed, eff_intensity, state_a);
+    apply_effect(effect_a, leds_a_rgb, heat_a, seg_start, seg_count, base, eff_speed, eff_intensity, state_a);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(effect_b, leds_b, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
+      apply_effect(effect_b, leds_b_rgb, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
     }
   } else if (seg_count > 0) {
-    fill_range(leds_a, seg_start, seg_count, CRGB(0, 0, 0));
+    fill_range(leds_a_rgb, seg_start, seg_count, CRGB(0, 0, 0));
     if (LED_STRIP_MODE == 2) {
-      fill_range(leds_b, seg_start, seg_count, CRGB(0, 0, 0));
+      fill_range(leds_b_rgb, seg_start, seg_count, CRGB(0, 0, 0));
     }
   }
 
-  fill_range(leds_a, 0, LED_STATUS_COUNT, CRGB(r, g, b));
+  fill_range(leds_a_rgb, 0, LED_STATUS_COUNT, CRGB(r, g, b));
   if (LED_STRIP_MODE == 2) {
-    fill_range(leds_b, 0, LED_STATUS_COUNT, CRGB(r, g, b));
+    fill_range(leds_b_rgb, 0, LED_STATUS_COUNT, CRGB(r, g, b));
   }
-  FastLED.show();
+  push_leds();
 }
 
 static String html_config_page() {
@@ -1134,11 +1213,31 @@ static void handle_nmea_line(const char *line) {
   uint32_t date_yyyymmdd = 0;
   uint16_t time_min = 0;
 
+  const bool is_rmc = (strncmp(line, "$GPRMC,", 7) == 0 || strncmp(line, "$GNRMC,", 7) == 0);
+  if (is_rmc) {
+    gps_rmc_seen++;
+    gps_last_rmc_ms = millis();
+  }
+  const bool is_gga = (strncmp(line, "$GPGGA,", 7) == 0 || strncmp(line, "$GNGGA,", 7) == 0);
+  if (is_gga) {
+    gps_gga_seen++;
+    gps_last_gga_ms = millis();
+    uint8_t fix_quality = gps_fix_quality;
+    uint8_t sats = gps_sats;
+    if (parse_gga(line, &fix_quality, &sats)) {
+      gps_fix_quality = fix_quality;
+      gps_sats = sats;
+    }
+  }
   if (parse_rmc(line, &lat_deg, &lon_deg, &speed_kph, &valid_fix, &date_yyyymmdd, &time_min)) {
     has_gps_fix = valid_fix;
     last_speed_kph = speed_kph;
     last_gps_ms = millis();
     last_update_min = time_min;
+    if (valid_fix) {
+      gps_rmc_valid++;
+      gps_last_fix_ms = last_gps_ms;
+    }
 
     if (date_yyyymmdd != 0 && date_yyyymmdd != current_date_yyyymmdd) {
       current_date_yyyymmdd = date_yyyymmdd;
@@ -1180,9 +1279,13 @@ static void handle_nmea_line(const char *line) {
 static void read_gps() {
   while (GPS.available() > 0) {
     const char c = static_cast<char>(GPS.read());
+    gps_bytes_rx++;
+    gps_last_byte_ms = millis();
     if (c == '\n') {
       nmea_line[nmea_len] = '\0';
       if (nmea_len > 6) {
+        gps_sentences_rx++;
+        gps_last_sentence_ms = millis();
         handle_nmea_line(nmea_line);
       }
       nmea_len = 0;
@@ -1190,6 +1293,7 @@ static void read_gps() {
       if (nmea_len + 1 < sizeof(nmea_line)) {
         nmea_line[nmea_len++] = c;
       } else {
+        gps_overflow++;
         nmea_len = 0;
       }
     }
@@ -1214,6 +1318,13 @@ void setup() {
   setup_http();
   setup_ble();
   Serial.println("Dog-RGB ESP32-S3 GPS-first base firmware");
+  Serial.print("GPS UART1: baud=");
+  Serial.print(GPS_BAUD);
+  Serial.print(" rx_pin=");
+  Serial.print(PIN_GPS_RX);
+  Serial.print(" tx_pin=");
+  Serial.println(PIN_GPS_TX);
+  Serial.println("GPS status: waiting for NMEA data...");
 }
 
 void loop() {
@@ -1239,6 +1350,68 @@ void loop() {
     Serial.print(has_gps_fix ? "1" : "0");
     Serial.print(" | speed_kph=");
     Serial.println(last_speed_kph, 2);
+
+    const unsigned long bytes_delta = gps_bytes_rx - gps_last_bytes_log;
+    const unsigned long sentences_delta = gps_sentences_rx - gps_last_sentences_log;
+    const unsigned long rmc_delta = gps_rmc_seen - gps_last_rmc_log;
+    gps_last_bytes_log = gps_bytes_rx;
+    gps_last_sentences_log = gps_sentences_rx;
+    gps_last_rmc_log = gps_rmc_seen;
+
+    const unsigned long age_byte_ms = (gps_last_byte_ms > 0) ? (now_ms - gps_last_byte_ms) : 0;
+    const unsigned long age_rmc_ms = (gps_last_rmc_ms > 0) ? (now_ms - gps_last_rmc_ms) : 0;
+    const unsigned long age_fix_ms = (gps_last_fix_ms > 0) ? (now_ms - gps_last_fix_ms) : 0;
+    const unsigned long age_gga_ms = (gps_last_gga_ms > 0) ? (now_ms - gps_last_gga_ms) : 0;
+    const bool uart_active = (gps_last_byte_ms > 0 && age_byte_ms <= GPS_NO_DATA_MS);
+    const bool rmc_active = (gps_last_rmc_ms > 0 && age_rmc_ms <= GPS_NO_DATA_MS);
+    const char *gps_link = "NO_DATA";
+    if (uart_active) {
+      gps_link = rmc_active ? (has_gps_fix ? "FIX" : "NO_FIX") : "NO_RMC";
+    }
+
+    Serial.print("gps | link=");
+    Serial.print(gps_link);
+    Serial.print(" | uart_bps=");
+    Serial.print(bytes_delta);
+    Serial.print(" | nmea=");
+    Serial.print(gps_sentences_rx);
+    Serial.print(" (");
+    Serial.print(sentences_delta);
+    Serial.print("/s)");
+    Serial.print(" | rmc=");
+    Serial.print(gps_rmc_seen);
+    Serial.print(" (");
+    Serial.print(rmc_delta);
+    Serial.print("/s)");
+    Serial.print(" | fix_ok=");
+    Serial.print(gps_rmc_valid);
+    Serial.print(" | fixq=");
+    Serial.print(gps_fix_quality);
+    Serial.print(" | sats=");
+    Serial.print(gps_sats);
+    Serial.print(" | age_ms=");
+    Serial.print(age_byte_ms);
+    Serial.print(" | fix_age_ms=");
+    if (gps_last_fix_ms > 0) {
+      Serial.print(age_fix_ms);
+    } else {
+      Serial.print("na");
+    }
+    Serial.print(" | overflow=");
+    Serial.println(gps_overflow);
+
+    Serial.print("gps_pos | lat=");
+    if (has_last_point) {
+      Serial.print(last_lat_deg, 6);
+      Serial.print(" lon=");
+      Serial.print(last_lon_deg, 6);
+    } else {
+      Serial.print("na lon=na");
+    }
+    Serial.print(" | rmc_age_ms=");
+    Serial.print(age_rmc_ms);
+    Serial.print(" | gga_age_ms=");
+    Serial.println(age_gga_ms);
 
     Serial.print("distance_m=");
     Serial.print(total_distance_m, 1);
