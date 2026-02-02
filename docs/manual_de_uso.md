@@ -76,6 +76,11 @@ Segmento resto:
 Nota: durante intento STA con AP activo, el color puede seguir mostrando GPS
 y no hay indicador exclusivo de "conectando".
 
+AP auto:
+- Si no hay GPS fix, el AP se mantiene encendido.
+- Si la velocidad es < 2 km/h por 2 min, el AP se enciende automaticamente.
+- Si no hay clientes conectados al AP por 5 min, el AP se apaga.
+
 ---
 
 ## 4) Conectar al portal (modo AP)

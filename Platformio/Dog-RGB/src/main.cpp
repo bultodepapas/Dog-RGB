@@ -120,6 +120,11 @@ static bool wifi_sta_connected = false;
 static bool wifi_sta_connecting = false;
 static unsigned long wifi_sta_start_ms = 0;
 static unsigned long last_wifi_check_ms = 0;
+static bool ap_enabled = true;
+static unsigned long last_ap_client_ms = 0;
+static unsigned long last_ap_poll_ms = 0;
+static unsigned long stationary_ms = 0;
+static unsigned long last_stationary_ms = 0;
 
 // LED strip configuration is defined in config.h.
 static unsigned long last_led_update_ms = 0;
@@ -177,6 +182,9 @@ static const unsigned long AP_RESTART_DELAY_MS = 500;
 // Forward declarations for Wi-Fi control helpers used before definition.
 static void start_ap_mode();
 static void start_sta_mode();
+static void enable_ap();
+static void disable_ap();
+static void update_ap_policy(unsigned long now_ms);
 
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
@@ -755,23 +763,23 @@ static void get_range_config(uint8_t range,
 static Rgb base_color_for_range(uint8_t range) {
   switch (range) {
     case 1:
-      return make_rgb(0, 0, 60);
+      return make_rgb(0, 60, 60);
     case 2:
-      return make_rgb(10, 0, 60);
+      return make_rgb(0, 60, 35);
     case 3:
-      return make_rgb(20, 0, 60);
+      return make_rgb(0, 60, 0);
     case 4:
-      return make_rgb(30, 0, 60);
+      return make_rgb(25, 60, 0);
     case 5:
-      return make_rgb(40, 0, 60);
+      return make_rgb(60, 60, 0);
     case 6:
-      return make_rgb(50, 0, 50);
+      return make_rgb(60, 45, 0);
     case 7:
-      return make_rgb(60, 0, 40);
+      return make_rgb(60, 30, 0);
     case 8:
-      return make_rgb(60, 0, 30);
+      return make_rgb(60, 20, 0);
     case 9:
-      return make_rgb(60, 0, 20);
+      return make_rgb(60, 10, 0);
     default:
       return make_rgb(60, 0, 0);
   }
@@ -1303,25 +1311,108 @@ static void handle_wifi_save() {
 static void start_ap_mode() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
+  ap_enabled = true;
+  last_ap_client_ms = millis();
   wifi_sta_connected = false;
   wifi_sta_connecting = false;
 }
 
 static void start_sta_mode() {
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
+  if (ap_enabled) {
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
+    last_ap_client_ms = millis();
+  } else {
+    WiFi.mode(WIFI_STA);
+  }
   WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
   wifi_sta_connected = false;
   wifi_sta_connecting = true;
   wifi_sta_start_ms = millis();
 }
 
+static void enable_ap() {
+  if (ap_enabled) {
+    return;
+  }
+  if (wifi_ssid.length() > 0) {
+    WiFi.mode(WIFI_AP_STA);
+  } else {
+    WiFi.mode(WIFI_AP);
+  }
+  WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
+  ap_enabled = true;
+  last_ap_client_ms = millis();
+}
+
+static void disable_ap() {
+  if (!ap_enabled) {
+    return;
+  }
+  WiFi.softAPdisconnect(true);
+  ap_enabled = false;
+  last_ap_client_ms = 0;
+  WiFi.mode(WIFI_STA);
+}
+
 static void setup_wifi() {
   load_wifi_creds();
+  ap_enabled = true;
   if (wifi_ssid.length() > 0) {
     start_sta_mode();
   } else {
     start_ap_mode();
+  }
+}
+
+static void update_ap_policy(unsigned long now_ms) {
+  if (last_stationary_ms == 0) {
+    last_stationary_ms = now_ms;
+  }
+  const unsigned long dt_ms = now_ms - last_stationary_ms;
+  last_stationary_ms = now_ms;
+
+  if (has_gps_fix) {
+    if (last_speed_kph <= AP_STATIONARY_ON_KPH) {
+      stationary_ms = (stationary_ms + dt_ms > AP_STATIONARY_MS) ? AP_STATIONARY_MS : (stationary_ms + dt_ms);
+    } else if (last_speed_kph >= AP_STATIONARY_OFF_KPH) {
+      stationary_ms = 0;
+    }
+  } else {
+    stationary_ms = 0;
+  }
+
+  const bool ap_force_on = !has_gps_fix;
+  const bool ap_request_on = (stationary_ms >= AP_STATIONARY_MS);
+
+  if (ap_enabled && (now_ms - last_ap_poll_ms) >= AP_CLIENT_POLL_MS) {
+    last_ap_poll_ms = now_ms;
+    const int stations = WiFi.softAPgetStationNum();
+    if (stations > 0) {
+      last_ap_client_ms = now_ms;
+    }
+  }
+
+  if (ap_force_on) {
+    if (!ap_enabled) {
+      enable_ap();
+    }
+    last_ap_client_ms = now_ms;
+    return;
+  }
+
+  if (ap_request_on && !ap_enabled) {
+    enable_ap();
+  }
+
+  if (ap_enabled) {
+    if (last_ap_client_ms == 0) {
+      last_ap_client_ms = now_ms;
+    }
+    if ((now_ms - last_ap_client_ms) >= AP_IDLE_TIMEOUT_MS) {
+      disable_ap();
+      stationary_ms = 0;
+    }
   }
 }
 
@@ -1689,7 +1780,6 @@ void loop() {
         wifi_sta_connected = true;
         wifi_sta_connecting = false;
         MDNS.begin(g_cfg.mdns.c_str());
-        WiFi.softAPdisconnect(true);
       } else if ((now_ms - wifi_sta_start_ms) >= STA_CONNECT_TIMEOUT_MS) {
         wifi_sta_connecting = false;
         start_ap_mode();
@@ -1701,14 +1791,18 @@ void loop() {
 
   if (pending_ap_restart && (now_ms - pending_ap_at_ms) >= AP_RESTART_DELAY_MS) {
     pending_ap_restart = false;
-    if (wifi_sta_connected) {
-      WiFi.mode(WIFI_AP_STA);
-    } else {
-      WiFi.mode(WIFI_AP);
+    if (ap_enabled) {
+      if (wifi_sta_connected || wifi_ssid.length() > 0) {
+        WiFi.mode(WIFI_AP_STA);
+      } else {
+        WiFi.mode(WIFI_AP);
+      }
+      WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
+      last_ap_client_ms = now_ms;
     }
-    WiFi.softAP(g_cfg.ap_ssid.c_str(), g_cfg.ap_pass.c_str());
   }
 
+  update_ap_policy(now_ms);
   update_led_ui();
   server.handleClient();
 

@@ -17,25 +17,25 @@ static const float SPEED_RANGE_9_KPH = 34.0f;
 // 0=SOLID, 1=PULSE, 2=BREATH, 3=CHASE, 4=COMET, 5=SINELON,
 // 6=CONFETTI, 7=JUGGLE, 8=BPM, 9=RAINBOW, 10=FIRE, 11=GRADIENT_WAVE
 static const int RANGE_1_EFFECT_A = 0;
-static const int RANGE_1_EFFECT_B = 1;
+static const int RANGE_1_EFFECT_B = 0;
 static const int RANGE_2_EFFECT_A = 1;
-static const int RANGE_2_EFFECT_B = 2;
+static const int RANGE_2_EFFECT_B = 1;
 static const int RANGE_3_EFFECT_A = 2;
-static const int RANGE_3_EFFECT_B = 3;
+static const int RANGE_3_EFFECT_B = 2;
 static const int RANGE_4_EFFECT_A = 3;
-static const int RANGE_4_EFFECT_B = 4;
+static const int RANGE_4_EFFECT_B = 3;
 static const int RANGE_5_EFFECT_A = 5;
-static const int RANGE_5_EFFECT_B = 6;
+static const int RANGE_5_EFFECT_B = 5;
 static const int RANGE_6_EFFECT_A = 7;
-static const int RANGE_6_EFFECT_B = 8;
+static const int RANGE_6_EFFECT_B = 7;
 static const int RANGE_7_EFFECT_A = 8;
-static const int RANGE_7_EFFECT_B = 9;
+static const int RANGE_7_EFFECT_B = 8;
 static const int RANGE_8_EFFECT_A = 9;
-static const int RANGE_8_EFFECT_B = 11;
+static const int RANGE_8_EFFECT_B = 9;
 static const int RANGE_9_EFFECT_A = 11;
-static const int RANGE_9_EFFECT_B = 4;
+static const int RANGE_9_EFFECT_B = 11;
 static const int RANGE_10_EFFECT_A = 10;
-static const int RANGE_10_EFFECT_B = 3;
+static const int RANGE_10_EFFECT_B = 10;
 
 // Effect tuning per range (0-255).
 static const uint8_t RANGE_1_SPEED = 40;
@@ -81,6 +81,11 @@ static const char *AP_PASS = "Dog123456789"; // AP password (>= 8 chars).
 static const char *MDNS_NAME = "dog-collar"; // mDNS hostname in STA mode.
 static const unsigned long STA_CONNECT_TIMEOUT_MS = 10000; // STA connect timeout.
 static const unsigned long WIFI_RETRY_INTERVAL_MS = 10000; // Watchdog retry interval.
+static const unsigned long AP_IDLE_TIMEOUT_MS = 300000; // AP off if no clients for this long.
+static const unsigned long AP_STATIONARY_MS = 120000; // AP on if speed <= threshold for this long.
+static const unsigned long AP_CLIENT_POLL_MS = 1000; // Station count polling interval.
+static const float AP_STATIONARY_ON_KPH = 2.0f; // Enter stationary when <= this speed.
+static const float AP_STATIONARY_OFF_KPH = 2.5f; // Exit stationary when >= this speed.
 
 // GNSS settings (rare changes).
 static const uint32_t GPS_BAUD = 9600; // GNSS UART baudrate.

@@ -90,21 +90,22 @@ Esta especificacion define el uso de la tira LED como interfaz de estado del sis
 - STA intentando: wifi_ssid definido y WL_CONNECTED = false
 - AP activo: modo AP
 - Error critico: sin GPS y sin Wi-Fi por > 10 min
+- AP auto: sin GPS fix mantiene AP on; velocidad < 2 km/h por 2 min enciende AP; sin clientes por 5 min apaga AP
 
 ---
 
 ## Mapeo velocidad -> color (Segmento B)
 
-- 0.0 - 2.0 km/h: Azul (0, 0, 60)
-- 2.0 - 4.0 km/h: Azul/Violeta (10, 0, 60)
-- 4.0 - 6.0 km/h: Violeta (20, 0, 60)
-- 6.0 - 8.0 km/h: Violeta intenso (30, 0, 60)
-- 8.0 - 12.0 km/h: Magenta frio (40, 0, 60)
-- 12.0 - 16.0 km/h: Magenta (50, 0, 50)
-- 16.0 - 22.0 km/h: Magenta/Naranja (60, 0, 40)
-- 22.0 - 28.0 km/h: Naranja tenue (60, 0, 30)
-- 28.0 - 34.0 km/h: Naranja (60, 0, 20)
-- > 34.0 km/h: Rojo (60, 0, 0)
+- 0.0 - 2.0 km/h: Cian (muy baja) (0, 60, 60)
+- 2.0 - 4.0 km/h: Verde-cian (0, 60, 35)
+- 4.0 - 6.0 km/h: Verde (0, 60, 0)
+- 6.0 - 8.0 km/h: Verde-lima (25, 60, 0)
+- 8.0 - 12.0 km/h: Amarillo (60, 60, 0)
+- 12.0 - 16.0 km/h: Ambar (60, 45, 0)
+- 16.0 - 22.0 km/h: Naranja (60, 30, 0)
+- 22.0 - 28.0 km/h: Naranja intenso (60, 20, 0)
+- 28.0 - 34.0 km/h: Rojo-naranja (60, 10, 0)
+- > 34.0 km/h: Rojo (critico) (60, 0, 0)
 
 ---
 

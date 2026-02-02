@@ -38,34 +38,34 @@ Si no hay GPS fix, el Segmento Resto muestra un rainbow animado.
 
 Con GPS OK, se usan los rangos por defecto (km/h) y color base (RGB):
 
-- 0.0 - 2.0  : Azul            (0, 0, 60)
-- 2.0 - 4.0  : Azul/Violeta    (10, 0, 60)
-- 4.0 - 6.0  : Violeta         (20, 0, 60)
-- 6.0 - 8.0  : Violeta intenso (30, 0, 60)
-- 8.0 - 12.0 : Magenta frio    (40, 0, 60)
-- 12.0 - 16.0: Magenta         (50, 0, 50)
-- 16.0 - 22.0: Magenta/Naranja (60, 0, 40)
-- 22.0 - 28.0: Naranja tenue   (60, 0, 30)
-- 28.0 - 34.0: Naranja         (60, 0, 20)
-- > 34.0     : Rojo            (60, 0, 0)
+- 0.0 - 2.0  : Cian (muy baja)       (0, 60, 60)
+- 2.0 - 4.0  : Verde-cian           (0, 60, 35)
+- 4.0 - 6.0  : Verde                (0, 60, 0)
+- 6.0 - 8.0  : Verde-lima           (25, 60, 0)
+- 8.0 - 12.0 : Amarillo             (60, 60, 0)
+- 12.0 - 16.0: Ambar                (60, 45, 0)
+- 16.0 - 22.0: Naranja              (60, 30, 0)
+- 22.0 - 28.0: Naranja intenso      (60, 20, 0)
+- 28.0 - 34.0: Rojo-naranja         (60, 10, 0)
+- > 34.0     : Rojo (critico)       (60, 0, 0)
 
 El color base define el "tono" general por rango; algunos efectos (RAINBOW, FIRE) no mantienen un color fijo.
 Nota: el firmware descarta picos por encima de 40 km/h (SPEED_MAX_VALID_KPH).
 
 ---
 
-## 4) Efectos default por rango (tira A / tira B)
+## 4) Efectos default por rango (tira A y B iguales)
 
-- R1 (<=2.0): SOLID / PULSE (speed 40, intensity 80)
-- R2 (<=4.0): PULSE / BREATH (58, 95)
-- R3 (<=6.0): BREATH / CHASE (76, 110)
-- R4 (<=8.0): CHASE / COMET (94, 125)
-- R5 (<=12.0): SINELON / CONFETTI (112, 140)
-- R6 (<=16.0): JUGGLE / BPM (130, 155)
-- R7 (<=22.0): BPM / RAINBOW (148, 170)
-- R8 (<=28.0): RAINBOW / GRADIENT_WAVE (166, 180)
-- R9 (<=34.0): GRADIENT_WAVE / COMET (184, 190)
-- R10 (>34.0): FIRE / CHASE (200, 200)
+- R1 (<=2.0): SOLID / SOLID (speed 40, intensity 80)
+- R2 (<=4.0): PULSE / PULSE (58, 95)
+- R3 (<=6.0): BREATH / BREATH (76, 110)
+- R4 (<=8.0): CHASE / CHASE (94, 125)
+- R5 (<=12.0): SINELON / SINELON (112, 140)
+- R6 (<=16.0): JUGGLE / JUGGLE (130, 155)
+- R7 (<=22.0): BPM / BPM (148, 170)
+- R8 (<=28.0): RAINBOW / RAINBOW (166, 180)
+- R9 (<=34.0): GRADIENT_WAVE / GRADIENT_WAVE (184, 190)
+- R10 (>34.0): FIRE / FIRE (200, 200)
 
 ---
 
