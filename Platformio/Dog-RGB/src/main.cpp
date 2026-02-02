@@ -143,6 +143,10 @@ static bool pending_ap_restart = false;
 static unsigned long pending_ap_at_ms = 0;
 static const unsigned long AP_RESTART_DELAY_MS = 500;
 
+// Forward declarations for Wi-Fi control helpers used before definition.
+static void start_ap_mode();
+static void start_sta_mode();
+
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
 }
