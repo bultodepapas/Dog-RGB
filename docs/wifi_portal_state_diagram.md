@@ -14,30 +14,28 @@
      |           |
      v           v
 +---------+  +--------------------+
-|  AP     |  | Conectar a STA     |
-| mode    |  +---------+----------+
-+----+----+            |
+|  AP ON  |  | STA + AP ON        |
++----+----+  +---------+----------+
+     |                 |
+     |     STA ok?     | no
      |                 v
      |        +-------------------+
-     |        | STA conectado     |
-     |        +---------+---------+
-     |                  |
-     |        perdida   | ok
-     |        de red    |
-     |                  v
+     |        |  AP fallback      |
      |        +-------------------+
-     |        | Reintento STA     |
-     |        +---------+---------+
-     |                  |
-     |    falla > X s   |
-     |                  v
-     +-------------->+-------------------+
-                     |  Fallback a AP   |
-                     +-------------------+
+     |
+     v
++----------------------+
+| Politica AP/Wi-Fi     |
++----------------------+
 ```
 
+Politica AP/Wi-Fi (loop):
+- Sin GPS fix: AP forzado ON.
+- Con GPS OK y estacionario: AP ON.
+- AP sin clientes por `AP_IDLE_TIMEOUT_MS`: AP OFF.
+- Si AP OFF y no hay STA conectado: Wi-Fi OFF.
+- Wi-Fi OFF se reactiva si vuelve a faltar GPS o se detecta estacionario.
+
 Notas:
-- AP por defecto cuando no hay credenciales.
-- Fallback a AP si STA no conecta en X segundos.
-- Boton fisico opcional para forzar AP.
-```
+- STA se intenta cuando hay credenciales.
+- Si STA falla en `STA_CONNECT_TIMEOUT_MS`, se queda en AP.

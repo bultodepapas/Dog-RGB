@@ -1,63 +1,50 @@
 # Portal Web - Especificacion Funcional y Tecnica (Fase 1)
 
-Este documento describe como debe funcionar el portal web para configuracion y datos del collar. Es una guia detallada para producto, UX y desarrollo. No incluye codigo.
+Este documento describe el portal web actual del collar (Fase 1). No incluye backend.
 
 ---
 
 ## 1. Objetivo
 
-Crear un portal web sencillo que muestre datos basicos del collar y permita configuracion minima. En Fase 1 se enfoca en:
+Crear un portal web sencillo que muestre datos basicos del collar y permita configuracion minima.
 
+Metricas:
 - Distancia recorrida (hoy)
 - Velocidad promedio (hoy)
 - Velocidad maxima (hoy)
 
 ---
 
-## 2. Alcance Fase 1 (MVP)
+## 2. Alcance Fase 1 (Actual)
 
 Incluye:
 - Dashboard unico con 3 metricas.
-- Estado del collar (conectado, GPS OK, bateria si esta disponible).
-- Selector de unidades (km/h, mph).
-- Fecha fija: hoy (sin historico).
-- Sin mapas, sin rutas, sin exportacion.
+- Estado del collar (GPS OK / Sin GPS / Sin datos).
+- Boton "Actualizar".
+- Portal local via Wi-Fi (AP/STA).
+- Configuracion runtime en `/config`.
 
 No incluye:
+- Selector de unidades.
+- Mapas o historico.
 - Cuentas, login, multi-usuario.
 - Multi-collar.
-- Historial ni reportes.
-- Geocercas ni alertas.
 
 ---
 
 ## 3. Arquitectura General
 
-Opciones posibles (se elige una para implementar):
-
-### Opcion A (Seleccionada para Fase 1)
 - Collar -> Wi-Fi (AP o STA) -> Portal web local
 - Sin backend en Fase 1
-
-### Opcion B (Fase futura)
-- Collar -> BLE -> App puente -> API -> Web
-- Requiere app movil y backend
-
-Notas:
-- En Fase 1 el ESP32 si provee portal web local (AP/STA).
-- Fase 1 prioriza simplicidad y accesibilidad para usuarios normales.
 
 ---
 
 ## 4. Flujo de Usuario
 
-1) Usuario abre el portal.
-2) Portal muestra estado (ultimo sync).
-3) Usuario sincroniza desde la app puente.
-4) Portal actualiza metricas.
-
-En caso de datos desactualizados:
-- Mostrar mensaje "Sincroniza el collar para ver datos recientes".
+1) Usuario se conecta al AP del collar o a la misma red (STA).
+2) Abre el portal (`/`).
+3) Presiona "Actualizar" para leer datos.
+4) Revisa el estado (GPS OK / Sin GPS / Sin datos).
 
 ---
 
@@ -71,17 +58,14 @@ Componentes:
   - Distancia total (km)
   - Velocidad promedio (km/h)
   - Velocidad maxima (km/h)
-- Indicador de estado:
-  - Conectado / Desconectado
-  - GPS OK / Sin GPS
-- Selector de unidades (km/h, mph).
+- Indicador de estado (GPS OK / Sin GPS / Sin datos).
 - Ultima actualizacion (hora).
 
 ### 5.2 Estados
 
-- Sin datos: "Sincroniza el collar".
-- Sin GPS: "Esperando GPS".
-- Datos invalidos: "Datos no validos, reintenta".
+- Sin datos: mostrar "Sin datos".
+- Sin GPS: mostrar "Sin GPS".
+- Error: mostrar "Error".
 
 ---
 
@@ -99,68 +83,27 @@ Componentes:
 
 ---
 
-## 7. API (si se usa backend)
+## 7. API local (Fase 1)
 
-### Endpoints minimos
-- POST /sessions (subir sesion agregada o cruda)
-- GET /metrics/daily?device_id=...&date=YYYY-MM-DD
-- GET /devices/:id/status
-
-### Respuesta de ejemplo
-- distance_m
-- avg_speed_cmps
-- max_speed_cmps
-- last_update
-- gps_fix
-- battery
+- `GET /api/summary`
+  - distance_m
+  - avg_speed_cmps
+  - max_speed_cmps
+  - last_update_min
+  - gps_fix
+  - has_data
 
 ---
 
-## 8. BLE (si se usa app puente)
+## 8. Fase futura (BLE/App puente)
 
-- Servicio BLE: "Dog Collar Data"
-- Caracteristica: DAILY_SUMMARY
-- Payload: bloque fijo con fecha, distancia, velocidad promedio, velocidad maxima, flags y checksum.
-
----
-
-## 9. UX y Copy
-
-Texto simple y directo:
-- "Sincroniza el collar"
-- "Ultima lectura: HH:MM"
-- "Esperando GPS"
-- "Acercate al collar"
+- Lectura BLE del resumen diario (ver `docs/ble_spec.md`).
+- App puente opcional para sincronizar datos a un backend.
 
 ---
 
-## 10. Requerimientos No Funcionales
+## 9. Requerimientos No Funcionales
 
 - Tiempo de carga < 2 s.
 - Vista responsive (movil y desktop).
 - Accesibilidad basica (contraste, tamanos de texto).
-- Persistencia local del ultimo estado si no hay red.
-
----
-
-## 11. Validacion
-
-- Metricas correctas comparadas con app GPS.
-- Estado BLE refleja conexion real.
-- Portal carga correctamente con datos vacios.
-- UI clara sin explicaciones extras.
-
----
-
-## 12. Roadmap
-
-Fase 2:
-- Historico 7/30 dias.
-- Mapa de ruta.
-- Export CSV.
-- Multi-collar.
-
-Fase 3:
-- Alertas, geocercas.
-- Integracion HR y IMU.
-- Perfiles personalizados.

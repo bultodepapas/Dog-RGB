@@ -1,39 +1,38 @@
 # Tareas Pendientes (Plan Detallado)
 
-Este documento lista todas las tareas pendientes para implementar la Fase 1 (GPS + Wi-Fi portal) y preparar fases futuras.
+Este documento lista tareas por fase y el estado actual del MVP.
+
+---
 
 ## Fase 1 - GPS-First MVP (Sin App, Portal Wi-Fi)
 
-### Hardware Base
+### Hardware Base (pendiente)
 - Confirmar cableado final: XIAO ESP32-S3 + EBYTE E108-GN02.
 - Revisar alimentacion GNSS (3.3 V estable) y GND comun.
 - Definir LED de estado externo y resistencia.
+- Validar disipacion y consumo real del boost 5V.
 
-### Firmware (ESP32-S3 + GPS)
-- Verificar pines finales en `Platformio/Dog-RGB/include/pins.h`.
-- Validar baudrate del GNSS (9600) y frecuencia 10 Hz.
-- Mantener parser RMC y filtros actuales.
-- Confirmar umbrales: 0.7 km/h activo, 40 km/h max valida, 1 s sample.
-- Validar reset diario con fecha GPS.
-- Validar persistencia NVS (guardado cada 60 s).
-- Estabilizar logs de diagnostico.
+### Firmware (implementado)
+- Parser NMEA RMC + GGA con filtros.
+- Calculo distancia, promedio y maxima.
+- Reset diario por fecha GPS.
+- Persistencia NVS de metricas.
+- Portal Wi-Fi AP/STA con `/api/summary`.
+- Config runtime via `/config` + `/api/config`.
+- Reset de config via `/api/config/reset`.
+- BLE daily summary (read-only).
 
-### Portal Wi-Fi (AP + STA)
-- Definir modo por defecto: AP si no hay credenciales.
-- Implementar pagina principal con 3 metricas.
-- Implementar `/api/summary` JSON.
-- Implementar pagina de setup Wi-Fi (STA) y endpoint `/api/wifi`.
-- Implementar mDNS opcional (`dog-collar.local`) en STA.
-- Mensajes simples: sin GPS, sin datos, conectado.
+### Portal Wi-Fi (implementado)
+- Pagina principal con 3 metricas.
+- Pagina de setup Wi-Fi `/wifi`.
+- mDNS en STA (`dog-collar.local`).
+- Politica AP/Wi-Fi automatica (GPS/estacionario).
 
-### UX y Copys
-- Definir textos exactos para estados:
-  - "Esperando GPS"
-  - "Sin datos, intenta mas tarde"
-  - "Conectado al collar"
-  - "Conectado a Wi-Fi"
+### UX y Copys (pendiente)
+- Revisar textos finales para estados y errores.
+- Ajustar mensajes para usuario final.
 
-### Validacion
+### Validacion (pendiente)
 - Prueba estatica (distancia cercana a 0).
 - Prueba caminata corta (200-500 m) comparando con GPS telefono.
 - Prueba trote (velocidad maxima coherente).
@@ -60,15 +59,15 @@ Este documento lista todas las tareas pendientes para implementar la Fase 1 (GPS
 - Seleccion de sensor HR y montaje.
 
 ### Firmware
-- Driver HR + validacion de se?al.
+- Driver HR + validacion de senal.
 - Integrar HR en perfiles de actividad.
 
 ---
 
 ## Fase 4 - Miniaturizacion
 
-### Mec?nico
-- Reduccion de tama?o y peso.
+### Mecanico
+- Reduccion de tamano y peso.
 - Carcasa compacta.
 
 ### Electrico
@@ -79,10 +78,9 @@ Este documento lista todas las tareas pendientes para implementar la Fase 1 (GPS
 
 ## Documentacion y Especificaciones
 
-- BLE spec: `docs/ble_spec.md` (fase futura)
+- BLE spec: `docs/ble_spec.md`
 - Portal Wi-Fi: `docs/wifi_portal_spec.md`
-- Web portal general: `docs/web_portal_spec.md`
-- Flow BLE: `docs/flow_wireframe.md`
+- Web portal: `docs/web_portal_spec.md`
 - App MVP (futuro): `docs/app_mvp_spec.md`
 
 ---
@@ -91,12 +89,4 @@ Este documento lista todas las tareas pendientes para implementar la Fase 1 (GPS
 
 - Riesgo: GPS sin fix en interiores.
 - Riesgo: portal no accesible por cambio de red.
-- Mitigacion: modo AP siempre disponible.
-
----
-
-## Estado actual (implementado)
-
-- Firmware GPS con calculo de distancia, promedio y max.
-- Persistencia NVS activa.
-- BLE payload definido y documentado (no usado en Fase 1).
+- Mitigacion: modo AP siempre disponible y politica de auto-encendido.

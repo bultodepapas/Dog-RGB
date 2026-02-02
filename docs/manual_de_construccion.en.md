@@ -20,7 +20,7 @@ Complete guide to build the prototype with solid electronics practices.
 ### Main electronics
 - MCU: Seeed Studio XIAO ESP32-S3
 - GNSS: EBYTE E108-GN02 (10 Hz, BDS/GPS/GLONASS)
-- LEDs: SK6812 (5V, single-wire), 2 strips (20 LEDs each)
+- LEDs: SK6812 (5V, single-wire), 2 strips (24 LEDs each)
 - Battery: 21700 Li-ion (~5000 mAh)
 - BMS 1S + USB-C charger
 - 5V boost >= 3A continuous

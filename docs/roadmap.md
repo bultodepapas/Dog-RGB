@@ -1,11 +1,12 @@
 # Roadmap
 
-## Phase 1: GPS-First MVP
+## Phase 1: GPS-First MVP (Actual)
 
 - Power system: 21700 + charger + 5V boost
-- MCU + GPS + LED control
-- Basic patterns and brightness limits
-- Battery monitoring
+- MCU + GNSS + LED control
+- Portal Wi-Fi AP/STA con dashboard
+- Configuracion runtime (`/config`)
+- Persistencia NVS y resumen BLE
 
 ## Phase 2: Motion-Based Logic
 
@@ -23,3 +24,4 @@
 
 - BLE configuration and profiles
 - Expanded pattern library
+- Miniaturizacion de hardware

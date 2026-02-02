@@ -1,6 +1,6 @@
 # Portal Wi-Fi - Plan de Implementacion (Fase 1)
 
-Este plan detalla la implementacion del portal web local (AP + STA) para el collar.
+Este plan resume el comportamiento actual del portal local (AP + STA).
 
 ---
 
@@ -12,29 +12,39 @@ Este plan detalla la implementacion del portal web local (AP + STA) para el coll
 
 ---
 
-## 2. Flujo de arranque (modo)
+## 2. Flujo de arranque
 
 Prioridad:
-1) Si existen credenciales guardadas y la conexion es exitosa -> STA
-2) Si falla -> AP
-3) Si no hay credenciales -> AP
-
-Transiciones:
-- Usuario puede forzar modo AP con boton fisico (opcional).
-- Si STA pierde red por mas de X segundos -> volver a AP.
+1) Si existen credenciales guardadas -> iniciar STA (AP+STA)
+2) Si no hay credenciales -> iniciar AP
+3) Si STA falla en `STA_CONNECT_TIMEOUT_MS` -> fallback a AP
 
 ---
 
-## 3. Endpoints minimos
+## 3. Politica AP/Wi-Fi
+
+- Sin GPS fix: AP forzado ON.
+- Con GPS OK: si velocidad baja por `AP_STATIONARY_MS`, AP ON.
+- AP sin clientes por `AP_IDLE_TIMEOUT_MS`: AP OFF.
+- Si no hay STA conectado, Wi-Fi OFF para ahorro.
+- Wi-Fi OFF se reactiva si vuelve a estar estacionario o se pierde GPS.
+
+---
+
+## 4. Endpoints
 
 - `GET /` -> pagina principal
 - `GET /api/summary` -> JSON con metricas
 - `GET /wifi` -> pagina de configuracion Wi-Fi
 - `POST /api/wifi` -> guardar SSID/password
+- `GET /config` -> UI de configuracion runtime
+- `GET /api/config` -> JSON config runtime
+- `POST /api/config` -> guardar config runtime
+- `POST /api/config/reset` -> defaults
 
 ---
 
-## 4. JSON de resumen
+## 5. JSON de resumen
 
 Campos:
 - date (yyyymmdd)
@@ -47,39 +57,22 @@ Campos:
 
 ---
 
-## 5. UI (pagina principal)
+## 6. UI (pagina principal)
 
 Componentes:
 - Titulo: Dog Collar
-- Estado: Conectado / Sin GPS / Sin datos
-- Cards:
-  - Distancia (km)
-  - Velocidad promedio (km/h)
-  - Velocidad maxima (km/h)
+- Estado: GPS OK / Sin GPS / Sin datos
+- Cards: distancia, promedio, maxima
 - Boton: Actualizar
 - Footer: Ultima lectura HH:MM
-
-Estados:
-- Sin GPS -> mensaje en header
-- Sin datos -> cards en "--"
-
----
-
-## 6. UI (configuracion Wi-Fi)
-
-Campos:
-- SSID
-- Password
-- Boton: Guardar y conectar
-- Estado: Conectando / Exito / Error
 
 ---
 
 ## 7. Persistencia
 
 - Guardar credenciales Wi-Fi en NVS.
-- Guardar ultimo modo activo.
-- Al reiniciar, usar flujo de arranque.
+- Guardar ultimo resumen diario en NVS.
+- Guardar config runtime en NVS.
 
 ---
 
@@ -97,13 +90,3 @@ Campos:
 - STA mode: guardar credenciales y reconectar.
 - Cambio de red: fallback a AP.
 - JSON valido en `/api/summary`.
-
----
-
-## 10. Deliverables
-
-- Portal funcional en AP.
-- Portal funcional en STA.
-- Pagina de configuracion.
-- Documentacion de uso para usuario final.
-- Diagrama de estados: `docs/wifi_portal_state_diagram.md`

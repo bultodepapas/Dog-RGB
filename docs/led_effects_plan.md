@@ -1,117 +1,74 @@
-# LED Effects Plan (FastLED)
+# LED Effects (Runtime Engine)
 
-Este documento define el plan para usar FastLED y seleccionar efectos por rango de velocidad. No incluye codigo.
-
----
-
-## Objetivo
-
-- Usar FastLED por su variedad y calidad de efectos.
-- Asignar un efecto por rango de velocidad.
-- Permitir efectos distintos en tira A y tira B.
-- Mantener Segmento A (estado) separado del Segmento B (modo normal).
+Este documento describe los efectos disponibles y su uso actual en el firmware.
 
 ---
 
-## Libreria elegida
+## Motor actual
 
-- FastLED (mas efectos y control que Adafruit NeoPixel).
+- Libreria: Adafruit NeoPixel
+- Implementacion: efectos custom en `Platformio/Dog-RGB/src/main.cpp`
+- Cada rango de velocidad define:
+  - effect_A (tira A)
+  - effect_B (tira B)
+  - speed (0-255)
+  - intensity (0-255)
 
 ---
 
-## Catalogo de efectos (base)
+## Catalogo de efectos (IDs)
 
-Lista inicial de efectos disponibles para asignar:
-
-- SOLID
-- PULSE
-- BREATH
-- CHASE
-- COMET (gusanito)
-- SINELON
-- CONFETTI
-- JUGGLE
-- BPM
-- RAINBOW
-- FIRE
-- GRADIENT_WAVE
+- 0: SOLID (color fijo)
+- 1: PULSE (pulso suave)
+- 2: BREATH (respiracion)
+- 3: CHASE (carrera de un pixel)
+- 4: COMET (cometa con cola)
+- 5: SINELON (barra oscilante)
+- 6: CONFETTI (destellos aleatorios)
+- 7: JUGGLE (varios puntos en movimiento)
+- 8: BPM (latido con brillo)
+- 9: RAINBOW (arco iris animado)
+- 10: FIRE (fuego procedimental)
+- 11: GRADIENT_WAVE (onda con gradiente)
 
 ---
 
 ## Rango de velocidad -> efecto
 
-Se define un mapeo para cada rango. Cada rango tiene:
+- Se usan 10 rangos (1..10) definidos por 9 umbrales en km/h.
+- Cada rango tiene efecto A/B + speed/intensity.
+- El color base por rango esta en `docs/manual_de_colores.md`.
 
-- effect_A: efecto para tira A
-- effect_B: efecto para tira B
-- palette/color: paleta base
-- speed: velocidad del efecto
-- intensity: intensidad del efecto
-
-Ejemplo de estructura (no definitivo):
-
-- Rango 1:
-  - A=SOLID, B=BREATH
-  - palette=Blue
-  - speed=low, intensity=low
-- Rango 2:
-  - A=PULSE, B=CHASE
-  - palette=Blue/Violet
-  - speed=low, intensity=mid
-- Rango 3:
-  - A=CONFETTI, B=SINELON
-  - palette=Purple
-  - speed=mid, intensity=mid
-- Rango 4:
-  - A=JUGGLE, B=BPM
-  - palette=Magenta/Orange
-  - speed=mid, intensity=mid-high
-- Rango 5:
-  - A=RAINBOW, B=COMET
-  - palette=Orange
-  - speed=high, intensity=high
-- Rango 6:
-  - A=FIRE, B=CHASE
-  - palette=Red
-  - speed=high, intensity=high
+Defaults actuales (ver `config.h`):
+- R1: SOLID / SOLID
+- R2: PULSE / PULSE
+- R3: BREATH / BREATH
+- R4: CHASE / CHASE
+- R5: SINELON / SINELON
+- R6: JUGGLE / JUGGLE
+- R7: BPM / BPM
+- R8: RAINBOW / RAINBOW
+- R9: GRADIENT_WAVE / GRADIENT_WAVE
+- R10: FIRE / FIRE
 
 ---
 
-## Parametros configurables
+## Parametros
 
-Para cada rango:
-- effect_A
-- effect_B
-- palette
-- speed
-- intensity
-
-Parametros globales:
-- FPS objetivo (ej. 50-60)
-- limite de brillo
-- limites de potencia
+- `speed`: controla la velocidad del efecto (0-255)
+- `intensity`: controla brillo/energia interna del efecto (0-255)
 
 ---
 
-## Logica de prioridad
+## Configuracion runtime
 
-1) Estados criticos (Segmento A o override total)
-2) Modo normal (Segmento B con efectos)
-
-Segmento A siempre conserva estados GPS/Wi-Fi.
-
----
-
-## Notas de implementacion
-
-- FastLED permite paletas y control fino por frame.
-- Cada tira mantiene su propio estado (fase, offset, etc.).
-- Segmento B puede dividirse en dos mitades para simetria.
+- UI: `/config`
+- API: `GET /api/config` y `POST /api/config`
+- Validacion: effect id 0..11, speed/intensity 0..255
 
 ---
 
-## Siguiente paso
+## Notas
 
-- Definir el mapeo final de efectos por rango.
-- Elegir paletas definitivas.
-- Migrar firmware de Adafruit NeoPixel a FastLED.
+- Segmento A (estado) es independiente del Segmento B.
+- En modo homogeneo, el efecto se aplica a toda la tira.

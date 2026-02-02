@@ -43,8 +43,8 @@ Guia practica para instalar, usar y configurar el collar en Fase 1 (GPS + portal
 XIAO ESP32-S3 (3.3V)
   D0 / GPIO1 (LED A data) -------+--> 74AHCT125 IN1 -> OUT1 -> DIN A (330-470R)
   D1 / GPIO2 (LED B data) -------+--> 74AHCT125 IN2 -> OUT2 -> DIN B (330-470R)
-  GPIO44 (GPS RX / D7) <--------------------------- GPS TX
-  GPIO43 (GPS TX / D6) ---------------------------> GPS RX (opcional)
+  GPIO7  (GPS RX / D8) <--------------------------- GPS TX
+  GPIO8  (GPS TX / D9) ---------------------------> GPS RX (opcional)
   GPIO3  (Status LED) ----[R]----> LED externo -> GND
   3V3 ---------------------------> GPS VCC (si 3.3V)
   GND ----------------------------> GPS GND
@@ -76,19 +76,18 @@ LED1 = GPS
 - Azul pulsante: GPS buscando (sin fix).
 
 Override:
-- Rojo parpadeo rapido: sin GPS ni Wi-Fi por mucho tiempo.
+- Rojo parpadeo rapido: sin GPS ni STA por >10 min.
 
 Segmento resto:
 - Si no hay GPS fix, muestra rainbow animado.
+- Con GPS OK, usa efectos por rangos de velocidad.
 - Si Wi-Fi esta OFF y GPS OK por >5 min, los LEDs de estado se igualan al segmento resto.
-
-Nota: el modo AP abierto (sin password) usa el mismo color que AP normal.
 
 AP/Wi-Fi auto:
 - Si no hay GPS fix, el AP se mantiene encendido.
-- Si la velocidad es < 2 km/h por 2 min, el AP se enciende automaticamente.
+- Si la velocidad es <= 2 km/h por ~2 min, el AP se enciende automaticamente.
 - Si no hay clientes conectados al AP por 5 min, el AP se apaga.
-- Si no hay STA conectado y no hay AP, el Wi-Fi se apaga para ahorrar bateria.
+- Si no hay STA y no hay AP, el Wi-Fi se apaga para ahorrar bateria.
 
 ---
 
@@ -129,13 +128,15 @@ Acceso:
 Desde aqui puedes:
 - Ajustar brillo (1..255).
 - Cambiar rangos de velocidad (km/h).
-- Cambiar efectos por rango.
-- Cambiar SSID y mDNS del AP.
-- Dejar el AP abierto con el checkbox "AP abierto (sin password)".
+- Cambiar efectos por rango (IDs 0..11).
+- Cambiar SSID/AP password o dejar el AP abierto.
+- Cambiar mDNS.
 
 Acciones:
 - "Guardar": aplica cambios en caliente.
 - "Restaurar defaults": vuelve a valores de fabrica.
+
+Nota: si cambias SSID/password del AP, el AP se reinicia y puede desconectar la sesion.
 
 ---
 

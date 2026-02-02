@@ -1,8 +1,6 @@
 # Portal Wi-Fi (AP + STA) - Especificacion (Fase 1)
 
-Este documento describe un portal web ultra simple que funciona en dos modos:
-1) AP mode (Wi-Fi directo / hotspot del collar)
-2) STA mode (Wi-Fi normal / router)
+Este documento describe el portal web local del collar y su comportamiento en AP/STA.
 
 ---
 
@@ -19,22 +17,19 @@ Este documento describe un portal web ultra simple que funciona en dos modos:
 ## Modo 1: AP (Wi-Fi Direct)
 
 ### Flujo de usuario
-1) Collar crea red Wi-Fi: SSID "Dog-Collar".
+1) El collar crea una red Wi-Fi local.
 2) Usuario se conecta desde el telefono.
 3) Abre `http://192.168.4.1`.
 4) Ve la pagina con las metricas y boton "Actualizar".
 
-### Ventajas
-- No requiere infraestructura externa.
-- Funciona en cualquier lugar.
-
-### Limitaciones
-- El usuario debe cambiar de red Wi-Fi.
-- No hay acceso a internet mientras esta conectado.
+### Defaults
+- SSID: `dog`
+- Password: `Dog123456789`
+- AP abierto: opcional via `/config` (sin password)
 
 ---
 
-## Modo 2: STA (Wi-Fi Normal)
+## Modo 2: STA (Wi-Fi normal)
 
 ### Flujo de usuario (setup inicial)
 1) Usuario entra al AP del collar.
@@ -42,13 +37,8 @@ Este documento describe un portal web ultra simple que funciona en dos modos:
 3) Collar guarda credenciales y se conecta al router.
 4) Portal accesible por mDNS (ej: `http://dog-collar.local`).
 
-### Ventajas
-- Uso mas comodo despues del setup.
-- Se puede acceder desde varios dispositivos en la misma red.
-
-### Limitaciones
-- Requiere Wi-Fi disponible.
-- Setup inicial obligatorio.
+### Fallback
+- Si STA no conecta en `STA_CONNECT_TIMEOUT_MS`, vuelve a AP.
 
 ---
 
@@ -56,7 +46,7 @@ Este documento describe un portal web ultra simple que funciona en dos modos:
 
 ### Pagina principal
 - Titulo: "Dog Collar"
-- Estado: GPS OK / Sin GPS
+- Estado: GPS OK / Sin GPS / Sin datos
 - Cards:
   - Distancia (km)
   - Velocidad promedio (km/h)
@@ -64,45 +54,50 @@ Este documento describe un portal web ultra simple que funciona en dos modos:
 - Boton: "Actualizar"
 - Footer: "Ultima lectura: HH:MM"
 
-### Pagina de configuracion Wi-Fi (solo si STA)
+### Pagina de configuracion Wi-Fi
+- Ruta: `/wifi`
 - Campo SSID
 - Campo Password
 - Boton "Guardar y conectar"
-- Estado de conexion
 
 ---
 
-## Endpoints minimos
+## Endpoints
 
-- `GET /api/summary`
-  - Devuelve JSON con distancia, avg, max, flags
 - `GET /` pagina principal
-- `POST /api/wifi` (solo STA)
-  - Guarda SSID/password
+- `GET /api/summary` JSON con metricas
+- `GET /wifi` pagina de setup Wi-Fi
+- `POST /api/wifi` guardar SSID/password
+- `GET /config` UI de configuracion runtime
+- `GET /api/config` leer config runtime
+- `POST /api/config` guardar config runtime
+- `POST /api/config/reset` restaurar defaults
 
 ---
 
-## Datos (formato JSON ejemplo)
+## Datos (JSON ejemplo)
 
 ```
 {
-  "date": 20260120,
+  "date": 20260202,
   "distance_m": 12400,
   "avg_speed_cmps": 480,
   "max_speed_cmps": 1820,
   "last_update_min": 1115,
-  "gps_fix": true
+  "gps_fix": true,
+  "has_data": true
 }
 ```
 
 ---
 
-## Estados y mensajes
+## Politica AP/Wi-Fi (auto)
 
-- Sin GPS: "Esperando GPS"
-- Sin datos: "Sin datos, intenta mas tarde"
-- Modo AP: "Conectado al collar"
-- Modo STA: "Conectado a Wi-Fi"
+- Sin GPS fix: AP forzado ON.
+- Con GPS OK: si velocidad <= `AP_STATIONARY_ON_KPH` por `AP_STATIONARY_MS`, AP ON.
+- AP ON sin clientes por `AP_IDLE_TIMEOUT_MS`: AP OFF.
+- Si AP OFF y no hay STA conectado, Wi-Fi OFF para ahorrar bateria.
+- Si Wi-Fi OFF y se cumple "sin GPS" o "estacionario", se reactiva AP.
 
 ---
 
@@ -110,14 +105,4 @@ Este documento describe un portal web ultra simple que funciona en dos modos:
 
 - AP con password configurable (opcionalmente abierto).
 - No exponer credenciales en el frontend.
-- Limitar endpoints solo a la red local.
-
----
-
-## Checklist MVP
-
-- Portal carga en <2 s.
-- AP mode funcional sin configuracion.
-- STA mode con setup minimo.
-- JSON correcto en `/api/summary`.
-- UI legible en movil y desktop.
+- Limitar endpoints a LAN.

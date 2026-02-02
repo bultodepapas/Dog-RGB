@@ -13,13 +13,13 @@ Este documento resume los componentes base y el presupuesto de potencia para la 
 ### LEDs
 - SK6812, 5V, single-wire
 - 1 o 2 tiras
-- LEDs por tira: 20 (min 10, max 50)
+- LEDs por tira: 24 (min 10, max 50)
 
 ### Potencia
 - Bateria: 21700 Li-ion ~5000 mAh
 - Cargador USB-C (1S Li-ion)
 - BMS 1S
-- Boost 5V (>=2A continuo)
+- Boost 5V (>=3A continuo)
 - Regulador 3.3V para MCU/GNSS
 
 ### Proteccion y pasivos
@@ -32,28 +32,28 @@ Este documento resume los componentes base y el presupuesto de potencia para la 
 ## Power Budget (Estimado)
 
 ### LED (por tira)
-- 20 LEDs @ 30% brillo (promedio)
+- 24 LEDs @ 30% brillo (promedio)
 - Corriente por LED aprox: 3-5 mA (idle)
-- Total por tira: 60-100 mA
+- Total por tira: 72-120 mA
 
 Dos tiras:
-- Total LEDs: 40
-- Corriente estimada: 120-200 mA
+- Total LEDs: 48
+- Corriente estimada: 144-240 mA
 
 ### MCU + GNSS
 - ESP32-S3 activo: 80-150 mA (picos mayores)
 - GNSS: 20-35 mA
 
 ### Total estimado (promedio)
-- 1 tira: 150-250 mA
-- 2 tiras: 250-400 mA
+- 1 tira: 170-280 mA
+- 2 tiras: 270-450 mA
 
 ---
 
 ## Autonomia (21700 5000 mAh)
 
-- 1 tira: ~12-20 h
-- 2 tiras: ~8-14 h
+- 1 tira: ~10-18 h
+- 2 tiras: ~7-12 h
 
 *Valores aproximados, dependen de animaciones y brillo real.*
 
