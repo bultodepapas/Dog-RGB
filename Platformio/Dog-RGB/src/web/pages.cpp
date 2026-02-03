@@ -322,7 +322,7 @@ String web_pages::html_page() {
 }
 String web_pages::html_wifi_page() {
   String page;
-  page.reserve(5000);
+  page.reserve(9000);
   page += F(R"HTML(
 <!doctype html>
 <html>
@@ -348,7 +348,7 @@ String web_pages::html_wifi_page() {
       <div class="muted">Conecta el collar a tu red de casa.</div>
     </div>
 
-    <form class="card section" method="post" action="/api/wifi">
+    <form class="card section" id="sta_form" method="post" action="/api/wifi">
       <div class="field">
         <label>SSID</label>
         <input name="ssid" value=")HTML");
@@ -362,16 +362,167 @@ String web_pages::html_wifi_page() {
       <label class="muted"><input type="checkbox" id="show_pass"> Mostrar password</label>
       <div class="actions">
         <button class="btn" type="submit">Guardar y conectar</button>
-        <a class="btn ghost" href="/">Volver</a>
       </div>
-      <div class="notice">Nota: el AP puede reiniciarse al guardar.</div>
+      <div id="sta_status" class="notice"></div>
     </form>
+
+    <div class="card section" id="ap_block">
+      <h2>Wi-Fi AP</h2>
+      <div class="muted">Configura el hotspot del collar.</div>
+      <div class="grid grid-2 section-body">
+        <div class="field"><label>SSID</label><input id="ap_ssid" type="text"></div>
+        <div class="field"><label>mDNS</label><input id="mdns" type="text"></div>
+      </div>
+      <div class="grid grid-2">
+        <div class="field"><label>Password</label><input id="ap_pass" type="password" placeholder="(sin cambio)"></div>
+        <div class="field">
+          <label>AP abierto</label>
+          <label class="muted"><input id="ap_open" type="checkbox"> Sin password</label>
+        </div>
+      </div>
+      <div id="ap_hint" class="muted"></div>
+      <div id="ap_warn" class="warn"></div>
+      <div class="actions">
+        <button class="btn" type="button" onclick="saveAp()">Guardar AP</button>
+      </div>
+      <div id="ap_status" class="muted"></div>
+    </div>
+
+    <div class="actions">
+      <a class="btn ghost" href="/">Volver</a>
+    </div>
   </div>
 
   <script>
     const pass = document.getElementById('pass');
     const show = document.getElementById('show_pass');
     show.onchange = () => { pass.type = show.checked ? 'text' : 'password'; };
+    const staForm = document.getElementById('sta_form');
+    const staStatus = document.getElementById('sta_status');
+    const apSsid = document.getElementById('ap_ssid');
+    const mdns = document.getElementById('mdns');
+    const apPass = document.getElementById('ap_pass');
+    const apOpen = document.getElementById('ap_open');
+    const apHint = document.getElementById('ap_hint');
+    const apWarn = document.getElementById('ap_warn');
+    const apStatus = document.getElementById('ap_status');
+    let apHasPass = false;
+    let initialAp = null;
+    let baseCfg = null;
+
+    function setApStatus(msg, tone){
+      apStatus.textContent = msg || '';
+      if (tone === 'error') apStatus.className = 'error';
+      else if (tone === 'warn') apStatus.className = 'warn';
+      else apStatus.className = 'muted';
+    }
+
+    function clearApInvalid(){
+      [apSsid, apPass, mdns].forEach(el => el && el.classList.remove('invalid'));
+    }
+
+    function apChanged(){
+      if (!initialAp) return false;
+      return apSsid.value.trim() !== initialAp.ap_ssid ||
+             mdns.value.trim() !== initialAp.mdns ||
+             apOpen.checked !== initialAp.ap_open ||
+             apPass.value !== '';
+    }
+
+    function updateApState(){
+      if (apOpen.checked){
+        apPass.value = '';
+        apPass.disabled = true;
+        apHint.innerText = 'AP abierto';
+      } else {
+        apPass.disabled = false;
+        apHint.innerText = apHasPass ? 'Password configurada' : 'Sin password';
+      }
+      apWarn.innerText = apChanged() ? 'Nota: cambiar AP puede desconectar la sesion.' : '';
+    }
+
+    async function loadConfig(){
+      try{
+        baseCfg = await fetch('/api/config').then(r=>r.json());
+        apSsid.value = baseCfg.wifi.ap_ssid || '';
+        mdns.value = baseCfg.wifi.mdns || '';
+        apHasPass = !!baseCfg.wifi.has_ap_pass;
+        apOpen.checked = !apHasPass;
+        initialAp = { ap_ssid: apSsid.value.trim(), mdns: mdns.value.trim(), ap_open: apOpen.checked };
+        updateApState();
+      }catch(e){
+        setApStatus('Error cargando config.', 'error');
+      }
+    }
+
+    async function saveAp(){
+      clearApInvalid();
+      if (!baseCfg){
+        setApStatus('Error: config no disponible.', 'error');
+        return;
+      }
+      const ssid = apSsid.value.trim();
+      const mdnsVal = mdns.value.trim();
+      const passVal = apPass.value;
+      if (ssid.length < 1 || ssid.length > 32){
+        apSsid.classList.add('invalid');
+        setApStatus('SSID 1..32.', 'error');
+        return;
+      }
+      if (!apOpen.checked && passVal.length > 0 && passVal.length < 8){
+        apPass.classList.add('invalid');
+        setApStatus('Password >= 8.', 'error');
+        return;
+      }
+      if (!validMdns(mdnsVal)){
+        mdns.classList.add('invalid');
+        setApStatus('mDNS invalido (1..32 a-z0-9-).', 'error');
+        return;
+      }
+      if (apChanged()){
+        if (!confirm('Guardar cambios? El AP puede reiniciarse.')) return;
+      }
+      setApStatus('Guardando...', 'muted');
+      baseCfg.wifi = baseCfg.wifi || {};
+      baseCfg.wifi.ap_ssid = ssid;
+      baseCfg.wifi.ap_open = apOpen.checked;
+      baseCfg.wifi.ap_pass = passVal;
+      baseCfg.wifi.mdns = mdnsVal;
+      try{
+        const r = await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(baseCfg)}).then(r=>r.json());
+        if (r.status !== 'ok'){
+          setApStatus('Error', 'error');
+          return;
+        }
+        setApStatus(r.status + (r.wifi_restart ? ' (reiniciando AP)' : ''), 'muted');
+        initialAp = { ap_ssid: ssid, mdns: mdnsVal, ap_open: apOpen.checked };
+        if (apOpen.checked) apHasPass = false;
+        else if (passVal.length >= 8) apHasPass = true;
+        apPass.value = '';
+        updateApState();
+      }catch(e){
+        setApStatus('Error', 'error');
+      }
+    }
+
+    staForm.onsubmit = async (e) => {
+      e.preventDefault();
+      staStatus.textContent = 'Guardando...';
+      try{
+        const fd = new FormData(staForm);
+        const r = await fetch('/api/wifi',{method:'POST',body:fd});
+        const text = await r.text();
+        staStatus.textContent = r.ok ? 'Guardado, conectando...' : ('Error: ' + text);
+      }catch(e){
+        staStatus.textContent = 'Error';
+      }
+    };
+
+    apOpen.onchange = updateApState;
+    apPass.oninput = updateApState;
+    apSsid.oninput = updateApState;
+    mdns.oninput = updateApState;
+    loadConfig();
   </script>
 </body>
 </html>
@@ -403,7 +554,7 @@ String web_pages::html_config_page() {
           <div class="tagline">Configuracion avanzada</div>
         </div>
       </div>
-      <div class="muted">Ajustes de LED, geofence y Wi-Fi</div>
+      <div class="muted">Ajustes de LED y geofence</div>
     </div>
 
     <div id="errors" class="card error-box error section"></div>
@@ -521,25 +672,6 @@ String web_pages::html_config_page() {
       </div>
     </details>
 
-    <details class="card section" id="wifi_block" open>
-      <summary>Wi-Fi AP</summary>
-      <div class="section-body">
-        <div class="grid grid-2">
-          <div class="field"><label>SSID</label><input id="ap_ssid" type="text"></div>
-          <div class="field"><label>mDNS</label><input id="mdns" type="text"></div>
-        </div>
-        <div class="grid grid-2">
-          <div class="field"><label>Password</label><input id="ap_pass" type="password" placeholder="(sin cambio)"></div>
-          <div class="field">
-            <label>AP abierto</label>
-            <label class="muted"><input id="ap_open" type="checkbox"> Sin password</label>
-          </div>
-        </div>
-        <div id="ap_hint" class="muted"></div>
-        <div id="ap_warn" class="warn"></div>
-      </div>
-    </details>
-
     <div class="section">
       <a class="btn ghost" href="/">Volver</a>
     </div>
@@ -567,12 +699,6 @@ String web_pages::html_config_page() {
     const brightness = $('brightness');
     const statusEl = $('status');
     const errorsEl = $('errors');
-    const apSsid = $('ap_ssid');
-    const apPass = $('ap_pass');
-    const apOpen = $('ap_open');
-    const mdns = $('mdns');
-    const apHint = $('ap_hint');
-    const apWarn = $('ap_warn');
 
     const rangeInputs = [ $('r1'),$('r2'),$('r3'),$('r4'),$('r5'),$('r6'),$('r7'),$('r8'),$('r9') ];
 
@@ -608,14 +734,8 @@ String web_pages::html_config_page() {
       'effect values':{field:'effects_block',msg:'Valores de efecto invalidos.'},
       'effect id':{field:'effects_block',msg:'ID de efecto invalido.'},
       single:{field:'simple_block',msg:'Bloque simple invalido.'},
-      'single values':{field:'simple_block',msg:'Valores simple invalidos.'},
-      ssid:{field:'ap_ssid',msg:'SSID 1..32.'},
-      pass:{field:'ap_pass',msg:'Password >= 8.'},
-      mdns:{field:'mdns',msg:'mDNS invalido (1..32 a-z0-9-).'}
+      'single values':{field:'simple_block',msg:'Valores simple invalidos.'}
     };
-
-    let initialWifi = null;
-    let apHasPass = false;
 
     function fillEffectSelect(sel){
       sel.innerHTML = EFFECTS.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
@@ -728,16 +848,6 @@ String web_pages::html_config_page() {
       return true;
     }
 
-    function validMdns(value){
-      if (!value || value.length < 1 || value.length > 32) return false;
-      for (let i=0;i<value.length;i++){
-        const c = value[i];
-        const ok = (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c==='-';
-        if (!ok) return false;
-      }
-      return true;
-    }
-
     function clearErrors(){
       errorsEl.innerHTML = '';
       document.querySelectorAll('.invalid').forEach(el=>el.classList.remove('invalid'));
@@ -782,10 +892,6 @@ String web_pages::html_config_page() {
         addError('simple_block','RGB simple invalido.');
       }
 
-      if (cfg.wifi.ap_ssid.length < 1 || cfg.wifi.ap_ssid.length > 32) addError('ap_ssid','SSID 1..32.');
-      if (!cfg.wifi.ap_open && cfg.wifi.ap_pass.length > 0 && cfg.wifi.ap_pass.length < 8) addError('ap_pass','Password >= 8.');
-      if (!validMdns(cfg.wifi.mdns)) addError('mdns','mDNS invalido (1..32 a-z0-9-).');
-
       if (errs.length) showErrors(errs);
       return errs.length === 0;
     }
@@ -801,26 +907,6 @@ String web_pages::html_config_page() {
       showErrors([e.msg]);
     }
 
-    function wifiChanged(){
-      if (!initialWifi) return false;
-      return apSsid.value !== initialWifi.ap_ssid ||
-             mdns.value !== initialWifi.mdns ||
-             apOpen.checked !== initialWifi.ap_open ||
-             apPass.value !== '';
-    }
-
-    function updateApState(){
-      if (apOpen.checked){
-        apPass.value = '';
-        apPass.disabled = true;
-        apHint.innerText = 'AP abierto';
-      } else {
-        apPass.disabled = false;
-        apHint.innerText = apHasPass ? 'Password configurada' : 'Sin password';
-      }
-      apWarn.innerText = wifiChanged() ? 'Nota: cambiar AP puede desconectar la sesion.' : '';
-    }
-
     function buildPayload(){
       const cfg = {
         version:4,
@@ -834,12 +920,6 @@ String web_pages::html_config_page() {
           speed: intVal(simpleSpeed,0),
           intensity: intVal(simpleIntensity,0),
           rgb:{r:intVal(simpleR,0), g:intVal(simpleG,0), b:intVal(simpleB,0)}
-        },
-        wifi:{
-          ap_ssid: apSsid.value.trim(),
-          ap_pass: apPass.value,
-          ap_open: apOpen.checked,
-          mdns: mdns.value.trim()
         }
       };
       for (let i=1;i<=10;i++){
@@ -857,11 +937,7 @@ String web_pages::html_config_page() {
       clearErrors();
       const cfg = buildPayload();
       if (!validateConfig(cfg)) return;
-      if (wifiChanged()){
-        if (!confirm('Guardar cambios? El AP puede reiniciarse.')) return;
-      }
       statusEl.innerText = 'Guardando...';
-      apWarn.innerText = '';
       try{
         const r = await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)}).then(r=>r.json());
         if (r.status !== 'ok'){
@@ -870,7 +946,6 @@ String web_pages::html_config_page() {
           return;
         }
         statusEl.innerText = r.status + (r.wifi_restart ? ' (reiniciando AP)' : '');
-        initialWifi = { ap_ssid: apSsid.value, mdns: mdns.value, ap_open: apOpen.checked };
       }catch(e){
         statusEl.innerText = 'Error';
       }
@@ -901,10 +976,6 @@ String web_pages::html_config_page() {
     simpleTheme.onchange = () => { if (simpleTheme.value !== 'manual') applyTheme(simpleTheme.value); updateThemeSelection(); };
     [simpleEffect,simpleSpeed,simpleIntensity,simpleR,simpleG,simpleB].forEach(el=>el.oninput=updateThemeSelection);
     fenceMax.oninput = updateFenceRanges;
-    apOpen.onchange = updateApState;
-    apPass.oninput = updateApState;
-    apSsid.oninput = updateApState;
-    mdns.oninput = updateApState;
 
     buildEffectsTable();
     fillEffectSelect(simpleEffect);
@@ -929,15 +1000,9 @@ String web_pages::html_config_page() {
       simpleR.value = (rgb.r !== undefined ? rgb.r : 0);
       simpleG.value = (rgb.g !== undefined ? rgb.g : 60);
       simpleB.value = (rgb.b !== undefined ? rgb.b : 60);
-      apSsid.value = c.wifi.ap_ssid;
-      mdns.value = c.wifi.mdns;
-      apOpen.checked = !c.wifi.has_ap_pass;
-      apHasPass = c.wifi.has_ap_pass;
-      initialWifi = { ap_ssid: apSsid.value, mdns: mdns.value, ap_open: apOpen.checked };
       updateModeVisibility();
       updateFenceRanges();
       updateThemeSelection();
-      updateApState();
       loadHome();
     });
   </script>
