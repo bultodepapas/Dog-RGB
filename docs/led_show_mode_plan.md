@@ -33,16 +33,36 @@ Este documento propone un nuevo modo **SHOW** para el firmware LED, pensado como
 
 ---
 
-## 3) Diseño propuesto (sin implementar)
+## 3) Decisiones confirmadas (por usuario)
 
-### 3.1 Nuevas constantes
+- Activación **solo desde el portal** `/config` (sin atajos físicos por ahora).
+- Modo por defecto al boot: **speed**.
+- **Welcome** siempre corre antes de cualquier modo.
+- Brillo respeta `g_cfg.brightness` (no forzar brillo).
+- SHOW usa **el mismo color base** en ambas tiras.
+- Segmento A **siempre** muestra estado Wi‑Fi/GPS con la lógica actual.
+- Si `LED_STATUS_COUNT == 0`, SHOW usa toda la tira (fallback defensivo).
+- Si `POST /api/config` no incluye `mode`, se conserva el valor actual.
+- Se actualizan docs (`docs/led_ui_spec.md` y `docs/portal_config.md`).
+
+Pendientes de confirmación (ver sección 11):
+- Manejo de “homogeneous mode” cuando SHOW está activo.
+- Cambios exactos en API/UI del portal para exponer `mode`.
+- Reset de estado entre efectos (usuario dijo “no”; sugerencia mínima para FIRE).
+
+---
+
+## 4) Diseño propuesto (sin implementar)
+
+### 4.1 Nuevas constantes
 
 - En `config.h`:
   - `MODE_SHOW = 2` (o siguiente ID libre).
   - `SHOW_EFFECT_MS = 15000`.
-  - Opcional: `SHOW_SPEED` y `SHOW_INTENSITY` (valores medios, p.ej. 140 y 200).
+  - `SHOW_SPEED = 150` (balance entre fluidez y legibilidad).
+  - `SHOW_INTENSITY = 200` (vivo sin saturar consumo).
 
-### 3.2 Estado runtime adicional
+### 4.2 Estado runtime adicional
 
 Variables sugeridas en `main.cpp`:
 
@@ -58,13 +78,13 @@ Notas:
 - `show_first_tick` permite inicializar en la primera entrada al modo.
 - Se reutilizan los arrays `heat_a` y `heat_b` para el efecto FIRE.
 
-### 3.3 Selección de color aleatorio
+### 4.3 Selección de color aleatorio
 
 Se recomienda generar color en HSV para evitar colores muy oscuros:
 
 - `hue = random8(0, 255)`
 - `sat = random8(200, 255)`
-- `val = random8(200, 255)`
+- `val = random8(180, 255)`
 - `show_base = hsv_to_rgb(hue, sat, val)`
 
 Para efectos que **ignoran base** (RAINBOW, GRADIENT_WAVE, FIRE):
@@ -73,9 +93,9 @@ Para efectos que **ignoran base** (RAINBOW, GRADIENT_WAVE, FIRE):
 
 ---
 
-## 4) Integración en la lógica LED
+## 5) Integración en la lógica LED
 
-### 4.1 Entrada al modo SHOW
+### 5.1 Entrada al modo SHOW
 
 Agregar un early‑return en `update_led_ui()`:
 
@@ -88,7 +108,7 @@ if (g_cfg.mode == MODE_SHOW) {
 
 Esto evita que el modo normal sobreescriba la demo. **Los LEDs de estado (Segmento A) se siguen pintando** dentro de `update_show_mode()` para mantener visibilidad de Wi‑Fi/GPS.
 
-### 4.2 Reseteo entre efectos
+### 5.2 Reseteo entre efectos
 
 Cada 15s:
 - Avanzar `show_effect_id` (0..11, wrap).
@@ -99,7 +119,7 @@ Cada 15s:
 
 ---
 
-## 5) Pseudocódigo (nivel senior)
+## 6) Pseudocódigo (nivel senior)
 
 ```
 const SHOW_EFFECT_MS = 15000
@@ -135,7 +155,7 @@ function update_show_mode(now):
     show_effect_id = (show_effect_id + 1) % 12
     show_effect_since_ms = now
     show_base = random_color()
-    reset_show_state()
+    maybe_reset_show_state()
 
   // refresco LED por tick
   if now - last_led_update_ms < LED_UPDATE_MS:
@@ -151,6 +171,13 @@ function update_show_mode(now):
     if LED_STRIP_MODE == 2:
       apply_effect(show_effect_id, leds_b, heat_b, seg_start, seg_count,
                    show_base, SHOW_SPEED, SHOW_INTENSITY, show_state_b)
+  else:
+    // fallback defensivo si no hay LEDs de estado
+    apply_effect(show_effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT,
+                 show_base, SHOW_SPEED, SHOW_INTENSITY, show_state_a)
+    if LED_STRIP_MODE == 2:
+      apply_effect(show_effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT,
+                   show_base, SHOW_SPEED, SHOW_INTENSITY, show_state_b)
 
   // 2) Segmento A: siempre status Wi‑Fi/GPS (misma lógica actual)
   paint_status_leds(now)
@@ -163,20 +190,20 @@ function random_color():
   val = random8(200, 255)
   return hsv_to_rgb(hue, sat, val)
 
-function reset_show_state():
-  show_state_a = {}
-  show_state_b = {}
+function maybe_reset_show_state():
+  // Usuario pidió “no reset” entre efectos; se deja el estado vivo.
+  // Sugerencia mínima para asegurar FIRE estable:
   if show_effect_id == FIRE:
     clear(heat_a)
     clear(heat_b)
-  // Para efectos que usan hue interno:
-  show_state_a.hue = random8()
-  show_state_b.hue = random8()
+  // Para efectos con hue interno, opcionalmente randomizar arranque:
+  // show_state_a.hue = random8()
+  // show_state_b.hue = random8()
 ```
 
 ---
 
-## 6) Configuración y control (propuesta)
+## 7) Configuración y control (propuesta)
 
 Actualmente `mode` no está en el portal. Opciones:
 
@@ -192,7 +219,7 @@ Recomendación: **Opción 1** para control desde el portal.
 
 ---
 
-## 7) Estado actual del sistema de modos (lectura del repo)
+## 8) Estado actual del sistema de modos (lectura del repo)
 
 ### 7.1 Qué existe hoy
 
@@ -218,7 +245,7 @@ Para activar SHOW, hay que **usar de verdad** `g_cfg.mode` en `update_led_ui()` 
 
 ---
 
-## 8) Consideraciones de calidad y UX
+## 9) Consideraciones de calidad y UX
 
 - **Status LEDs:** en SHOW **se mantienen siempre activos** (Segmento A). La demo corre en Segmento B para preservar telemetría visible.
 - **Brillo:** mantener `g_cfg.brightness` para evitar picos de consumo.
@@ -229,7 +256,7 @@ Para activar SHOW, hay que **usar de verdad** `g_cfg.mode` en `update_led_ui()` 
 
 ---
 
-## 9) Pruebas sugeridas (manual)
+## 10) Pruebas sugeridas (manual)
 
 1. Activar modo SHOW desde portal.
 2. Verificar que cada 15s cambia el efecto en **ambas** tiras.
@@ -240,7 +267,15 @@ Para activar SHOW, hay que **usar de verdad** `g_cfg.mode` en `update_led_ui()` 
 
 ---
 
-## 10) Próximos pasos
+## 11) Preguntas abiertas / por confirmar
+
+- **Homogeneous mode**: hoy sobreescribe toda la tira cuando Wi‑Fi está OFF y GPS OK estable. En SHOW, ¿se ignora siempre ese comportamiento para que la demo no se interrumpa?
+- **Portal/API**: ¿incluimos `mode` en `GET /api/config` y `POST /api/config` y agregamos selector en `/config`? Si sí, ¿mantenemos `version:2` o subimos versión del payload?
+- **Reset de estado**: el usuario pidió “no reset”, pero para FIRE se recomienda limpiar `heat_*`. ¿Confirmas ese reset mínimo?
+
+---
+
+## 12) Próximos pasos
 
 Si estás de acuerdo con este diseño, puedo:
 - Implementar el modo SHOW en firmware.
