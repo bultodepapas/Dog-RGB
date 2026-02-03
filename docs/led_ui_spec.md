@@ -52,11 +52,19 @@ Override critico:
 - Si no hay GPS fix: rainbow animado
 - Con GPS OK: efecto por rango de velocidad (configurable)
 
+## Modo SHOW (demo)
+
+- Recorre todos los efectos (IDs 0..11) cada 15 s.
+- Usa color base aleatorio por efecto.
+- Segmento B siempre en demo.
+- Segmento A sigue mostrando estado Wi‑Fi/GPS, **excepto** si se activa modo homogeneo.
+
 ---
 
 ## Homogeneo
 
 - Si Wi-Fi esta OFF y GPS OK estable por >5 min, toda la tira usa el mismo efecto del rango (incluye LEDs de estado).
+- En SHOW, el homogeneo **pisa todo** con el efecto SHOW actual.
 
 ---
 

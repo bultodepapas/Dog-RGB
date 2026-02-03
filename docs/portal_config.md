@@ -85,8 +85,9 @@ Notas:
 Notas:
 - `ap_pass` es opcional. Si no se envia, se mantiene el valor actual.
 - Si `ap_open` es `true`, el AP se guarda sin password.
-- `mode`: `"speed"` (default) o `"geofence"`.
+- `mode`: `"speed"` (default), `"geofence"` o `"show"`.
 - `fence_max_m`: distancia maxima en metros (se divide en 10 rangos iguales).
+- `mode: "show"` habilita demo de efectos en Segmento B (homogeneous puede pisar todo).
 
 ---
 
@@ -119,7 +120,7 @@ Notas:
 
 Validaciones:
 - `brightness`: 1..255
-- `mode`: `speed` | `geofence`
+- `mode`: `speed` | `geofence` | `show`
 - `fence_max_m`: 50..5000
 - `speed_ranges_kph`: 9 valores > 0, estrictamente ascendentes
 - `effects`: `range1..range10` presentes
@@ -183,7 +184,7 @@ Reset:
 
 Campos:
 - Brightness (1..255)
-- Modo (Speed / Geofence)
+- Modo (Speed / Geofence / Show)
 - 9 rangos de velocidad (km/h)
 - Distancia maxima geofence (m)
 - Efectos por rango (A/B, speed, intensity)

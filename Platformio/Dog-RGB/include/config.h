@@ -66,6 +66,7 @@ static const float SPEED_MAX_VALID_KPH = 40.0f; // Reject GPS spikes above this.
 // Mode defaults and geofence tuning.
 static const uint8_t MODE_SPEED = 0;
 static const uint8_t MODE_GEOFENCE = 1;
+static const uint8_t MODE_SHOW = 2;
 static const uint16_t GEOFENCE_MAX_M_DEFAULT = 300;
 static const uint16_t GEOFENCE_MAX_M_MIN = 50;
 static const uint16_t GEOFENCE_MAX_M_MAX = 5000;
@@ -84,6 +85,12 @@ static const uint8_t LED_BRIGHTNESS = 77; // ~30% brightness (0-255).
 static const unsigned long LED_UPDATE_MS = 50; // Refresh interval for LED UI.
 static const unsigned long CRITICAL_NO_OK_MS = 600000; // Error if no GPS/Wi-Fi for this long.
 static const bool LED_UI_ENABLED = true; // Disable to turn off LED UI logic.
+
+// LED SHOW mode (demo).
+static const uint8_t EFFECT_COUNT = 12; // IDs 0..11
+static const unsigned long SHOW_EFFECT_MS = 15000;
+static const uint8_t SHOW_SPEED = 150;
+static const uint8_t SHOW_INTENSITY = 200;
 
 // Wi-Fi settings (less common to change).
 static const char *AP_SSID = "dog"; // AP name for direct connection.

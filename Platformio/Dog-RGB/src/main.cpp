@@ -174,6 +174,13 @@ static EffectState state_b;
 static uint8_t body_idle_hue = 0;
 static uint8_t last_geofence_range = 1;
 static float last_geofence_distance_m = 0.0f;
+static EffectState show_state_a;
+static EffectState show_state_b;
+static uint8_t show_effect_id = 0;
+static unsigned long show_effect_since_ms = 0;
+static Rgb show_base = {0, 0, 0};
+static bool show_first_tick = true;
+static uint8_t last_mode = MODE_SPEED;
 
 struct WelcomeState {
   bool active = false;
@@ -614,6 +621,8 @@ static const char *mode_name(uint8_t mode) {
   switch (mode) {
     case MODE_GEOFENCE:
       return "geofence";
+    case MODE_SHOW:
+      return "show";
     case MODE_SPEED:
     default:
       return "speed";
@@ -632,11 +641,15 @@ static bool parse_mode(const char *value, uint8_t &mode_out) {
     mode_out = MODE_GEOFENCE;
     return true;
   }
+  if (strcmp(value, "show") == 0) {
+    mode_out = MODE_SHOW;
+    return true;
+  }
   return false;
 }
 
 static bool validate_mode(uint8_t mode) {
-  return (mode == MODE_SPEED || mode == MODE_GEOFENCE);
+  return (mode == MODE_SPEED || mode == MODE_GEOFENCE || mode == MODE_SHOW);
 }
 
 static uint16_t clamp_fence_max(int value) {
@@ -1235,28 +1248,7 @@ static uint8_t apply_geofence_hysteresis(uint8_t next_range, float dist_m) {
   return next_range;
 }
 
-static void update_led_ui() {
-  if (!LED_UI_ENABLED) {
-    return;
-  }
-  const unsigned long now_ms = millis();
-  if (welcome.active) {
-    update_welcome(now_ms);
-    return;
-  }
-  if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
-    return;
-  }
-  last_led_update_ms = now_ms;
-
-  const bool gps_ok = has_gps_fix;
-  const bool sta_ok = (wifi_sta_connected && WiFi.status() == WL_CONNECTED);
-  const bool sta_try = (!sta_ok && wifi_sta_connecting);
-
-  if (gps_ok || sta_ok) {
-    last_ok_ms = now_ms;
-  }
-
+static void update_gps_fix_timer(unsigned long now_ms, bool gps_ok) {
   if (last_gps_fix_ms == 0) {
     last_gps_fix_ms = now_ms;
   }
@@ -1267,8 +1259,185 @@ static void update_led_ui() {
   } else {
     gps_fix_ms = 0;
   }
+}
 
-  const bool critical_error = (!gps_ok && !sta_ok && (now_ms - last_ok_ms) > CRITICAL_NO_OK_MS);
+static bool compute_critical_error(unsigned long now_ms, bool gps_ok, bool sta_ok) {
+  if (gps_ok || sta_ok) {
+    last_ok_ms = now_ms;
+  }
+  return (!gps_ok && !sta_ok && (now_ms - last_ok_ms) > CRITICAL_NO_OK_MS);
+}
+
+static void paint_status_leds(unsigned long now_ms,
+                              bool gps_ok,
+                              bool sta_ok,
+                              bool sta_try,
+                              bool critical_error) {
+  const Rgb wifi_base = make_rgb(0, 60, 0);
+  const Rgb ap_base = make_rgb(60, 45, 0);
+  const Rgb gps_base = make_rgb(0, 0, 60);
+  const Rgb err_base = make_rgb(60, 0, 0);
+
+  Rgb wifi_color = make_rgb(0, 0, 0);
+  Rgb gps_color = make_rgb(0, 0, 0);
+
+  if (critical_error) {
+    const float blink = (now_ms / 200) % 2 ? 1.0f : 0.0f;
+    wifi_color = scale_rgb(err_base, blink);
+    gps_color = wifi_color;
+  } else {
+    if (wifi_off) {
+      const float pulse = double_pulse_scale(AP_OFF_PULSE_PERIOD_MS, AP_OFF_PULSE_MS);
+      wifi_color = scale_rgb(ap_base, pulse);
+    } else if (!sta_ok && wifi_ssid.length() > 0 && ap_enabled && WiFi.getMode() == WIFI_AP) {
+      wifi_color = err_base;
+    } else if (sta_ok) {
+      wifi_color = wifi_base;
+    } else if (sta_try) {
+      wifi_color = scale_rgb(wifi_base, pulse_scale(1500));
+    } else if (ap_enabled) {
+      if (ap_station_count > 0) {
+        wifi_color = scale_rgb(ap_base, pulse_scale(1500));
+      } else {
+        wifi_color = ap_base;
+      }
+    }
+
+    if (gps_ok) {
+      gps_color = gps_base;
+    } else {
+      gps_color = scale_rgb(gps_base, pulse_scale(1500));
+    }
+  }
+
+  if (LED_STATUS_COUNT > 0) {
+    leds_a[0] = wifi_color;
+    if (LED_STRIP_MODE == 2) {
+      leds_b[0] = wifi_color;
+    }
+  }
+  if (LED_STATUS_COUNT > 1) {
+    leds_a[1] = gps_color;
+    if (LED_STRIP_MODE == 2) {
+      leds_b[1] = gps_color;
+    }
+  }
+  for (int i = 2; i < LED_STATUS_COUNT; ++i) {
+    leds_a[i] = make_rgb(0, 0, 0);
+    if (LED_STRIP_MODE == 2) {
+      leds_b[i] = make_rgb(0, 0, 0);
+    }
+  }
+}
+
+static Rgb random_show_color() {
+  const uint8_t hue = random8(0, 255);
+  const uint8_t sat = random8(200, 255);
+  const uint8_t val = random8(180, 255);
+  return hsv_to_rgb(hue, sat, val);
+}
+
+static void maybe_reset_show_state() {
+  if (show_effect_id == 10) { // FIRE
+    for (int i = 0; i < LED_STRIP_COUNT; ++i) {
+      heat_a[i] = 0;
+      heat_b[i] = 0;
+    }
+  }
+}
+
+static void update_show_mode(unsigned long now_ms) {
+  if (show_first_tick) {
+    show_first_tick = false;
+    show_effect_id = 0;
+    show_effect_since_ms = now_ms;
+    show_base = random_show_color();
+    show_state_a = {};
+    show_state_b = {};
+  }
+
+  if (now_ms - show_effect_since_ms >= SHOW_EFFECT_MS) {
+    show_effect_id = static_cast<uint8_t>((show_effect_id + 1) % EFFECT_COUNT);
+    show_effect_since_ms = now_ms;
+    show_base = random_show_color();
+    maybe_reset_show_state();
+  }
+
+  if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
+    return;
+  }
+  last_led_update_ms = now_ms;
+
+  const bool gps_ok = has_gps_fix;
+  const bool sta_ok = (wifi_sta_connected && WiFi.status() == WL_CONNECTED);
+  const bool sta_try = (!sta_ok && wifi_sta_connecting);
+
+  update_gps_fix_timer(now_ms, gps_ok);
+  const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
+  const bool homogeneous_mode = (wifi_off && gps_fix_ms >= WIFI_OFF_GPS_FIX_MS);
+
+  if (homogeneous_mode) {
+    apply_effect(show_effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, show_base, SHOW_SPEED, SHOW_INTENSITY,
+                 show_state_a);
+    if (LED_STRIP_MODE == 2) {
+      apply_effect(show_effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, show_base, SHOW_SPEED, SHOW_INTENSITY,
+                   show_state_b);
+    }
+    show_leds();
+    return;
+  }
+
+  const int seg_start = LED_STATUS_COUNT;
+  const int seg_count = LED_STRIP_COUNT - LED_STATUS_COUNT;
+  if (seg_count > 0) {
+    apply_effect(show_effect_id, leds_a, heat_a, seg_start, seg_count, show_base, SHOW_SPEED, SHOW_INTENSITY,
+                 show_state_a);
+    if (LED_STRIP_MODE == 2) {
+      apply_effect(show_effect_id, leds_b, heat_b, seg_start, seg_count, show_base, SHOW_SPEED, SHOW_INTENSITY,
+                   show_state_b);
+    }
+  } else {
+    apply_effect(show_effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, show_base, SHOW_SPEED, SHOW_INTENSITY,
+                 show_state_a);
+    if (LED_STRIP_MODE == 2) {
+      apply_effect(show_effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, show_base, SHOW_SPEED, SHOW_INTENSITY,
+                   show_state_b);
+    }
+  }
+
+  paint_status_leds(now_ms, gps_ok, sta_ok, sta_try, critical_error);
+  show_leds();
+}
+
+static void update_led_ui() {
+  if (!LED_UI_ENABLED) {
+    return;
+  }
+  const unsigned long now_ms = millis();
+  if (welcome.active) {
+    update_welcome(now_ms);
+    return;
+  }
+  if (g_cfg.mode != last_mode) {
+    if (g_cfg.mode == MODE_SHOW) {
+      show_first_tick = true;
+    }
+    last_mode = g_cfg.mode;
+  }
+  if (g_cfg.mode == MODE_SHOW) {
+    update_show_mode(now_ms);
+    return;
+  }
+  if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
+    return;
+  }
+  last_led_update_ms = now_ms;
+
+  const bool gps_ok = has_gps_fix;
+  const bool sta_ok = (wifi_sta_connected && WiFi.status() == WL_CONNECTED);
+  const bool sta_try = (!sta_ok && wifi_sta_connecting);
+  update_gps_fix_timer(now_ms, gps_ok);
+  const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
   const bool homogeneous_mode = (wifi_off && gps_fix_ms >= WIFI_OFF_GPS_FIX_MS);
 
   const int seg_start = LED_STATUS_COUNT;
@@ -1342,61 +1511,7 @@ static void update_led_ui() {
     }
   }
 
-  const Rgb wifi_base = make_rgb(0, 60, 0);
-  const Rgb ap_base = make_rgb(60, 45, 0);
-  const Rgb gps_base = make_rgb(0, 0, 60);
-  const Rgb err_base = make_rgb(60, 0, 0);
-
-  Rgb wifi_color = make_rgb(0, 0, 0);
-  Rgb gps_color = make_rgb(0, 0, 0);
-
-  if (critical_error) {
-    const float blink = (now_ms / 200) % 2 ? 1.0f : 0.0f;
-    wifi_color = scale_rgb(err_base, blink);
-    gps_color = wifi_color;
-  } else {
-    if (wifi_off) {
-      const float pulse = double_pulse_scale(AP_OFF_PULSE_PERIOD_MS, AP_OFF_PULSE_MS);
-      wifi_color = scale_rgb(ap_base, pulse);
-    } else if (!sta_ok && wifi_ssid.length() > 0 && ap_enabled && WiFi.getMode() == WIFI_AP) {
-      wifi_color = err_base;
-    } else if (sta_ok) {
-      wifi_color = wifi_base;
-    } else if (sta_try) {
-      wifi_color = scale_rgb(wifi_base, pulse_scale(1500));
-    } else if (ap_enabled) {
-      if (ap_station_count > 0) {
-        wifi_color = scale_rgb(ap_base, pulse_scale(1500));
-      } else {
-        wifi_color = ap_base;
-      }
-    }
-
-    if (gps_ok) {
-      gps_color = gps_base;
-    } else {
-      gps_color = scale_rgb(gps_base, pulse_scale(1500));
-    }
-  }
-
-  if (LED_STATUS_COUNT > 0) {
-    leds_a[0] = wifi_color;
-    if (LED_STRIP_MODE == 2) {
-      leds_b[0] = wifi_color;
-    }
-  }
-  if (LED_STATUS_COUNT > 1) {
-    leds_a[1] = gps_color;
-    if (LED_STRIP_MODE == 2) {
-      leds_b[1] = gps_color;
-    }
-  }
-  for (int i = 2; i < LED_STATUS_COUNT; ++i) {
-    leds_a[i] = make_rgb(0, 0, 0);
-    if (LED_STRIP_MODE == 2) {
-      leds_b[i] = make_rgb(0, 0, 0);
-    }
-  }
+  paint_status_leds(now_ms, gps_ok, sta_ok, sta_try, critical_error);
   show_leds();
 }
 
@@ -1406,7 +1521,7 @@ static String html_config_page() {
       "<meta name='viewport' content='width=device-width,initial-scale=1'>"
       "<title>Config</title>"
       "<style>body{font-family:Arial,sans-serif;margin:20px;color:#111}"
-      "input{width:100%;padding:8px;margin:4px 0}"
+      "input,select{width:100%;padding:8px;margin:4px 0}"
       ".row{display:grid;grid-template-columns:1fr 1fr;gap:10px}"
       "button{padding:10px 14px;border:0;border-radius:6px;background:#111;color:#fff}"
       "</style></head><body>"
@@ -1416,6 +1531,7 @@ static String html_config_page() {
       "<div><label>Modo</label><select id='mode'>"
       "<option value='speed'>Velocidad</option>"
       "<option value='geofence'>Geocerca</option>"
+      "<option value='show'>Show</option>"
       "</select></div>"
       "<div id='speed_block'>"
       "<h3>Speed ranges (kph)</h3>"
