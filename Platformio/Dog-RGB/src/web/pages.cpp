@@ -154,6 +154,7 @@ String web_pages::html_page() {
       <button class="btn ghost" id="home_btn" onclick="updateHome()" style="display:none">Actualizar Home</button>
       <a class="btn ghost" href="/config">Config</a>
       <a class="btn ghost" href="/wifi">Wi-Fi</a>
+      <a class="btn ghost" href="/dev">Dev</a>
     </div>
     <div class="muted" id="status">Estado: --</div>
   </div>
