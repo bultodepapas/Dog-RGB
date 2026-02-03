@@ -1213,6 +1213,24 @@ static void start_welcome() {
   show_leds();
 }
 
+static void apply_welcome_chase(Rgb *leds,
+                                int start,
+                                int count,
+                                const Rgb &base,
+                                uint8_t speed,
+                                uint8_t intensity,
+                                EffectState &state,
+                                bool reverse) {
+  if (count <= 0) {
+    return;
+  }
+  const uint8_t fade_amt = map(255 - intensity, 0, 255, 10, 80);
+  fade_range(leds, start, count, fade_amt);
+  state.pos = (state.pos + step_from_speed(speed, 32)) % count;
+  const uint16_t write_pos = reverse ? static_cast<uint16_t>(count - 1 - state.pos) : state.pos;
+  leds[start + write_pos] = base;
+}
+
 static void update_welcome(unsigned long now_ms) {
   if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
     return;
@@ -1222,11 +1240,11 @@ static void update_welcome(unsigned long now_ms) {
   const Rgb base = WELCOME_COLORS[welcome.color_index];
   const uint16_t prev_pos = welcome_state_a.pos;
 
-  apply_effect(3, leds_a, heat_a, 0, LED_STRIP_COUNT, base,
-               WELCOME_SPEED, WELCOME_INTENSITY, welcome_state_a);
+  apply_welcome_chase(leds_a, 0, LED_STRIP_COUNT, base,
+                      WELCOME_SPEED, WELCOME_INTENSITY, welcome_state_a, false);
   if (LED_STRIP_MODE == 2) {
-    apply_effect(3, leds_b, heat_b, 0, LED_STRIP_COUNT, base,
-                 WELCOME_SPEED, WELCOME_INTENSITY, welcome_state_b);
+    apply_welcome_chase(leds_b, 0, LED_STRIP_COUNT, base,
+                        WELCOME_SPEED, WELCOME_INTENSITY, welcome_state_b, true);
   }
   show_leds();
 
