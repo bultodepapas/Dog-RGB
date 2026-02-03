@@ -105,7 +105,7 @@ static const char *AP_PASS = "Dog123456789"; // AP password (>= 8 chars).
 static const char *MDNS_NAME = "dog-collar"; // mDNS hostname in STA mode.
 static const unsigned long STA_CONNECT_TIMEOUT_MS = 10000; // STA connect timeout.
 static const unsigned long WIFI_RETRY_INTERVAL_MS = 10000; // Watchdog retry interval.
-static const unsigned long AP_IDLE_TIMEOUT_MS = 300000; // AP off if no clients for this long.
+static const unsigned long AP_IDLE_TIMEOUT_MS = 600000; // AP off if no clients for this long.
 static const unsigned long AP_STATIONARY_MS = 120000; // AP on if speed <= threshold for this long.
 static const unsigned long AP_CLIENT_POLL_MS = 1000; // Station count polling interval.
 static const float AP_STATIONARY_ON_KPH = 2.0f; // Enter stationary when <= this speed.
