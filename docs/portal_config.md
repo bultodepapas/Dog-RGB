@@ -10,6 +10,9 @@ Esta documentacion describe el JSON, validaciones, UI y persistencia tal como es
 - `GET /api/config`
 - `POST /api/config` (JSON)
 - `POST /api/config/reset`
+- `GET /api/home`
+- `POST /api/home/set`
+- `POST /api/home/clear`
 
 ---
 
@@ -17,7 +20,9 @@ Esta documentacion describe el JSON, validaciones, UI y persistencia tal como es
 
 ```
 {
-  "version": 2,
+  "version": 3,
+  "mode": "speed",
+  "fence_max_m": 300,
   "led": {
     "brightness": 77
   },
@@ -51,7 +56,9 @@ Notas:
 
 ```
 {
-  "version": 2,
+  "version": 3,
+  "mode": "speed",
+  "fence_max_m": 300,
   "led": {"brightness": 77},
   "speed_ranges_kph": [2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 22.0, 28.0, 34.0],
   "effects": {
@@ -78,6 +85,33 @@ Notas:
 Notas:
 - `ap_pass` es opcional. Si no se envia, se mantiene el valor actual.
 - Si `ap_open` es `true`, el AP se guarda sin password.
+- `mode`: `"speed"` (default) o `"geofence"`.
+- `fence_max_m`: distancia maxima en metros (se divide en 10 rangos iguales).
+
+---
+
+## API Home
+
+`GET /api/home`:
+```
+{
+  "home_set": true,
+  "home_source": "auto",
+  "home_lat": -34.6037,
+  "home_lon": -58.3816,
+  "gps_fix": true,
+  "current_lat": -34.6037,
+  "current_lon": -58.3816,
+  "distance_m": 12.5
+}
+```
+
+`POST /api/home/set`:
+- Usa el GPS actual para setear home.
+- Error si no hay fix: `{"status":"error","reason":"no_gps"}`.
+
+`POST /api/home/clear`:
+- Borra el home guardado.
 
 ---
 
@@ -85,6 +119,8 @@ Notas:
 
 Validaciones:
 - `brightness`: 1..255
+- `mode`: `speed` | `geofence`
+- `fence_max_m`: 50..5000
 - `speed_ranges_kph`: 9 valores > 0, estrictamente ascendentes
 - `effects`: `range1..range10` presentes
 - `effect a/b`: 0..11
@@ -97,6 +133,8 @@ Errores (400) con `{"status":"error","reason":"..."}`:
 - `no body`
 - `bad json`
 - `brightness`
+- `mode`
+- `fence_max`
 - `ranges`
 - `ranges value`
 - `ranges order`
@@ -120,9 +158,15 @@ Respuesta OK:
   - `brightness` (uint8)
   - `ranges` (9 floats)
   - `effects` (10 entradas: effect_a, effect_b, speed, intensity)
+  - `mode` (uint8)
+  - `fence_max` (uint16)
   - `ap_ssid` (string)
   - `ap_pass` (string, puede estar vacio)
   - `mdns` (string)
+  - `home_set` (uint8)
+  - `home_lat` (float)
+  - `home_lon` (float)
+  - `home_src` (uint8, 1=auto, 2=manual)
 
 Al guardar:
 - Se valida, se guarda en NVS y se aplica en caliente.
@@ -131,6 +175,7 @@ Al guardar:
 
 Reset:
 - `POST /api/config/reset` borra `dogrgb_cfg` y vuelve a defaults.
+- Nota: el reset actual borra tambien `home_*`.
 
 ---
 
@@ -138,12 +183,15 @@ Reset:
 
 Campos:
 - Brightness (1..255)
+- Modo (Speed / Geofence)
 - 9 rangos de velocidad (km/h)
+- Distancia maxima geofence (m)
 - Efectos por rango (A/B, speed, intensity)
 - AP SSID
 - AP password (opcional)
 - Checkbox "AP abierto (sin password)"
 - mDNS
+- Home: botones "Nuevo Home (GPS actual)" y "Clear Home"
 
 Acciones:
 - Guardar

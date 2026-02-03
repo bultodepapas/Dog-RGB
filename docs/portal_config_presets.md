@@ -19,16 +19,24 @@ Estado: no implementado en el firmware actual.
 - Brillo bajo
 - Efectos suaves (SOLID/BREATH)
 - Colores frios
+ - Modo: speed
 
 2) Active
 - Brillo medio
 - Efectos dinamicos (CHASE/COMET)
 - Colores mixtos
+ - Modo: speed
 
 3) Sport
 - Brillo medio-alto
 - Efectos rapidos (JUGGLE/BPM)
 - Colores calidos
+ - Modo: speed
+
+4) Geofence (ejemplo)
+- Brillo medio
+- Modo: geofence
+- `fence_max_m` definido por el usuario (default 300)
 
 ---
 
@@ -37,6 +45,8 @@ Estado: no implementado en el firmware actual.
 ```
 {
   "name": "Calm",
+  "mode": "speed",
+  "fence_max_m": 300,
   "brightness": 60,
   "speed_ranges_kph": [2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 22.0, 28.0, 34.0],
   "effects": {
@@ -61,6 +71,7 @@ Estado: no implementado en el firmware actual.
 - Dropdown "Perfil" con presets.
 - Boton "Aplicar perfil".
 - Permitir editar manualmente despues.
+- Preset default: "Velocidad" (speed).
 
 ---
 
@@ -68,3 +79,4 @@ Estado: no implementado en el firmware actual.
 
 - Presets se almacenan en firmware (hardcoded) o en NVS.
 - Cambiar perfil aplica igual que POST /api/config.
+- `home` no forma parte de presets (solo se cambia en la seccion Home del AP).

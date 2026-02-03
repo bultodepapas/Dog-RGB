@@ -63,6 +63,16 @@ static const uint8_t RANGE_10_INTENSITY = 200;
 static const float SPEED_ACTIVE_KPH = 0.7f; // Min speed to count as "active".
 static const float SPEED_MAX_VALID_KPH = 40.0f; // Reject GPS spikes above this.
 
+// Mode defaults and geofence tuning.
+static const uint8_t MODE_SPEED = 0;
+static const uint8_t MODE_GEOFENCE = 1;
+static const uint16_t GEOFENCE_MAX_M_DEFAULT = 300;
+static const uint16_t GEOFENCE_MAX_M_MIN = 50;
+static const uint16_t GEOFENCE_MAX_M_MAX = 5000;
+static const unsigned long HOME_AUTO_FIX_MS = 10000; // Auto-home after GPS fix stable.
+static const float GEOFENCE_HYSTERESIS_PCT = 0.03f;
+static const float GEOFENCE_HYSTERESIS_MIN_M = 5.0f;
+
 // LED hardware (strip size and layout).
 // These are common to change per collar size.
 static const int LED_STRIP_MODE = 2; // 1 = single strip, 2 = dual strips.

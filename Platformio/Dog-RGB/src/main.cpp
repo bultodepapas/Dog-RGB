@@ -102,6 +102,9 @@ static uint16_t last_update_min = 0;
 static bool has_last_point = false;
 static float last_lat_deg = 0.0f;
 static float last_lon_deg = 0.0f;
+static float current_lat_deg = 0.0f;
+static float current_lon_deg = 0.0f;
+static bool has_current_fix = false;
 
 // Daily reset date (YYYYMMDD from GPS).
 static uint32_t current_date_yyyymmdd = 0;
@@ -129,6 +132,15 @@ static unsigned long stationary_ms = 0;
 static unsigned long last_stationary_ms = 0;
 static unsigned long gps_fix_ms = 0;
 static unsigned long last_gps_fix_ms = 0;
+
+// Home (geofence) state.
+static bool home_set = false;
+static float home_lat_deg = 0.0f;
+static float home_lon_deg = 0.0f;
+static uint8_t home_source = 0; // 0=none, 1=auto, 2=manual
+static unsigned long fix_stable_ms = 0;
+static unsigned long last_fix_check_ms = 0;
+static bool last_fix_state = false;
 
 // LED strip configuration is defined in config.h.
 static unsigned long last_led_update_ms = 0;
@@ -160,6 +172,8 @@ struct EffectState {
 static EffectState state_a;
 static EffectState state_b;
 static uint8_t body_idle_hue = 0;
+static uint8_t last_geofence_range = 1;
+static float last_geofence_distance_m = 0.0f;
 
 struct WelcomeState {
   bool active = false;
@@ -195,10 +209,12 @@ struct RuntimeConfig {
   String ap_ssid;
   String ap_pass;
   String mdns;
+  uint8_t mode;
+  uint16_t fence_max_m;
 };
 
 static RuntimeConfig g_cfg;
-static const uint8_t CONFIG_VERSION = 2;
+static const uint8_t CONFIG_VERSION = 3;
 static bool pending_ap_restart = false;
 static unsigned long pending_ap_at_ms = 0;
 static const unsigned long AP_RESTART_DELAY_MS = 500;
@@ -210,6 +226,7 @@ static void enable_ap();
 static void disable_ap();
 static void set_wifi_off(bool off);
 static void update_ap_policy(unsigned long now_ms);
+static bool valid_mdns(const String &value);
 
 static float knots_to_kph(float knots) {
   return knots * 1.852f;
@@ -593,6 +610,45 @@ static bool validate_effects(const RangeEffect *effects) {
   return true;
 }
 
+static const char *mode_name(uint8_t mode) {
+  switch (mode) {
+    case MODE_GEOFENCE:
+      return "geofence";
+    case MODE_SPEED:
+    default:
+      return "speed";
+  }
+}
+
+static bool parse_mode(const char *value, uint8_t &mode_out) {
+  if (value == nullptr) {
+    return false;
+  }
+  if (strcmp(value, "speed") == 0) {
+    mode_out = MODE_SPEED;
+    return true;
+  }
+  if (strcmp(value, "geofence") == 0) {
+    mode_out = MODE_GEOFENCE;
+    return true;
+  }
+  return false;
+}
+
+static bool validate_mode(uint8_t mode) {
+  return (mode == MODE_SPEED || mode == MODE_GEOFENCE);
+}
+
+static uint16_t clamp_fence_max(int value) {
+  if (value < static_cast<int>(GEOFENCE_MAX_M_MIN)) {
+    return GEOFENCE_MAX_M_MIN;
+  }
+  if (value > static_cast<int>(GEOFENCE_MAX_M_MAX)) {
+    return GEOFENCE_MAX_M_MAX;
+  }
+  return static_cast<uint16_t>(value);
+}
+
 static void set_default_config() {
   g_cfg.brightness = LED_BRIGHTNESS;
   g_cfg.ranges[0] = SPEED_RANGE_1_KPH;
@@ -629,6 +685,8 @@ static void set_default_config() {
   g_cfg.ap_ssid = AP_SSID;
   g_cfg.ap_pass = AP_PASS;
   g_cfg.mdns = MDNS_NAME;
+  g_cfg.mode = MODE_SPEED;
+  g_cfg.fence_max_m = GEOFENCE_MAX_M_DEFAULT;
 }
 
 static void save_config() {
@@ -639,37 +697,64 @@ static void save_config() {
   prefs_cfg.putString("ap_ssid", g_cfg.ap_ssid);
   prefs_cfg.putString("ap_pass", g_cfg.ap_pass);
   prefs_cfg.putString("mdns", g_cfg.mdns);
+  prefs_cfg.putUChar("mode", g_cfg.mode);
+  prefs_cfg.putUShort("fence_max", g_cfg.fence_max_m);
+}
+
+static bool read_common_config(RuntimeConfig &cfg) {
+  cfg.brightness = prefs_cfg.getUChar("brightness", LED_BRIGHTNESS);
+  if (cfg.brightness < 1) {
+    return false;
+  }
+  if (prefs_cfg.getBytes("ranges", cfg.ranges, sizeof(cfg.ranges)) != sizeof(cfg.ranges)) {
+    return false;
+  }
+  if (prefs_cfg.getBytes("effects", cfg.effects, sizeof(cfg.effects)) != sizeof(cfg.effects)) {
+    return false;
+  }
+  cfg.ap_ssid = prefs_cfg.getString("ap_ssid", AP_SSID);
+  cfg.ap_pass = prefs_cfg.getString("ap_pass", AP_PASS);
+  cfg.mdns = prefs_cfg.getString("mdns", MDNS_NAME);
+  if (!validate_ranges(cfg.ranges) || !validate_effects(cfg.effects)) {
+    return false;
+  }
+  return true;
 }
 
 static void load_config() {
-  if (prefs_cfg.getUChar("ver", 0) != CONFIG_VERSION) {
-    set_default_config();
-    save_config();
+  const uint8_t ver = prefs_cfg.getUChar("ver", 0);
+  if (ver == CONFIG_VERSION) {
+    RuntimeConfig next = g_cfg;
+    if (!read_common_config(next)) {
+      set_default_config();
+      save_config();
+      return;
+    }
+    next.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
+    next.fence_max_m = prefs_cfg.getUShort("fence_max", GEOFENCE_MAX_M_DEFAULT);
+    if (!validate_mode(next.mode)) {
+      next.mode = MODE_SPEED;
+    }
+    next.fence_max_m = clamp_fence_max(next.fence_max_m);
+    g_cfg = next;
     return;
   }
 
-  g_cfg.brightness = prefs_cfg.getUChar("brightness", LED_BRIGHTNESS);
-  if (g_cfg.brightness < 1) {
-    g_cfg.brightness = LED_BRIGHTNESS;
-  }
-  if (prefs_cfg.getBytes("ranges", g_cfg.ranges, sizeof(g_cfg.ranges)) != sizeof(g_cfg.ranges)) {
+  if (ver == 2) {
+    RuntimeConfig migrated = g_cfg;
     set_default_config();
-    save_config();
-    return;
+    migrated = g_cfg;
+    if (read_common_config(migrated)) {
+      migrated.mode = MODE_SPEED;
+      migrated.fence_max_m = GEOFENCE_MAX_M_DEFAULT;
+      g_cfg = migrated;
+      save_config();
+      return;
+    }
   }
-  if (prefs_cfg.getBytes("effects", g_cfg.effects, sizeof(g_cfg.effects)) != sizeof(g_cfg.effects)) {
-    set_default_config();
-    save_config();
-    return;
-  }
-  g_cfg.ap_ssid = prefs_cfg.getString("ap_ssid", AP_SSID);
-  g_cfg.ap_pass = prefs_cfg.getString("ap_pass", AP_PASS);
-  g_cfg.mdns = prefs_cfg.getString("mdns", MDNS_NAME);
 
-  if (!validate_ranges(g_cfg.ranges) || !validate_effects(g_cfg.effects)) {
-    set_default_config();
-    save_config();
-  }
+  set_default_config();
+  save_config();
 }
 
 static void apply_config(const RuntimeConfig &previous) {
@@ -685,6 +770,42 @@ static void apply_config(const RuntimeConfig &previous) {
       MDNS.begin(g_cfg.mdns.c_str());
     }
   }
+}
+
+static void load_home() {
+  home_set = (prefs_cfg.getUChar("home_set", 0) == 1);
+  home_lat_deg = prefs_cfg.getFloat("home_lat", 0.0f);
+  home_lon_deg = prefs_cfg.getFloat("home_lon", 0.0f);
+  home_source = prefs_cfg.getUChar("home_src", 0);
+  if (!home_set) {
+    home_source = 0;
+  }
+}
+
+static void save_home() {
+  prefs_cfg.putUChar("home_set", home_set ? 1 : 0);
+  prefs_cfg.putUChar("home_src", home_source);
+  if (home_set) {
+    prefs_cfg.putFloat("home_lat", home_lat_deg);
+    prefs_cfg.putFloat("home_lon", home_lon_deg);
+  } else {
+    prefs_cfg.remove("home_lat");
+    prefs_cfg.remove("home_lon");
+  }
+}
+
+static void set_home(float lat_deg, float lon_deg, uint8_t source) {
+  home_set = true;
+  home_lat_deg = lat_deg;
+  home_lon_deg = lon_deg;
+  home_source = source;
+  save_home();
+}
+
+static void clear_home() {
+  home_set = false;
+  home_source = 0;
+  save_home();
 }
 
 static String html_page() {
@@ -1038,6 +1159,82 @@ static void update_welcome(unsigned long now_ms) {
   }
 }
 
+static void update_fix_stability(unsigned long now_ms) {
+  if (last_fix_check_ms == 0) {
+    last_fix_check_ms = now_ms;
+  }
+  const unsigned long dt = now_ms - last_fix_check_ms;
+  last_fix_check_ms = now_ms;
+
+  if (has_gps_fix) {
+    if (last_fix_state) {
+      fix_stable_ms = (fix_stable_ms + dt > HOME_AUTO_FIX_MS) ? HOME_AUTO_FIX_MS : (fix_stable_ms + dt);
+    } else {
+      fix_stable_ms = 0;
+    }
+  } else {
+    fix_stable_ms = 0;
+  }
+  last_fix_state = has_gps_fix;
+}
+
+static void maybe_auto_set_home() {
+  if (home_set) {
+    return;
+  }
+  if (has_gps_fix && has_current_fix && fix_stable_ms >= HOME_AUTO_FIX_MS) {
+    set_home(current_lat_deg, current_lon_deg, 1);
+  }
+}
+
+static float distance_to_home_m() {
+  if (!home_set || !has_current_fix) {
+    return -1.0f;
+  }
+  return haversine_m(current_lat_deg, current_lon_deg, home_lat_deg, home_lon_deg);
+}
+
+static uint8_t geofence_range(float dist_m) {
+  if (dist_m <= 0.0f) {
+    return 1;
+  }
+  const float step = static_cast<float>(g_cfg.fence_max_m) / 10.0f;
+  if (step <= 0.0f) {
+    return 1;
+  }
+  for (int i = 1; i <= 9; ++i) {
+    if (dist_m <= step * i) {
+      return static_cast<uint8_t>(i);
+    }
+  }
+  return 10;
+}
+
+static uint8_t apply_geofence_hysteresis(uint8_t next_range, float dist_m) {
+  if (next_range == last_geofence_range) {
+    last_geofence_distance_m = dist_m;
+    return next_range;
+  }
+  const float step = static_cast<float>(g_cfg.fence_max_m) / 10.0f;
+  const float margin = max(GEOFENCE_HYSTERESIS_MIN_M, step * GEOFENCE_HYSTERESIS_PCT);
+  const float current_edge = static_cast<float>(last_geofence_range) * step;
+
+  if (next_range > last_geofence_range) {
+    if (dist_m < current_edge + margin) {
+      return last_geofence_range;
+    }
+  } else if (next_range < last_geofence_range) {
+    const float lower_edge = static_cast<float>(last_geofence_range - 1) * step;
+    if (dist_m > lower_edge - margin) {
+      return last_geofence_range;
+    }
+  }
+
+  last_geofence_range = next_range;
+  last_geofence_distance_m = dist_m;
+  return next_range;
+}
+
 static void update_led_ui() {
   if (!LED_UI_ENABLED) {
     return;
@@ -1074,18 +1271,46 @@ static void update_led_ui() {
   const bool critical_error = (!gps_ok && !sta_ok && (now_ms - last_ok_ms) > CRITICAL_NO_OK_MS);
   const bool homogeneous_mode = (wifi_off && gps_fix_ms >= WIFI_OFF_GPS_FIX_MS);
 
-  const bool body_on = gps_ok;
   const int seg_start = LED_STATUS_COUNT;
   const int seg_count = LED_STRIP_COUNT - LED_STATUS_COUNT;
-  const uint8_t range = speed_range(last_speed_kph);
+  bool body_idle = false;
+  bool home_missing = false;
+  uint8_t range = 1;
+  float geofence_dist_m = -1.0f;
+
+  if (g_cfg.mode == MODE_GEOFENCE) {
+    if (!gps_ok) {
+      body_idle = true;
+    } else if (!home_set) {
+      home_missing = true;
+    } else {
+      geofence_dist_m = distance_to_home_m();
+      if (geofence_dist_m < 0.0f) {
+        body_idle = true;
+      } else {
+        range = geofence_range(geofence_dist_m);
+        range = apply_geofence_hysteresis(range, geofence_dist_m);
+      }
+    }
+  } else {
+    if (!gps_ok) {
+      body_idle = true;
+    } else {
+      range = speed_range(last_speed_kph);
+    }
+  }
+
+  const bool has_range = (!body_idle && !home_missing);
   int effect_a = RANGE_1_EFFECT_A;
   int effect_b = RANGE_1_EFFECT_B;
   uint8_t eff_speed = RANGE_1_SPEED;
   uint8_t eff_intensity = RANGE_1_INTENSITY;
-  get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
+  if (has_range) {
+    get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
+  }
   const Rgb base = base_color_for_range(range);
 
-  if (homogeneous_mode) {
+  if (homogeneous_mode && has_range) {
     apply_effect(effect_a, leds_a, heat_a, 0, LED_STRIP_COUNT, base, eff_speed, eff_intensity, state_a);
     if (LED_STRIP_MODE == 2) {
       apply_effect(effect_b, leds_b, heat_b, 0, LED_STRIP_COUNT, base, eff_speed, eff_intensity, state_b);
@@ -1094,7 +1319,13 @@ static void update_led_ui() {
     return;
   }
 
-  if (body_on && seg_count > 0) {
+  if (home_missing && seg_count > 0) {
+    const Rgb home_base = make_rgb(60, 45, 0);
+    apply_effect(2, leds_a, heat_a, seg_start, seg_count, home_base, 60, 120, state_a);
+    if (LED_STRIP_MODE == 2) {
+      apply_effect(2, leds_b, heat_b, seg_start, seg_count, home_base, 60, 120, state_b);
+    }
+  } else if (has_range && seg_count > 0) {
     apply_effect(effect_a, leds_a, heat_a, seg_start, seg_count, base, eff_speed, eff_intensity, state_a);
     if (LED_STRIP_MODE == 2) {
       apply_effect(effect_b, leds_b, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
@@ -1181,6 +1412,12 @@ static String html_config_page() {
       "</style></head><body>"
       "<h1>Config</h1>"
       "<div><label>Brightness</label><input id='brightness' type='number' min='1' max='255'></div>"
+      "<h3>Modo</h3>"
+      "<div><label>Modo</label><select id='mode'>"
+      "<option value='speed'>Velocidad</option>"
+      "<option value='geofence'>Geocerca</option>"
+      "</select></div>"
+      "<div id='speed_block'>"
       "<h3>Speed ranges (kph)</h3>"
       "<div class='row'>"
       "<input id='r1' type='number' step='0.1'><input id='r2' type='number' step='0.1'>"
@@ -1188,6 +1425,16 @@ static String html_config_page() {
       "<input id='r5' type='number' step='0.1'><input id='r6' type='number' step='0.1'>"
       "<input id='r7' type='number' step='0.1'><input id='r8' type='number' step='0.1'>"
       "<input id='r9' type='number' step='0.1'>"
+      "</div></div>"
+      "<div id='geofence_block'>"
+      "<h3>Geofence</h3>"
+      "<div><label>Distancia maxima (m)</label><input id='fence_max' type='number' min='50' max='5000'></div>"
+      "<div id='fence_ranges' style='font-size:12px;color:#555'></div>"
+      "<div style='margin:8px 0'>"
+      "<button type='button' onclick='setHome()'>Nuevo Home (GPS actual)</button> "
+      "<button type='button' onclick='clearHome()'>Clear Home</button>"
+      "</div>"
+      "<div id='home_status' style='font-size:12px;color:#555'></div>"
       "</div>"
       "<h3>Effects (range 1-10)</h3>"
       "<div id='effects'></div>"
@@ -1204,6 +1451,12 @@ static String html_config_page() {
       "<p><a href='/'>Volver</a></p>"
       "<script>"
       "const effectsDiv=document.getElementById('effects');"
+      "const modeEl=document.getElementById('mode');"
+      "const speedBlock=document.getElementById('speed_block');"
+      "const geofenceBlock=document.getElementById('geofence_block');"
+      "const fenceMax=document.getElementById('fence_max');"
+      "const fenceRanges=document.getElementById('fence_ranges');"
+      "const homeStatus=document.getElementById('home_status');"
       "for(let i=1;i<=10;i++){"
       "effectsDiv.innerHTML+=`<div class='row'>"
       "<input id='e${i}a' type='number' min='0' max='11' placeholder='R${i} A'>"
@@ -1211,8 +1464,36 @@ static String html_config_page() {
       "<input id='e${i}s' type='number' min='0' max='255' placeholder='R${i} Speed'>"
       "<input id='e${i}i' type='number' min='0' max='255' placeholder='R${i} Intensity'>"
       "</div>`;}"
+      "function updateFenceRanges(){"
+      "const max=parseFloat(fenceMax.value||'0');"
+      "if(!max||max<=0){fenceRanges.innerText='';return;}"
+      "const step=max/10;"
+      "let html='';"
+      "for(let i=1;i<=10;i++){"
+      "const a=((i-1)*step).toFixed(1);"
+      "const b=(i*step).toFixed(1);"
+      "html+=`R${i}: ${a} - ${b} m<br>`;"
+      "}"
+      "fenceRanges.innerHTML=html;"
+      "}"
+      "function updateModeVisibility(){"
+      "if(modeEl.value==='geofence'){geofenceBlock.style.display='block';speedBlock.style.display='none';}"
+      "else{geofenceBlock.style.display='none';speedBlock.style.display='block';}"
+      "}"
+      "function loadHome(){"
+      "fetch('/api/home').then(r=>r.json()).then(h=>{"
+      "if(!h.home_set){homeStatus.innerText='Home: no definido (auto 10s con fix)';return;}"
+      "let src=h.home_source||'auto';"
+      "let dist=h.distance_m>=0?` | dist ${h.distance_m.toFixed(1)} m`:'';"
+      "homeStatus.innerText=`Home (${src}): ${h.home_lat.toFixed(6)}, ${h.home_lon.toFixed(6)}${dist}`;"
+      "}).catch(()=>{homeStatus.innerText='Home: error';});"
+      "}"
+      "modeEl.onchange=updateModeVisibility;"
+      "fenceMax.oninput=updateFenceRanges;"
       "fetch('/api/config').then(r=>r.json()).then(c=>{"
       "document.getElementById('brightness').value=c.led.brightness;"
+      "modeEl.value=c.mode||'speed';"
+      "fenceMax.value=c.fence_max_m||300;"
       "document.getElementById('r1').value=c.speed_ranges_kph[0];"
       "document.getElementById('r2').value=c.speed_ranges_kph[1];"
       "document.getElementById('r3').value=c.speed_ranges_kph[2];"
@@ -1233,13 +1514,17 @@ static String html_config_page() {
       "document.getElementById('mdns').value=c.wifi.mdns;"
       "document.getElementById('ap_open').checked=!c.wifi.has_ap_pass;"
       "document.getElementById('ap_hint').innerText=c.wifi.has_ap_pass?'Password configurada':'AP abierto';"
+      "updateModeVisibility();"
+      "updateFenceRanges();"
+      "loadHome();"
       "});"
       "function saveCfg(){"
       "if(ap_ssid.value!==''||ap_pass.value!==''||mdns.value!==''||ap_open.checked){"
       "ap_warn.innerText='Nota: cambiar AP puede desconectar la sesion.';"
       "if(!confirm('Guardar cambios? El AP puede reiniciarse.')){return;}"
       "}"
-      "const cfg={version:2,led:{brightness:parseInt(brightness.value)},"
+      "const cfg={version:3,mode:modeEl.value,fence_max_m:parseInt(fenceMax.value||'300'),"
+      "led:{brightness:parseInt(brightness.value)},"
       "speed_ranges_kph:[parseFloat(r1.value),parseFloat(r2.value),parseFloat(r3.value),parseFloat(r4.value),parseFloat(r5.value),"
       "parseFloat(r6.value),parseFloat(r7.value),parseFloat(r8.value),parseFloat(r9.value)],"
       "effects:{}};"
@@ -1253,6 +1538,18 @@ static String html_config_page() {
       ".then(r=>r.json()).then(r=>{"
       "status.innerText=r.status+(r.wifi_restart?' (reiniciando AP)':'');"
       "}).catch(()=>{status.innerText='error'});"
+      "}"
+      "function setHome(){"
+      "fetch('/api/home/set',{method:'POST'}).then(r=>r.json()).then(r=>{"
+      "homeStatus.innerText=r.status==='ok'?'Home actualizado':'Home error';"
+      "loadHome();"
+      "}).catch(()=>{homeStatus.innerText='Home error';});"
+      "}"
+      "function clearHome(){"
+      "fetch('/api/home/clear',{method:'POST'}).then(r=>r.json()).then(r=>{"
+      "homeStatus.innerText=r.status==='ok'?'Home borrado':'';"
+      "loadHome();"
+      "}).catch(()=>{homeStatus.innerText='Home error';});"
       "}"
       "function resetCfg(){"
       "if(!confirm('Restaurar defaults y reiniciar AP si aplica?')){return;}"
@@ -1277,6 +1574,8 @@ static void handle_summary() {
 static void handle_config_get() {
   StaticJsonDocument<3072> doc;
   doc["version"] = CONFIG_VERSION;
+  doc["mode"] = mode_name(g_cfg.mode);
+  doc["fence_max_m"] = g_cfg.fence_max_m;
   doc["led"]["brightness"] = g_cfg.brightness;
   JsonArray ranges = doc["speed_ranges_kph"].to<JsonArray>();
   for (int i = 0; i < 9; ++i) {
@@ -1335,6 +1634,25 @@ static void handle_config_post() {
     return;
   }
   next.brightness = static_cast<uint8_t>(brightness);
+
+  if (doc.containsKey("mode")) {
+    const char *mode_str = doc["mode"];
+    uint8_t parsed_mode = next.mode;
+    if (!parse_mode(mode_str, parsed_mode)) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"mode\"}");
+      return;
+    }
+    next.mode = parsed_mode;
+  }
+
+  if (doc.containsKey("fence_max_m")) {
+    const int fence_max = doc["fence_max_m"] | static_cast<int>(next.fence_max_m);
+    if (fence_max < GEOFENCE_MAX_M_MIN || fence_max > GEOFENCE_MAX_M_MAX) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"fence_max\"}");
+      return;
+    }
+    next.fence_max_m = static_cast<uint16_t>(fence_max);
+  }
 
   JsonArray ranges = doc["speed_ranges_kph"].as<JsonArray>();
   if (ranges.size() != 9) {
@@ -1431,6 +1749,48 @@ static void handle_config_reset() {
 
 static void handle_config_page() {
   server.send(200, "text/html", html_config_page());
+}
+
+static const char *home_source_name(uint8_t source) {
+  switch (source) {
+    case 2:
+      return "manual";
+    case 1:
+      return "auto";
+    default:
+      return "none";
+  }
+}
+
+static void handle_home_get() {
+  StaticJsonDocument<512> doc;
+  doc["home_set"] = home_set;
+  doc["home_source"] = home_source_name(home_source);
+  doc["home_lat"] = home_set ? home_lat_deg : 0.0f;
+  doc["home_lon"] = home_set ? home_lon_deg : 0.0f;
+  doc["gps_fix"] = has_gps_fix;
+  doc["current_lat"] = has_current_fix ? current_lat_deg : 0.0f;
+  doc["current_lon"] = has_current_fix ? current_lon_deg : 0.0f;
+  const float dist = distance_to_home_m();
+  doc["distance_m"] = (dist >= 0.0f) ? dist : -1.0f;
+
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
+}
+
+static void handle_home_set() {
+  if (!has_gps_fix || !has_current_fix) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no_gps\"}");
+    return;
+  }
+  set_home(current_lat_deg, current_lon_deg, 2);
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+static void handle_home_clear() {
+  clear_home();
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
 static void handle_wifi_save() {
@@ -1609,6 +1969,9 @@ static void setup_http() {
   server.on("/api/config", HTTP_POST, handle_config_post);
   server.on("/api/config/reset", HTTP_POST, handle_config_reset);
   server.on("/config", HTTP_GET, handle_config_page);
+  server.on("/api/home", HTTP_GET, handle_home_get);
+  server.on("/api/home/set", HTTP_POST, handle_home_set);
+  server.on("/api/home/clear", HTTP_POST, handle_home_clear);
   server.on("/wifi", HTTP_GET, handle_wifi_page);
   server.on("/api/wifi", HTTP_POST, handle_wifi_save);
   server.begin();
@@ -1660,8 +2023,13 @@ static void handle_nmea_line(const char *line) {
     last_gps_ms = millis();
     last_update_min = time_min;
     if (valid_fix) {
+      current_lat_deg = lat_deg;
+      current_lon_deg = lon_deg;
+      has_current_fix = true;
       gps_rmc_valid++;
       gps_last_fix_ms = last_gps_ms;
+    } else {
+      has_current_fix = false;
     }
 
     if (date_yyyymmdd != 0 && date_yyyymmdd != current_date_yyyymmdd) {
@@ -1736,6 +2104,7 @@ void setup() {
   prefs_cfg.begin("dogrgb_cfg", false);
   load_metrics();
   load_config();
+  load_home();
   if (LED_UI_ENABLED) {
     led_begin();
     start_welcome();
@@ -1756,6 +2125,8 @@ void setup() {
 void loop() {
   const unsigned long now_ms = millis();
   read_gps();
+  update_fix_stability(now_ms);
+  maybe_auto_set_home();
 
   // Periodic persistence to avoid flash wear.
   if (now_ms - last_save_ms >= SAVE_INTERVAL_MS) {
@@ -1870,12 +2241,40 @@ void loop() {
 
     const int seg_start = LED_STATUS_COUNT;
     const int seg_count = LED_STRIP_COUNT - LED_STATUS_COUNT;
-    const uint8_t range = speed_range(last_speed_kph);
+    bool body_idle = false;
+    bool home_missing = false;
+    uint8_t range = 1;
+    float geofence_dist_m = -1.0f;
+
+    if (g_cfg.mode == MODE_GEOFENCE) {
+      if (!gps_ok) {
+        body_idle = true;
+      } else if (!home_set) {
+        home_missing = true;
+      } else {
+        geofence_dist_m = distance_to_home_m();
+        if (geofence_dist_m < 0.0f) {
+          body_idle = true;
+        } else {
+          range = geofence_range(geofence_dist_m);
+        }
+      }
+    } else {
+      if (!gps_ok) {
+        body_idle = true;
+      } else {
+        range = speed_range(last_speed_kph);
+      }
+    }
+
+    const bool has_range = (!body_idle && !home_missing);
     int effect_a = RANGE_1_EFFECT_A;
     int effect_b = RANGE_1_EFFECT_B;
     uint8_t eff_speed = RANGE_1_SPEED;
     uint8_t eff_intensity = RANGE_1_INTENSITY;
-    get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
+    if (has_range) {
+      get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
+    }
     const Rgb base = base_color_for_range(range);
 
     uint8_t sr = 0;
@@ -1913,7 +2312,15 @@ void loop() {
       sb = clamp_u8(static_cast<int>(60 * sscale));
     }
 
-    Serial.print("[LED] status_leds=0..");
+    Serial.print("[LED] mode=");
+    Serial.print(mode_name(g_cfg.mode));
+    if (g_cfg.mode == MODE_GEOFENCE) {
+      Serial.print(" dist_m=");
+      Serial.print(geofence_dist_m, 1);
+      Serial.print(" fence_max=");
+      Serial.print(g_cfg.fence_max_m);
+    }
+    Serial.print(" status_leds=0..");
     Serial.print(LED_STATUS_COUNT - 1);
     Serial.print(" status=");
     Serial.print(status_text);
@@ -1924,7 +2331,9 @@ void loop() {
     Serial.print(",");
     Serial.print(sb);
     Serial.print(" body_on=");
-    Serial.print(gps_ok ? "1" : "0");
+    Serial.print(has_range ? "1" : "0");
+    Serial.print(" home_missing=");
+    Serial.print(home_missing ? "1" : "0");
     Serial.print(" range=");
     Serial.print(range);
     Serial.print(" effect_a=");

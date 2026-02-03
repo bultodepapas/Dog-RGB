@@ -61,7 +61,29 @@ Nota: el firmware descarta picos por encima de 40 km/h (SPEED_MAX_VALID_KPH).
 
 ---
 
-## 4) Efectos default por rango (tira A y B iguales)
+## 4) Modo geocerca (Geofence)
+
+En modo geocerca, el color indica **distancia a "home"**.
+
+- `fence_max_m` define la distancia maxima.
+- Se divide en 10 rangos iguales:
+  - `step = fence_max_m / 10`
+  - R1: 0..step
+  - ...
+  - R10: >9*step
+
+Default actual: `fence_max_m = 300` (step = 30 m)
+
+Colores: se reusa el mismo gradiente (cian -> rojo). Mas lejos = mas "caliente".
+
+Comportamientos especiales:
+- Sin GPS fix: rainbow animado (igual que modo velocidad).
+- Sin home: efecto BREATH ambar en el Segmento Resto hasta que se setee home.
+- Home se fija automaticamente **10 s** despues de obtener fix estable, salvo que el usuario lo cambie en el AP.
+
+---
+
+## 5) Efectos default por rango (tira A y B iguales)
 
 - R1 (<=2.0): SOLID / SOLID (speed 40, intensity 80)
 - R2 (<=4.0): PULSE / PULSE (58, 95)
@@ -76,7 +98,7 @@ Nota: el firmware descarta picos por encima de 40 km/h (SPEED_MAX_VALID_KPH).
 
 ---
 
-## 5) Defaults relevantes
+## 6) Defaults relevantes
 
 - LED_STRIP_MODE = 2 (doble tira)
 - LED_STRIP_COUNT = 24 (LEDs por tira)
@@ -84,9 +106,11 @@ Nota: el firmware descarta picos por encima de 40 km/h (SPEED_MAX_VALID_KPH).
 - LED_BRIGHTNESS = 77 (~30%)
 - LED_UPDATE_MS = 50 (refresh del UI LED)
 - SPEED_RANGE_1..9 = 2.0 / 4.0 / 6.0 / 8.0 / 12.0 / 16.0 / 22.0 / 28.0 / 34.0 km/h
+- GEOFENCE_MAX_M_DEFAULT = 300 m
+- HOME_AUTO_FIX_MS = 10000 ms
 
 ---
 
-## 6) Si cambias la configuracion
+## 7) Si cambias la configuracion
 
 Si ajustas `LED_STRIP_COUNT`, `LED_STATUS_COUNT` o los rangos de velocidad en `Platformio/Dog-RGB/include/config.h`, este manual deja de ser exacto. Recomiendo actualizar esta tabla cuando cambies defaults.
