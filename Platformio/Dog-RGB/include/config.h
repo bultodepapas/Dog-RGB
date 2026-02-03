@@ -7,35 +7,35 @@ static const float SPEED_RANGE_1_KPH = 2.0f;
 static const float SPEED_RANGE_2_KPH = 4.0f;
 static const float SPEED_RANGE_3_KPH = 6.0f;
 static const float SPEED_RANGE_4_KPH = 8.0f;
-static const float SPEED_RANGE_5_KPH = 12.0f;
-static const float SPEED_RANGE_6_KPH = 16.0f;
-static const float SPEED_RANGE_7_KPH = 22.0f;
-static const float SPEED_RANGE_8_KPH = 28.0f;
-static const float SPEED_RANGE_9_KPH = 34.0f;
+static const float SPEED_RANGE_5_KPH = 10.0f;
+static const float SPEED_RANGE_6_KPH = 12.0f;
+static const float SPEED_RANGE_7_KPH = 14.0f;
+static const float SPEED_RANGE_8_KPH = 16.0f;
+static const float SPEED_RANGE_9_KPH = 18.0f;
 
 // Effect selection for Segment B.
 // 0=SOLID, 1=PULSE, 2=BREATH, 3=CHASE, 4=COMET, 5=SINELON,
 // 6=CONFETTI, 7=JUGGLE, 8=BPM, 9=RAINBOW, 10=FIRE, 11=GRADIENT_WAVE
-static const int RANGE_1_EFFECT_A = 0;
-static const int RANGE_1_EFFECT_B = 0;
-static const int RANGE_2_EFFECT_A = 1;
-static const int RANGE_2_EFFECT_B = 1;
-static const int RANGE_3_EFFECT_A = 2;
-static const int RANGE_3_EFFECT_B = 2;
-static const int RANGE_4_EFFECT_A = 3;
-static const int RANGE_4_EFFECT_B = 3;
-static const int RANGE_5_EFFECT_A = 5;
-static const int RANGE_5_EFFECT_B = 5;
+static const int RANGE_1_EFFECT_A = 7;
+static const int RANGE_1_EFFECT_B = 7;
+static const int RANGE_2_EFFECT_A = 7;
+static const int RANGE_2_EFFECT_B = 7;
+static const int RANGE_3_EFFECT_A = 7;
+static const int RANGE_3_EFFECT_B = 7;
+static const int RANGE_4_EFFECT_A = 7;
+static const int RANGE_4_EFFECT_B = 7;
+static const int RANGE_5_EFFECT_A = 7;
+static const int RANGE_5_EFFECT_B = 7;
 static const int RANGE_6_EFFECT_A = 7;
 static const int RANGE_6_EFFECT_B = 7;
-static const int RANGE_7_EFFECT_A = 8;
-static const int RANGE_7_EFFECT_B = 8;
-static const int RANGE_8_EFFECT_A = 9;
-static const int RANGE_8_EFFECT_B = 9;
-static const int RANGE_9_EFFECT_A = 11;
-static const int RANGE_9_EFFECT_B = 11;
-static const int RANGE_10_EFFECT_A = 10;
-static const int RANGE_10_EFFECT_B = 10;
+static const int RANGE_7_EFFECT_A = 7;
+static const int RANGE_7_EFFECT_B = 7;
+static const int RANGE_8_EFFECT_A = 7;
+static const int RANGE_8_EFFECT_B = 7;
+static const int RANGE_9_EFFECT_A = 7;
+static const int RANGE_9_EFFECT_B = 7;
+static const int RANGE_10_EFFECT_A = 7;
+static const int RANGE_10_EFFECT_B = 7;
 
 // Effect tuning per range (0-255).
 static const uint8_t RANGE_1_SPEED = 40;
@@ -67,6 +67,7 @@ static const float SPEED_MAX_VALID_KPH = 40.0f; // Reject GPS spikes above this.
 static const uint8_t MODE_SPEED = 0;
 static const uint8_t MODE_GEOFENCE = 1;
 static const uint8_t MODE_SHOW = 2;
+static const uint8_t MODE_SIMPLE = 3;
 static const uint16_t GEOFENCE_MAX_M_DEFAULT = 300;
 static const uint16_t GEOFENCE_MAX_M_MIN = 50;
 static const uint16_t GEOFENCE_MAX_M_MAX = 5000;
@@ -91,6 +92,12 @@ static const uint8_t EFFECT_COUNT = 12; // IDs 0..11
 static const unsigned long SHOW_EFFECT_MS = 15000;
 static const uint8_t SHOW_SPEED = 150;
 static const uint8_t SHOW_INTENSITY = 200;
+static const uint8_t SINGLE_EFFECT_DEFAULT = 0; // SOLID
+static const uint8_t SINGLE_SPEED_DEFAULT = 80;
+static const uint8_t SINGLE_INTENSITY_DEFAULT = 140;
+static const uint8_t SINGLE_R_DEFAULT = 0;
+static const uint8_t SINGLE_G_DEFAULT = 60;
+static const uint8_t SINGLE_B_DEFAULT = 60;
 
 // Wi-Fi settings (less common to change).
 static const char *AP_SSID = "dog"; // AP name for direct connection.

@@ -69,11 +69,11 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
 - SPEED_RANGE_2_KPH: 4.0
 - SPEED_RANGE_3_KPH: 6.0
 - SPEED_RANGE_4_KPH: 8.0
-- SPEED_RANGE_5_KPH: 12.0
-- SPEED_RANGE_6_KPH: 16.0
-- SPEED_RANGE_7_KPH: 22.0
-- SPEED_RANGE_8_KPH: 28.0
-- SPEED_RANGE_9_KPH: 34.0
+- SPEED_RANGE_5_KPH: 10.0
+- SPEED_RANGE_6_KPH: 12.0
+- SPEED_RANGE_7_KPH: 14.0
+- SPEED_RANGE_8_KPH: 16.0
+- SPEED_RANGE_9_KPH: 18.0
 
 Efectos por rango (motor actual, ver `docs/led_effects.md`):
 - RANGE_1_EFFECT_A / RANGE_1_EFFECT_B
@@ -86,7 +86,7 @@ Efectos por rango (motor actual, ver `docs/led_effects.md`):
 - RANGE_8_EFFECT_A / RANGE_8_EFFECT_B
 - RANGE_9_EFFECT_A / RANGE_9_EFFECT_B
 - RANGE_10_EFFECT_A / RANGE_10_EFFECT_B
-  - Defaults: A y B usan el mismo efecto por rango.
+  - Defaults: A y B usan el mismo efecto (JUGGLE) en todos los rangos.
 
 Velocidad e intensidad por rango:
 - RANGE_1_SPEED / RANGE_1_INTENSITY
@@ -105,12 +105,12 @@ Mapeo de color:
 - 2.0 - 4.0 km/h: Verde-cian (0, 60, 35)
 - 4.0 - 6.0 km/h: Verde (0, 60, 0)
 - 6.0 - 8.0 km/h: Verde-lima (25, 60, 0)
-- 8.0 - 12.0 km/h: Amarillo (60, 60, 0)
-- 12.0 - 16.0 km/h: Ambar (60, 45, 0)
-- 16.0 - 22.0 km/h: Naranja (60, 30, 0)
-- 22.0 - 28.0 km/h: Naranja intenso (60, 20, 0)
-- 28.0 - 34.0 km/h: Rojo-naranja (60, 10, 0)
-- > 34.0 km/h: Rojo (critico) (60, 0, 0)
+- 8.0 - 10.0 km/h: Amarillo (60, 60, 0)
+- 10.0 - 12.0 km/h: Ambar (60, 45, 0)
+- 12.0 - 14.0 km/h: Naranja (60, 30, 0)
+- 14.0 - 16.0 km/h: Naranja intenso (60, 20, 0)
+- 16.0 - 18.0 km/h: Rojo-naranja (60, 10, 0)
+- > 18.0 km/h: Rojo (critico) (60, 0, 0)
 
 ---
 

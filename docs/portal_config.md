@@ -20,7 +20,7 @@ Esta documentacion describe el JSON, validaciones, UI y persistencia tal como es
 
 ```
 {
-  "version": 3,
+  "version": 4,
   "mode": "speed",
   "fence_max_m": 300,
   "led": {
@@ -39,6 +39,12 @@ Esta documentacion describe el JSON, validaciones, UI y persistencia tal como es
     "range9": {"a": 11, "b": 11, "speed": 184, "intensity": 190},
     "range10": {"a": 10, "b": 10, "speed": 200, "intensity": 200}
   },
+  "single": {
+    "effect": 0,
+    "speed": 80,
+    "intensity": 140,
+    "rgb": {"r": 0, "g": 60, "b": 60}
+  },
   "wifi": {
     "ap_ssid": "dog",
     "has_ap_pass": true,
@@ -56,7 +62,7 @@ Notas:
 
 ```
 {
-  "version": 3,
+  "version": 4,
   "mode": "speed",
   "fence_max_m": 300,
   "led": {"brightness": 77},
@@ -73,6 +79,12 @@ Notas:
     "range9": {"a": 11, "b": 11, "speed": 184, "intensity": 190},
     "range10": {"a": 10, "b": 10, "speed": 200, "intensity": 200}
   },
+  "single": {
+    "effect": 0,
+    "speed": 80,
+    "intensity": 140,
+    "rgb": {"r": 0, "g": 60, "b": 60}
+  },
   "wifi": {
     "ap_ssid": "dog",
     "ap_pass": "Dog123456789",
@@ -85,9 +97,11 @@ Notas:
 Notas:
 - `ap_pass` es opcional. Si no se envia, se mantiene el valor actual.
 - Si `ap_open` es `true`, el AP se guarda sin password.
-- `mode`: `"speed"` (default), `"geofence"` o `"show"`.
+- `mode`: `"speed"` (default), `"geofence"`, `"show"` o `"simple"`.
 - `fence_max_m`: distancia maxima en metros (se divide en 10 rangos iguales).
 - `mode: "show"` habilita demo de efectos en Segmento B (homogeneous puede pisar todo).
+- `mode: "simple"` aplica un solo efecto a toda la tira (incluye LEDs de estado).
+- `single`: parametros del modo simple (effect/speed/intensity/rgb).
 
 ---
 
@@ -120,12 +134,16 @@ Notas:
 
 Validaciones:
 - `brightness`: 1..255
-- `mode`: `speed` | `geofence` | `show`
+- `mode`: `speed` | `geofence` | `show` | `simple`
 - `fence_max_m`: 50..5000
 - `speed_ranges_kph`: 9 valores > 0, estrictamente ascendentes
 - `effects`: `range1..range10` presentes
 - `effect a/b`: 0..11
 - `speed/intensity`: 0..255
+- `single.effect`: 0..11
+- `single.speed`: 0..255
+- `single.intensity`: 0..255
+- `single.rgb`: 0..255 por canal
 - `ap_ssid`: 1..32
 - `ap_pass`: >= 8 si se envia y `ap_open` es `false`
 - `mdns`: 1..32, solo letras, numeros y guiones
@@ -142,6 +160,8 @@ Errores (400) con `{"status":"error","reason":"..."}`:
 - `effects`
 - `effect values`
 - `effect id`
+- `single`
+- `single values`
 - `ssid`
 - `pass`
 - `mdns`
@@ -158,7 +178,13 @@ Respuesta OK:
   - `ver` (uint8)
   - `brightness` (uint8)
   - `ranges` (9 floats)
-  - `effects` (10 entradas: effect_a, effect_b, speed, intensity)
+- `effects` (10 entradas: effect_a, effect_b, speed, intensity)
+- `single_eff` (uint8)
+- `single_speed` (uint8)
+- `single_intensity` (uint8)
+- `single_r` (uint8)
+- `single_g` (uint8)
+- `single_b` (uint8)
   - `mode` (uint8)
   - `fence_max` (uint16)
   - `ap_ssid` (string)
@@ -184,7 +210,8 @@ Reset:
 
 Campos:
 - Brightness (1..255)
-- Modo (Speed / Geofence / Show)
+- Modo (Speed / Geofence / Show / Simple)
+- Modo Simple (effect, speed, intensity, RGB, tema)
 - 9 rangos de velocidad (km/h)
 - Distancia maxima geofence (m)
 - Efectos por rango (A/B, speed, intensity)

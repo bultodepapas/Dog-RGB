@@ -180,6 +180,15 @@ static uint8_t show_effect_id = 0;
 static unsigned long show_effect_since_ms = 0;
 static Rgb show_base = {0, 0, 0};
 static bool show_first_tick = true;
+static EffectState simple_state_a;
+static EffectState simple_state_b;
+static bool simple_first_tick = true;
+static uint8_t last_simple_effect = SINGLE_EFFECT_DEFAULT;
+static uint8_t last_simple_speed = SINGLE_SPEED_DEFAULT;
+static uint8_t last_simple_intensity = SINGLE_INTENSITY_DEFAULT;
+static uint8_t last_simple_r = SINGLE_R_DEFAULT;
+static uint8_t last_simple_g = SINGLE_G_DEFAULT;
+static uint8_t last_simple_b = SINGLE_B_DEFAULT;
 static uint8_t last_mode = MODE_SPEED;
 
 struct WelcomeState {
@@ -209,10 +218,20 @@ struct RangeEffect {
   uint8_t intensity;
 };
 
+struct SingleEffectConfig {
+  uint8_t effect_id;
+  uint8_t speed;
+  uint8_t intensity;
+  uint8_t base_r;
+  uint8_t base_g;
+  uint8_t base_b;
+};
+
 struct RuntimeConfig {
   uint8_t brightness;
   float ranges[9];
   RangeEffect effects[10];
+  SingleEffectConfig single;
   String ap_ssid;
   String ap_pass;
   String mdns;
@@ -221,7 +240,7 @@ struct RuntimeConfig {
 };
 
 static RuntimeConfig g_cfg;
-static const uint8_t CONFIG_VERSION = 3;
+static const uint8_t CONFIG_VERSION = 4;
 static bool pending_ap_restart = false;
 static unsigned long pending_ap_at_ms = 0;
 static const unsigned long AP_RESTART_DELAY_MS = 500;
@@ -623,6 +642,8 @@ static const char *mode_name(uint8_t mode) {
       return "geofence";
     case MODE_SHOW:
       return "show";
+    case MODE_SIMPLE:
+      return "simple";
     case MODE_SPEED:
     default:
       return "speed";
@@ -645,11 +666,15 @@ static bool parse_mode(const char *value, uint8_t &mode_out) {
     mode_out = MODE_SHOW;
     return true;
   }
+  if (strcmp(value, "simple") == 0) {
+    mode_out = MODE_SIMPLE;
+    return true;
+  }
   return false;
 }
 
 static bool validate_mode(uint8_t mode) {
-  return (mode == MODE_SPEED || mode == MODE_GEOFENCE || mode == MODE_SHOW);
+  return (mode == MODE_SPEED || mode == MODE_GEOFENCE || mode == MODE_SHOW || mode == MODE_SIMPLE);
 }
 
 static uint16_t clamp_fence_max(int value) {
@@ -660,6 +685,31 @@ static uint16_t clamp_fence_max(int value) {
     return GEOFENCE_MAX_M_MAX;
   }
   return static_cast<uint16_t>(value);
+}
+
+static void set_default_single_config(SingleEffectConfig &cfg) {
+  cfg.effect_id = SINGLE_EFFECT_DEFAULT;
+  cfg.speed = SINGLE_SPEED_DEFAULT;
+  cfg.intensity = SINGLE_INTENSITY_DEFAULT;
+  cfg.base_r = SINGLE_R_DEFAULT;
+  cfg.base_g = SINGLE_G_DEFAULT;
+  cfg.base_b = SINGLE_B_DEFAULT;
+}
+
+static bool validate_single_config(const SingleEffectConfig &cfg) {
+  return cfg.effect_id < EFFECT_COUNT;
+}
+
+static void load_single_config(RuntimeConfig &cfg) {
+  cfg.single.effect_id = prefs_cfg.getUChar("single_eff", SINGLE_EFFECT_DEFAULT);
+  cfg.single.speed = prefs_cfg.getUChar("single_speed", SINGLE_SPEED_DEFAULT);
+  cfg.single.intensity = prefs_cfg.getUChar("single_intensity", SINGLE_INTENSITY_DEFAULT);
+  cfg.single.base_r = prefs_cfg.getUChar("single_r", SINGLE_R_DEFAULT);
+  cfg.single.base_g = prefs_cfg.getUChar("single_g", SINGLE_G_DEFAULT);
+  cfg.single.base_b = prefs_cfg.getUChar("single_b", SINGLE_B_DEFAULT);
+  if (!validate_single_config(cfg.single)) {
+    set_default_single_config(cfg.single);
+  }
 }
 
 static void set_default_config() {
@@ -695,6 +745,8 @@ static void set_default_config() {
   g_cfg.effects[9] = {static_cast<uint8_t>(RANGE_10_EFFECT_A), static_cast<uint8_t>(RANGE_10_EFFECT_B),
                       RANGE_10_SPEED, RANGE_10_INTENSITY};
 
+  set_default_single_config(g_cfg.single);
+
   g_cfg.ap_ssid = AP_SSID;
   g_cfg.ap_pass = AP_PASS;
   g_cfg.mdns = MDNS_NAME;
@@ -707,6 +759,12 @@ static void save_config() {
   prefs_cfg.putUChar("brightness", g_cfg.brightness);
   prefs_cfg.putBytes("ranges", g_cfg.ranges, sizeof(g_cfg.ranges));
   prefs_cfg.putBytes("effects", g_cfg.effects, sizeof(g_cfg.effects));
+  prefs_cfg.putUChar("single_eff", g_cfg.single.effect_id);
+  prefs_cfg.putUChar("single_speed", g_cfg.single.speed);
+  prefs_cfg.putUChar("single_intensity", g_cfg.single.intensity);
+  prefs_cfg.putUChar("single_r", g_cfg.single.base_r);
+  prefs_cfg.putUChar("single_g", g_cfg.single.base_g);
+  prefs_cfg.putUChar("single_b", g_cfg.single.base_b);
   prefs_cfg.putString("ap_ssid", g_cfg.ap_ssid);
   prefs_cfg.putString("ap_pass", g_cfg.ap_pass);
   prefs_cfg.putString("mdns", g_cfg.mdns);
@@ -745,12 +803,31 @@ static void load_config() {
     }
     next.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
     next.fence_max_m = prefs_cfg.getUShort("fence_max", GEOFENCE_MAX_M_DEFAULT);
+    load_single_config(next);
     if (!validate_mode(next.mode)) {
       next.mode = MODE_SPEED;
     }
     next.fence_max_m = clamp_fence_max(next.fence_max_m);
     g_cfg = next;
     return;
+  }
+
+  if (ver == 3) {
+    RuntimeConfig migrated = g_cfg;
+    set_default_config();
+    migrated = g_cfg;
+    if (read_common_config(migrated)) {
+      migrated.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
+      migrated.fence_max_m = prefs_cfg.getUShort("fence_max", GEOFENCE_MAX_M_DEFAULT);
+      if (!validate_mode(migrated.mode)) {
+        migrated.mode = MODE_SPEED;
+      }
+      migrated.fence_max_m = clamp_fence_max(migrated.fence_max_m);
+      set_default_single_config(migrated.single);
+      g_cfg = migrated;
+      save_config();
+      return;
+    }
   }
 
   if (ver == 2) {
@@ -1409,6 +1486,50 @@ static void update_show_mode(unsigned long now_ms) {
   show_leds();
 }
 
+static void reset_simple_state_if_needed() {
+  if (!simple_first_tick &&
+      g_cfg.single.effect_id == last_simple_effect &&
+      g_cfg.single.speed == last_simple_speed &&
+      g_cfg.single.intensity == last_simple_intensity &&
+      g_cfg.single.base_r == last_simple_r &&
+      g_cfg.single.base_g == last_simple_g &&
+      g_cfg.single.base_b == last_simple_b) {
+    return;
+  }
+  simple_first_tick = false;
+  simple_state_a = {};
+  simple_state_b = {};
+  if (g_cfg.single.effect_id == 10) { // FIRE
+    for (int i = 0; i < LED_STRIP_COUNT; ++i) {
+      heat_a[i] = 0;
+      heat_b[i] = 0;
+    }
+  }
+  last_simple_effect = g_cfg.single.effect_id;
+  last_simple_speed = g_cfg.single.speed;
+  last_simple_intensity = g_cfg.single.intensity;
+  last_simple_r = g_cfg.single.base_r;
+  last_simple_g = g_cfg.single.base_g;
+  last_simple_b = g_cfg.single.base_b;
+}
+
+static void update_simple_mode(unsigned long now_ms) {
+  reset_simple_state_if_needed();
+  if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
+    return;
+  }
+  last_led_update_ms = now_ms;
+
+  const Rgb base = make_rgb(g_cfg.single.base_r, g_cfg.single.base_g, g_cfg.single.base_b);
+  apply_effect(g_cfg.single.effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, base,
+               g_cfg.single.speed, g_cfg.single.intensity, simple_state_a);
+  if (LED_STRIP_MODE == 2) {
+    apply_effect(g_cfg.single.effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, base,
+                 g_cfg.single.speed, g_cfg.single.intensity, simple_state_b);
+  }
+  show_leds();
+}
+
 static void update_led_ui() {
   if (!LED_UI_ENABLED) {
     return;
@@ -1422,10 +1543,17 @@ static void update_led_ui() {
     if (g_cfg.mode == MODE_SHOW) {
       show_first_tick = true;
     }
+    if (g_cfg.mode == MODE_SIMPLE) {
+      simple_first_tick = true;
+    }
     last_mode = g_cfg.mode;
   }
   if (g_cfg.mode == MODE_SHOW) {
     update_show_mode(now_ms);
+    return;
+  }
+  if (g_cfg.mode == MODE_SIMPLE) {
+    update_simple_mode(now_ms);
     return;
   }
   if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
@@ -1524,6 +1652,7 @@ static String html_config_page() {
       "input,select{width:100%;padding:8px;margin:4px 0}"
       ".row{display:grid;grid-template-columns:1fr 1fr;gap:10px}"
       "button{padding:10px 14px;border:0;border-radius:6px;background:#111;color:#fff}"
+      ".muted{color:#666;font-size:12px}"
       "</style></head><body>"
       "<h1>Config</h1>"
       "<div><label>Brightness</label><input id='brightness' type='number' min='1' max='255'></div>"
@@ -1531,6 +1660,7 @@ static String html_config_page() {
       "<div><label>Modo</label><select id='mode'>"
       "<option value='speed'>Velocidad</option>"
       "<option value='geofence'>Geocerca</option>"
+      "<option value='simple'>Simple</option>"
       "<option value='show'>Show</option>"
       "</select></div>"
       "<div id='speed_block'>"
@@ -1552,6 +1682,40 @@ static String html_config_page() {
       "</div>"
       "<div id='home_status' style='font-size:12px;color:#555'></div>"
       "</div>"
+      "<div id='simple_block'>"
+      "<h3>Simple</h3>"
+      "<div><label>Tema</label><select id='simple_theme'>"
+      "<option value='manual'>Manual</option>"
+      "<option value='calm'>Calm</option>"
+      "<option value='active'>Active</option>"
+      "<option value='sport'>Sport</option>"
+      "<option value='aurora'>Aurora</option>"
+      "</select></div>"
+      "<div><label>Efecto</label><select id='simple_effect'>"
+      "<option value='0'>SOLID</option>"
+      "<option value='1'>PULSE</option>"
+      "<option value='2'>BREATH</option>"
+      "<option value='3'>CHASE</option>"
+      "<option value='4'>COMET</option>"
+      "<option value='5'>SINELON</option>"
+      "<option value='6'>CONFETTI</option>"
+      "<option value='7'>JUGGLE</option>"
+      "<option value='8'>BPM</option>"
+      "<option value='9'>RAINBOW</option>"
+      "<option value='10'>FIRE</option>"
+      "<option value='11'>GRADIENT_WAVE</option>"
+      "</select></div>"
+      "<div class='row'>"
+      "<input id='simple_speed' type='number' min='0' max='255' placeholder='Speed'>"
+      "<input id='simple_intensity' type='number' min='0' max='255' placeholder='Intensity'>"
+      "</div>"
+      "<div class='row'>"
+      "<input id='simple_r' type='number' min='0' max='255' placeholder='R'>"
+      "<input id='simple_g' type='number' min='0' max='255' placeholder='G'>"
+      "<input id='simple_b' type='number' min='0' max='255' placeholder='B'>"
+      "</div>"
+      "<div class='muted'>RAINBOW, GRADIENT_WAVE y FIRE ignoran el color base.</div>"
+      "</div>"
       "<h3>Effects (range 1-10)</h3>"
       "<div id='effects'></div>"
       "<h3>Wi-Fi AP</h3>"
@@ -1570,9 +1734,17 @@ static String html_config_page() {
       "const modeEl=document.getElementById('mode');"
       "const speedBlock=document.getElementById('speed_block');"
       "const geofenceBlock=document.getElementById('geofence_block');"
+      "const simpleBlock=document.getElementById('simple_block');"
       "const fenceMax=document.getElementById('fence_max');"
       "const fenceRanges=document.getElementById('fence_ranges');"
       "const homeStatus=document.getElementById('home_status');"
+      "const simpleTheme=document.getElementById('simple_theme');"
+      "const simpleEffect=document.getElementById('simple_effect');"
+      "const simpleSpeed=document.getElementById('simple_speed');"
+      "const simpleIntensity=document.getElementById('simple_intensity');"
+      "const simpleR=document.getElementById('simple_r');"
+      "const simpleG=document.getElementById('simple_g');"
+      "const simpleB=document.getElementById('simple_b');"
       "for(let i=1;i<=10;i++){"
       "effectsDiv.innerHTML+=`<div class='row'>"
       "<input id='e${i}a' type='number' min='0' max='11' placeholder='R${i} A'>"
@@ -1580,6 +1752,46 @@ static String html_config_page() {
       "<input id='e${i}s' type='number' min='0' max='255' placeholder='R${i} Speed'>"
       "<input id='e${i}i' type='number' min='0' max='255' placeholder='R${i} Intensity'>"
       "</div>`;}"
+      "const SIMPLE_THEMES={"
+      "manual:null,"
+      "calm:{effect:2,speed:60,intensity:90,r:0,g:60,b:60},"
+      "active:{effect:4,speed:120,intensity:140,r:60,g:45,b:0},"
+      "sport:{effect:7,speed:160,intensity:180,r:60,g:0,b:0},"
+      "aurora:{effect:11,speed:120,intensity:180,r:0,g:180,b:120}"
+      "};"
+      "function applyTheme(key){"
+      "const t=SIMPLE_THEMES[key];"
+      "if(!t){return;}"
+      "simpleEffect.value=t.effect;"
+      "simpleSpeed.value=t.speed;"
+      "simpleIntensity.value=t.intensity;"
+      "simpleR.value=t.r;"
+      "simpleG.value=t.g;"
+      "simpleB.value=t.b;"
+      "}"
+      "function readSimple(){"
+      "return {"
+      "effect:parseInt(simpleEffect.value||'0'),"
+      "speed:parseInt(simpleSpeed.value||'0'),"
+      "intensity:parseInt(simpleIntensity.value||'0'),"
+      "r:parseInt(simpleR.value||'0'),"
+      "g:parseInt(simpleG.value||'0'),"
+      "b:parseInt(simpleB.value||'0')"
+      "};"
+      "}"
+      "function themeMatches(a,b){"
+      "return a.effect===b.effect&&a.speed===b.speed&&a.intensity===b.intensity&&"
+      "a.r===b.r&&a.g===b.g&&a.b===b.b;"
+      "}"
+      "function updateThemeSelection(){"
+      "const current=readSimple();"
+      "let match='manual';"
+      "for(const key in SIMPLE_THEMES){"
+      "if(key==='manual'){continue;}"
+      "if(themeMatches(current,SIMPLE_THEMES[key])){match=key;break;}"
+      "}"
+      "simpleTheme.value=match;"
+      "}"
       "function updateFenceRanges(){"
       "const max=parseFloat(fenceMax.value||'0');"
       "if(!max||max<=0){fenceRanges.innerText='';return;}"
@@ -1593,8 +1805,19 @@ static String html_config_page() {
       "fenceRanges.innerHTML=html;"
       "}"
       "function updateModeVisibility(){"
-      "if(modeEl.value==='geofence'){geofenceBlock.style.display='block';speedBlock.style.display='none';}"
-      "else{geofenceBlock.style.display='none';speedBlock.style.display='block';}"
+      "if(modeEl.value==='geofence'){"
+      "geofenceBlock.style.display='block';"
+      "speedBlock.style.display='none';"
+      "simpleBlock.style.display='none';"
+      "}else if(modeEl.value==='simple'){"
+      "geofenceBlock.style.display='none';"
+      "speedBlock.style.display='none';"
+      "simpleBlock.style.display='block';"
+      "}else{"
+      "geofenceBlock.style.display='none';"
+      "speedBlock.style.display='block';"
+      "simpleBlock.style.display='none';"
+      "}"
       "}"
       "function loadHome(){"
       "fetch('/api/home').then(r=>r.json()).then(h=>{"
@@ -1605,6 +1828,12 @@ static String html_config_page() {
       "}).catch(()=>{homeStatus.innerText='Home: error';});"
       "}"
       "modeEl.onchange=updateModeVisibility;"
+      "simpleTheme.onchange=()=>{"
+      "if(simpleTheme.value!=='manual'){applyTheme(simpleTheme.value);}"
+      "updateThemeSelection();"
+      "};"
+      "const simpleInputs=[simpleEffect,simpleSpeed,simpleIntensity,simpleR,simpleG,simpleB];"
+      "for(const el of simpleInputs){el.oninput=updateThemeSelection;}"
       "fenceMax.oninput=updateFenceRanges;"
       "fetch('/api/config').then(r=>r.json()).then(c=>{"
       "document.getElementById('brightness').value=c.led.brightness;"
@@ -1626,12 +1855,21 @@ static String html_config_page() {
       "document.getElementById('e'+i+'s').value=e.speed;"
       "document.getElementById('e'+i+'i').value=e.intensity;"
       "}"
+      "const s=c.single||{};"
+      "const rgb=s.rgb||{};"
+      "simpleEffect.value=(s.effect!==undefined?s.effect:0);"
+      "simpleSpeed.value=(s.speed!==undefined?s.speed:80);"
+      "simpleIntensity.value=(s.intensity!==undefined?s.intensity:140);"
+      "simpleR.value=(rgb.r!==undefined?rgb.r:0);"
+      "simpleG.value=(rgb.g!==undefined?rgb.g:60);"
+      "simpleB.value=(rgb.b!==undefined?rgb.b:60);"
       "document.getElementById('ap_ssid').value=c.wifi.ap_ssid;"
       "document.getElementById('mdns').value=c.wifi.mdns;"
       "document.getElementById('ap_open').checked=!c.wifi.has_ap_pass;"
       "document.getElementById('ap_hint').innerText=c.wifi.has_ap_pass?'Password configurada':'AP abierto';"
       "updateModeVisibility();"
       "updateFenceRanges();"
+      "updateThemeSelection();"
       "loadHome();"
       "});"
       "function saveCfg(){"
@@ -1639,7 +1877,7 @@ static String html_config_page() {
       "ap_warn.innerText='Nota: cambiar AP puede desconectar la sesion.';"
       "if(!confirm('Guardar cambios? El AP puede reiniciarse.')){return;}"
       "}"
-      "const cfg={version:3,mode:modeEl.value,fence_max_m:parseInt(fenceMax.value||'300'),"
+      "const cfg={version:4,mode:modeEl.value,fence_max_m:parseInt(fenceMax.value||'300'),"
       "led:{brightness:parseInt(brightness.value)},"
       "speed_ranges_kph:[parseFloat(r1.value),parseFloat(r2.value),parseFloat(r3.value),parseFloat(r4.value),parseFloat(r5.value),"
       "parseFloat(r6.value),parseFloat(r7.value),parseFloat(r8.value),parseFloat(r9.value)],"
@@ -1649,6 +1887,12 @@ static String html_config_page() {
       "b:parseInt(document.getElementById('e'+i+'b').value),"
       "speed:parseInt(document.getElementById('e'+i+'s').value),"
       "intensity:parseInt(document.getElementById('e'+i+'i').value)};}"
+      "cfg.single={"
+      "effect:parseInt(simpleEffect.value),"
+      "speed:parseInt(simpleSpeed.value),"
+      "intensity:parseInt(simpleIntensity.value),"
+      "rgb:{r:parseInt(simpleR.value),g:parseInt(simpleG.value),b:parseInt(simpleB.value)}"
+      "};"
       "cfg.wifi={ap_ssid:ap_ssid.value,ap_pass:ap_pass.value,ap_open:ap_open.checked,mdns:mdns.value};"
       "fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)})"
       ".then(r=>r.json()).then(r=>{"
@@ -1688,7 +1932,7 @@ static void handle_summary() {
 }
 
 static void handle_config_get() {
-  StaticJsonDocument<3072> doc;
+  StaticJsonDocument<4096> doc;
   doc["version"] = CONFIG_VERSION;
   doc["mode"] = mode_name(g_cfg.mode);
   doc["fence_max_m"] = g_cfg.fence_max_m;
@@ -1705,6 +1949,14 @@ static void handle_config_get() {
     r["speed"] = g_cfg.effects[i].speed;
     r["intensity"] = g_cfg.effects[i].intensity;
   }
+  JsonObject single = doc["single"].to<JsonObject>();
+  single["effect"] = g_cfg.single.effect_id;
+  single["speed"] = g_cfg.single.speed;
+  single["intensity"] = g_cfg.single.intensity;
+  JsonObject rgb = single["rgb"].to<JsonObject>();
+  rgb["r"] = g_cfg.single.base_r;
+  rgb["g"] = g_cfg.single.base_g;
+  rgb["b"] = g_cfg.single.base_b;
   doc["wifi"]["ap_ssid"] = g_cfg.ap_ssid;
   doc["wifi"]["has_ap_pass"] = (g_cfg.ap_pass.length() >= 8);
   doc["wifi"]["mdns"] = g_cfg.mdns;
@@ -1811,6 +2063,41 @@ static void handle_config_post() {
   if (!validate_effects(next.effects)) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effect id\"}");
     return;
+  }
+
+  if (doc.containsKey("single")) {
+    JsonObject single = doc["single"].as<JsonObject>();
+    if (single.isNull()) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"single\"}");
+      return;
+    }
+    const int single_eff = single["effect"] | next.single.effect_id;
+    const int single_speed = single["speed"] | next.single.speed;
+    const int single_intensity = single["intensity"] | next.single.intensity;
+    int single_r = next.single.base_r;
+    int single_g = next.single.base_g;
+    int single_b = next.single.base_b;
+    JsonObject rgb = single["rgb"].as<JsonObject>();
+    if (!rgb.isNull()) {
+      single_r = rgb["r"] | single_r;
+      single_g = rgb["g"] | single_g;
+      single_b = rgb["b"] | single_b;
+    }
+    if (single_eff < 0 || single_eff >= EFFECT_COUNT ||
+        single_speed < 0 || single_speed > 255 ||
+        single_intensity < 0 || single_intensity > 255 ||
+        single_r < 0 || single_r > 255 ||
+        single_g < 0 || single_g > 255 ||
+        single_b < 0 || single_b > 255) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"single values\"}");
+      return;
+    }
+    next.single.effect_id = static_cast<uint8_t>(single_eff);
+    next.single.speed = static_cast<uint8_t>(single_speed);
+    next.single.intensity = static_cast<uint8_t>(single_intensity);
+    next.single.base_r = static_cast<uint8_t>(single_r);
+    next.single.base_g = static_cast<uint8_t>(single_g);
+    next.single.base_b = static_cast<uint8_t>(single_b);
   }
 
   const String ap_ssid = doc["wifi"]["ap_ssid"] | next.ap_ssid;

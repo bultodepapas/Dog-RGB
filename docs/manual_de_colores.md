@@ -49,12 +49,12 @@ Con GPS OK, se usan los rangos por defecto (km/h) y color base (RGB):
 - 2.0 - 4.0  : Verde-cian           (0, 60, 35)
 - 4.0 - 6.0  : Verde                (0, 60, 0)
 - 6.0 - 8.0  : Verde-lima           (25, 60, 0)
-- 8.0 - 12.0 : Amarillo             (60, 60, 0)
-- 12.0 - 16.0: Ambar                (60, 45, 0)
-- 16.0 - 22.0: Naranja              (60, 30, 0)
-- 22.0 - 28.0: Naranja intenso      (60, 20, 0)
-- 28.0 - 34.0: Rojo-naranja         (60, 10, 0)
-- > 34.0     : Rojo (critico)       (60, 0, 0)
+- 8.0 - 10.0 : Amarillo             (60, 60, 0)
+- 10.0 - 12.0: Ambar                (60, 45, 0)
+- 12.0 - 14.0: Naranja              (60, 30, 0)
+- 14.0 - 16.0: Naranja intenso      (60, 20, 0)
+- 16.0 - 18.0: Rojo-naranja         (60, 10, 0)
+- > 18.0     : Rojo (critico)       (60, 0, 0)
 
 El color base define el "tono" general por rango; algunos efectos (RAINBOW, FIRE) no mantienen un color fijo.
 Nota: el firmware descarta picos por encima de 40 km/h (SPEED_MAX_VALID_KPH).
@@ -85,16 +85,16 @@ Comportamientos especiales:
 
 ## 5) Efectos default por rango (tira A y B iguales)
 
-- R1 (<=2.0): SOLID / SOLID (speed 40, intensity 80)
-- R2 (<=4.0): PULSE / PULSE (58, 95)
-- R3 (<=6.0): BREATH / BREATH (76, 110)
-- R4 (<=8.0): CHASE / CHASE (94, 125)
-- R5 (<=12.0): SINELON / SINELON (112, 140)
-- R6 (<=16.0): JUGGLE / JUGGLE (130, 155)
-- R7 (<=22.0): BPM / BPM (148, 170)
-- R8 (<=28.0): RAINBOW / RAINBOW (166, 180)
-- R9 (<=34.0): GRADIENT_WAVE / GRADIENT_WAVE (184, 190)
-- R10 (>34.0): FIRE / FIRE (200, 200)
+- R1 (<=2.0): JUGGLE / JUGGLE (speed 40, intensity 80)
+- R2 (<=4.0): JUGGLE / JUGGLE (58, 95)
+- R3 (<=6.0): JUGGLE / JUGGLE (76, 110)
+- R4 (<=8.0): JUGGLE / JUGGLE (94, 125)
+- R5 (<=10.0): JUGGLE / JUGGLE (112, 140)
+- R6 (<=12.0): JUGGLE / JUGGLE (130, 155)
+- R7 (<=14.0): JUGGLE / JUGGLE (148, 170)
+- R8 (<=16.0): JUGGLE / JUGGLE (166, 180)
+- R9 (<=18.0): JUGGLE / JUGGLE (184, 190)
+- R10 (>18.0): JUGGLE / JUGGLE (200, 200)
 
 ---
 
@@ -105,7 +105,7 @@ Comportamientos especiales:
 - LED_STATUS_COUNT = 2 (LEDs reservados para estado)
 - LED_BRIGHTNESS = 77 (~30%)
 - LED_UPDATE_MS = 50 (refresh del UI LED)
-- SPEED_RANGE_1..9 = 2.0 / 4.0 / 6.0 / 8.0 / 12.0 / 16.0 / 22.0 / 28.0 / 34.0 km/h
+- SPEED_RANGE_1..9 = 2.0 / 4.0 / 6.0 / 8.0 / 10.0 / 12.0 / 14.0 / 16.0 / 18.0 km/h
 - GEOFENCE_MAX_M_DEFAULT = 300 m
 - HOME_AUTO_FIX_MS = 10000 ms
 
