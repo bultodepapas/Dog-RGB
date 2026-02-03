@@ -922,6 +922,7 @@ static String html_page() {
     .pill.bad{background:#ffe5e5;color:var(--bad);border-color:#ffbdbd}
     .muted{color:var(--muted);font-size:12px}
     button{padding:10px 14px;border:0;border-radius:6px;background:#111;color:#fff}
+    select{padding:8px;border:1px solid #ccc;border-radius:6px;background:#fff}
     a.btn{display:inline-block;padding:10px 14px;border-radius:6px;border:1px solid #ddd;background:#fff;color:#111;text-decoration:none}
     @media (max-width:540px){.grid{grid-template-columns:1fr}}
   </style>
@@ -934,6 +935,17 @@ static String html_page() {
       <span class="pill" id="pill-wifi">Wi-Fi: --</span>
       <span class="pill" id="pill-mode">Modo: --</span>
       <span class="pill" id="pill-home">Home: --</span>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <label class="muted">Modo</label>
+      <select id="mode_select">
+        <option value="speed">Velocidad</option>
+        <option value="geofence">Geocerca</option>
+        <option value="simple">Simple</option>
+        <option value="show">Show</option>
+      </select>
+      <button onclick="saveMode()">Aplicar</button>
+      <span class="muted" id="mode_status"></span>
     </div>
 
     <div class="grid">
@@ -969,6 +981,8 @@ static String html_page() {
 
   <script>
     const $ = (id) => document.getElementById(id);
+    const modeSelect = $('mode_select');
+    const modeStatus = $('mode_status');
     function minToTime(m){var h=Math.floor(m/60);var mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
     function cmpsToKph(v){return (v*0.036).toFixed(1);}
     function fmtDate(d){if(!d){return '--';}var s=String(d);if(s.length!==8){return s;}return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);}
@@ -1008,6 +1022,9 @@ static String html_page() {
 
       var modeText='Modo: '+(s.mode||'--');
       setPill('pill-mode',modeText,'');
+      if (s.mode && document.activeElement !== modeSelect){
+        modeSelect.value = s.mode;
+      }
 
       var homeText='Home: --';
       var homeTone='warn';
@@ -1037,6 +1054,22 @@ static String html_page() {
         const s=await fetch('/api/status').then(r=>r.json());
         renderStatus(s);
       }catch(e){}
+    }
+
+    async function saveMode(){
+      modeStatus.textContent='Guardando...';
+      try{
+        const payload={mode:modeSelect.value};
+        const r=await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json());
+        if (r.status === 'ok'){
+          modeStatus.textContent='OK';
+          loadStatus();
+        } else {
+          modeStatus.textContent='Error';
+        }
+      }catch(e){
+        modeStatus.textContent='Error';
+      }
     }
 
     function refreshAll(){loadSummary();loadStatus();}
@@ -2302,6 +2335,7 @@ static String html_config_page() {
     mdns.oninput = updateApState;
 
     buildEffectsTable();
+    fillEffectSelect(simpleEffect);
 
     fetch('/api/config').then(r=>r.json()).then(c=>{
       brightness.value = c.led.brightness;
@@ -2376,6 +2410,32 @@ static void handle_status_get() {
   String out;
   serializeJson(doc, out);
   server.send(200, "application/json", out);
+}
+
+static void handle_mode_post() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
+    return;
+  }
+  StaticJsonDocument<256> doc;
+  const DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
+    return;
+  }
+  const char *mode_str = doc["mode"];
+  uint8_t parsed_mode = g_cfg.mode;
+  if (!parse_mode(mode_str, parsed_mode)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"mode\"}");
+    return;
+  }
+  if (parsed_mode != g_cfg.mode) {
+    RuntimeConfig previous = g_cfg;
+    g_cfg.mode = parsed_mode;
+    save_config();
+    apply_config(previous);
+  }
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
 static void handle_config_get() {
@@ -2816,6 +2876,7 @@ static void setup_http() {
   server.on("/", HTTP_GET, handle_root);
   server.on("/api/summary", HTTP_GET, handle_summary);
   server.on("/api/status", HTTP_GET, handle_status_get);
+  server.on("/api/mode", HTTP_POST, handle_mode_post);
   server.on("/api/config", HTTP_GET, handle_config_get);
   server.on("/api/config", HTTP_POST, handle_config_post);
   server.on("/api/config/reset", HTTP_POST, handle_config_reset);
