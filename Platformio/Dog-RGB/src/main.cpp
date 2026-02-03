@@ -36,6 +36,8 @@
 */
 
 #include <Arduino.h>
+#include <stddef.h>
+#include <string.h>
 #include <math.h>
 #include <Preferences.h>
 #include <BLEDevice.h>
@@ -98,6 +100,24 @@ static float total_distance_m = 0.0f;
 static float max_speed_kph = 0.0f;
 static uint16_t last_update_min = 0;
 
+// Rolling metrics for the current session (boot -> shutdown).
+static unsigned long session_active_time_ms = 0;
+static float session_total_distance_m = 0.0f;
+static float session_max_speed_kph = 0.0f;
+static bool session_fix_seen = false;
+static bool session_start_set = false;
+static uint32_t session_start_date = 0;
+static uint16_t session_start_min = 0;
+static uint32_t session_end_date = 0;
+static uint16_t session_end_min = 0;
+static bool session_open = false;
+
+static SessionSummary history[HISTORY_MAX];
+static uint8_t history_count = 0;
+static uint8_t history_idx = 0;
+static SessionSummary session_snapshot_last;
+static bool session_snapshot_valid = false;
+
 // Last position for distance calculation.
 static bool has_last_point = false;
 static float last_lat_deg = 0.0f;
@@ -105,6 +125,10 @@ static float last_lon_deg = 0.0f;
 static float current_lat_deg = 0.0f;
 static float current_lon_deg = 0.0f;
 static bool has_current_fix = false;
+
+static bool session_has_last_point = false;
+static float session_last_lat_deg = 0.0f;
+static float session_last_lon_deg = 0.0f;
 
 // Daily reset date (YYYYMMDD from GPS).
 static uint32_t current_date_yyyymmdd = 0;
@@ -217,6 +241,30 @@ struct RangeEffect {
   uint8_t speed;
   uint8_t intensity;
 };
+
+static const uint8_t SESSION_VER = 1;
+static const uint8_t SESSION_FLAG_GPS_FIX = 0x01;
+static const uint8_t SESSION_FLAG_HAS_DATA = 0x02;
+static const uint8_t SESSION_FLAG_IN_PROGRESS = 0x04;
+static const uint8_t SESSION_FLAG_NO_FIX = 0x08;
+static const uint8_t HISTORY_MAX = 3;
+
+struct SessionSummary {
+  uint8_t ver;
+  uint8_t flags;
+  uint32_t start_date;
+  uint16_t start_min;
+  uint32_t end_date;
+  uint16_t end_min;
+  uint32_t distance_m;
+  uint32_t active_s;
+  uint16_t avg_speed_cmps;
+  uint16_t max_speed_cmps;
+  uint8_t crc;
+  uint8_t pad;
+} __attribute__((packed));
+
+static_assert(sizeof(SessionSummary) == 28, "SessionSummary size");
 
 struct SingleEffectConfig {
   uint8_t effect_id;
@@ -538,6 +586,220 @@ static void load_metrics() {
   last_update_min = prefs.getUShort("upd_min", 0);
 }
 
+static uint8_t session_checksum(const SessionSummary &s) {
+  const uint8_t *p = reinterpret_cast<const uint8_t *>(&s);
+  const size_t len = offsetof(SessionSummary, crc);
+  uint8_t out = 0;
+  for (size_t i = 0; i < len; ++i) {
+    out ^= p[i];
+  }
+  return out;
+}
+
+static void session_write_crc(SessionSummary &s) {
+  s.crc = session_checksum(s);
+}
+
+static bool session_is_valid(const SessionSummary &s) {
+  return s.ver == SESSION_VER && s.crc == session_checksum(s);
+}
+
+static void session_zero(SessionSummary &s) {
+  memset(&s, 0, sizeof(s));
+  s.ver = SESSION_VER;
+  s.pad = 0;
+  session_write_crc(s);
+}
+
+static SessionSummary build_session_snapshot(bool finalize) {
+  SessionSummary s = {};
+  s.ver = SESSION_VER;
+  s.flags = 0;
+  if (session_fix_seen) {
+    s.flags |= SESSION_FLAG_GPS_FIX;
+    s.flags |= SESSION_FLAG_HAS_DATA;
+  }
+  if (session_open) {
+    s.flags |= SESSION_FLAG_IN_PROGRESS;
+  }
+  if (finalize && !session_fix_seen) {
+    s.flags |= SESSION_FLAG_NO_FIX;
+  }
+  s.start_date = session_start_date;
+  s.start_min = session_start_min;
+  s.end_date = session_end_date;
+  s.end_min = session_end_min;
+  const uint32_t distance_m = static_cast<uint32_t>(session_total_distance_m + 0.5f);
+  s.distance_m = distance_m;
+  s.active_s = static_cast<uint32_t>(session_active_time_ms / 1000);
+  uint32_t avg_cmps = 0;
+  if (s.active_s > 0) {
+    avg_cmps = (distance_m * 100UL) / s.active_s;
+    if (avg_cmps > 65535) {
+      avg_cmps = 65535;
+    }
+  }
+  s.avg_speed_cmps = static_cast<uint16_t>(avg_cmps);
+  uint32_t max_cmps = static_cast<uint32_t>(session_max_speed_kph * 27.7778f);
+  if (max_cmps > 65535) {
+    max_cmps = 65535;
+  }
+  s.max_speed_cmps = static_cast<uint16_t>(max_cmps);
+  s.pad = 0;
+  session_write_crc(s);
+  return s;
+}
+
+static void finalize_snapshot(SessionSummary &s) {
+  s.flags &= static_cast<uint8_t>(~SESSION_FLAG_IN_PROGRESS);
+  if ((s.flags & SESSION_FLAG_GPS_FIX) == 0) {
+    s.flags |= SESSION_FLAG_NO_FIX;
+    s.flags &= static_cast<uint8_t>(~SESSION_FLAG_HAS_DATA);
+    s.start_date = 0;
+    s.start_min = 0;
+    s.end_date = 0;
+    s.end_min = 0;
+    s.distance_m = 0;
+    s.active_s = 0;
+    s.avg_speed_cmps = 0;
+    s.max_speed_cmps = 0;
+  }
+  session_write_crc(s);
+}
+
+static void history_clear() {
+  history_count = 0;
+  history_idx = 0;
+  for (uint8_t i = 0; i < HISTORY_MAX; ++i) {
+    session_zero(history[i]);
+  }
+  prefs.remove("h0");
+  prefs.remove("h1");
+  prefs.remove("h2");
+  prefs.putUChar("h_cnt", 0);
+  prefs.putUChar("h_idx", 0);
+  prefs.putUChar("h_ver", SESSION_VER);
+}
+
+static void history_load() {
+  const uint8_t ver = prefs.getUChar("h_ver", 0);
+  history_count = prefs.getUChar("h_cnt", 0);
+  history_idx = prefs.getUChar("h_idx", 0);
+  if (ver != SESSION_VER) {
+    history_clear();
+    return;
+  }
+  if (history_count > HISTORY_MAX) {
+    history_count = HISTORY_MAX;
+  }
+  if (history_count < HISTORY_MAX && history_idx != history_count) {
+    history_clear();
+    return;
+  }
+  if (history_idx >= HISTORY_MAX) {
+    history_clear();
+    return;
+  }
+  bool ok = true;
+  for (uint8_t i = 0; i < HISTORY_MAX; ++i) {
+    const char key[3] = {'h', static_cast<char>('0' + i), '\0'};
+    size_t len = prefs.getBytes(key, &history[i], sizeof(SessionSummary));
+    if (i < history_count) {
+      if (len != sizeof(SessionSummary) || !session_is_valid(history[i])) {
+        ok = false;
+        break;
+      }
+    } else if (len == sizeof(SessionSummary) && !session_is_valid(history[i])) {
+      ok = false;
+      break;
+    }
+  }
+  if (!ok) {
+    history_clear();
+  }
+}
+
+static void history_write_slot(uint8_t idx, const SessionSummary &s) {
+  const char key[3] = {'h', static_cast<char>('0' + idx), '\0'};
+  prefs.putBytes(key, &s, sizeof(SessionSummary));
+}
+
+static void history_push(SessionSummary s) {
+  if (!session_is_valid(s)) {
+    session_write_crc(s);
+  }
+  history[history_idx] = s;
+  history_write_slot(history_idx, s);
+  history_idx = static_cast<uint8_t>((history_idx + 1) % HISTORY_MAX);
+  if (history_count < HISTORY_MAX) {
+    history_count++;
+  }
+  prefs.putUChar("h_cnt", history_count);
+  prefs.putUChar("h_idx", history_idx);
+  prefs.putUChar("h_ver", SESSION_VER);
+}
+
+static bool load_session_snapshot(SessionSummary &out) {
+  size_t len = prefs.getBytes("s_cur", &out, sizeof(SessionSummary));
+  if (len != sizeof(SessionSummary)) {
+    return false;
+  }
+  return session_is_valid(out);
+}
+
+static void save_session_snapshot_if_needed() {
+  if (!session_open) {
+    return;
+  }
+  SessionSummary snap = build_session_snapshot(false);
+  if (!session_snapshot_valid || memcmp(&snap, &session_snapshot_last, sizeof(SessionSummary)) != 0) {
+    prefs.putBytes("s_cur", &snap, sizeof(SessionSummary));
+    prefs.putUChar("s_open", 1);
+    session_snapshot_last = snap;
+    session_snapshot_valid = true;
+  }
+}
+
+static void session_close_previous_on_boot() {
+  const uint8_t open = prefs.getUChar("s_open", 0);
+  if (open != 1) {
+    return;
+  }
+  SessionSummary prev = {};
+  if (load_session_snapshot(prev)) {
+    finalize_snapshot(prev);
+    history_push(prev);
+  } else {
+    SessionSummary empty = {};
+    session_zero(empty);
+    empty.flags |= SESSION_FLAG_NO_FIX;
+    session_write_crc(empty);
+    history_push(empty);
+  }
+  prefs.putUChar("s_open", 0);
+}
+
+static void session_begin() {
+  session_open = true;
+  session_fix_seen = false;
+  session_start_set = false;
+  session_start_date = 0;
+  session_start_min = 0;
+  session_end_date = 0;
+  session_end_min = 0;
+  session_active_time_ms = 0;
+  session_total_distance_m = 0.0f;
+  session_max_speed_kph = 0.0f;
+  session_has_last_point = false;
+  session_last_lat_deg = 0.0f;
+  session_last_lon_deg = 0.0f;
+  SessionSummary snap = build_session_snapshot(false);
+  prefs.putBytes("s_cur", &snap, sizeof(SessionSummary));
+  prefs.putUChar("s_open", 1);
+  session_snapshot_last = snap;
+  session_snapshot_valid = true;
+}
+
 static void load_wifi_creds() {
   wifi_ssid = prefs.getString("wifi_ssid", "");
   wifi_pass = prefs.getString("wifi_pass", "");
@@ -598,6 +860,42 @@ static void build_summary_payload(uint8_t *out, size_t len) {
   out[15] = checksum;
 }
 
+static void append_session_json(String &json, const SessionSummary &s) {
+  json += "{";
+  json += "\"start_date\":" + String(s.start_date);
+  json += ",\"start_min\":" + String(s.start_min);
+  json += ",\"end_date\":" + String(s.end_date);
+  json += ",\"end_min\":" + String(s.end_min);
+  json += ",\"distance_m\":" + String(s.distance_m);
+  json += ",\"active_s\":" + String(s.active_s);
+  json += ",\"avg_speed_cmps\":" + String(s.avg_speed_cmps);
+  json += ",\"max_speed_cmps\":" + String(s.max_speed_cmps);
+  json += ",\"flags\":" + String(s.flags);
+  json += "}";
+}
+
+static void append_history_json(String &json) {
+  json += ",\"history\":[";
+  for (uint8_t i = 0; i < history_count; ++i) {
+    const uint8_t idx = static_cast<uint8_t>((history_idx + HISTORY_MAX - 1 - i) % HISTORY_MAX);
+    if (i > 0) {
+      json += ",";
+    }
+    append_session_json(json, history[idx]);
+  }
+  json += "]";
+}
+
+static void append_session_current_json(String &json) {
+  json += ",\"session_current\":";
+  if (!session_open) {
+    json += "null";
+    return;
+  }
+  const SessionSummary snap = build_session_snapshot(false);
+  append_session_json(json, snap);
+}
+
 static String build_summary_json() {
   const float avg_speed_kph = (active_time_ms > 0)
                                   ? (total_distance_m / (active_time_ms / 1000.0f)) * 3.6f
@@ -615,6 +913,8 @@ static String build_summary_json() {
   json += ",\"last_update_min\":" + String(last_update_min);
   json += ",\"gps_fix\":" + String(has_gps_fix ? "true" : "false");
   json += ",\"has_data\":" + String(has_data ? "true" : "false");
+  append_history_json(json);
+  append_session_current_json(json);
   json += "}";
   return json;
 }
@@ -971,6 +1271,10 @@ static String html_page() {
       </div>
     </div>
 
+    <h2>Sesiones</h2>
+    <div id="session-current"></div>
+    <div id="history"></div>
+
     <div class="row" style="margin:12px 0">
       <button onclick="refreshAll()">Actualizar</button>
       <a class="btn" href="/config">Config</a>
@@ -986,6 +1290,9 @@ static String html_page() {
     function minToTime(m){var h=Math.floor(m/60);var mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
     function cmpsToKph(v){return (v*0.036).toFixed(1);}
     function fmtDate(d){if(!d){return '--';}var s=String(d);if(s.length!==8){return s;}return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);}
+    function yyyymmddToDate(d){if(!d){return '--/--';}var y=Math.floor(d/10000);var m=Math.floor((d%10000)/100);var day=d%100;return String(day).padStart(2,'0')+'/'+String(m).padStart(2,'0');}
+    function formatDuration(s){var h=Math.floor(s/3600);var m=Math.floor((s%3600)/60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+    function hasFlag(flags,bit){return (flags&(1<<bit))!==0;}
     function setPill(id,text,tone){var el=$(id);el.textContent=text;el.className='pill'+(tone?(' '+tone):'');}
 
     function renderSummary(d){
@@ -1004,6 +1311,50 @@ static String html_page() {
       $('date').textContent=fmtDate(d.date);
       $('updated').textContent='Ultima lectura: '+minToTime(d.last_update_min);
       $('status').textContent='Estado: '+(d.gps_fix?'GPS OK':'Sin GPS');
+    }
+
+    function renderSessionCard(label,s){
+      if(!s){return '';}
+      var flags=s.flags||0;
+      var noFix=hasFlag(flags,3)||!hasFlag(flags,0);
+      if(noFix){
+        return "<div class='card'><div>"+label+"</div><div>Sin GPS</div></div>";
+      }
+      var startDate=yyyymmddToDate(s.start_date);
+      var startTime=minToTime(s.start_min||0);
+      var endDate=yyyymmddToDate(s.end_date||s.start_date);
+      var endTime=minToTime(s.end_min||s.start_min||0);
+      var distKm=(s.distance_m/1000).toFixed(2);
+      var avg=cmpsToKph(s.avg_speed_cmps||0);
+      var max=cmpsToKph(s.max_speed_cmps||0);
+      var active=formatDuration(s.active_s||0);
+      return "<div class='card'><div>"+label+" - "+startDate+" "+startTime+" a "+endDate+" "+endTime+
+             "</div><div>Distancia: "+distKm+" km</div><div>Tiempo activo: "+active+
+             "</div><div>Vel. prom: "+avg+" km/h | Vel. max: "+max+" km/h</div></div>";
+    }
+
+    function renderSessionCurrent(s){
+      var el=$('session-current');
+      if(!el){return;}
+      if(!s){
+        el.innerHTML="<div class='card'>Sesion actual: --</div>";
+        return;
+      }
+      el.innerHTML=renderSessionCard('Sesion actual',s);
+    }
+
+    function renderHistory(list){
+      var el=$('history');
+      if(!el){return;}
+      if(!list||list.length===0){
+        el.innerHTML="<div class='card'>Sin historial</div>";
+        return;
+      }
+      var out='';
+      for(var i=0;i<list.length;i++){
+        out+=renderSessionCard('Sesion '+(i+1),list[i]);
+      }
+      el.innerHTML=out;
     }
 
     function renderStatus(s){
@@ -1044,6 +1395,8 @@ static String html_page() {
       try{
         const d=await fetch('/api/summary').then(r=>r.json());
         renderSummary(d);
+        renderSessionCurrent(d.session_current);
+        renderHistory(d.history);
       }catch(e){
         $('status').textContent='Estado: Error';
       }
@@ -2933,24 +3286,36 @@ static void handle_nmea_line(const char *line) {
     has_gps_fix = valid_fix;
     last_speed_kph = speed_kph;
     last_gps_ms = millis();
-    last_update_min = time_min;
     if (valid_fix) {
+      last_update_min = time_min;
       current_lat_deg = lat_deg;
       current_lon_deg = lon_deg;
       has_current_fix = true;
       gps_rmc_valid++;
       gps_last_fix_ms = last_gps_ms;
+      session_fix_seen = true;
+      if (!session_start_set && date_yyyymmdd != 0) {
+        session_start_set = true;
+        session_start_date = date_yyyymmdd;
+        session_start_min = time_min;
+      }
+      if (date_yyyymmdd != 0) {
+        session_end_date = date_yyyymmdd;
+        session_end_min = time_min;
+      }
     } else {
       has_current_fix = false;
     }
 
-    if (date_yyyymmdd != 0 && date_yyyymmdd != current_date_yyyymmdd) {
-      current_date_yyyymmdd = date_yyyymmdd;
-      total_distance_m = 0.0f;
-      active_time_ms = 0;
-      max_speed_kph = 0.0f;
-      has_last_point = false;
-      save_metrics();
+    if (valid_fix) {
+      if (date_yyyymmdd != 0 && date_yyyymmdd != current_date_yyyymmdd) {
+        current_date_yyyymmdd = date_yyyymmdd;
+        total_distance_m = 0.0f;
+        active_time_ms = 0;
+        max_speed_kph = 0.0f;
+        has_last_point = false;
+        save_metrics();
+      }
     }
 
     if (has_gps_fix && speed_kph <= SPEED_MAX_VALID_KPH) {
@@ -2964,16 +3329,29 @@ static void handle_nmea_line(const char *line) {
             total_distance_m += segment_m;
           }
         }
+        if (session_has_last_point) {
+          const float segment_m = haversine_m(session_last_lat_deg, session_last_lon_deg, lat_deg, lon_deg);
+          if (segment_m < 50.0f) {
+            session_total_distance_m += segment_m;
+          }
+        }
 
         last_lat_deg = lat_deg;
         last_lon_deg = lon_deg;
         has_last_point = true;
+        session_last_lat_deg = lat_deg;
+        session_last_lon_deg = lon_deg;
+        session_has_last_point = true;
 
         if (speed_kph > SPEED_ACTIVE_KPH) {
           active_time_ms += GPS_SAMPLE_MS;
+          session_active_time_ms += GPS_SAMPLE_MS;
         }
         if (speed_kph > max_speed_kph) {
           max_speed_kph = speed_kph;
+        }
+        if (speed_kph > session_max_speed_kph) {
+          session_max_speed_kph = speed_kph;
         }
       }
     }
@@ -3015,6 +3393,9 @@ void setup() {
   prefs.begin("dogrgb", false);
   prefs_cfg.begin("dogrgb_cfg", false);
   load_metrics();
+  history_load();
+  session_close_previous_on_boot();
+  session_begin();
   load_config();
   load_home();
   if (LED_UI_ENABLED) {
@@ -3044,6 +3425,7 @@ void loop() {
   if (now_ms - last_save_ms >= SAVE_INTERVAL_MS) {
     last_save_ms = now_ms;
     save_metrics();
+    save_session_snapshot_if_needed();
   }
 
   if (now_ms - last_heartbeat_ms >= HEARTBEAT_MS) {
