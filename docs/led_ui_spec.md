@@ -68,6 +68,14 @@ Override critico:
 
 ---
 
+## Modo simple
+
+- Aplica **un solo efecto** configurado por el usuario a toda la tira.
+- El modo simple **pisa** LEDs de estado (no muestra Wi‑Fi/GPS mientras está activo).
+- RAINBOW, GRADIENT_WAVE y FIRE **ignoran** el color base.
+
+---
+
 ## Prioridad de estados
 
 1) Error critico (LED0/LED1 rojo rapido)

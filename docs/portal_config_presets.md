@@ -48,7 +48,7 @@ Estado: no implementado en el firmware actual.
   "mode": "speed",
   "fence_max_m": 300,
   "brightness": 60,
-  "speed_ranges_kph": [2.0, 4.0, 6.0, 8.0, 12.0, 16.0, 22.0, 28.0, 34.0],
+  "speed_ranges_kph": [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0],
   "effects": {
     "range1": {"a": 0, "b": 2, "speed": 30, "intensity": 60},
     "range2": {"a": 1, "b": 2, "speed": 40, "intensity": 70},

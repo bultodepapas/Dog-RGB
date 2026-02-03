@@ -83,7 +83,15 @@ Comportamientos especiales:
 
 ---
 
-## 5) Efectos default por rango (tira A y B iguales)
+## 5) Modo simple (Simple)
+
+- Aplica **un solo efecto** a toda la tira (incluye LEDs de estado).
+- Usa el color base RGB configurado en el portal.
+- RAINBOW, GRADIENT_WAVE y FIRE **ignoran** el color base.
+
+---
+
+## 6) Efectos default por rango (tira A y B iguales)
 
 - R1 (<=2.0): JUGGLE / JUGGLE (speed 40, intensity 80)
 - R2 (<=4.0): JUGGLE / JUGGLE (58, 95)
@@ -98,7 +106,7 @@ Comportamientos especiales:
 
 ---
 
-## 6) Defaults relevantes
+## 7) Defaults relevantes
 
 - LED_STRIP_MODE = 2 (doble tira)
 - LED_STRIP_COUNT = 24 (LEDs por tira)

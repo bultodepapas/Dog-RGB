@@ -124,7 +124,7 @@ Mantener la cantidad de LEDs bajo control o migrar a una librería que use RMT o
 **Estado:** APROBADO ✅
 
 Se ha verificado la lógica del código contra `docs/manual_de_colores.md`:
-1. **Rangos de Velocidad:** Coinciden exactamente los valores en `config.h` (R1=2.0kph ... R9=34.0kph).
+1. **Rangos de Velocidad:** Coinciden exactamente los valores en `config.h` (R1=2.0kph ... R9=18.0kph).
 2. **Prioridad de UI:** El código respeta la prioridad: Error Crítico > Estado Wi-Fi > Estado AP > GPS OK.
 3. **Persistencia:** La lógica de guardado en NVS (`save_metrics`, `save_config`) parece correcta y está protegida por intervalos de tiempo para evitar desgaste de la memoria Flash.
 

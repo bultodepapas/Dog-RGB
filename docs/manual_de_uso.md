@@ -83,6 +83,10 @@ Segmento resto:
 - Con GPS OK, usa efectos por rangos de velocidad.
 - Si Wi-Fi esta OFF y GPS OK por >5 min, los LEDs de estado se igualan al segmento resto.
 
+Modos especiales:
+- Show: demo visual que recorre efectos automaticamente.
+- Simple: un solo efecto configurado por el usuario, aplicado a toda la tira (incluye LEDs de estado).
+
 AP/Wi-Fi auto:
 - Si no hay GPS fix, el AP se mantiene encendido.
 - Si la velocidad es <= 2 km/h por ~2 min, el AP se enciende automaticamente.
@@ -127,8 +131,10 @@ Acceso:
 
 Desde aqui puedes:
 - Ajustar brillo (1..255).
+- Cambiar modo (Speed / Geofence / Show / Simple).
 - Cambiar rangos de velocidad (km/h).
 - Cambiar efectos por rango (IDs 0..11).
+- Configurar el modo Simple (efecto, speed, intensity, RGB y tema).
 - Cambiar SSID/AP password o dejar el AP abierto.
 - Cambiar mDNS.
 
@@ -137,6 +143,7 @@ Acciones:
 - "Restaurar defaults": vuelve a valores de fabrica.
 
 Nota: si cambias SSID/password del AP, el AP se reinicia y puede desconectar la sesion.
+Nota: RAINBOW, GRADIENT_WAVE y FIRE ignoran el color base en modo Simple.
 
 ---
 

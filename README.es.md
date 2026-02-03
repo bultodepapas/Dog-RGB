@@ -54,7 +54,7 @@ El proyecto de firmware activo esta en [Platformio/Dog-RGB](Platformio/Dog-RGB) 
 - Portal Wi-Fi (AP/STA) con `/`, `/api/summary`, `/wifi`
 - UI de configuracion en `/config` con `/api/config` + `/api/config/reset`
 - Resumen BLE diario en modo lectura
-- UI LED con 12 efectos, configurable por rangos de velocidad
+- UI LED con 12 efectos, configurable por rangos de velocidad, mas modos Show/Simple
 
 Archivos clave:
 - Entrypoint firmware: [Platformio/Dog-RGB/src/main.cpp](Platformio/Dog-RGB/src/main.cpp)
