@@ -1,88 +1,152 @@
 #include "web/pages.h"
 
+#include <pgmspace.h>
+
 #include "wifi/wifi_mgr.h"
 
+namespace {
+const char BASE_CSS[] PROGMEM = R"CSS(
+:root{--bg:#F2F6F8;--surface:#FFFFFF;--text:#0B1220;--muted:#5D6B7A;--accent:#00D1C1;--accent-2:#FF8A00;--danger:#E84545;--border:#E6EDF2;--shadow:0 8px 24px rgba(11,18,32,0.08);--radius:14px;--space-1:6px;--space-2:10px;--space-3:14px;--space-4:20px;--space-5:28px;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Space Grotesk','Avenir Next','Segoe UI',system-ui,sans-serif;background:linear-gradient(180deg,#F2F6F8 0%,#EDF3F6 100%);color:var(--text);}
+a{color:var(--text);text-decoration:none;}
+h1,h2{margin:0 0 8px 0;}
+h1{font-size:24px;letter-spacing:0.4px;}
+h2{font-size:18px;}
+.container{max-width:900px;margin:0 auto;padding:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:var(--space-4);}
+.hero{display:flex;flex-direction:column;gap:var(--space-3);}
+.hero-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3);}
+.brand{font-size:26px;font-weight:700;letter-spacing:0.6px;}
+.tagline{font-size:13px;color:var(--muted);}
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.pill{font-size:12px;border-radius:999px;padding:6px 10px;background:#F1F4F7;border:1px solid var(--border);color:var(--text);}
+.pill.ok{background:rgba(0,209,193,0.15);border-color:rgba(0,209,193,0.35);color:#007A70;}
+.pill.warn{background:rgba(255,138,0,0.15);border-color:rgba(255,138,0,0.35);color:#A05A00;}
+.pill.bad{background:rgba(232,69,69,0.15);border-color:rgba(232,69,69,0.35);color:#8A1D1D;}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.grid{display:grid;gap:12px;}
+.grid-2{grid-template-columns:repeat(2,minmax(0,1fr));}
+.grid-3{grid-template-columns:repeat(3,minmax(0,1fr));}
+.label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
+.value{font-size:24px;font-weight:700;}
+.metric .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
+.metric .value{font-size:28px;font-weight:700;line-height:1.1;}
+.metric .unit{font-size:12px;color:var(--muted);}
+.muted{color:var(--muted);font-size:12px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid transparent;background:var(--text);color:#fff;font-weight:600;font-size:14px;cursor:pointer;}
+.btn.ghost{background:transparent;color:var(--text);border-color:var(--border);}
+.btn:disabled{opacity:0.6;cursor:not-allowed;}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0;}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
+input,select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font-family:inherit;font-size:14px;color:var(--text);}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,209,193,0.15);}
+input[type="checkbox"]{width:auto;margin-right:6px;}
+.section{margin-top:14px;}
+.section.invalid{border-color:var(--danger);background:#FFF5F5;}
+input.invalid,select.invalid{border-color:var(--danger);background:#FFF5F5;}
+.error{color:var(--danger);font-size:12px;}
+.error-box{padding:12px;}
+.error-box:empty{display:none;}
+.warn{color:#A05A00;font-size:12px;}
+.help{color:var(--muted);font-size:12px;margin-top:6px;}
+.notice{color:var(--muted);font-size:12px;margin-top:6px;}
+.effects-row{display:grid;grid-template-columns:60px 1fr 1fr 1fr 1fr;gap:8px;align-items:end;margin:8px 0;}
+.effects-row .range-label{font-weight:700;color:var(--muted);}
+details.section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600;}
+details.section > summary::-webkit-details-marker{display:none;}
+details.section > summary::after{content:'+';font-weight:700;color:var(--muted);}
+details.section[open] > summary::after{content:'-';}
+.section-body{margin-top:10px;}
+.action-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.mode-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;}
+.field-inline{min-width:180px;}
+.session-card{margin:8px 0;}
+@media (max-width:760px){.grid-2,.grid-3{grid-template-columns:1fr;}.effects-row{grid-template-columns:1fr 1fr;}.hero-top{flex-direction:column;align-items:flex-start;}}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+)CSS";
+} // namespace
+
 String web_pages::html_page() {
-  return String(R"HTML(
+  String page;
+  page.reserve(12000);
+  page += F(R"HTML(
 <!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Dog Collar</title>
+  <title>DOG-RGB</title>
   <style>
-    :root{--bg:#f6f6f6;--card:#fff;--text:#111;--muted:#666;--ok:#0a6;--warn:#b60;--bad:#b00}
-    body{font-family:Arial,sans-serif;margin:16px;background:var(--bg);color:var(--text)}
-    .container{max-width:720px;margin:0 auto}
-    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .card{background:var(--card);border:1px solid #e2e2e2;border-radius:10px;padding:12px}
-    .label{font-size:12px;color:var(--muted)}
-    .value{font-size:24px;font-weight:bold}
-    .pill{font-size:12px;border-radius:999px;padding:4px 8px;background:#eee;border:1px solid #ddd}
-    .pill.ok{background:#e6f8ee;color:var(--ok);border-color:#bdebd0}
-    .pill.warn{background:#fff2e0;color:var(--warn);border-color:#ffd7ad}
-    .pill.bad{background:#ffe5e5;color:var(--bad);border-color:#ffbdbd}
-    .muted{color:var(--muted);font-size:12px}
-    button{padding:10px 14px;border:0;border-radius:6px;background:#111;color:#fff}
-    select{padding:8px;border:1px solid #ccc;border-radius:6px;background:#fff}
-    a.btn{display:inline-block;padding:10px 14px;border-radius:6px;border:1px solid #ddd;background:#fff;color:#111;text-decoration:none}
-    @media (max-width:540px){.grid{grid-template-columns:1fr}}
+)HTML");
+  page += FPSTR(BASE_CSS);
+  page += F(R"HTML(
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Dog Collar</h1>
-    <div class="row" style="margin-bottom:10px">
-      <span class="pill" id="pill-gps">GPS: --</span>
-      <span class="pill" id="pill-wifi">Wi-Fi: --</span>
-      <span class="pill" id="pill-mode">Modo: --</span>
-      <span class="pill" id="pill-home">Home: --</span>
-    </div>
-    <div class="row" style="margin-bottom:10px">
-      <label class="muted">Modo</label>
-      <select id="mode_select">
-        <option value="speed">Velocidad</option>
-        <option value="geofence">Geocerca</option>
-        <option value="simple">Simple</option>
-        <option value="show">Show</option>
-      </select>
-      <button onclick="saveMode()">Aplicar</button>
-      <span class="muted" id="mode_status"></span>
+    <div class="hero card">
+      <div class="hero-top">
+        <div>
+          <div class="brand">DOG-RGB</div>
+          <div class="tagline">Collar inteligente de seguridad</div>
+        </div>
+        <div class="chips">
+          <span class="pill" id="pill-gps">GPS: --</span>
+          <span class="pill" id="pill-wifi">Wi-Fi: --</span>
+          <span class="pill" id="pill-mode">Modo: --</span>
+          <span class="pill" id="pill-home">Home: --</span>
+        </div>
+      </div>
+      <div class="mode-row">
+        <div class="field-inline">
+          <label class="muted">Modo</label>
+          <select id="mode_select">
+            <option value="speed">Velocidad</option>
+            <option value="geofence">Geocerca</option>
+            <option value="simple">Simple</option>
+            <option value="show">Show</option>
+          </select>
+        </div>
+        <button class="btn" onclick="saveMode()">Aplicar</button>
+        <span class="muted" id="mode_status"></span>
+      </div>
     </div>
 
-    <div class="grid">
-      <div class="card">
+    <div class="grid grid-2 section">
+      <div class="card metric">
         <div class="label">Distancia</div>
         <div class="value" id="dist">--</div>
-        <div class="muted">km</div>
+        <div class="unit">km</div>
       </div>
-      <div class="card">
+      <div class="card metric">
         <div class="label">Velocidad promedio</div>
         <div class="value" id="avg">--</div>
-        <div class="muted">km/h</div>
+        <div class="unit">km/h</div>
       </div>
-      <div class="card">
+      <div class="card metric">
         <div class="label">Velocidad maxima</div>
         <div class="value" id="max">--</div>
-        <div class="muted">km/h</div>
+        <div class="unit">km/h</div>
       </div>
-      <div class="card">
+      <div class="card metric">
         <div class="label">Fecha</div>
         <div class="value" id="date">--</div>
         <div class="muted" id="updated">Ultima lectura: --</div>
       </div>
     </div>
 
-    <h2>Sesiones</h2>
-    <div id="session-current"></div>
-    <div id="history"></div>
+    <div class="card section">
+      <h2>Sesiones</h2>
+      <div id="session-current"></div>
+      <div id="history"></div>
+    </div>
 
-    <div class="row" style="margin:12px 0">
-      <button onclick="refreshAll()">Actualizar</button>
-      <button id="home_btn" onclick="updateHome()" style="display:none">Actualizar Home</button>
-      <a class="btn" href="/config">Config</a>
-      <a class="btn" href="/wifi">Wi-Fi</a>
+    <div class="actions">
+      <button class="btn" onclick="refreshAll()">Actualizar</button>
+      <button class="btn ghost" id="home_btn" onclick="updateHome()" style="display:none">Actualizar Home</button>
+      <a class="btn ghost" href="/config">Config</a>
+      <a class="btn ghost" href="/wifi">Wi-Fi</a>
     </div>
     <div class="muted" id="status">Estado: --</div>
   </div>
@@ -123,7 +187,7 @@ String web_pages::html_page() {
       var flags=s.flags||0;
       var noFix=hasFlag(flags,3)||!hasFlag(flags,0);
       if(noFix){
-        return "<div class='card'><div>"+label+"</div><div>Sin GPS</div></div>";
+        return "<div class='card session-card'><div class='label'>"+label+"</div><div>Sin GPS</div></div>";
       }
       var startDate=yyyymmddToDate(s.start_date);
       var startTime=minToTime(s.start_min||0);
@@ -133,16 +197,18 @@ String web_pages::html_page() {
       var avg=cmpsToKph(s.avg_speed_cmps||0);
       var max=cmpsToKph(s.max_speed_cmps||0);
       var active=formatDuration(s.active_s||0);
-      return "<div class='card'><div>"+label+" - "+startDate+" "+startTime+" a "+endDate+" "+endTime+
-             "</div><div>Distancia: "+distKm+" km</div><div>Tiempo activo: "+active+
-             "</div><div>Vel. prom: "+avg+" km/h | Vel. max: "+max+" km/h</div></div>";
+      return "<div class='card session-card'><div class='label'>"+label+"</div>"+
+             "<div class='muted'>"+startDate+" "+startTime+" a "+endDate+" "+endTime+"</div>"+
+             "<div>Distancia: <strong>"+distKm+"</strong> km</div>"+
+             "<div class='muted'>Tiempo activo: "+active+"</div>"+
+             "<div class='muted'>Vel. prom: "+avg+" km/h | Vel. max: "+max+" km/h</div></div>";
     }
 
     function renderSessionCurrent(s){
       var el=$('session-current');
       if(!el){return;}
       if(!s){
-        el.innerHTML="<div class='card'>Sesion actual: --</div>";
+        el.innerHTML="<div class='card session-card'>Sesion actual: --</div>";
         return;
       }
       el.innerHTML=renderSessionCard('Sesion actual',s);
@@ -152,7 +218,7 @@ String web_pages::html_page() {
       var el=$('history');
       if(!el){return;}
       if(!list||list.length===0){
-        el.innerHTML="<div class='card'>Sin historial</div>";
+        el.innerHTML="<div class='card session-card'>Sin historial</div>";
         return;
       }
       var out='';
@@ -183,7 +249,7 @@ String web_pages::html_page() {
       }
       if (homeBtn){
         const showHome = (s.mode === 'geofence');
-        homeBtn.style.display = showHome ? 'inline-block' : 'none';
+        homeBtn.style.display = showHome ? 'inline-flex' : 'none';
       }
 
       var homeText='Home: --';
@@ -252,20 +318,70 @@ String web_pages::html_page() {
 </body>
 </html>
 )HTML");
+  return page;
 }
 String web_pages::html_wifi_page() {
-  String page = "<!doctype html><html><head><meta charset='utf-8'>"
-                "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                "<title>Wi-Fi</title></head><body><h1>Configurar Wi-Fi</h1>"
-                "<form method='post' action='/api/wifi'>"
-                "<label>SSID</label><br><input name='ssid' value='" + wifi_mgr::ssid() + "'><br>"
-                "<label>Password</label><br><input name='pass' type='password'><br><br>"
-                "<button type='submit'>Guardar y conectar</button>"
-                "</form><p><a href='/'>Volver</a></p></body></html>";
+  String page;
+  page.reserve(5000);
+  page += F(R"HTML(
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Wi-Fi</title>
+  <style>
+)HTML");
+  page += FPSTR(BASE_CSS);
+  page += F(R"HTML(
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero card">
+      <div class="hero-top">
+        <div>
+          <div class="brand">DOG-RGB</div>
+          <div class="tagline">Configurar Wi-Fi</div>
+        </div>
+      </div>
+      <div class="muted">Conecta el collar a tu red de casa.</div>
+    </div>
+
+    <form class="card section" method="post" action="/api/wifi">
+      <div class="field">
+        <label>SSID</label>
+        <input name="ssid" value=")HTML");
+  page += wifi_mgr::ssid();
+  page += F(R"HTML(">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input name="pass" id="pass" type="password" placeholder="Password">
+      </div>
+      <label class="muted"><input type="checkbox" id="show_pass"> Mostrar password</label>
+      <div class="actions">
+        <button class="btn" type="submit">Guardar y conectar</button>
+        <a class="btn ghost" href="/">Volver</a>
+      </div>
+      <div class="notice">Nota: el AP puede reiniciarse al guardar.</div>
+    </form>
+  </div>
+
+  <script>
+    const pass = document.getElementById('pass');
+    const show = document.getElementById('show_pass');
+    show.onchange = () => { pass.type = show.checked ? 'text' : 'password'; };
+  </script>
+</body>
+</html>
+)HTML");
   return page;
 }
 String web_pages::html_config_page() {
-  return String(R"CFG(
+  String page;
+  page.reserve(16000);
+  page += F(R"CFG(
 <!doctype html>
 <html>
 <head>
@@ -273,155 +389,160 @@ String web_pages::html_config_page() {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Config</title>
   <style>
-    :root{--bg:#f6f6f6;--card:#fff;--text:#111;--muted:#666;--warn:#b60;--bad:#b00}
-    body{font-family:Arial,sans-serif;margin:16px;background:var(--bg);color:var(--text)}
-    .container{max-width:900px;margin:0 auto}
-    .section{background:var(--card);border:1px solid #e2e2e2;border-radius:10px;padding:12px;margin:12px 0}
-    .section.invalid{border-color:#b00;background:#fff6f6}
-    .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-    .field label{display:block;font-size:12px;color:var(--muted)}
-    input,select{width:100%;padding:8px;margin:4px 0;border:1px solid #ccc;border-radius:6px}
-    input.invalid,select.invalid{border-color:#b00;background:#fff3f3}
-    button{padding:10px 14px;border:0;border-radius:6px;background:#111;color:#fff}
-    button.secondary{background:#444}
-    .muted{color:var(--muted);font-size:12px}
-    .help{color:var(--muted);font-size:12px;margin-top:6px}
-    .error{color:var(--bad);font-size:12px;margin:6px 0}
-    .warn{color:var(--warn);font-size:12px;margin:6px 0}
-    .effects-row{display:grid;grid-template-columns:60px 1fr 1fr 1fr 1fr;gap:8px;align-items:end;margin:8px 0}
-    .effects-row .range-label{font-weight:bold}
-    a{color:#111}
-    @media (max-width:760px){
-      .grid,.grid-3{grid-template-columns:1fr}
-      .effects-row{grid-template-columns:1fr 1fr}
-    }
+)CFG");
+  page += FPSTR(BASE_CSS);
+  page += F(R"CFG(
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Config</h1>
-    <div id="errors" class="error"></div>
+    <div class="hero card">
+      <div class="hero-top">
+        <div>
+          <div class="brand">DOG-RGB</div>
+          <div class="tagline">Configuracion avanzada</div>
+        </div>
+      </div>
+      <div class="muted">Ajustes de LED, geofence y Wi-Fi</div>
+    </div>
+
+    <div id="errors" class="card error-box error section"></div>
+
+    <div class="card action-bar section">
+      <button class="btn" type="button" onclick="saveCfg()">Guardar</button>
+      <button class="btn ghost" type="button" onclick="resetCfg()">Restaurar defaults</button>
+      <span id="status" class="muted"></span>
+    </div>
+
+    <details class="card section" id="common_block" open>
+      <summary>Comun</summary>
+      <div class="section-body">
+        <div class="grid grid-2">
+          <div class="field">
+            <label>Brightness (1..255)</label>
+            <input id="brightness" type="number" min="1" max="255">
+          </div>
+          <div class="field">
+            <label>Modo</label>
+            <select id="mode">
+              <option value="speed">Velocidad</option>
+              <option value="geofence">Geocerca</option>
+              <option value="simple">Simple</option>
+              <option value="show">Show</option>
+            </select>
+          </div>
+        </div>
+        <div id="mode_help" class="help"></div>
+      </div>
+    </details>
+
+    <details class="card section" id="speed_block" open>
+      <summary>Speed ranges (kph)</summary>
+      <div class="section-body">
+        <div class="grid grid-3">
+          <div class="field"><label>R1</label><input id="r1" type="number" step="0.1"></div>
+          <div class="field"><label>R2</label><input id="r2" type="number" step="0.1"></div>
+          <div class="field"><label>R3</label><input id="r3" type="number" step="0.1"></div>
+          <div class="field"><label>R4</label><input id="r4" type="number" step="0.1"></div>
+          <div class="field"><label>R5</label><input id="r5" type="number" step="0.1"></div>
+          <div class="field"><label>R6</label><input id="r6" type="number" step="0.1"></div>
+          <div class="field"><label>R7</label><input id="r7" type="number" step="0.1"></div>
+          <div class="field"><label>R8</label><input id="r8" type="number" step="0.1"></div>
+          <div class="field"><label>R9</label><input id="r9" type="number" step="0.1"></div>
+        </div>
+        <div class="help">R10 es mayor que R9.</div>
+      </div>
+    </details>
+
+    <details class="card section" id="geofence_block" open>
+      <summary>Geofence</summary>
+      <div class="section-body">
+        <div class="grid grid-2">
+          <div class="field">
+            <label>Distancia maxima (m)</label>
+            <input id="fence_max" type="number" min="50" max="5000">
+          </div>
+          <div class="field">
+            <label>Rangos</label>
+            <div id="fence_ranges" class="muted"></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" type="button" onclick="setHome()">Nuevo Home (GPS actual)</button>
+          <button class="btn ghost" type="button" onclick="clearHome()">Clear Home</button>
+        </div>
+        <div id="home_status" class="muted"></div>
+      </div>
+    </details>
+
+    <details class="card section" id="simple_block" open>
+      <summary>Simple</summary>
+      <div class="section-body">
+        <div class="grid grid-2">
+          <div class="field">
+            <label>Tema</label>
+            <select id="simple_theme">
+              <option value="manual">Manual</option>
+              <option value="calm">Calm</option>
+              <option value="active">Active</option>
+              <option value="sport">Sport</option>
+              <option value="aurora">Aurora</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Efecto</label>
+            <select id="simple_effect"></select>
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field"><label>Speed (0..255)</label><input id="simple_speed" type="number" min="0" max="255"></div>
+          <div class="field"><label>Intensity (0..255)</label><input id="simple_intensity" type="number" min="0" max="255"></div>
+        </div>
+        <div class="grid grid-3">
+          <div class="field"><label>R</label><input id="simple_r" type="number" min="0" max="255"></div>
+          <div class="field"><label>G</label><input id="simple_g" type="number" min="0" max="255"></div>
+          <div class="field"><label>B</label><input id="simple_b" type="number" min="0" max="255"></div>
+        </div>
+        <div class="help">RAINBOW, GRADIENT_WAVE y FIRE ignoran el color base.</div>
+      </div>
+    </details>
+
+    <details class="card section" id="show_block" open>
+      <summary>Show</summary>
+      <div class="section-body">
+        <div class="help">Modo demo: rota efectos automaticamente. No hay parametros.</div>
+      </div>
+    </details>
+
+    <details class="card section" id="effects_block" open>
+      <summary>Efectos por rango (1-10)</summary>
+      <div class="section-body">
+        <div id="effects"></div>
+      </div>
+    </details>
+
+    <details class="card section" id="wifi_block" open>
+      <summary>Wi-Fi AP</summary>
+      <div class="section-body">
+        <div class="grid grid-2">
+          <div class="field"><label>SSID</label><input id="ap_ssid" type="text"></div>
+          <div class="field"><label>mDNS</label><input id="mdns" type="text"></div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field"><label>Password</label><input id="ap_pass" type="password" placeholder="(sin cambio)"></div>
+          <div class="field">
+            <label>AP abierto</label>
+            <label class="muted"><input id="ap_open" type="checkbox"> Sin password</label>
+          </div>
+        </div>
+        <div id="ap_hint" class="muted"></div>
+        <div id="ap_warn" class="warn"></div>
+      </div>
+    </details>
 
     <div class="section">
-      <h2>Comun</h2>
-      <div class="grid">
-        <div class="field">
-          <label>Brightness (1..255)</label>
-          <input id="brightness" type="number" min="1" max="255">
-        </div>
-        <div class="field">
-          <label>Modo</label>
-          <select id="mode">
-            <option value="speed">Velocidad</option>
-            <option value="geofence">Geocerca</option>
-            <option value="simple">Simple</option>
-            <option value="show">Show</option>
-          </select>
-        </div>
-      </div>
-      <div id="mode_help" class="help"></div>
-      <div class="row" style="margin-top:8px">
-        <button onclick="saveCfg()">Guardar</button>
-        <button class="secondary" onclick="resetCfg()">Restaurar defaults</button>
-        <span id="status" class="muted"></span>
-      </div>
+      <a class="btn ghost" href="/">Volver</a>
     </div>
-
-    <div class="section" id="speed_block">
-      <h2>Speed ranges (kph)</h2>
-      <div class="grid-3">
-        <div class="field"><label>R1</label><input id="r1" type="number" step="0.1"></div>
-        <div class="field"><label>R2</label><input id="r2" type="number" step="0.1"></div>
-        <div class="field"><label>R3</label><input id="r3" type="number" step="0.1"></div>
-        <div class="field"><label>R4</label><input id="r4" type="number" step="0.1"></div>
-        <div class="field"><label>R5</label><input id="r5" type="number" step="0.1"></div>
-        <div class="field"><label>R6</label><input id="r6" type="number" step="0.1"></div>
-        <div class="field"><label>R7</label><input id="r7" type="number" step="0.1"></div>
-        <div class="field"><label>R8</label><input id="r8" type="number" step="0.1"></div>
-        <div class="field"><label>R9</label><input id="r9" type="number" step="0.1"></div>
-      </div>
-      <div class="help">R10 es mayor que R9.</div>
-    </div>
-
-    <div class="section" id="geofence_block">
-      <h2>Geofence</h2>
-      <div class="grid">
-        <div class="field">
-          <label>Distancia maxima (m)</label>
-          <input id="fence_max" type="number" min="50" max="5000">
-        </div>
-        <div class="field">
-          <label>Rangos</label>
-          <div id="fence_ranges" class="muted"></div>
-        </div>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button type="button" onclick="setHome()">Nuevo Home (GPS actual)</button>
-        <button type="button" class="secondary" onclick="clearHome()">Clear Home</button>
-      </div>
-      <div id="home_status" class="muted"></div>
-    </div>
-
-    <div class="section" id="simple_block">
-      <h2>Simple</h2>
-      <div class="grid">
-        <div class="field">
-          <label>Tema</label>
-          <select id="simple_theme">
-            <option value="manual">Manual</option>
-            <option value="calm">Calm</option>
-            <option value="active">Active</option>
-            <option value="sport">Sport</option>
-            <option value="aurora">Aurora</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Efecto</label>
-          <select id="simple_effect"></select>
-        </div>
-      </div>
-      <div class="grid">
-        <div class="field"><label>Speed (0..255)</label><input id="simple_speed" type="number" min="0" max="255"></div>
-        <div class="field"><label>Intensity (0..255)</label><input id="simple_intensity" type="number" min="0" max="255"></div>
-      </div>
-      <div class="grid-3">
-        <div class="field"><label>R</label><input id="simple_r" type="number" min="0" max="255"></div>
-        <div class="field"><label>G</label><input id="simple_g" type="number" min="0" max="255"></div>
-        <div class="field"><label>B</label><input id="simple_b" type="number" min="0" max="255"></div>
-      </div>
-      <div class="help">RAINBOW, GRADIENT_WAVE y FIRE ignoran el color base.</div>
-    </div>
-
-    <div class="section" id="show_block">
-      <h2>Show</h2>
-      <div class="help">Modo demo: rota efectos automaticamente. No hay parametros.</div>
-    </div>
-
-    <div class="section" id="effects_block">
-      <h2>Efectos por rango (1-10)</h2>
-      <div id="effects"></div>
-    </div>
-
-    <div class="section" id="wifi_block">
-      <h2>Wi-Fi AP</h2>
-      <div class="grid">
-        <div class="field"><label>SSID</label><input id="ap_ssid" type="text"></div>
-        <div class="field"><label>mDNS</label><input id="mdns" type="text"></div>
-      </div>
-      <div class="grid">
-        <div class="field"><label>Password</label><input id="ap_pass" type="password" placeholder="(sin cambio)"></div>
-        <div class="field">
-          <label>AP abierto</label>
-          <label><input id="ap_open" type="checkbox"> Sin password</label>
-        </div>
-      </div>
-      <div id="ap_hint" class="muted"></div>
-      <div id="ap_warn" class="warn"></div>
-    </div>
-
-    <p><a href="/">Volver</a></p>
   </div>
 
   <script>
@@ -823,4 +944,5 @@ String web_pages::html_config_page() {
 </body>
 </html>
 )CFG");
+  return page;
 }
