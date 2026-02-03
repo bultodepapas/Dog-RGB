@@ -239,7 +239,8 @@ String web_pages::html_page() {
     function renderStatus(s){
       if(!s){return;}
       var gpsTone=s.gps&&s.gps.fix?'ok':'warn';
-      var gpsText=s.gps&&s.gps.fix?'GPS OK':'GPS sin fix';
+      var gpsSats=(s.gps&&s.gps.sats!==undefined)?s.gps.sats:'--';
+      var gpsText=s.gps&&s.gps.fix?'GPS OK ('+gpsSats+')':'GPS sin fix ('+gpsSats+')';
       setPill('pill-gps',gpsText,gpsTone);
 
       var wifiText='Wi-Fi off';
