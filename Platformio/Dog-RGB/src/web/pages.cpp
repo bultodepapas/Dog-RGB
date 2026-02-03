@@ -51,8 +51,12 @@ input.invalid,select.invalid{border-color:var(--danger);background:#FFF5F5;}
 .warn{color:#A05A00;font-size:12px;}
 .help{color:var(--muted);font-size:12px;margin-top:6px;}
 .notice{color:var(--muted);font-size:12px;margin-top:6px;}
-.effects-row{display:grid;grid-template-columns:60px 1fr 1fr 1fr 1fr;gap:8px;align-items:end;margin:8px 0;}
-.effects-row .range-label{font-weight:700;color:var(--muted);}
+.effects-row{display:grid;grid-template-columns:64px 1fr 1fr 1fr 1fr;grid-template-areas:"range a b speed intensity";gap:10px;align-items:end;margin:10px 0;padding:12px;background:#F8FAFB;border:1px solid var(--border);border-radius:12px;}
+.effects-row .range-label{grid-area:range;font-weight:700;color:var(--muted);align-self:center;}
+.effects-row .field-a{grid-area:a;}
+.effects-row .field-b{grid-area:b;}
+.effects-row .field-speed{grid-area:speed;}
+.effects-row .field-intensity{grid-area:intensity;}
 details.section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600;}
 details.section > summary::-webkit-details-marker{display:none;}
 details.section > summary::after{content:'+';font-weight:700;color:var(--muted);}
@@ -62,7 +66,7 @@ details.section[open] > summary::after{content:'-';}
 .mode-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;}
 .field-inline{min-width:180px;}
 .session-card{margin:8px 0;}
-@media (max-width:760px){.grid-2,.grid-3{grid-template-columns:1fr;}.effects-row{grid-template-columns:1fr 1fr;}.hero-top{flex-direction:column;align-items:flex-start;}}
+@media (max-width:760px){.grid-2,.grid-3{grid-template-columns:1fr;}.effects-row{grid-template-columns:52px 1fr;grid-template-areas:"range a" "range b" "range speed" "range intensity";}.effects-row .range-label{align-self:start;padding-top:4px;}.hero-top{flex-direction:column;align-items:flex-start;}}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
 )CSS";
 } // namespace
@@ -746,10 +750,10 @@ String web_pages::html_config_page() {
       for (let i=1;i<=10;i++){
         html += `<div class="effects-row">
           <div class="range-label">R${i}</div>
-          <div class="field"><label>A</label><select id="e${i}a"></select></div>
-          <div class="field"><label>B</label><select id="e${i}b"></select></div>
-          <div class="field"><label>Speed</label><input id="e${i}s" type="number" min="0" max="255"></div>
-          <div class="field"><label>Intensity</label><input id="e${i}i" type="number" min="0" max="255"></div>
+          <div class="field field-a"><label>A</label><select id="e${i}a"></select></div>
+          <div class="field field-b"><label>B</label><select id="e${i}b"></select></div>
+          <div class="field field-speed"><label>Speed</label><input id="e${i}s" type="number" min="0" max="255"></div>
+          <div class="field field-intensity"><label>Intensity</label><input id="e${i}i" type="number" min="0" max="255"></div>
         </div>`;
       }
       effectsDiv.innerHTML = html;
