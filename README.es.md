@@ -13,6 +13,7 @@ Collar LED inteligente y de alta visibilidad para perros medianos y grandes. Dis
 - Referencia de colores: [docs/manual_de_colores.md](docs/manual_de_colores.md)
 - Pinout XIAO ESP32-S3 (oficial): [xiao_s3_pin.md](xiao_s3_pin.md)
 - Arquitectura: [docs/architecture.md](docs/architecture.md)
+- Refactor firmware: [docs/main_refactor.md](docs/main_refactor.md)
 - Requisitos: [docs/requirements.md](docs/requirements.md)
 - Roadmap: [docs/roadmap.md](docs/roadmap.md)
 - Tareas: [docs/tasks.md](docs/tasks.md)
@@ -55,6 +56,8 @@ El proyecto de firmware activo esta en [Platformio/Dog-RGB](Platformio/Dog-RGB) 
 - UI de configuracion en `/config` con `/api/config` + `/api/config/reset`
 - Resumen BLE diario en modo lectura
 - UI LED con 12 efectos, configurable por rangos de velocidad, mas modos Show/Simple
+
+Resumen corto: el firmware ahora esta modularizado por dominios (GPS, Wi-Fi, portal web, BLE, UI LED, config, storage) y `main.cpp` solo orquesta `setup()`/`loop()`. Ver [docs/architecture.md](docs/architecture.md) y [docs/main_refactor.md](docs/main_refactor.md).
 
 Archivos clave:
 - Entrypoint firmware: [Platformio/Dog-RGB/src/main.cpp](Platformio/Dog-RGB/src/main.cpp)

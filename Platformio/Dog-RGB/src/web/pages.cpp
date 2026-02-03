@@ -80,6 +80,7 @@ String web_pages::html_page() {
 
     <div class="row" style="margin:12px 0">
       <button onclick="refreshAll()">Actualizar</button>
+      <button id="home_btn" onclick="updateHome()" style="display:none">Actualizar Home</button>
       <a class="btn" href="/config">Config</a>
       <a class="btn" href="/wifi">Wi-Fi</a>
     </div>
@@ -89,6 +90,7 @@ String web_pages::html_page() {
   <script>
     const $ = (id) => document.getElementById(id);
     const modeSelect = $('mode_select');
+    const homeBtn = $('home_btn');
     const modeStatus = $('mode_status');
     function minToTime(m){var h=Math.floor(m/60);var mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
     function cmpsToKph(v){return (v*0.036).toFixed(1);}
@@ -179,6 +181,10 @@ String web_pages::html_page() {
       if (s.mode && document.activeElement !== modeSelect){
         modeSelect.value = s.mode;
       }
+      if (homeBtn){
+        const showHome = (s.mode === 'geofence');
+        homeBtn.style.display = showHome ? 'inline-block' : 'none';
+      }
 
       var homeText='Home: --';
       var homeTone='warn';
@@ -229,6 +235,16 @@ String web_pages::html_page() {
     }
 
     function refreshAll(){loadSummary();loadStatus();}
+    async function updateHome(){
+      if (homeBtn) homeBtn.disabled = true;
+      try{
+        const r = await fetch('/api/home/set',{method:'POST'}).then(r=>r.json());
+        if (r.status === 'ok'){
+          loadStatus();
+        }
+      }catch(e){}
+      if (homeBtn) homeBtn.disabled = false;
+    }
     refreshAll();
     setInterval(loadStatus,5000);
     setInterval(loadSummary,10000);
