@@ -1,0 +1,281 @@
+#include "config/runtime_config.h"
+
+#include <Arduino.h>
+
+#include "config.h"
+#include "storage/nvs_store.h"
+#include "led/led_ui.h"
+#include "wifi/wifi_mgr.h"
+
+namespace config {
+namespace {
+RuntimeConfig g_cfg;
+
+void set_default_single_config(SingleEffectConfig &cfg) {
+  cfg.effect_id = SINGLE_EFFECT_DEFAULT;
+  cfg.speed = SINGLE_SPEED_DEFAULT;
+  cfg.intensity = SINGLE_INTENSITY_DEFAULT;
+  cfg.base_r = SINGLE_R_DEFAULT;
+  cfg.base_g = SINGLE_G_DEFAULT;
+  cfg.base_b = SINGLE_B_DEFAULT;
+}
+
+bool validate_single_config(const SingleEffectConfig &cfg) {
+  return cfg.effect_id < EFFECT_COUNT;
+}
+
+void load_single_config(RuntimeConfig &cfg) {
+  Preferences &prefs_cfg = storage::prefs_cfg();
+  cfg.single.effect_id = prefs_cfg.getUChar("single_eff", SINGLE_EFFECT_DEFAULT);
+  cfg.single.speed = prefs_cfg.getUChar("single_speed", SINGLE_SPEED_DEFAULT);
+  cfg.single.intensity = prefs_cfg.getUChar("single_intensity", SINGLE_INTENSITY_DEFAULT);
+  cfg.single.base_r = prefs_cfg.getUChar("single_r", SINGLE_R_DEFAULT);
+  cfg.single.base_g = prefs_cfg.getUChar("single_g", SINGLE_G_DEFAULT);
+  cfg.single.base_b = prefs_cfg.getUChar("single_b", SINGLE_B_DEFAULT);
+  if (!validate_single_config(cfg.single)) {
+    set_default_single_config(cfg.single);
+  }
+}
+
+bool read_common_config(RuntimeConfig &cfg) {
+  Preferences &prefs_cfg = storage::prefs_cfg();
+  cfg.brightness = prefs_cfg.getUChar("brightness", LED_BRIGHTNESS);
+  if (cfg.brightness < 1) {
+    return false;
+  }
+  if (prefs_cfg.getBytes("ranges", cfg.ranges, sizeof(cfg.ranges)) != sizeof(cfg.ranges)) {
+    return false;
+  }
+  if (prefs_cfg.getBytes("effects", cfg.effects, sizeof(cfg.effects)) != sizeof(cfg.effects)) {
+    return false;
+  }
+  cfg.ap_ssid = prefs_cfg.getString("ap_ssid", AP_SSID);
+  cfg.ap_pass = prefs_cfg.getString("ap_pass", AP_PASS);
+  cfg.mdns = prefs_cfg.getString("mdns", MDNS_NAME);
+  if (!validate_ranges(cfg.ranges) || !validate_effects(cfg.effects)) {
+    return false;
+  }
+  return true;
+}
+} // namespace
+
+const RuntimeConfig &get() {
+  return g_cfg;
+}
+
+RuntimeConfig &get_mut() {
+  return g_cfg;
+}
+
+uint8_t version() {
+  return 4;
+}
+
+void set_defaults() {
+  g_cfg.brightness = LED_BRIGHTNESS;
+  g_cfg.ranges[0] = SPEED_RANGE_1_KPH;
+  g_cfg.ranges[1] = SPEED_RANGE_2_KPH;
+  g_cfg.ranges[2] = SPEED_RANGE_3_KPH;
+  g_cfg.ranges[3] = SPEED_RANGE_4_KPH;
+  g_cfg.ranges[4] = SPEED_RANGE_5_KPH;
+  g_cfg.ranges[5] = SPEED_RANGE_6_KPH;
+  g_cfg.ranges[6] = SPEED_RANGE_7_KPH;
+  g_cfg.ranges[7] = SPEED_RANGE_8_KPH;
+  g_cfg.ranges[8] = SPEED_RANGE_9_KPH;
+
+  g_cfg.effects[0] = {static_cast<uint8_t>(RANGE_1_EFFECT_A), static_cast<uint8_t>(RANGE_1_EFFECT_B),
+                      RANGE_1_SPEED, RANGE_1_INTENSITY};
+  g_cfg.effects[1] = {static_cast<uint8_t>(RANGE_2_EFFECT_A), static_cast<uint8_t>(RANGE_2_EFFECT_B),
+                      RANGE_2_SPEED, RANGE_2_INTENSITY};
+  g_cfg.effects[2] = {static_cast<uint8_t>(RANGE_3_EFFECT_A), static_cast<uint8_t>(RANGE_3_EFFECT_B),
+                      RANGE_3_SPEED, RANGE_3_INTENSITY};
+  g_cfg.effects[3] = {static_cast<uint8_t>(RANGE_4_EFFECT_A), static_cast<uint8_t>(RANGE_4_EFFECT_B),
+                      RANGE_4_SPEED, RANGE_4_INTENSITY};
+  g_cfg.effects[4] = {static_cast<uint8_t>(RANGE_5_EFFECT_A), static_cast<uint8_t>(RANGE_5_EFFECT_B),
+                      RANGE_5_SPEED, RANGE_5_INTENSITY};
+  g_cfg.effects[5] = {static_cast<uint8_t>(RANGE_6_EFFECT_A), static_cast<uint8_t>(RANGE_6_EFFECT_B),
+                      RANGE_6_SPEED, RANGE_6_INTENSITY};
+  g_cfg.effects[6] = {static_cast<uint8_t>(RANGE_7_EFFECT_A), static_cast<uint8_t>(RANGE_7_EFFECT_B),
+                      RANGE_7_SPEED, RANGE_7_INTENSITY};
+  g_cfg.effects[7] = {static_cast<uint8_t>(RANGE_8_EFFECT_A), static_cast<uint8_t>(RANGE_8_EFFECT_B),
+                      RANGE_8_SPEED, RANGE_8_INTENSITY};
+  g_cfg.effects[8] = {static_cast<uint8_t>(RANGE_9_EFFECT_A), static_cast<uint8_t>(RANGE_9_EFFECT_B),
+                      RANGE_9_SPEED, RANGE_9_INTENSITY};
+  g_cfg.effects[9] = {static_cast<uint8_t>(RANGE_10_EFFECT_A), static_cast<uint8_t>(RANGE_10_EFFECT_B),
+                      RANGE_10_SPEED, RANGE_10_INTENSITY};
+
+  set_default_single_config(g_cfg.single);
+
+  g_cfg.ap_ssid = AP_SSID;
+  g_cfg.ap_pass = AP_PASS;
+  g_cfg.mdns = MDNS_NAME;
+  g_cfg.mode = MODE_SPEED;
+  g_cfg.fence_max_m = GEOFENCE_MAX_M_DEFAULT;
+}
+
+void save() {
+  Preferences &prefs_cfg = storage::prefs_cfg();
+  prefs_cfg.putUChar("ver", version());
+  prefs_cfg.putUChar("brightness", g_cfg.brightness);
+  prefs_cfg.putBytes("ranges", g_cfg.ranges, sizeof(g_cfg.ranges));
+  prefs_cfg.putBytes("effects", g_cfg.effects, sizeof(g_cfg.effects));
+  prefs_cfg.putUChar("single_eff", g_cfg.single.effect_id);
+  prefs_cfg.putUChar("single_speed", g_cfg.single.speed);
+  prefs_cfg.putUChar("single_intensity", g_cfg.single.intensity);
+  prefs_cfg.putUChar("single_r", g_cfg.single.base_r);
+  prefs_cfg.putUChar("single_g", g_cfg.single.base_g);
+  prefs_cfg.putUChar("single_b", g_cfg.single.base_b);
+  prefs_cfg.putString("ap_ssid", g_cfg.ap_ssid);
+  prefs_cfg.putString("ap_pass", g_cfg.ap_pass);
+  prefs_cfg.putString("mdns", g_cfg.mdns);
+  prefs_cfg.putUChar("mode", g_cfg.mode);
+  prefs_cfg.putUShort("fence_max", g_cfg.fence_max_m);
+}
+
+void load() {
+  Preferences &prefs_cfg = storage::prefs_cfg();
+  const uint8_t ver = prefs_cfg.getUChar("ver", 0);
+  if (ver == version()) {
+    RuntimeConfig next = g_cfg;
+    if (!read_common_config(next)) {
+      set_defaults();
+      save();
+      return;
+    }
+    next.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
+    next.fence_max_m = prefs_cfg.getUShort("fence_max", GEOFENCE_MAX_M_DEFAULT);
+    load_single_config(next);
+    if (!validate_mode(next.mode)) {
+      next.mode = MODE_SPEED;
+    }
+    next.fence_max_m = clamp_fence_max(next.fence_max_m);
+    g_cfg = next;
+    return;
+  }
+
+  if (ver == 3) {
+    RuntimeConfig migrated = g_cfg;
+    set_defaults();
+    migrated = g_cfg;
+    if (read_common_config(migrated)) {
+      migrated.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
+      migrated.fence_max_m = prefs_cfg.getUShort("fence_max", GEOFENCE_MAX_M_DEFAULT);
+      if (!validate_mode(migrated.mode)) {
+        migrated.mode = MODE_SPEED;
+      }
+      migrated.fence_max_m = clamp_fence_max(migrated.fence_max_m);
+      set_default_single_config(migrated.single);
+      g_cfg = migrated;
+      save();
+      return;
+    }
+  }
+
+  if (ver == 2) {
+    RuntimeConfig migrated = g_cfg;
+    set_defaults();
+    migrated = g_cfg;
+    if (read_common_config(migrated)) {
+      migrated.mode = MODE_SPEED;
+      migrated.fence_max_m = GEOFENCE_MAX_M_DEFAULT;
+      g_cfg = migrated;
+      save();
+      return;
+    }
+  }
+
+  set_defaults();
+  save();
+}
+
+void apply(const RuntimeConfig &previous) {
+  led_ui::apply_brightness(g_cfg.brightness);
+  wifi_mgr::apply_mdns(previous.mdns, g_cfg.mdns);
+}
+
+const char *mode_name(uint8_t mode) {
+  switch (mode) {
+    case MODE_GEOFENCE:
+      return "geofence";
+    case MODE_SHOW:
+      return "show";
+    case MODE_SIMPLE:
+      return "simple";
+    case MODE_SPEED:
+    default:
+      return "speed";
+  }
+}
+
+bool parse_mode(const char *value, uint8_t &mode_out) {
+  if (value == nullptr) {
+    return false;
+  }
+  if (strcmp(value, "speed") == 0) {
+    mode_out = MODE_SPEED;
+    return true;
+  }
+  if (strcmp(value, "geofence") == 0) {
+    mode_out = MODE_GEOFENCE;
+    return true;
+  }
+  if (strcmp(value, "show") == 0) {
+    mode_out = MODE_SHOW;
+    return true;
+  }
+  if (strcmp(value, "simple") == 0) {
+    mode_out = MODE_SIMPLE;
+    return true;
+  }
+  return false;
+}
+
+bool validate_mode(uint8_t mode) {
+  return (mode == MODE_SPEED || mode == MODE_GEOFENCE || mode == MODE_SHOW || mode == MODE_SIMPLE);
+}
+
+uint16_t clamp_fence_max(int value) {
+  if (value < static_cast<int>(GEOFENCE_MAX_M_MIN)) {
+    return GEOFENCE_MAX_M_MIN;
+  }
+  if (value > static_cast<int>(GEOFENCE_MAX_M_MAX)) {
+    return GEOFENCE_MAX_M_MAX;
+  }
+  return static_cast<uint16_t>(value);
+}
+
+bool validate_ranges(const float *ranges) {
+  for (int i = 1; i < 9; ++i) {
+    if (!(ranges[i] > ranges[i - 1])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool validate_effects(const RangeEffect *effects) {
+  for (int i = 0; i < 10; ++i) {
+    if (effects[i].effect_a > 11 || effects[i].effect_b > 11) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool valid_mdns(const String &value) {
+  if (value.length() < 1 || value.length() > 32) {
+    return false;
+  }
+  for (size_t i = 0; i < value.length(); ++i) {
+    const char c = value[i];
+    const bool ok = (c >= 'a' && c <= 'z') ||
+                    (c >= 'A' && c <= 'Z') ||
+                    (c >= '0' && c <= '9') ||
+                    (c == '-');
+    if (!ok) {
+      return false;
+    }
+  }
+  return true;
+}
+} // namespace config
