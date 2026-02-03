@@ -30,6 +30,9 @@ h2{font-size:18px;}
 .grid-3{grid-template-columns:repeat(3,minmax(0,1fr));}
 .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;}
 .value{font-size:24px;font-weight:700;}
+.data{font-size:14px;font-weight:600;color:var(--text);}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
+.code{background:#0B1220;color:#EAF2F6;padding:12px;border-radius:10px;overflow:auto;font-size:12px;}
 .metric .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
 .metric .value{font-size:28px;font-weight:700;line-height:1.1;}
 .metric .unit{font-size:12px;color:var(--muted);}
@@ -1013,5 +1016,285 @@ String web_pages::html_config_page() {
 </body>
 </html>
 )CFG");
+  return page;
+}
+
+String web_pages::html_dev_page() {
+  String page;
+  page.reserve(14000);
+  page += F(R"DEV(
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dev</title>
+  <style>
+)DEV");
+  page += FPSTR(BASE_CSS);
+  page += F(R"DEV(
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero card">
+      <div class="hero-top">
+        <div>
+          <div class="brand">DOG-RGB</div>
+          <div class="tagline">Developer Console</div>
+        </div>
+        <div class="chips">
+          <span class="pill" id="dev-pill-gps">GPS: --</span>
+          <span class="pill" id="dev-pill-wifi">Wi-Fi: --</span>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="refresh()">Actualizar</button>
+        <label class="muted"><input id="auto" type="checkbox"> Auto (5s)</label>
+        <span class="muted" id="dev-updated">Ultima lectura: --</span>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h2>System</h2>
+      <div class="grid grid-2">
+        <div class="field"><label>Uptime</label><div class="data mono" id="dev-uptime">--</div></div>
+        <div class="field"><label>Build</label><div class="data mono" id="dev-build">--</div></div>
+        <div class="field"><label>Heap libre</label><div class="data mono" id="dev-heap">--</div></div>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h2>Wi-Fi</h2>
+      <div class="grid grid-2">
+        <div class="field"><label>Modo</label><div class="data mono" id="wifi-mode">--</div></div>
+        <div class="field"><label>STA</label><div class="data mono" id="wifi-sta">--</div></div>
+        <div class="field"><label>AP</label><div class="data mono" id="wifi-ap">--</div></div>
+        <div class="field"><label>Stations</label><div class="data mono" id="wifi-stations">--</div></div>
+        <div class="field"><label>Wi-Fi Off</label><div class="data mono" id="wifi-off">--</div></div>
+        <div class="field"><label>SSID AP</label><div class="data mono" id="wifi-ssid">--</div></div>
+        <div class="field"><label>mDNS</label><div class="data mono" id="wifi-mdns">--</div></div>
+        <div class="field"><label>STA IP</label><div class="data mono" id="wifi-sta-ip">--</div></div>
+        <div class="field"><label>AP IP</label><div class="data mono" id="wifi-ap-ip">--</div></div>
+        <div class="field"><label>RSSI</label><div class="data mono" id="wifi-rssi">--</div></div>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h2>GPS</h2>
+      <div class="grid grid-2">
+        <div class="field"><label>Fix</label><div class="data mono" id="gps-fix">--</div></div>
+        <div class="field"><label>Fix actual</label><div class="data mono" id="gps-current-fix">--</div></div>
+        <div class="field"><label>Sats</label><div class="data mono" id="gps-sats">--</div></div>
+        <div class="field"><label>Fix quality</label><div class="data mono" id="gps-fix-quality">--</div></div>
+        <div class="field"><label>Speed (kph)</label><div class="data mono" id="gps-speed">--</div></div>
+        <div class="field"><label>Lat</label><div class="data mono" id="gps-lat">--</div></div>
+        <div class="field"><label>Lon</label><div class="data mono" id="gps-lon">--</div></div>
+        <div class="field"><label>Fecha</label><div class="data mono" id="gps-date">--</div></div>
+        <div class="field"><label>Ult update</label><div class="data mono" id="gps-update">--</div></div>
+        <div class="field"><label>Age last byte</label><div class="data mono" id="gps-age-byte">--</div></div>
+        <div class="field"><label>Age last fix</label><div class="data mono" id="gps-age-fix">--</div></div>
+        <div class="field"><label>Bytes RX</label><div class="data mono" id="gps-bytes">--</div></div>
+        <div class="field"><label>Sentences RX</label><div class="data mono" id="gps-sentences">--</div></div>
+        <div class="field"><label>RMC seen</label><div class="data mono" id="gps-rmc-seen">--</div></div>
+        <div class="field"><label>RMC valid</label><div class="data mono" id="gps-rmc-valid">--</div></div>
+        <div class="field"><label>GGA seen</label><div class="data mono" id="gps-gga-seen">--</div></div>
+        <div class="field"><label>Overflow</label><div class="data mono" id="gps-overflow">--</div></div>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h2>LED</h2>
+      <div class="grid grid-2">
+        <div class="field"><label>Modo</label><div class="data mono" id="led-mode">--</div></div>
+        <div class="field"><label>Brightness</label><div class="data mono" id="led-brightness">--</div></div>
+        <div class="field"><label>Rango actual</label><div class="data mono" id="led-range">--</div></div>
+        <div class="field"><label>Base RGB</label><div class="data mono" id="led-base">--</div></div>
+        <div class="field"><label>Effect A</label><div class="data mono" id="led-effect-a">--</div></div>
+        <div class="field"><label>Effect B</label><div class="data mono" id="led-effect-b">--</div></div>
+        <div class="field"><label>Range Speed</label><div class="data mono" id="led-range-speed">--</div></div>
+        <div class="field"><label>Range Intensity</label><div class="data mono" id="led-range-intensity">--</div></div>
+        <div class="field"><label>Simple effect</label><div class="data mono" id="led-simple-effect">--</div></div>
+        <div class="field"><label>Simple speed</label><div class="data mono" id="led-simple-speed">--</div></div>
+        <div class="field"><label>Simple intensity</label><div class="data mono" id="led-simple-intensity">--</div></div>
+        <div class="field"><label>Simple RGB</label><div class="data mono" id="led-simple-rgb">--</div></div>
+        <div class="field"><label>Show effect</label><div class="data mono" id="led-show-effect">--</div></div>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h2>Geofence</h2>
+      <div class="grid grid-2">
+        <div class="field"><label>Home set</label><div class="data mono" id="geo-set">--</div></div>
+        <div class="field"><label>Source</label><div class="data mono" id="geo-source">--</div></div>
+        <div class="field"><label>Home lat</label><div class="data mono" id="geo-lat">--</div></div>
+        <div class="field"><label>Home lon</label><div class="data mono" id="geo-lon">--</div></div>
+        <div class="field"><label>Distance (m)</label><div class="data mono" id="geo-dist">--</div></div>
+        <div class="field"><label>Range</label><div class="data mono" id="geo-range">--</div></div>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h2>Raw JSON</h2>
+      <pre id="dev-json" class="code mono"></pre>
+    </div>
+
+    <div class="actions">
+      <a class="btn ghost" href="/">Volver</a>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let timer = null;
+
+    function setText(id, value){
+      const el = $(id);
+      if (!el) return;
+      el.textContent = (value === undefined || value === null) ? '--' : value;
+    }
+
+    function setPill(id, text, tone){
+      const el = $(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'pill' + (tone ? (' ' + tone) : '');
+    }
+
+    function fmtUptime(ms){
+      if (ms === undefined || ms < 0) return '--';
+      let s = Math.floor(ms / 1000);
+      const h = Math.floor(s / 3600);
+      s = s % 3600;
+      const m = Math.floor(s / 60);
+      s = s % 60;
+      return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    }
+
+    function fmtMin(min){
+      if (min === undefined || min < 0) return '--';
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+    }
+
+    function fmtMs(ms){
+      if (ms === undefined || ms < 0) return '--';
+      if (ms < 1000) return ms + ' ms';
+      return (ms / 1000).toFixed(1) + ' s';
+    }
+
+    async function refresh(){
+      try{
+        const d = await fetch('/api/dev').then(r=>r.json());
+        setText('dev-uptime', fmtUptime(d.time.uptime_ms));
+        setText('dev-build', d.time.build);
+        setText('dev-heap', d.system.free_heap);
+
+        const wifi = d.wifi || {};
+        const staState = wifi.sta_connected ? 'connected' : (wifi.sta_connecting ? 'connecting' : 'disconnected');
+        setText('wifi-mode', wifi.mode);
+        setText('wifi-sta', staState);
+        setText('wifi-ap', wifi.ap_enabled ? 'on' : 'off');
+        setText('wifi-stations', wifi.ap_stations);
+        setText('wifi-off', wifi.wifi_off ? 'yes' : 'no');
+        setText('wifi-ssid', wifi.ap_ssid);
+        setText('wifi-mdns', wifi.mdns);
+        setText('wifi-sta-ip', wifi.sta_ip);
+        setText('wifi-ap-ip', wifi.ap_ip);
+        setText('wifi-rssi', wifi.rssi);
+
+        const gps = d.gps || {};
+        setText('gps-fix', gps.fix ? 'yes' : 'no');
+        setText('gps-current-fix', gps.current_fix ? 'yes' : 'no');
+        setText('gps-sats', gps.sats);
+        setText('gps-fix-quality', gps.fix_quality);
+        setText('gps-speed', (gps.speed_kph !== undefined) ? gps.speed_kph.toFixed(2) : '--');
+        setText('gps-lat', (gps.lat !== undefined) ? gps.lat.toFixed(6) : '--');
+        setText('gps-lon', (gps.lon !== undefined) ? gps.lon.toFixed(6) : '--');
+        setText('gps-date', gps.date);
+        setText('gps-update', fmtMin(gps.last_update_min));
+        setText('gps-age-byte', fmtMs(gps.age_last_byte_ms));
+        setText('gps-age-fix', fmtMs(gps.age_last_fix_ms));
+        setText('gps-bytes', gps.bytes_rx);
+        setText('gps-sentences', gps.sentences_rx);
+        setText('gps-rmc-seen', gps.rmc_seen);
+        setText('gps-rmc-valid', gps.rmc_valid);
+        setText('gps-gga-seen', gps.gga_seen);
+        setText('gps-overflow', gps.overflow);
+
+        const led = d.led || {};
+        setText('led-mode', led.mode);
+        setText('led-brightness', led.brightness);
+        setText('led-range', led.range);
+        if (led.base_rgb){
+          setText('led-base', led.base_rgb.r + ',' + led.base_rgb.g + ',' + led.base_rgb.b);
+        } else {
+          setText('led-base', '--');
+        }
+        if (led.effect_a){
+          setText('led-effect-a', led.effect_a.name + ' (' + led.effect_a.id + ')');
+          setText('led-range-speed', led.effect_a.speed);
+          setText('led-range-intensity', led.effect_a.intensity);
+        } else {
+          setText('led-effect-a', '--');
+          setText('led-range-speed', '--');
+          setText('led-range-intensity', '--');
+        }
+        if (led.effect_b){
+          setText('led-effect-b', led.effect_b.name + ' (' + led.effect_b.id + ')');
+        } else {
+          setText('led-effect-b', '--');
+        }
+        if (led.simple){
+          setText('led-simple-effect', led.simple.name + ' (' + led.simple.effect + ')');
+          setText('led-simple-speed', led.simple.speed);
+          setText('led-simple-intensity', led.simple.intensity);
+          if (led.simple.rgb){
+            setText('led-simple-rgb', led.simple.rgb.r + ',' + led.simple.rgb.g + ',' + led.simple.rgb.b);
+          }
+        }
+        if (led.show){
+          setText('led-show-effect', led.show.name + ' (' + led.show.effect + ')');
+        }
+
+        const geo = d.geofence || {};
+        setText('geo-set', geo.set ? 'yes' : 'no');
+        setText('geo-source', geo.source);
+        setText('geo-lat', (geo.home_lat !== undefined) ? geo.home_lat.toFixed(6) : '--');
+        setText('geo-lon', (geo.home_lon !== undefined) ? geo.home_lon.toFixed(6) : '--');
+        setText('geo-dist', (geo.distance_m !== undefined) ? geo.distance_m.toFixed(1) : '--');
+        setText('geo-range', geo.range);
+
+        setPill('dev-pill-gps', gps.fix ? 'GPS OK' : 'GPS sin fix', gps.fix ? 'ok' : 'warn');
+        let wifiTone = 'warn';
+        let wifiText = 'Wi-Fi off';
+        if (wifi.sta_connected){ wifiTone = 'ok'; wifiText = 'STA conectada'; }
+        else if (wifi.ap_enabled){ wifiTone = 'warn'; wifiText = 'AP activo'; }
+        setPill('dev-pill-wifi', wifiText, wifiTone);
+
+        $('dev-json').textContent = JSON.stringify(d, null, 2);
+        const now = new Date();
+        $('dev-updated').textContent = 'Ultima lectura: ' + now.toLocaleTimeString();
+      }catch(e){
+        $('dev-updated').textContent = 'Ultima lectura: error';
+      }
+    }
+
+    $('auto').onchange = (e) => {
+      if (e.target.checked){
+        refresh();
+        timer = setInterval(refresh, 5000);
+      } else if (timer){
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+
+    refresh();
+  </script>
+</body>
+</html>
+)DEV");
   return page;
 }

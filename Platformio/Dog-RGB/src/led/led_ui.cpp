@@ -844,4 +844,8 @@ void apply_brightness(uint8_t brightness) {
     strip_b.setBrightness(brightness);
   }
 }
+
+uint8_t current_show_effect() {
+  return show_effect_id;
+}
 } // namespace led_ui

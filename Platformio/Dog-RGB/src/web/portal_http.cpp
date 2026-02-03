@@ -2,11 +2,13 @@
 
 #include <ArduinoJson.h>
 #include <WebServer.h>
+#include <WiFi.h>
 
 #include "config/runtime_config.h"
 #include "config.h"
 #include "geofence/home.h"
 #include "gps/gps.h"
+#include "led/led_ui.h"
 #include "storage/nvs_store.h"
 #include "web/pages.h"
 #include "wifi/wifi_mgr.h"
@@ -15,12 +17,29 @@ namespace portal_http {
 namespace {
 WebServer server(80);
 
+const char *wifi_mode_name(wifi_mode_t mode) {
+  switch (mode) {
+    case WIFI_MODE_STA:
+      return "STA";
+    case WIFI_MODE_AP:
+      return "AP";
+    case WIFI_MODE_APSTA:
+      return "AP+STA";
+    default:
+      return "OFF";
+  }
+}
+
 void handle_root() {
   server.send(200, "text/html", web_pages::html_page());
 }
 
 void handle_wifi_page() {
   server.send(200, "text/html", web_pages::html_wifi_page());
+}
+
+void handle_dev_page() {
+  server.send(200, "text/html", web_pages::html_dev_page());
 }
 
 void handle_summary() {
@@ -48,6 +67,119 @@ void handle_status_get() {
   home["source"] = geofence::source_name(geofence::source());
   const float dist = geofence::distance_to_home_m();
   home["distance_m"] = (dist >= 0.0f) ? dist : -1.0f;
+
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
+}
+
+void handle_dev_get() {
+  StaticJsonDocument<4096> doc;
+  const RuntimeConfig &cfg = config::get();
+  const unsigned long now_ms = millis();
+
+  JsonObject time = doc["time"].to<JsonObject>();
+  time["uptime_ms"] = now_ms;
+  time["build"] = String(__DATE__) + " " + String(__TIME__);
+
+  JsonObject system = doc["system"].to<JsonObject>();
+  system["free_heap"] = ESP.getFreeHeap();
+
+  JsonObject wifi = doc["wifi"].to<JsonObject>();
+  wifi["mode"] = wifi_mode_name(WiFi.getMode());
+  wifi["sta_connected"] = wifi_mgr::sta_connected();
+  wifi["sta_connecting"] = wifi_mgr::sta_connecting();
+  wifi["ap_enabled"] = wifi_mgr::ap_enabled();
+  wifi["ap_stations"] = wifi_mgr::ap_station_count();
+  wifi["wifi_off"] = wifi_mgr::wifi_off();
+  wifi["ap_ssid"] = cfg.ap_ssid;
+  wifi["mdns"] = cfg.mdns;
+  wifi["sta_ip"] = WiFi.localIP().toString();
+  wifi["ap_ip"] = WiFi.softAPIP().toString();
+  wifi["rssi"] = WiFi.RSSI();
+
+  JsonObject gps = doc["gps"].to<JsonObject>();
+  gps["fix"] = gps::has_fix();
+  gps["current_fix"] = gps::has_current_fix();
+  gps["sats"] = gps::sats();
+  gps["fix_quality"] = gps::fix_quality();
+  gps["speed_kph"] = gps::last_speed_kph();
+  gps["lat"] = gps::current_lat_deg();
+  gps["lon"] = gps::current_lon_deg();
+  gps["date"] = gps::current_date();
+  gps["last_update_min"] = gps::last_update_min();
+  gps["bytes_rx"] = gps::bytes_rx();
+  gps["sentences_rx"] = gps::sentences_rx();
+  gps["rmc_seen"] = gps::rmc_seen();
+  gps["rmc_valid"] = gps::rmc_valid();
+  gps["gga_seen"] = gps::gga_seen();
+  gps["overflow"] = gps::overflow();
+  const long age_last_byte = (gps::last_byte_ms() > 0 && now_ms >= gps::last_byte_ms())
+                                 ? static_cast<long>(now_ms - gps::last_byte_ms())
+                                 : -1;
+  const long age_last_fix = (gps::last_fix_ms() > 0 && now_ms >= gps::last_fix_ms())
+                                ? static_cast<long>(now_ms - gps::last_fix_ms())
+                                : -1;
+  gps["age_last_byte_ms"] = age_last_byte;
+  gps["age_last_fix_ms"] = age_last_fix;
+
+  JsonObject geo = doc["geofence"].to<JsonObject>();
+  geo["set"] = geofence::is_set();
+  geo["source"] = geofence::source_name(geofence::source());
+  geo["home_lat"] = geofence::home_lat();
+  geo["home_lon"] = geofence::home_lon();
+  const float dist_m = geofence::distance_to_home_m();
+  geo["distance_m"] = (dist_m >= 0.0f) ? dist_m : -1.0f;
+  const int geo_range = (geofence::is_set() && dist_m >= 0.0f)
+                            ? static_cast<int>(geofence::geofence_range(dist_m))
+                            : -1;
+  geo["range"] = geo_range;
+
+  JsonObject led = doc["led"].to<JsonObject>();
+  led["mode"] = config::mode_name(cfg.mode);
+  led["brightness"] = cfg.brightness;
+  int range = -1;
+  if (cfg.mode == MODE_SPEED && gps::has_fix()) {
+    range = static_cast<int>(led_ui::speed_range(gps::last_speed_kph()));
+  } else if (cfg.mode == MODE_GEOFENCE && geo_range > 0) {
+    range = geo_range;
+  }
+  led["range"] = range;
+  if (range >= 1 && range <= 10) {
+    int eff_a = 0;
+    int eff_b = 0;
+    uint8_t eff_speed = 0;
+    uint8_t eff_intensity = 0;
+    led_ui::get_range_config(static_cast<uint8_t>(range), eff_a, eff_b, eff_speed, eff_intensity);
+    JsonObject effA = led["effect_a"].to<JsonObject>();
+    effA["id"] = eff_a;
+    effA["name"] = led_ui::effect_name(static_cast<uint8_t>(eff_a));
+    effA["speed"] = eff_speed;
+    effA["intensity"] = eff_intensity;
+    JsonObject effB = led["effect_b"].to<JsonObject>();
+    effB["id"] = eff_b;
+    effB["name"] = led_ui::effect_name(static_cast<uint8_t>(eff_b));
+    effB["speed"] = eff_speed;
+    effB["intensity"] = eff_intensity;
+    const led_ui::Rgb base = led_ui::base_color_for_range(static_cast<uint8_t>(range));
+    JsonObject baseRgb = led["base_rgb"].to<JsonObject>();
+    baseRgb["r"] = base.r;
+    baseRgb["g"] = base.g;
+    baseRgb["b"] = base.b;
+  }
+  JsonObject simple = led["simple"].to<JsonObject>();
+  simple["effect"] = cfg.single.effect_id;
+  simple["name"] = led_ui::effect_name(cfg.single.effect_id);
+  simple["speed"] = cfg.single.speed;
+  simple["intensity"] = cfg.single.intensity;
+  JsonObject simpleRgb = simple["rgb"].to<JsonObject>();
+  simpleRgb["r"] = cfg.single.base_r;
+  simpleRgb["g"] = cfg.single.base_g;
+  simpleRgb["b"] = cfg.single.base_b;
+  JsonObject show = led["show"].to<JsonObject>();
+  const uint8_t show_id = led_ui::current_show_effect();
+  show["effect"] = show_id;
+  show["name"] = led_ui::effect_name(show_id);
 
   String out;
   serializeJson(doc, out);
@@ -333,11 +465,13 @@ void begin() {
   server.on("/", HTTP_GET, handle_root);
   server.on("/api/summary", HTTP_GET, handle_summary);
   server.on("/api/status", HTTP_GET, handle_status_get);
+  server.on("/api/dev", HTTP_GET, handle_dev_get);
   server.on("/api/mode", HTTP_POST, handle_mode_post);
   server.on("/api/config", HTTP_GET, handle_config_get);
   server.on("/api/config", HTTP_POST, handle_config_post);
   server.on("/api/config/reset", HTTP_POST, handle_config_reset);
   server.on("/config", HTTP_GET, handle_config_page);
+  server.on("/dev", HTTP_GET, handle_dev_page);
   server.on("/api/home", HTTP_GET, handle_home_get);
   server.on("/api/home/set", HTTP_POST, handle_home_set);
   server.on("/api/home/clear", HTTP_POST, handle_home_clear);
