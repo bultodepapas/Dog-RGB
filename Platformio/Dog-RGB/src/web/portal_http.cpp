@@ -4,6 +4,7 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "config/runtime_config.h"
 #include "config.h"
@@ -29,6 +30,45 @@ const char *wifi_mode_name(wifi_mode_t mode) {
     default:
       return "OFF";
   }
+}
+
+bool parse_track_session(const String &value, int &out) {
+  if (value.length() == 0 || value == "current") {
+    out = -1;
+    return true;
+  }
+  if (value.length() == 1 && isDigit(value[0])) {
+    out = value.toInt();
+    return (out >= 0 && out <= 2);
+  }
+  return false;
+}
+
+uint16_t parse_max_points(const String &value) {
+  if (value.length() == 0) {
+    return 0;
+  }
+  const int v = value.toInt();
+  if (v <= 0) {
+    return 0;
+  }
+  if (v > 2000) {
+    return 2000;
+  }
+  return static_cast<uint16_t>(v);
+}
+
+uint32_t track_point_date(const gps::TrackView &view, const gps::TrackPoint &p) {
+  if (view.start_date == 0) {
+    return 0;
+  }
+  if (view.start_date == view.end_date || view.end_date == 0) {
+    return view.start_date;
+  }
+  if (p.t_min < view.start_min) {
+    return view.end_date;
+  }
+  return view.start_date;
 }
 
 void handle_root() {
@@ -198,6 +238,125 @@ void handle_dev_get() {
   String out;
   serializeJson(doc, out);
   server.send(200, "application/json", out);
+}
+
+bool track_json_cb(const gps::TrackPoint &p, void *ctx) {
+  bool *first = reinterpret_cast<bool *>(ctx);
+  if (!*first) {
+    server.sendContent(",");
+  }
+  *first = false;
+  char line[64];
+  const float lat = p.lat_e7 * 1e-7f;
+  const float lon = p.lon_e7 * 1e-7f;
+  snprintf(line, sizeof(line), "[%.7f,%.7f]", lat, lon);
+  server.sendContent(line);
+  return true;
+}
+
+bool track_csv_cb(const gps::TrackPoint &p, void *ctx) {
+  const gps::TrackView *view = reinterpret_cast<const gps::TrackView *>(ctx);
+  const uint32_t date = track_point_date(*view, p);
+  char line[72];
+  const float lat = p.lat_e7 * 1e-7f;
+  const float lon = p.lon_e7 * 1e-7f;
+  snprintf(line, sizeof(line), "%lu,%u,%.7f,%.7f\n", static_cast<unsigned long>(date), p.t_min, lat, lon);
+  server.sendContent(line);
+  return true;
+}
+
+bool track_geojson_cb(const gps::TrackPoint &p, void *ctx) {
+  bool *first = reinterpret_cast<bool *>(ctx);
+  if (!*first) {
+    server.sendContent(",");
+  }
+  *first = false;
+  char line[64];
+  const float lat = p.lat_e7 * 1e-7f;
+  const float lon = p.lon_e7 * 1e-7f;
+  snprintf(line, sizeof(line), "[%.7f,%.7f]", lon, lat);
+  server.sendContent(line);
+  return true;
+}
+
+void handle_track_get() {
+  int session_id = -1;
+  if (!parse_track_session(server.arg("session"), session_id)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"session\"}");
+    return;
+  }
+  const uint16_t max_points = parse_max_points(server.arg("max_points"));
+  gps::TrackView view = {};
+  if (!gps::track_get_view(session_id, view)) {
+    server.send(200, "application/json", "{\"count\":0,\"status\":\"no_data\"}");
+    return;
+  }
+
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+  char head[256];
+  const float min_lat = view.min_lat_e7 * 1e-7f;
+  const float max_lat = view.max_lat_e7 * 1e-7f;
+  const float min_lon = view.min_lon_e7 * 1e-7f;
+  const float max_lon = view.max_lon_e7 * 1e-7f;
+  snprintf(head, sizeof(head),
+           "{\"count\":%u,\"open\":%s,\"sample_ms\":%u,\"start_date\":%lu,\"start_min\":%u,"
+           "\"end_date\":%lu,\"end_min\":%u,"
+           "\"bbox\":{\"min_lat\":%.7f,\"max_lat\":%.7f,\"min_lon\":%.7f,\"max_lon\":%.7f},\"points\":[",
+           view.count,
+           view.open ? "true" : "false",
+           view.sample_ms,
+           static_cast<unsigned long>(view.start_date),
+           view.start_min,
+           static_cast<unsigned long>(view.end_date),
+           view.end_min,
+           min_lat,
+           max_lat,
+           min_lon,
+           max_lon);
+  server.sendContent(head);
+
+  bool first = true;
+  gps::track_iter_points(view.slot, max_points, track_json_cb, &first);
+  server.sendContent("]}");
+}
+
+void handle_track_csv() {
+  int session_id = -1;
+  if (!parse_track_session(server.arg("session"), session_id)) {
+    server.send(400, "text/plain", "session");
+    return;
+  }
+  const uint16_t max_points = parse_max_points(server.arg("max_points"));
+  gps::TrackView view = {};
+  if (!gps::track_get_view(session_id, view)) {
+    server.send(200, "text/csv", "date,min,lat,lon\n");
+    return;
+  }
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/csv", "");
+  server.sendContent("date,min,lat,lon\n");
+  gps::track_iter_points(view.slot, max_points, track_csv_cb, &view);
+}
+
+void handle_track_geojson() {
+  int session_id = -1;
+  if (!parse_track_session(server.arg("session"), session_id)) {
+    server.send(400, "application/geo+json", "{\"status\":\"error\",\"reason\":\"session\"}");
+    return;
+  }
+  const uint16_t max_points = parse_max_points(server.arg("max_points"));
+  gps::TrackView view = {};
+  if (!gps::track_get_view(session_id, view)) {
+    server.send(200, "application/geo+json", "{\"type\":\"FeatureCollection\",\"features\":[]}");
+    return;
+  }
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/geo+json", "");
+  server.sendContent("{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"LineString\",\"coordinates\":[");
+  bool first = true;
+  gps::track_iter_points(view.slot, max_points, track_geojson_cb, &first);
+  server.sendContent("]},\"properties\":{}}]}");
 }
 
 void handle_mode_post() {
@@ -521,6 +680,9 @@ void begin() {
   server.on("/api/summary", HTTP_GET, handle_summary);
   server.on("/api/status", HTTP_GET, handle_status_get);
   server.on("/api/dev", HTTP_GET, handle_dev_get);
+  server.on("/api/track", HTTP_GET, handle_track_get);
+  server.on("/api/track.csv", HTTP_GET, handle_track_csv);
+  server.on("/api/track.geojson", HTTP_GET, handle_track_geojson);
   server.on("/api/mode", HTTP_POST, handle_mode_post);
   server.on("/api/config", HTTP_GET, handle_config_get);
   server.on("/api/config", HTTP_POST, handle_config_post);

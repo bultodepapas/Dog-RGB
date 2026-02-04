@@ -69,6 +69,8 @@ details.section[open] > summary::after{content:'-';}
 .mode-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;}
 .field-inline{min-width:180px;}
 .session-card{margin:8px 0;}
+.track-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;}
+.track-canvas{width:100%;height:220px;border:1px solid var(--border);border-radius:12px;background:#F8FAFB;}
 @media (max-width:760px){.grid-2,.grid-3{grid-template-columns:1fr;}.effects-row{grid-template-columns:52px 1fr;grid-template-areas:"range a" "range b" "range speed" "range intensity";}.effects-row .range-label{align-self:start;padding-top:4px;}.hero-top{flex-direction:column;align-items:flex-start;}}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
 )CSS";
@@ -149,6 +151,22 @@ String web_pages::html_page() {
       <div id="history"></div>
     </div>
 
+    <div class="card section">
+      <div class="track-controls">
+        <h2>Ruta</h2>
+        <select id="track_session">
+          <option value="current">Sesion actual</option>
+          <option value="0">Sesion 1 (ultima)</option>
+          <option value="1">Sesion 2</option>
+          <option value="2">Sesion 3</option>
+        </select>
+        <a class="btn ghost" id="track_csv" href="/api/track.csv">Export CSV</a>
+        <a class="btn ghost" id="track_geo" href="/api/track.geojson">Export GeoJSON</a>
+      </div>
+      <canvas id="track_map" class="track-canvas"></canvas>
+      <div class="muted" id="track_status">Ruta: --</div>
+    </div>
+
     <div class="actions">
       <button class="btn" onclick="refreshAll()">Actualizar</button>
       <button class="btn ghost" id="home_btn" onclick="updateHome()" style="display:none">Actualizar Home</button>
@@ -164,6 +182,11 @@ String web_pages::html_page() {
     const modeSelect = $('mode_select');
     const homeBtn = $('home_btn');
     const modeStatus = $('mode_status');
+    const trackCanvas = $('track_map');
+    const trackSession = $('track_session');
+    const trackStatus = $('track_status');
+    const trackCsv = $('track_csv');
+    const trackGeo = $('track_geo');
     function minToTime(m){var h=Math.floor(m/60);var mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
     function cmpsToKph(v){return (v*0.036).toFixed(1);}
     function fmtDate(d){if(!d){return '--';}var s=String(d);if(s.length!==8){return s;}return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);}
@@ -171,6 +194,99 @@ String web_pages::html_page() {
     function formatDuration(s){var h=Math.floor(s/3600);var m=Math.floor((s%3600)/60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
     function hasFlag(flags,bit){return (flags&(1<<bit))!==0;}
     function setPill(id,text,tone){var el=$(id);el.textContent=text;el.className='pill'+(tone?(' '+tone):'');}
+
+    function resizeTrackCanvas(){
+      if(!trackCanvas){return;}
+      const rect=trackCanvas.getBoundingClientRect();
+      const dpr=window.devicePixelRatio||1;
+      trackCanvas.width=Math.max(1,Math.floor(rect.width*dpr));
+      trackCanvas.height=Math.max(1,Math.floor(rect.height*dpr));
+    }
+
+    function setTrackLinks(session){
+      if(trackCsv) trackCsv.href='/api/track.csv?session='+session;
+      if(trackGeo) trackGeo.href='/api/track.geojson?session='+session;
+    }
+
+    function clearTrack(msg){
+      if(trackCanvas){
+        const ctx=trackCanvas.getContext('2d');
+        const dpr=window.devicePixelRatio||1;
+        const rect=trackCanvas.getBoundingClientRect();
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        ctx.clearRect(0,0,rect.width,rect.height);
+      }
+      if(trackStatus) trackStatus.textContent=msg||'Ruta: --';
+    }
+
+    function drawTrack(points,bbox){
+      if(!trackCanvas){return;}
+      resizeTrackCanvas();
+      const ctx=trackCanvas.getContext('2d');
+      const rect=trackCanvas.getBoundingClientRect();
+      const dpr=window.devicePixelRatio||1;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.clearRect(0,0,rect.width,rect.height);
+
+      const pad=12;
+      const minLat=bbox.min_lat, maxLat=bbox.max_lat;
+      const minLon=bbox.min_lon, maxLon=bbox.max_lon;
+      const latSpan=Math.max(1e-6, maxLat-minLat);
+      const lonSpan=Math.max(1e-6, maxLon-minLon);
+      const scale=Math.min((rect.width-2*pad)/lonSpan, (rect.height-2*pad)/latSpan);
+
+      ctx.beginPath();
+      for(let i=0;i<points.length;i++){
+        const lat=points[i][0];
+        const lon=points[i][1];
+        const x=pad+(lon-minLon)*scale;
+        const y=rect.height-(pad+(lat-minLat)*scale);
+        if(i===0){ctx.moveTo(x,y);} else {ctx.lineTo(x,y);}
+      }
+      ctx.strokeStyle='#0B1220';
+      ctx.lineWidth=2;
+      ctx.stroke();
+
+      if(points.length>0){
+        const start=points[0];
+        const end=points[points.length-1];
+        const sx=pad+(start[1]-minLon)*scale;
+        const sy=rect.height-(pad+(start[0]-minLat)*scale);
+        const ex=pad+(end[1]-minLon)*scale;
+        const ey=rect.height-(pad+(end[0]-minLat)*scale);
+        ctx.fillStyle='#00D1C1';
+        ctx.beginPath();ctx.arc(sx,sy,4,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#E84545';
+        ctx.beginPath();ctx.arc(ex,ey,4,0,Math.PI*2);ctx.fill();
+      }
+    }
+
+    async function loadTrack(){
+      if(!trackSession){return;}
+      const session=trackSession.value||'current';
+      setTrackLinks(session);
+      if(trackStatus) trackStatus.textContent='Ruta: cargando...';
+      try{
+        const r=await fetch('/api/track?session='+session+'&max_points=400');
+        const d=await r.json();
+        if(!d||!d.count||!d.points||d.points.length<2){
+          clearTrack('Ruta: sin datos');
+          return;
+        }
+        if(!d.bbox){
+          clearTrack('Ruta: sin bbox');
+          return;
+        }
+        drawTrack(d.points,d.bbox);
+        var sDate=fmtDate(d.start_date);
+        var eDate=fmtDate(d.end_date||d.start_date);
+        var sTime=minToTime(d.start_min||0);
+        var eTime=minToTime(d.end_min||0);
+        if(trackStatus) trackStatus.textContent='Ruta: '+d.count+' pts | '+sDate+' '+sTime+' a '+eDate+' '+eTime;
+      }catch(e){
+        clearTrack('Ruta: error');
+      }
+    }
 
     function renderSummary(d){
       if(!d||!d.has_data){
@@ -322,7 +438,7 @@ String web_pages::html_page() {
       }
     }
 
-    function refreshAll(){loadSummary();loadStatus();}
+    function refreshAll(){loadSummary();loadStatus();loadTrack();}
     async function updateHome(){
       if (homeBtn) homeBtn.disabled = true;
       try{
@@ -333,9 +449,15 @@ String web_pages::html_page() {
       }catch(e){}
       if (homeBtn) homeBtn.disabled = false;
     }
+    if (trackSession){
+      trackSession.addEventListener('change',loadTrack);
+    }
+    window.addEventListener('resize',resizeTrackCanvas);
+    resizeTrackCanvas();
     refreshAll();
     setInterval(loadStatus,5000);
     setInterval(loadSummary,10000);
+    setInterval(loadTrack,15000);
   </script>
 </body>
 </html>

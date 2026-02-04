@@ -4,6 +4,7 @@
 #include <Preferences.h>
 #include <math.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include "config.h"
 #include "config/runtime_config.h"
@@ -90,6 +91,85 @@ uint8_t history_count = 0;
 uint8_t history_idx = 0;
 SessionSummary session_snapshot_last;
 bool session_snapshot_valid = false;
+
+// Track storage (3-session window, 2h max).
+static const uint8_t TRACK_VER = 1;
+static const uint8_t TRACK_SLOTS = 4;
+static const uint8_t TRACK_FLAG_OPEN = 0x01;
+static const uint8_t TRACK_FLAG_BBOX_DIRTY = 0x02;
+static const uint32_t TRACK_SAMPLE_MS = 5000; // 5s sampling
+static const uint32_t TRACK_WINDOW_MS = 2UL * 60UL * 60UL * 1000UL; // 2h
+static const uint16_t TRACK_MAX_POINTS = static_cast<uint16_t>(TRACK_WINDOW_MS / TRACK_SAMPLE_MS);
+static const uint8_t TRACK_CHUNK_POINTS = 48;
+static const uint32_t TRACK_FLUSH_MS = 15000;
+static const uint8_t TRACK_MAX_CHUNKS =
+    static_cast<uint8_t>((TRACK_MAX_POINTS + TRACK_CHUNK_POINTS - 1) / TRACK_CHUNK_POINTS);
+
+struct TrackChunkHeader {
+  uint8_t count;
+  uint16_t first_t_min;
+  uint8_t flags;
+  uint8_t crc;
+} __attribute__((packed));
+
+struct TrackMeta {
+  uint8_t ver;
+  uint8_t flags;
+  uint16_t sample_ms;
+  uint16_t max_points;
+  uint16_t total_points;
+  uint8_t chunk_head;
+  uint8_t chunk_count;
+  uint32_t start_date;
+  uint16_t start_min;
+  uint32_t end_date;
+  uint16_t end_min;
+  int32_t min_lat_e7;
+  int32_t max_lat_e7;
+  int32_t min_lon_e7;
+  int32_t max_lon_e7;
+  uint8_t crc;
+} __attribute__((packed));
+
+static_assert(sizeof(TrackChunkHeader) == 5, "TrackChunkHeader size");
+static_assert(sizeof(TrackMeta) == 39, "TrackMeta size");
+
+struct TrackSession {
+  TrackPoint flush_buf[TRACK_CHUNK_POINTS];
+  uint8_t flush_count;
+  unsigned long last_flush_ms;
+  unsigned long last_sample_ms;
+  uint16_t persisted_points;
+  uint8_t chunk_head;
+  uint8_t chunk_count;
+  bool bbox_dirty;
+  uint32_t start_date;
+  uint16_t start_min;
+  uint32_t end_date;
+  uint16_t end_min;
+  int32_t min_lat_e7;
+  int32_t max_lat_e7;
+  int32_t min_lon_e7;
+  int32_t max_lon_e7;
+  bool has_bbox;
+  TrackPoint last_point;
+  bool has_last_point;
+};
+
+TrackSession track_current;
+uint8_t track_slot = 0;
+
+uint8_t track_meta_crc(const TrackMeta &m);
+TrackMeta track_load_meta(Preferences &prefs, uint8_t slot);
+void track_save_meta(Preferences &prefs, uint8_t slot, TrackMeta &meta);
+void track_clear_slot(Preferences &prefs, uint8_t slot);
+void track_clear_all(Preferences &prefs);
+void track_reset_ram();
+void track_open_new(Preferences &prefs, uint8_t slot);
+void track_begin();
+void track_flush_if_due(unsigned long now_ms);
+void track_try_add_point(float lat_deg, float lon_deg, uint16_t t_min, uint32_t date_yyyymmdd, unsigned long now_ms);
+bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb cb, void *ctx);
 
 // Last position for distance calculation.
 bool has_last_point_val = false;
@@ -495,6 +575,341 @@ void session_begin() {
   session_snapshot_valid = true;
 }
 
+uint8_t track_meta_crc(const TrackMeta &m) {
+  const uint8_t *p = reinterpret_cast<const uint8_t *>(&m);
+  const size_t len = offsetof(TrackMeta, crc);
+  uint8_t out = 0;
+  for (size_t i = 0; i < len; ++i) {
+    out ^= p[i];
+  }
+  return out;
+}
+
+void track_key_meta(char *out, uint8_t slot) {
+  snprintf(out, 5, "t%um", slot);
+}
+
+void track_key_chunk(char *out, uint8_t slot, uint8_t idx) {
+  snprintf(out, 6, "t%uc%02u", slot, idx);
+}
+
+TrackMeta track_load_meta(Preferences &prefs, uint8_t slot) {
+  TrackMeta meta = {};
+  char key[5];
+  track_key_meta(key, slot);
+  size_t len = prefs.getBytes(key, &meta, sizeof(meta));
+  if (len != sizeof(meta) || meta.ver != TRACK_VER || meta.crc != track_meta_crc(meta)) {
+    memset(&meta, 0, sizeof(meta));
+    meta.ver = TRACK_VER;
+  }
+  return meta;
+}
+
+void track_save_meta(Preferences &prefs, uint8_t slot, TrackMeta &meta) {
+  meta.ver = TRACK_VER;
+  meta.crc = track_meta_crc(meta);
+  char key[5];
+  track_key_meta(key, slot);
+  prefs.putBytes(key, &meta, sizeof(meta));
+}
+
+void track_clear_slot(Preferences &prefs, uint8_t slot) {
+  char key[6];
+  track_key_meta(key, slot);
+  prefs.remove(key);
+  for (uint8_t i = 0; i < TRACK_MAX_CHUNKS; ++i) {
+    track_key_chunk(key, slot, i);
+    prefs.remove(key);
+  }
+}
+
+void track_clear_all(Preferences &prefs) {
+  for (uint8_t i = 0; i < TRACK_SLOTS; ++i) {
+    track_clear_slot(prefs, i);
+  }
+  prefs.remove("t_idx");
+  prefs.remove("t_open");
+  prefs.putUChar("t_ver", TRACK_VER);
+}
+
+void track_reset_ram() {
+  memset(&track_current, 0, sizeof(track_current));
+  track_current.last_flush_ms = 0;
+  track_current.last_sample_ms = 0;
+  track_current.persisted_points = 0;
+  track_current.chunk_head = 0;
+  track_current.chunk_count = 0;
+  track_current.bbox_dirty = false;
+  track_current.has_bbox = false;
+  track_current.has_last_point = false;
+}
+
+void track_open_new(Preferences &prefs, uint8_t slot) {
+  track_reset_ram();
+  TrackMeta meta = {};
+  meta.ver = TRACK_VER;
+  meta.flags = TRACK_FLAG_OPEN;
+  meta.sample_ms = static_cast<uint16_t>(TRACK_SAMPLE_MS);
+  meta.max_points = TRACK_MAX_POINTS;
+  meta.total_points = 0;
+  meta.chunk_head = 0;
+  meta.chunk_count = 0;
+  meta.start_date = 0;
+  meta.start_min = 0;
+  meta.end_date = 0;
+  meta.end_min = 0;
+  meta.min_lat_e7 = 0;
+  meta.max_lat_e7 = 0;
+  meta.min_lon_e7 = 0;
+  meta.max_lon_e7 = 0;
+  track_save_meta(prefs, slot, meta);
+}
+
+void track_begin() {
+  Preferences &prefs = storage::prefs_trk();
+  uint8_t ver = prefs.getUChar("t_ver", 0);
+  if (ver != TRACK_VER) {
+    track_clear_all(prefs);
+  }
+  uint8_t prev_slot = prefs.getUChar("t_idx", 0);
+  if (prev_slot >= TRACK_SLOTS) {
+    prev_slot = 0;
+  }
+  const uint8_t open = prefs.getUChar("t_open", 0);
+  if (open == 1) {
+    TrackMeta prev = track_load_meta(prefs, prev_slot);
+    prev.flags = static_cast<uint8_t>(prev.flags & ~TRACK_FLAG_OPEN);
+    track_save_meta(prefs, prev_slot, prev);
+    prefs.putUChar("t_open", 0);
+    const uint8_t next_slot = static_cast<uint8_t>((prev_slot + 1) % TRACK_SLOTS);
+    track_clear_slot(prefs, next_slot);
+    track_slot = next_slot;
+  } else {
+    track_slot = prev_slot;
+    track_clear_slot(prefs, track_slot);
+  }
+  prefs.putUChar("t_idx", track_slot);
+  track_open_new(prefs, track_slot);
+  prefs.putUChar("t_open", 1);
+}
+
+void track_flush_if_due(unsigned long now_ms) {
+  if (track_current.flush_count == 0) {
+    return;
+  }
+  const bool due_time = (now_ms - track_current.last_flush_ms) >= TRACK_FLUSH_MS;
+  const bool full = (track_current.flush_count >= TRACK_CHUNK_POINTS);
+  if (!due_time && !full) {
+    return;
+  }
+
+  Preferences &prefs = storage::prefs_trk();
+  uint8_t write_idx = 0;
+  if (track_current.chunk_count < TRACK_MAX_CHUNKS) {
+    write_idx = static_cast<uint8_t>((track_current.chunk_head + track_current.chunk_count) % TRACK_MAX_CHUNKS);
+    track_current.chunk_count++;
+  } else {
+    write_idx = track_current.chunk_head;
+    track_current.chunk_head = static_cast<uint8_t>((track_current.chunk_head + 1) % TRACK_MAX_CHUNKS);
+    track_current.bbox_dirty = true;
+  }
+
+  TrackChunkHeader hdr = {};
+  hdr.count = track_current.flush_count;
+  hdr.first_t_min = track_current.flush_buf[0].t_min;
+  hdr.flags = 0;
+  hdr.crc = 0;
+
+  const size_t blob_len = sizeof(hdr) + (static_cast<size_t>(track_current.flush_count) * sizeof(TrackPoint));
+  uint8_t blob[sizeof(TrackChunkHeader) + (TRACK_CHUNK_POINTS * sizeof(TrackPoint))];
+  memcpy(blob, &hdr, sizeof(hdr));
+  memcpy(blob + sizeof(hdr), track_current.flush_buf, track_current.flush_count * sizeof(TrackPoint));
+
+  char key[6];
+  track_key_chunk(key, track_slot, write_idx);
+  prefs.putBytes(key, blob, blob_len);
+
+  if (track_current.persisted_points < TRACK_MAX_POINTS) {
+    uint16_t next_total = static_cast<uint16_t>(track_current.persisted_points + track_current.flush_count);
+    track_current.persisted_points = (next_total > TRACK_MAX_POINTS) ? TRACK_MAX_POINTS : next_total;
+  }
+
+  TrackMeta meta = track_load_meta(prefs, track_slot);
+  meta.flags = static_cast<uint8_t>(meta.flags | TRACK_FLAG_OPEN);
+  if (track_current.bbox_dirty) {
+    meta.flags = static_cast<uint8_t>(meta.flags | TRACK_FLAG_BBOX_DIRTY);
+  } else {
+    meta.flags = static_cast<uint8_t>(meta.flags & ~TRACK_FLAG_BBOX_DIRTY);
+    if (track_current.has_bbox) {
+      meta.min_lat_e7 = track_current.min_lat_e7;
+      meta.max_lat_e7 = track_current.max_lat_e7;
+      meta.min_lon_e7 = track_current.min_lon_e7;
+      meta.max_lon_e7 = track_current.max_lon_e7;
+    }
+  }
+  meta.sample_ms = static_cast<uint16_t>(TRACK_SAMPLE_MS);
+  meta.max_points = TRACK_MAX_POINTS;
+  meta.total_points = track_current.persisted_points;
+  meta.chunk_head = track_current.chunk_head;
+  meta.chunk_count = track_current.chunk_count;
+  meta.start_date = track_current.start_date;
+  meta.start_min = track_current.start_min;
+  meta.end_date = track_current.end_date;
+  meta.end_min = track_current.end_min;
+  track_save_meta(prefs, track_slot, meta);
+
+  track_current.flush_count = 0;
+  track_current.last_flush_ms = now_ms;
+}
+
+void track_try_add_point(float lat_deg, float lon_deg, uint16_t t_min, uint32_t date_yyyymmdd, unsigned long now_ms) {
+  if (date_yyyymmdd == 0) {
+    return;
+  }
+  if (track_current.last_sample_ms == 0 ||
+      (now_ms - track_current.last_sample_ms) >= TRACK_SAMPLE_MS) {
+    track_current.last_sample_ms = now_ms;
+  } else {
+    return;
+  }
+
+  const int32_t lat_e7 = static_cast<int32_t>(lroundf(lat_deg * 1e7f));
+  const int32_t lon_e7 = static_cast<int32_t>(lroundf(lon_deg * 1e7f));
+
+  if (!track_current.has_last_point) {
+    track_current.last_point = {lat_e7, lon_e7, t_min};
+    track_current.has_last_point = true;
+  } else {
+    const float last_lat = track_current.last_point.lat_e7 * 1e-7f;
+    const float last_lon = track_current.last_point.lon_e7 * 1e-7f;
+    const float segment_m = haversine_m(last_lat, last_lon, lat_deg, lon_deg);
+    const RuntimeConfig &cfg = config::get();
+    float min_segment_m = cfg.gps_min_segment_m;
+    if (!isnan(gps_hdop) && gps_hdop > 0.0f) {
+      const float hdop_segment = cfg.gps_hdop_factor * gps_hdop;
+      if (hdop_segment > min_segment_m) {
+        min_segment_m = hdop_segment;
+      }
+    }
+    if (min_segment_m > cfg.gps_max_min_segment_m) {
+      min_segment_m = cfg.gps_max_min_segment_m;
+    }
+    if (segment_m < min_segment_m) {
+      return;
+    }
+  }
+
+  if (track_current.start_date == 0) {
+    track_current.start_date = date_yyyymmdd;
+    track_current.start_min = t_min;
+  }
+  track_current.end_date = date_yyyymmdd;
+  track_current.end_min = t_min;
+
+  if (!track_current.has_bbox) {
+    track_current.min_lat_e7 = lat_e7;
+    track_current.max_lat_e7 = lat_e7;
+    track_current.min_lon_e7 = lon_e7;
+    track_current.max_lon_e7 = lon_e7;
+    track_current.has_bbox = true;
+  } else {
+    if (lat_e7 < track_current.min_lat_e7) {
+      track_current.min_lat_e7 = lat_e7;
+    }
+    if (lat_e7 > track_current.max_lat_e7) {
+      track_current.max_lat_e7 = lat_e7;
+    }
+    if (lon_e7 < track_current.min_lon_e7) {
+      track_current.min_lon_e7 = lon_e7;
+    }
+    if (lon_e7 > track_current.max_lon_e7) {
+      track_current.max_lon_e7 = lon_e7;
+    }
+  }
+
+  if (track_current.flush_count < TRACK_CHUNK_POINTS) {
+    track_current.flush_buf[track_current.flush_count++] = {lat_e7, lon_e7, t_min};
+  }
+  track_current.last_point = {lat_e7, lon_e7, t_min};
+  track_current.has_last_point = true;
+}
+
+bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb cb, void *ctx) {
+  Preferences &prefs = storage::prefs_trk();
+  TrackMeta meta = track_load_meta(prefs, slot);
+  if (meta.ver != TRACK_VER) {
+    return false;
+  }
+  const bool current = (slot == track_slot);
+  const uint16_t persisted = meta.total_points;
+  const uint16_t flush_count = current ? track_current.flush_count : 0;
+  uint32_t total = static_cast<uint32_t>(persisted) + static_cast<uint32_t>(flush_count);
+  if (total == 0) {
+    return false;
+  }
+  if (total > TRACK_MAX_POINTS) {
+    total = TRACK_MAX_POINTS;
+  }
+  uint16_t skip_oldest = 0;
+  if (persisted + flush_count > TRACK_MAX_POINTS) {
+    skip_oldest = static_cast<uint16_t>((persisted + flush_count) - TRACK_MAX_POINTS);
+  }
+  uint16_t stride = 1;
+  if (max_points > 0 && total > max_points) {
+    stride = static_cast<uint16_t>((total + max_points - 1) / max_points);
+    if (stride == 0) {
+      stride = 1;
+    }
+  }
+
+  uint16_t idx = 0;
+  uint8_t buffer[sizeof(TrackChunkHeader) + (TRACK_CHUNK_POINTS * sizeof(TrackPoint))];
+  const uint8_t chunk_count = (meta.chunk_count <= TRACK_MAX_CHUNKS) ? meta.chunk_count : TRACK_MAX_CHUNKS;
+  const uint8_t chunk_head = (meta.chunk_head < TRACK_MAX_CHUNKS) ? meta.chunk_head : 0;
+  for (uint8_t i = 0; i < chunk_count; ++i) {
+    const uint8_t chunk_idx = static_cast<uint8_t>((chunk_head + i) % TRACK_MAX_CHUNKS);
+    char key[6];
+    track_key_chunk(key, slot, chunk_idx);
+    size_t len = prefs.getBytes(key, buffer, sizeof(buffer));
+    if (len <= sizeof(TrackChunkHeader)) {
+      continue;
+    }
+    TrackChunkHeader hdr = {};
+    memcpy(&hdr, buffer, sizeof(hdr));
+    const size_t points_bytes = len - sizeof(TrackChunkHeader);
+    const uint8_t points_count = static_cast<uint8_t>(points_bytes / sizeof(TrackPoint));
+    const TrackPoint *pts = reinterpret_cast<const TrackPoint *>(buffer + sizeof(TrackChunkHeader));
+    const uint8_t count = (hdr.count > 0 && hdr.count <= points_count) ? hdr.count : points_count;
+    for (uint8_t p = 0; p < count; ++p) {
+      if (skip_oldest > 0) {
+        skip_oldest--;
+        continue;
+      }
+      if ((idx++ % stride) == 0) {
+        if (!cb(pts[p], ctx)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  if (current) {
+    for (uint8_t p = 0; p < track_current.flush_count; ++p) {
+      if (skip_oldest > 0) {
+        skip_oldest--;
+        continue;
+      }
+      if ((idx++ % stride) == 0) {
+        if (!cb(track_current.flush_buf[p], ctx)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 // Build the 16-byte payload for BLE read.
 void build_summary_payload_internal(uint8_t *out, size_t len) {
   if (len < 16) {
@@ -686,6 +1101,7 @@ void handle_nmea_line(const char *line) {
     }
 
     if (gps_trusted_fix && speed_kph <= SPEED_MAX_VALID_KPH) {
+      track_try_add_point(lat_deg, lon_deg, time_min, date_yyyymmdd, now_ms);
       if (now_ms - last_sample_ms >= GPS_SAMPLE_MS) {
         last_sample_ms = now_ms;
 
@@ -774,11 +1190,16 @@ void begin() {
   load_metrics();
   history_load();
   session_close_previous_on_boot();
+  track_begin();
   session_begin();
 }
 
 void tick() {
   read_gps();
+}
+
+void track_tick(unsigned long now_ms) {
+  track_flush_if_due(now_ms);
 }
 
 void save_if_due(unsigned long now_ms) {
@@ -787,6 +1208,111 @@ void save_if_due(unsigned long now_ms) {
     save_metrics();
     save_session_snapshot_if_needed();
   }
+}
+
+bool track_iter_points(uint8_t slot, uint16_t max_points, TrackPointCb cb, void *ctx) {
+  return track_iter_points_internal(slot, max_points, cb, ctx);
+}
+
+bool track_get_view(int session_id, TrackView &out) {
+  memset(&out, 0, sizeof(out));
+  uint8_t slot = track_slot;
+  bool current = false;
+  if (session_id < 0) {
+    current = true;
+    slot = track_slot;
+  } else if (session_id >= 0 && session_id <= 2) {
+    slot = static_cast<uint8_t>((track_slot + TRACK_SLOTS - 1 - session_id) % TRACK_SLOTS);
+  } else {
+    return false;
+  }
+
+  Preferences &prefs = storage::prefs_trk();
+  TrackMeta meta = track_load_meta(prefs, slot);
+  if (meta.ver != TRACK_VER) {
+    return false;
+  }
+  const uint16_t persisted = meta.total_points;
+  const uint16_t flush_count = (current ? track_current.flush_count : 0);
+  uint32_t total = static_cast<uint32_t>(persisted) + static_cast<uint32_t>(flush_count);
+  if (total == 0) {
+    return false;
+  }
+  if (total > TRACK_MAX_POINTS) {
+    total = TRACK_MAX_POINTS;
+  }
+
+  out.ok = true;
+  out.open = current;
+  out.slot = slot;
+  out.count = static_cast<uint16_t>(total);
+  out.sample_ms = meta.sample_ms;
+  if (out.sample_ms == 0) {
+    out.sample_ms = static_cast<uint16_t>(TRACK_SAMPLE_MS);
+  }
+  out.start_date = meta.start_date;
+  out.start_min = meta.start_min;
+  out.end_date = meta.end_date;
+  out.end_min = meta.end_min;
+  out.min_lat_e7 = meta.min_lat_e7;
+  out.max_lat_e7 = meta.max_lat_e7;
+  out.min_lon_e7 = meta.min_lon_e7;
+  out.max_lon_e7 = meta.max_lon_e7;
+
+  if (current) {
+    if (track_current.start_date != 0) {
+      out.start_date = track_current.start_date;
+      out.start_min = track_current.start_min;
+    }
+    if (track_current.end_date != 0) {
+      out.end_date = track_current.end_date;
+      out.end_min = track_current.end_min;
+    }
+    if (track_current.has_bbox) {
+      out.min_lat_e7 = track_current.min_lat_e7;
+      out.max_lat_e7 = track_current.max_lat_e7;
+      out.min_lon_e7 = track_current.min_lon_e7;
+      out.max_lon_e7 = track_current.max_lon_e7;
+    }
+  }
+
+  struct BboxCtx {
+    bool has;
+    uint16_t count;
+    int32_t min_lat;
+    int32_t max_lat;
+    int32_t min_lon;
+    int32_t max_lon;
+  } bbox = {false, 0, 0, 0, 0, 0};
+
+  auto bbox_cb = [](const TrackPoint &p, void *ctx) -> bool {
+    BboxCtx *b = reinterpret_cast<BboxCtx *>(ctx);
+    if (!b->has) {
+      b->min_lat = p.lat_e7;
+      b->max_lat = p.lat_e7;
+      b->min_lon = p.lon_e7;
+      b->max_lon = p.lon_e7;
+      b->has = true;
+    } else {
+      if (p.lat_e7 < b->min_lat) b->min_lat = p.lat_e7;
+      if (p.lat_e7 > b->max_lat) b->max_lat = p.lat_e7;
+      if (p.lon_e7 < b->min_lon) b->min_lon = p.lon_e7;
+      if (p.lon_e7 > b->max_lon) b->max_lon = p.lon_e7;
+    }
+    b->count++;
+    return true;
+  };
+
+  if (!track_iter_points_internal(slot, 0, bbox_cb, &bbox) || !bbox.has) {
+    return false;
+  }
+  out.min_lat_e7 = bbox.min_lat;
+  out.max_lat_e7 = bbox.max_lat;
+  out.min_lon_e7 = bbox.min_lon;
+  out.max_lon_e7 = bbox.max_lon;
+  out.count = bbox.count;
+
+  return true;
 }
 
 bool has_fix() {

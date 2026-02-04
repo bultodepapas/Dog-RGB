@@ -43,4 +43,32 @@ unsigned long last_byte_ms();
 unsigned long last_rmc_ms();
 unsigned long last_gga_ms();
 unsigned long last_fix_ms();
+
+struct TrackPoint {
+  int32_t lat_e7;
+  int32_t lon_e7;
+  uint16_t t_min;
+} __attribute__((packed));
+
+struct TrackView {
+  bool ok;
+  bool open;
+  uint8_t slot;
+  uint16_t count;
+  uint16_t sample_ms;
+  uint32_t start_date;
+  uint16_t start_min;
+  uint32_t end_date;
+  uint16_t end_min;
+  int32_t min_lat_e7;
+  int32_t max_lat_e7;
+  int32_t min_lon_e7;
+  int32_t max_lon_e7;
+};
+
+typedef bool (*TrackPointCb)(const TrackPoint &p, void *ctx);
+
+bool track_get_view(int session_id, TrackView &out);
+bool track_iter_points(uint8_t slot, uint16_t max_points, TrackPointCb cb, void *ctx);
+void track_tick(unsigned long now_ms);
 }

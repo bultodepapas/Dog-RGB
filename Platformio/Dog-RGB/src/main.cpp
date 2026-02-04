@@ -116,6 +116,7 @@ void loop() {
   gps::tick();
   geofence::tick(now_ms);
   gps::save_if_due(now_ms);
+  gps::track_tick(now_ms);
 
   if (now_ms - last_heartbeat_ms >= HEARTBEAT_MS) {
     last_heartbeat_ms = now_ms;
