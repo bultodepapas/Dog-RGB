@@ -671,6 +671,20 @@ String web_pages::html_config_page() {
             <input id="gps_max_gga_age" type="number" step="100" min="500" max="10000">
           </div>
         </div>
+        <div class="grid grid-3">
+          <div class="field">
+            <label>Min segment (m)</label>
+            <input id="gps_min_segment" type="number" step="0.1" min="0.5" max="20">
+          </div>
+          <div class="field">
+            <label>HDOP factor</label>
+            <input id="gps_hdop_factor" type="number" step="0.1" min="0" max="5">
+          </div>
+          <div class="field">
+            <label>Max min segment (m)</label>
+            <input id="gps_max_min_segment" type="number" step="0.1" min="1" max="50">
+          </div>
+        </div>
         <div class="help">Solo se aceptan puntos con calidad suficiente para sumar distancia/tiempo.</div>
       </div>
     </details>
@@ -742,6 +756,9 @@ String web_pages::html_config_page() {
     const gpsMinSats = $('gps_min_sats');
     const gpsMaxHdop = $('gps_max_hdop');
     const gpsMaxGgaAge = $('gps_max_gga_age');
+    const gpsMinSegment = $('gps_min_segment');
+    const gpsHdopFactor = $('gps_hdop_factor');
+    const gpsMaxMinSegment = $('gps_max_min_segment');
     const simpleTheme = $('simple_theme');
     const simpleEffect = $('simple_effect');
     const simpleSpeed = $('simple_speed');
@@ -936,6 +953,10 @@ String web_pages::html_config_page() {
       if (g.min_sats < 3 || g.min_sats > 12) addError('gps_block','Satellites min invalido.');
       if (!(g.max_hdop >= 0.5 && g.max_hdop <= 20)) addError('gps_block','HDOP max invalido.');
       if (g.max_gga_age_ms < 500 || g.max_gga_age_ms > 10000) addError('gps_block','Max age GGA invalido.');
+      if (!(g.min_segment_m >= 0.5 && g.min_segment_m <= 20)) addError('gps_block','Min segment invalido.');
+      if (!(g.hdop_factor >= 0 && g.hdop_factor <= 5)) addError('gps_block','HDOP factor invalido.');
+      if (!(g.max_min_segment_m >= 1 && g.max_min_segment_m <= 50)) addError('gps_block','Max min segment invalido.');
+      if (g.min_segment_m > g.max_min_segment_m) addError('gps_block','Min segment > max.');
 
       for (let i=1;i<=10;i++){
         const e = cfg.effects['range'+i];
@@ -977,7 +998,10 @@ String web_pages::html_config_page() {
           min_fix_quality: intVal(gpsMinFix,1),
           min_sats: intVal(gpsMinSats,6),
           max_hdop: floatVal(gpsMaxHdop,2.5),
-          max_gga_age_ms: intVal(gpsMaxGgaAge,2000)
+          max_gga_age_ms: intVal(gpsMaxGgaAge,2000),
+          min_segment_m: floatVal(gpsMinSegment,3.0),
+          hdop_factor: floatVal(gpsHdopFactor,2.0),
+          max_min_segment_m: floatVal(gpsMaxMinSegment,10.0)
         },
         speed_ranges_kph: rangeInputs.map(el=>floatVal(el,0)),
         effects:{},
@@ -1055,6 +1079,9 @@ String web_pages::html_config_page() {
       gpsMinSats.value = (g.min_sats !== undefined ? g.min_sats : 6);
       gpsMaxHdop.value = (g.max_hdop !== undefined ? g.max_hdop : 2.5);
       gpsMaxGgaAge.value = (g.max_gga_age_ms !== undefined ? g.max_gga_age_ms : 2000);
+      gpsMinSegment.value = (g.min_segment_m !== undefined ? g.min_segment_m : 3.0);
+      gpsHdopFactor.value = (g.hdop_factor !== undefined ? g.hdop_factor : 2.0);
+      gpsMaxMinSegment.value = (g.max_min_segment_m !== undefined ? g.max_min_segment_m : 10.0);
       for (let i=0;i<9;i++){ rangeInputs[i].value = c.speed_ranges_kph[i]; }
       for (let i=1;i<=10;i++){
         const e = c.effects['range'+i];

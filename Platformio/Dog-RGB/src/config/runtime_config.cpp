@@ -25,6 +25,9 @@ void set_default_gps_config(RuntimeConfig &cfg) {
   cfg.gps_min_sats = GPS_MIN_SATS_DEFAULT;
   cfg.gps_max_hdop = GPS_MAX_HDOP_DEFAULT;
   cfg.gps_max_gga_age_ms = GPS_MAX_GGA_AGE_MS_DEFAULT;
+  cfg.gps_min_segment_m = GPS_MIN_SEGMENT_M_DEFAULT;
+  cfg.gps_hdop_factor = GPS_HDOP_FACTOR_DEFAULT;
+  cfg.gps_max_min_segment_m = GPS_MAX_MIN_SEGMENT_M_DEFAULT;
 }
 
 bool validate_single_config(const SingleEffectConfig &cfg) {
@@ -50,6 +53,9 @@ void load_gps_config(RuntimeConfig &cfg) {
   cfg.gps_min_sats = prefs_cfg.getUChar("gps_min_sats", GPS_MIN_SATS_DEFAULT);
   cfg.gps_max_hdop = prefs_cfg.getFloat("gps_max_hdop", GPS_MAX_HDOP_DEFAULT);
   cfg.gps_max_gga_age_ms = prefs_cfg.getUShort("gps_gga_age", GPS_MAX_GGA_AGE_MS_DEFAULT);
+  cfg.gps_min_segment_m = prefs_cfg.getFloat("gps_min_seg", GPS_MIN_SEGMENT_M_DEFAULT);
+  cfg.gps_hdop_factor = prefs_cfg.getFloat("gps_hdop_factor", GPS_HDOP_FACTOR_DEFAULT);
+  cfg.gps_max_min_segment_m = prefs_cfg.getFloat("gps_max_min_seg", GPS_MAX_MIN_SEGMENT_M_DEFAULT);
   if (!validate_gps(cfg)) {
     set_default_gps_config(cfg);
   }
@@ -153,6 +159,9 @@ void save() {
   prefs_cfg.putUChar("gps_min_sats", g_cfg.gps_min_sats);
   prefs_cfg.putFloat("gps_max_hdop", g_cfg.gps_max_hdop);
   prefs_cfg.putUShort("gps_gga_age", g_cfg.gps_max_gga_age_ms);
+  prefs_cfg.putFloat("gps_min_seg", g_cfg.gps_min_segment_m);
+  prefs_cfg.putFloat("gps_hdop_factor", g_cfg.gps_hdop_factor);
+  prefs_cfg.putFloat("gps_max_min_seg", g_cfg.gps_max_min_segment_m);
 }
 
 void load() {
@@ -302,6 +311,19 @@ bool validate_gps(const RuntimeConfig &cfg) {
     return false;
   }
   if (cfg.gps_max_gga_age_ms < GPS_MAX_GGA_AGE_MS_MIN || cfg.gps_max_gga_age_ms > GPS_MAX_GGA_AGE_MS_MAX) {
+    return false;
+  }
+  if (!(cfg.gps_min_segment_m >= GPS_MIN_SEGMENT_M_MIN && cfg.gps_min_segment_m <= GPS_MIN_SEGMENT_M_MAX)) {
+    return false;
+  }
+  if (!(cfg.gps_hdop_factor >= GPS_HDOP_FACTOR_MIN && cfg.gps_hdop_factor <= GPS_HDOP_FACTOR_MAX)) {
+    return false;
+  }
+  if (!(cfg.gps_max_min_segment_m >= GPS_MAX_MIN_SEGMENT_M_MIN &&
+        cfg.gps_max_min_segment_m <= GPS_MAX_MIN_SEGMENT_M_MAX)) {
+    return false;
+  }
+  if (cfg.gps_min_segment_m > cfg.gps_max_min_segment_m) {
     return false;
   }
   return true;

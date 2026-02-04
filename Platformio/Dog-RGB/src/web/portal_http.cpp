@@ -238,6 +238,9 @@ void handle_config_get() {
   gps_cfg["min_sats"] = cfg.gps_min_sats;
   gps_cfg["max_hdop"] = cfg.gps_max_hdop;
   gps_cfg["max_gga_age_ms"] = cfg.gps_max_gga_age_ms;
+  gps_cfg["min_segment_m"] = cfg.gps_min_segment_m;
+  gps_cfg["hdop_factor"] = cfg.gps_hdop_factor;
+  gps_cfg["max_min_segment_m"] = cfg.gps_max_min_segment_m;
   JsonArray ranges = doc["speed_ranges_kph"].to<JsonArray>();
   for (int i = 0; i < 9; ++i) {
     ranges.add(cfg.ranges[i]);
@@ -316,10 +319,17 @@ void handle_config_post() {
     const int min_sats = gps_cfg["min_sats"] | next.gps_min_sats;
     const float max_hdop = gps_cfg["max_hdop"] | next.gps_max_hdop;
     const int max_gga_age = gps_cfg["max_gga_age_ms"] | static_cast<int>(next.gps_max_gga_age_ms);
+    const float min_segment_m = gps_cfg["min_segment_m"] | next.gps_min_segment_m;
+    const float hdop_factor = gps_cfg["hdop_factor"] | next.gps_hdop_factor;
+    const float max_min_segment_m = gps_cfg["max_min_segment_m"] | next.gps_max_min_segment_m;
     if (min_fix_quality < GPS_MIN_FIX_QUALITY_MIN || min_fix_quality > GPS_MIN_FIX_QUALITY_MAX ||
         min_sats < GPS_MIN_SATS_MIN || min_sats > GPS_MIN_SATS_MAX ||
         !(max_hdop >= GPS_MAX_HDOP_MIN && max_hdop <= GPS_MAX_HDOP_MAX) ||
-        max_gga_age < GPS_MAX_GGA_AGE_MS_MIN || max_gga_age > GPS_MAX_GGA_AGE_MS_MAX) {
+        max_gga_age < GPS_MAX_GGA_AGE_MS_MIN || max_gga_age > GPS_MAX_GGA_AGE_MS_MAX ||
+        !(min_segment_m >= GPS_MIN_SEGMENT_M_MIN && min_segment_m <= GPS_MIN_SEGMENT_M_MAX) ||
+        !(hdop_factor >= GPS_HDOP_FACTOR_MIN && hdop_factor <= GPS_HDOP_FACTOR_MAX) ||
+        !(max_min_segment_m >= GPS_MAX_MIN_SEGMENT_M_MIN && max_min_segment_m <= GPS_MAX_MIN_SEGMENT_M_MAX) ||
+        min_segment_m > max_min_segment_m) {
       server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"gps\"}");
       return;
     }
@@ -327,6 +337,9 @@ void handle_config_post() {
     next.gps_min_sats = static_cast<uint8_t>(min_sats);
     next.gps_max_hdop = max_hdop;
     next.gps_max_gga_age_ms = static_cast<uint16_t>(max_gga_age);
+    next.gps_min_segment_m = min_segment_m;
+    next.gps_hdop_factor = hdop_factor;
+    next.gps_max_min_segment_m = max_min_segment_m;
   }
 
   JsonArray ranges = doc["speed_ranges_kph"].as<JsonArray>();

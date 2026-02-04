@@ -689,15 +689,26 @@ void handle_nmea_line(const char *line) {
       if (now_ms - last_sample_ms >= GPS_SAMPLE_MS) {
         last_sample_ms = now_ms;
 
+        float min_segment_m = cfg.gps_min_segment_m;
+        if (!isnan(gps_hdop) && gps_hdop > 0.0f) {
+          const float hdop_segment = cfg.gps_hdop_factor * gps_hdop;
+          if (hdop_segment > min_segment_m) {
+            min_segment_m = hdop_segment;
+          }
+        }
+        if (min_segment_m > cfg.gps_max_min_segment_m) {
+          min_segment_m = cfg.gps_max_min_segment_m;
+        }
+
         if (has_last_point_val) {
           const float segment_m = haversine_m(last_lat_deg_val, last_lon_deg_val, lat_deg, lon_deg);
-          if (segment_m < 50.0f) {
+          if (segment_m >= min_segment_m && segment_m < 50.0f) {
             total_distance_m_val += segment_m;
           }
         }
         if (session_has_last_point) {
           const float segment_m = haversine_m(session_last_lat_deg, session_last_lon_deg, lat_deg, lon_deg);
-          if (segment_m < 50.0f) {
+          if (segment_m >= min_segment_m && segment_m < 50.0f) {
             session_total_distance_m += segment_m;
           }
         }

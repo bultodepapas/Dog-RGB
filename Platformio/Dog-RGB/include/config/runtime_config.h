@@ -32,6 +32,9 @@ struct RuntimeConfig {
   uint8_t gps_min_sats;
   float gps_max_hdop;
   uint16_t gps_max_gga_age_ms;
+  float gps_min_segment_m;
+  float gps_hdop_factor;
+  float gps_max_min_segment_m;
 };
 
 namespace config {

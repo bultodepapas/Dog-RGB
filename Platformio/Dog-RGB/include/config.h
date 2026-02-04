@@ -130,6 +130,15 @@ static const float GPS_MAX_HDOP_MAX = 20.0f;
 static const uint16_t GPS_MAX_GGA_AGE_MS_DEFAULT = 2000;
 static const uint16_t GPS_MAX_GGA_AGE_MS_MIN = 500;
 static const uint16_t GPS_MAX_GGA_AGE_MS_MAX = 10000;
+static const float GPS_MIN_SEGMENT_M_DEFAULT = 3.0f;
+static const float GPS_MIN_SEGMENT_M_MIN = 0.5f;
+static const float GPS_MIN_SEGMENT_M_MAX = 20.0f;
+static const float GPS_HDOP_FACTOR_DEFAULT = 2.0f;
+static const float GPS_HDOP_FACTOR_MIN = 0.0f;
+static const float GPS_HDOP_FACTOR_MAX = 5.0f;
+static const float GPS_MAX_MIN_SEGMENT_M_DEFAULT = 10.0f;
+static const float GPS_MAX_MIN_SEGMENT_M_MIN = 1.0f;
+static const float GPS_MAX_MIN_SEGMENT_M_MAX = 50.0f;
 
 // Persistence (rare changes).
 static const unsigned long SAVE_INTERVAL_MS = 60000; // NVS save interval.
