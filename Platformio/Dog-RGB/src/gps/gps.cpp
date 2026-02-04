@@ -2,9 +2,11 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
+#include <math.h>
 #include <stddef.h>
 
 #include "config.h"
+#include "config/runtime_config.h"
 #include "pins.h"
 #include "storage/nvs_store.h"
 #include "util/geo.h"
@@ -20,6 +22,9 @@ size_t nmea_len = 0;
 
 // Latest GPS state.
 bool has_gps_fix = false;
+bool has_gps_fix_raw = false;
+bool gps_quality_ok = false;
+bool gps_trusted_fix = false;
 float last_speed_kph_val = 0.0f;
 unsigned long last_gps_ms = 0;
 unsigned long gps_bytes_rx = 0;
@@ -35,6 +40,7 @@ unsigned long gps_last_gga_ms = 0;
 unsigned long gps_last_fix_ms = 0;
 uint8_t gps_sats = 0;
 uint8_t gps_fix_quality = 0;
+float gps_hdop = NAN;
 
 // Rolling metrics for the current day.
 unsigned long last_sample_ms = 0;
@@ -205,7 +211,7 @@ bool parse_rmc(const char *line,
 }
 
 // Parse GGA sentence for fix quality and satellites.
-bool parse_gga(const char *line, uint8_t *fix_quality, uint8_t *sats) {
+bool parse_gga(const char *line, uint8_t *fix_quality, uint8_t *sats, float *hdop) {
   if (strncmp(line, "$GPGGA,", 7) != 0 && strncmp(line, "$GNGGA,", 7) != 0) {
     return false;
   }
@@ -214,8 +220,10 @@ bool parse_gga(const char *line, uint8_t *fix_quality, uint8_t *sats) {
   int field = 0;
   char fix_buf[4] = {0};
   char sat_buf[4] = {0};
+  char hdop_buf[8] = {0};
   int fix_len = 0;
   int sat_len = 0;
+  int hdop_len = 0;
 
   for (const char *p = line; *p != '\0' && *p != '*'; ++p) {
     if (*p == ',') {
@@ -228,6 +236,9 @@ bool parse_gga(const char *line, uint8_t *fix_quality, uint8_t *sats) {
     if (field == 7 && sat_len < 3) {
       sat_buf[sat_len++] = *p;
     }
+    if (field == 8 && hdop_len < 7) {
+      hdop_buf[hdop_len++] = *p;
+    }
   }
 
   if (fix_len > 0) {
@@ -235,6 +246,9 @@ bool parse_gga(const char *line, uint8_t *fix_quality, uint8_t *sats) {
   }
   if (sat_len > 0) {
     *sats = static_cast<uint8_t>(atoi(sat_buf));
+  }
+  if (hdop_len > 0) {
+    *hdop = strtof(hdop_buf, nullptr);
   }
   return true;
 }
@@ -581,6 +595,8 @@ String build_summary_json_internal() {
   json += ",\"max_speed_cmps\":" + String(max_speed_cmps);
   json += ",\"last_update_min\":" + String(last_update_min_val);
   json += ",\"gps_fix\":" + String(has_gps_fix ? "true" : "false");
+  json += ",\"gps_raw_fix\":" + String(has_gps_fix_raw ? "true" : "false");
+  json += ",\"gps_quality_ok\":" + String(gps_quality_ok ? "true" : "false");
   json += ",\"has_data\":" + String(has_data ? "true" : "false");
   append_history_json(json);
   append_session_current_json(json);
@@ -596,49 +612,69 @@ void handle_nmea_line(const char *line) {
   bool valid_fix = false;
   uint32_t date_yyyymmdd = 0;
   uint16_t time_min = 0;
+  const unsigned long now_ms = millis();
 
   const bool is_rmc = (strncmp(line, "$GPRMC,", 7) == 0 || strncmp(line, "$GNRMC,", 7) == 0);
   if (is_rmc) {
     gps_rmc_seen++;
-    gps_last_rmc_ms = millis();
+    gps_last_rmc_ms = now_ms;
   }
   const bool is_gga = (strncmp(line, "$GPGGA,", 7) == 0 || strncmp(line, "$GNGGA,", 7) == 0);
   if (is_gga) {
     gps_gga_seen++;
-    gps_last_gga_ms = millis();
+    gps_last_gga_ms = now_ms;
     uint8_t fix_quality = gps_fix_quality;
     uint8_t sats = gps_sats;
-    if (parse_gga(line, &fix_quality, &sats)) {
+    float hdop = NAN;
+    if (parse_gga(line, &fix_quality, &sats, &hdop)) {
       gps_fix_quality = fix_quality;
       gps_sats = sats;
+      gps_hdop = hdop;
     }
   }
   if (parse_rmc(line, &lat_deg, &lon_deg, &speed_kph, &valid_fix, &date_yyyymmdd, &time_min)) {
-    has_gps_fix = valid_fix;
+    has_gps_fix_raw = valid_fix;
     last_speed_kph_val = speed_kph;
-    last_gps_ms = millis();
+    last_gps_ms = now_ms;
+
+    const RuntimeConfig &cfg = config::get();
+    const bool gga_fresh = (gps_last_gga_ms > 0 && now_ms >= gps_last_gga_ms)
+                               ? (now_ms - gps_last_gga_ms <= cfg.gps_max_gga_age_ms)
+                               : false;
+    const bool hdop_ok = (!isnan(gps_hdop) && gps_hdop > 0.0f && gps_hdop <= cfg.gps_max_hdop);
+    gps_quality_ok = (gps_fix_quality >= cfg.gps_min_fix_quality) &&
+                     (gps_sats >= cfg.gps_min_sats) &&
+                     hdop_ok &&
+                     gga_fresh;
+    gps_trusted_fix = (has_gps_fix_raw && gps_quality_ok);
+    has_gps_fix = gps_trusted_fix;
+
     if (valid_fix) {
-      last_update_min_val = time_min;
+      if (gps_trusted_fix) {
+        last_update_min_val = time_min;
+      }
       current_lat_deg_val = lat_deg;
       current_lon_deg_val = lon_deg;
       has_current_fix_val = true;
       gps_rmc_valid++;
       gps_last_fix_ms = last_gps_ms;
-      session_fix_seen = true;
-      if (!session_start_set && date_yyyymmdd != 0) {
-        session_start_set = true;
-        session_start_date = date_yyyymmdd;
-        session_start_min = time_min;
-      }
-      if (date_yyyymmdd != 0) {
-        session_end_date = date_yyyymmdd;
-        session_end_min = time_min;
+      if (gps_trusted_fix) {
+        session_fix_seen = true;
+        if (!session_start_set && date_yyyymmdd != 0) {
+          session_start_set = true;
+          session_start_date = date_yyyymmdd;
+          session_start_min = time_min;
+        }
+        if (date_yyyymmdd != 0) {
+          session_end_date = date_yyyymmdd;
+          session_end_min = time_min;
+        }
       }
     } else {
       has_current_fix_val = false;
     }
 
-    if (valid_fix) {
+    if (gps_trusted_fix) {
       if (date_yyyymmdd != 0 && date_yyyymmdd != current_date_yyyymmdd) {
         current_date_yyyymmdd = date_yyyymmdd;
         total_distance_m_val = 0.0f;
@@ -649,8 +685,7 @@ void handle_nmea_line(const char *line) {
       }
     }
 
-    if (has_gps_fix && speed_kph <= SPEED_MAX_VALID_KPH) {
-      const unsigned long now_ms = millis();
+    if (gps_trusted_fix && speed_kph <= SPEED_MAX_VALID_KPH) {
       if (now_ms - last_sample_ms >= GPS_SAMPLE_MS) {
         last_sample_ms = now_ms;
 
@@ -747,6 +782,14 @@ bool has_fix() {
   return has_gps_fix;
 }
 
+bool raw_fix() {
+  return has_gps_fix_raw;
+}
+
+bool trusted_fix() {
+  return gps_trusted_fix;
+}
+
 bool has_current_fix() {
   return has_current_fix_val;
 }
@@ -801,6 +844,14 @@ uint8_t sats() {
 
 uint8_t fix_quality() {
   return gps_fix_quality;
+}
+
+float hdop() {
+  return gps_hdop;
+}
+
+bool quality_ok() {
+  return gps_quality_ok;
 }
 
 unsigned long bytes_rx() {

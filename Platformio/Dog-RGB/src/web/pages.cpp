@@ -187,7 +187,13 @@ String web_pages::html_page() {
       $('max').textContent=cmpsToKph(d.max_speed_cmps);
       $('date').textContent=fmtDate(d.date);
       $('updated').textContent='Ultima lectura: '+minToTime(d.last_update_min);
-      $('status').textContent='Estado: '+(d.gps_fix?'GPS OK':'Sin GPS');
+      if (d.gps_fix) {
+        $('status').textContent='Estado: GPS OK';
+      } else if (d.gps_raw_fix) {
+        $('status').textContent='Estado: GPS no confiable';
+      } else {
+        $('status').textContent='Estado: Sin GPS';
+      }
     }
 
     function renderSessionCard(label,s){
@@ -238,9 +244,16 @@ String web_pages::html_page() {
 
     function renderStatus(s){
       if(!s){return;}
-      var gpsTone=s.gps&&s.gps.fix?'ok':'warn';
+      var gpsTrusted=!!(s.gps&&s.gps.fix);
+      var gpsRaw=!!(s.gps&&s.gps.raw_fix);
+      var gpsTone=gpsTrusted?'ok':'warn';
       var gpsSats=(s.gps&&s.gps.sats!==undefined)?s.gps.sats:'--';
-      var gpsText=s.gps&&s.gps.fix?'GPS OK ('+gpsSats+')':'GPS sin fix ('+gpsSats+')';
+      var gpsText='GPS sin fix ('+gpsSats+')';
+      if (gpsTrusted){
+        gpsText='GPS OK ('+gpsSats+')';
+      } else if (gpsRaw){
+        gpsText='GPS no confiable ('+gpsSats+')';
+      }
       setPill('pill-gps',gpsText,gpsTone);
 
       var wifiText='Wi-Fi off';
@@ -635,6 +648,33 @@ String web_pages::html_config_page() {
       </div>
     </details>
 
+    <details class="card section" id="gps_block" open>
+      <summary>GPS calidad</summary>
+      <div class="section-body">
+        <div class="grid grid-2">
+          <div class="field">
+            <label>Fix quality min (0..8)</label>
+            <input id="gps_min_fix" type="number" min="0" max="8">
+          </div>
+          <div class="field">
+            <label>Satellites min (3..12)</label>
+            <input id="gps_min_sats" type="number" min="3" max="12">
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field">
+            <label>HDOP max (0.5..20)</label>
+            <input id="gps_max_hdop" type="number" step="0.1" min="0.5" max="20">
+          </div>
+          <div class="field">
+            <label>Max age GGA (ms)</label>
+            <input id="gps_max_gga_age" type="number" step="100" min="500" max="10000">
+          </div>
+        </div>
+        <div class="help">Solo se aceptan puntos con calidad suficiente para sumar distancia/tiempo.</div>
+      </div>
+    </details>
+
     <details class="card section" id="simple_block" open>
       <summary>Simple</summary>
       <div class="section-body">
@@ -698,6 +738,10 @@ String web_pages::html_config_page() {
     const fenceMax = $('fence_max');
     const fenceRanges = $('fence_ranges');
     const homeStatus = $('home_status');
+    const gpsMinFix = $('gps_min_fix');
+    const gpsMinSats = $('gps_min_sats');
+    const gpsMaxHdop = $('gps_max_hdop');
+    const gpsMaxGgaAge = $('gps_max_gga_age');
     const simpleTheme = $('simple_theme');
     const simpleEffect = $('simple_effect');
     const simpleSpeed = $('simple_speed');
@@ -743,7 +787,8 @@ String web_pages::html_config_page() {
       'effect values':{field:'effects_block',msg:'Valores de efecto invalidos.'},
       'effect id':{field:'effects_block',msg:'ID de efecto invalido.'},
       single:{field:'simple_block',msg:'Bloque simple invalido.'},
-      'single values':{field:'simple_block',msg:'Valores simple invalidos.'}
+      'single values':{field:'simple_block',msg:'Valores simple invalidos.'},
+      gps:{field:'gps_block',msg:'Parametros GPS invalidos.'}
     };
 
     function fillEffectSelect(sel){
@@ -886,6 +931,12 @@ String web_pages::html_config_page() {
 
       if (cfg.fence_max_m < 50 || cfg.fence_max_m > 5000) addError('fence_max','Distancia geofence 50..5000.');
 
+      const g = cfg.gps || {};
+      if (g.min_fix_quality < 0 || g.min_fix_quality > 8) addError('gps_block','Fix quality min invalido.');
+      if (g.min_sats < 3 || g.min_sats > 12) addError('gps_block','Satellites min invalido.');
+      if (!(g.max_hdop >= 0.5 && g.max_hdop <= 20)) addError('gps_block','HDOP max invalido.');
+      if (g.max_gga_age_ms < 500 || g.max_gga_age_ms > 10000) addError('gps_block','Max age GGA invalido.');
+
       for (let i=1;i<=10;i++){
         const e = cfg.effects['range'+i];
         if (!e){ addError('effects_block','Efectos incompletos.'); break; }
@@ -922,6 +973,12 @@ String web_pages::html_config_page() {
         mode: modeEl.value,
         fence_max_m: intVal(fenceMax,300),
         led:{brightness: intVal(brightness,1)},
+        gps:{
+          min_fix_quality: intVal(gpsMinFix,1),
+          min_sats: intVal(gpsMinSats,6),
+          max_hdop: floatVal(gpsMaxHdop,2.5),
+          max_gga_age_ms: intVal(gpsMaxGgaAge,2000)
+        },
         speed_ranges_kph: rangeInputs.map(el=>floatVal(el,0)),
         effects:{},
         single:{
@@ -993,6 +1050,11 @@ String web_pages::html_config_page() {
       brightness.value = c.led.brightness;
       modeEl.value = c.mode || 'speed';
       fenceMax.value = c.fence_max_m || 300;
+      const g = c.gps || {};
+      gpsMinFix.value = (g.min_fix_quality !== undefined ? g.min_fix_quality : 1);
+      gpsMinSats.value = (g.min_sats !== undefined ? g.min_sats : 6);
+      gpsMaxHdop.value = (g.max_hdop !== undefined ? g.max_hdop : 2.5);
+      gpsMaxGgaAge.value = (g.max_gga_age_ms !== undefined ? g.max_gga_age_ms : 2000);
       for (let i=0;i<9;i++){ rangeInputs[i].value = c.speed_ranges_kph[i]; }
       for (let i=1;i<=10;i++){
         const e = c.effects['range'+i];
@@ -1087,8 +1149,12 @@ String web_pages::html_dev_page() {
       <div class="grid grid-2">
         <div class="field"><label>Fix</label><div class="data mono" id="gps-fix">--</div></div>
         <div class="field"><label>Fix actual</label><div class="data mono" id="gps-current-fix">--</div></div>
+        <div class="field"><label>Raw fix</label><div class="data mono" id="gps-raw-fix">--</div></div>
+        <div class="field"><label>Trusted fix</label><div class="data mono" id="gps-trusted-fix">--</div></div>
         <div class="field"><label>Sats</label><div class="data mono" id="gps-sats">--</div></div>
         <div class="field"><label>Fix quality</label><div class="data mono" id="gps-fix-quality">--</div></div>
+        <div class="field"><label>HDOP</label><div class="data mono" id="gps-hdop">--</div></div>
+        <div class="field"><label>Quality OK</label><div class="data mono" id="gps-quality-ok">--</div></div>
         <div class="field"><label>Speed (kph)</label><div class="data mono" id="gps-speed">--</div></div>
         <div class="field"><label>Lat</label><div class="data mono" id="gps-lat">--</div></div>
         <div class="field"><label>Lon</label><div class="data mono" id="gps-lon">--</div></div>
@@ -1209,8 +1275,12 @@ String web_pages::html_dev_page() {
         const gps = d.gps || {};
         setText('gps-fix', gps.fix ? 'yes' : 'no');
         setText('gps-current-fix', gps.current_fix ? 'yes' : 'no');
+        setText('gps-raw-fix', gps.raw_fix ? 'yes' : 'no');
+        setText('gps-trusted-fix', gps.trusted_fix ? 'yes' : 'no');
         setText('gps-sats', gps.sats);
         setText('gps-fix-quality', gps.fix_quality);
+        setText('gps-hdop', (gps.hdop !== undefined) ? gps.hdop.toFixed(2) : '--');
+        setText('gps-quality-ok', gps.quality_ok ? 'yes' : 'no');
         setText('gps-speed', (gps.speed_kph !== undefined) ? gps.speed_kph.toFixed(2) : '--');
         setText('gps-lat', (gps.lat !== undefined) ? gps.lat.toFixed(6) : '--');
         setText('gps-lon', (gps.lon !== undefined) ? gps.lon.toFixed(6) : '--');

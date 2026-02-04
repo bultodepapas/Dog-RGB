@@ -12,6 +12,8 @@ void build_summary_payload(uint8_t *out, size_t len);
 String build_summary_json();
 
 bool has_fix();
+bool raw_fix();
+bool trusted_fix();
 bool has_current_fix();
 float last_speed_kph();
 float total_distance_m();
@@ -28,6 +30,8 @@ float current_lon_deg();
 
 uint8_t sats();
 uint8_t fix_quality();
+float hdop();
+bool quality_ok();
 
 unsigned long bytes_rx();
 unsigned long sentences_rx();

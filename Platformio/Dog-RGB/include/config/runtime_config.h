@@ -28,6 +28,10 @@ struct RuntimeConfig {
   String mdns;
   uint8_t mode;
   uint16_t fence_max_m;
+  uint8_t gps_min_fix_quality;
+  uint8_t gps_min_sats;
+  float gps_max_hdop;
+  uint16_t gps_max_gga_age_ms;
 };
 
 namespace config {
@@ -48,6 +52,7 @@ uint16_t clamp_fence_max(int value);
 
 bool validate_ranges(const float *ranges);
 bool validate_effects(const RangeEffect *effects);
+bool validate_gps(const RuntimeConfig &cfg);
 
 bool valid_mdns(const String &value);
 }

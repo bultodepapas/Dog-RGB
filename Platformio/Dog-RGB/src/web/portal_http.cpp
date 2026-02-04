@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <math.h>
 
 #include "config/runtime_config.h"
 #include "config.h"
@@ -47,7 +48,7 @@ void handle_summary() {
 }
 
 void handle_status_get() {
-  StaticJsonDocument<768> doc;
+  StaticJsonDocument<896> doc;
   const RuntimeConfig &cfg = config::get();
   doc["mode"] = config::mode_name(cfg.mode);
   JsonObject wifi = doc["wifi"].to<JsonObject>();
@@ -59,8 +60,12 @@ void handle_status_get() {
 
   JsonObject gps = doc["gps"].to<JsonObject>();
   gps["fix"] = gps::has_fix();
+  gps["raw_fix"] = gps::raw_fix();
+  gps["quality_ok"] = gps::quality_ok();
   gps["sats"] = gps::sats();
   gps["fix_quality"] = gps::fix_quality();
+  const float hdop_status = gps::hdop();
+  gps["hdop"] = isnan(hdop_status) ? -1.0f : hdop_status;
 
   JsonObject home = doc["home"].to<JsonObject>();
   home["set"] = geofence::is_set();
@@ -100,9 +105,14 @@ void handle_dev_get() {
 
   JsonObject gps = doc["gps"].to<JsonObject>();
   gps["fix"] = gps::has_fix();
+  gps["raw_fix"] = gps::raw_fix();
+  gps["trusted_fix"] = gps::trusted_fix();
+  gps["quality_ok"] = gps::quality_ok();
   gps["current_fix"] = gps::has_current_fix();
   gps["sats"] = gps::sats();
   gps["fix_quality"] = gps::fix_quality();
+  const float hdop_dev = gps::hdop();
+  gps["hdop"] = isnan(hdop_dev) ? -1.0f : hdop_dev;
   gps["speed_kph"] = gps::last_speed_kph();
   gps["lat"] = gps::current_lat_deg();
   gps["lon"] = gps::current_lon_deg();
@@ -120,8 +130,12 @@ void handle_dev_get() {
   const long age_last_fix = (gps::last_fix_ms() > 0 && now_ms >= gps::last_fix_ms())
                                 ? static_cast<long>(now_ms - gps::last_fix_ms())
                                 : -1;
+  const long age_last_gga = (gps::last_gga_ms() > 0 && now_ms >= gps::last_gga_ms())
+                                ? static_cast<long>(now_ms - gps::last_gga_ms())
+                                : -1;
   gps["age_last_byte_ms"] = age_last_byte;
   gps["age_last_fix_ms"] = age_last_fix;
+  gps["age_last_gga_ms"] = age_last_gga;
 
   JsonObject geo = doc["geofence"].to<JsonObject>();
   geo["set"] = geofence::is_set();
@@ -219,6 +233,11 @@ void handle_config_get() {
   doc["mode"] = config::mode_name(cfg.mode);
   doc["fence_max_m"] = cfg.fence_max_m;
   doc["led"]["brightness"] = cfg.brightness;
+  JsonObject gps_cfg = doc["gps"].to<JsonObject>();
+  gps_cfg["min_fix_quality"] = cfg.gps_min_fix_quality;
+  gps_cfg["min_sats"] = cfg.gps_min_sats;
+  gps_cfg["max_hdop"] = cfg.gps_max_hdop;
+  gps_cfg["max_gga_age_ms"] = cfg.gps_max_gga_age_ms;
   JsonArray ranges = doc["speed_ranges_kph"].to<JsonArray>();
   for (int i = 0; i < 9; ++i) {
     ranges.add(cfg.ranges[i]);
@@ -285,6 +304,29 @@ void handle_config_post() {
       return;
     }
     next.fence_max_m = static_cast<uint16_t>(fence_max);
+  }
+
+  if (doc.containsKey("gps")) {
+    JsonObject gps_cfg = doc["gps"].as<JsonObject>();
+    if (gps_cfg.isNull()) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"gps\"}");
+      return;
+    }
+    const int min_fix_quality = gps_cfg["min_fix_quality"] | next.gps_min_fix_quality;
+    const int min_sats = gps_cfg["min_sats"] | next.gps_min_sats;
+    const float max_hdop = gps_cfg["max_hdop"] | next.gps_max_hdop;
+    const int max_gga_age = gps_cfg["max_gga_age_ms"] | static_cast<int>(next.gps_max_gga_age_ms);
+    if (min_fix_quality < GPS_MIN_FIX_QUALITY_MIN || min_fix_quality > GPS_MIN_FIX_QUALITY_MAX ||
+        min_sats < GPS_MIN_SATS_MIN || min_sats > GPS_MIN_SATS_MAX ||
+        !(max_hdop >= GPS_MAX_HDOP_MIN && max_hdop <= GPS_MAX_HDOP_MAX) ||
+        max_gga_age < GPS_MAX_GGA_AGE_MS_MIN || max_gga_age > GPS_MAX_GGA_AGE_MS_MAX) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"gps\"}");
+      return;
+    }
+    next.gps_min_fix_quality = static_cast<uint8_t>(min_fix_quality);
+    next.gps_min_sats = static_cast<uint8_t>(min_sats);
+    next.gps_max_hdop = max_hdop;
+    next.gps_max_gga_age_ms = static_cast<uint16_t>(max_gga_age);
   }
 
   JsonArray ranges = doc["speed_ranges_kph"].as<JsonArray>();

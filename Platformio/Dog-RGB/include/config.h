@@ -117,6 +117,19 @@ static const unsigned long AP_OFF_PULSE_MS = 200; // AP off pulse width.
 // GNSS settings (rare changes).
 static const uint32_t GPS_BAUD = 9600; // GNSS UART baudrate.
 static const unsigned long GPS_SAMPLE_MS = 1000; // Sampling interval.
+// GPS quality gating defaults and bounds.
+static const uint8_t GPS_MIN_FIX_QUALITY_DEFAULT = 1;
+static const uint8_t GPS_MIN_FIX_QUALITY_MIN = 0;
+static const uint8_t GPS_MIN_FIX_QUALITY_MAX = 8;
+static const uint8_t GPS_MIN_SATS_DEFAULT = 6;
+static const uint8_t GPS_MIN_SATS_MIN = 3;
+static const uint8_t GPS_MIN_SATS_MAX = 12;
+static const float GPS_MAX_HDOP_DEFAULT = 2.5f;
+static const float GPS_MAX_HDOP_MIN = 0.5f;
+static const float GPS_MAX_HDOP_MAX = 20.0f;
+static const uint16_t GPS_MAX_GGA_AGE_MS_DEFAULT = 2000;
+static const uint16_t GPS_MAX_GGA_AGE_MS_MIN = 500;
+static const uint16_t GPS_MAX_GGA_AGE_MS_MAX = 10000;
 
 // Persistence (rare changes).
 static const unsigned long SAVE_INTERVAL_MS = 60000; // NVS save interval.

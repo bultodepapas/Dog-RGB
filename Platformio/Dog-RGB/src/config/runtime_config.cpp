@@ -20,6 +20,13 @@ void set_default_single_config(SingleEffectConfig &cfg) {
   cfg.base_b = SINGLE_B_DEFAULT;
 }
 
+void set_default_gps_config(RuntimeConfig &cfg) {
+  cfg.gps_min_fix_quality = GPS_MIN_FIX_QUALITY_DEFAULT;
+  cfg.gps_min_sats = GPS_MIN_SATS_DEFAULT;
+  cfg.gps_max_hdop = GPS_MAX_HDOP_DEFAULT;
+  cfg.gps_max_gga_age_ms = GPS_MAX_GGA_AGE_MS_DEFAULT;
+}
+
 bool validate_single_config(const SingleEffectConfig &cfg) {
   return cfg.effect_id < EFFECT_COUNT;
 }
@@ -34,6 +41,17 @@ void load_single_config(RuntimeConfig &cfg) {
   cfg.single.base_b = prefs_cfg.getUChar("single_b", SINGLE_B_DEFAULT);
   if (!validate_single_config(cfg.single)) {
     set_default_single_config(cfg.single);
+  }
+}
+
+void load_gps_config(RuntimeConfig &cfg) {
+  Preferences &prefs_cfg = storage::prefs_cfg();
+  cfg.gps_min_fix_quality = prefs_cfg.getUChar("gps_min_fix", GPS_MIN_FIX_QUALITY_DEFAULT);
+  cfg.gps_min_sats = prefs_cfg.getUChar("gps_min_sats", GPS_MIN_SATS_DEFAULT);
+  cfg.gps_max_hdop = prefs_cfg.getFloat("gps_max_hdop", GPS_MAX_HDOP_DEFAULT);
+  cfg.gps_max_gga_age_ms = prefs_cfg.getUShort("gps_gga_age", GPS_MAX_GGA_AGE_MS_DEFAULT);
+  if (!validate_gps(cfg)) {
+    set_default_gps_config(cfg);
   }
 }
 
@@ -111,6 +129,7 @@ void set_defaults() {
   g_cfg.mdns = MDNS_NAME;
   g_cfg.mode = MODE_SPEED;
   g_cfg.fence_max_m = GEOFENCE_MAX_M_DEFAULT;
+  set_default_gps_config(g_cfg);
 }
 
 void save() {
@@ -130,6 +149,10 @@ void save() {
   prefs_cfg.putString("mdns", g_cfg.mdns);
   prefs_cfg.putUChar("mode", g_cfg.mode);
   prefs_cfg.putUShort("fence_max", g_cfg.fence_max_m);
+  prefs_cfg.putUChar("gps_min_fix", g_cfg.gps_min_fix_quality);
+  prefs_cfg.putUChar("gps_min_sats", g_cfg.gps_min_sats);
+  prefs_cfg.putFloat("gps_max_hdop", g_cfg.gps_max_hdop);
+  prefs_cfg.putUShort("gps_gga_age", g_cfg.gps_max_gga_age_ms);
 }
 
 void load() {
@@ -145,10 +168,14 @@ void load() {
     next.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
     next.fence_max_m = prefs_cfg.getUShort("fence_max", GEOFENCE_MAX_M_DEFAULT);
     load_single_config(next);
+    load_gps_config(next);
     if (!validate_mode(next.mode)) {
       next.mode = MODE_SPEED;
     }
     next.fence_max_m = clamp_fence_max(next.fence_max_m);
+    if (!validate_gps(next)) {
+      set_default_gps_config(next);
+    }
     g_cfg = next;
     return;
   }
@@ -165,6 +192,7 @@ void load() {
       }
       migrated.fence_max_m = clamp_fence_max(migrated.fence_max_m);
       set_default_single_config(migrated.single);
+      set_default_gps_config(migrated);
       g_cfg = migrated;
       save();
       return;
@@ -178,6 +206,7 @@ void load() {
     if (read_common_config(migrated)) {
       migrated.mode = MODE_SPEED;
       migrated.fence_max_m = GEOFENCE_MAX_M_DEFAULT;
+      set_default_gps_config(migrated);
       g_cfg = migrated;
       save();
       return;
@@ -258,6 +287,22 @@ bool validate_effects(const RangeEffect *effects) {
     if (effects[i].effect_a > 11 || effects[i].effect_b > 11) {
       return false;
     }
+  }
+  return true;
+}
+
+bool validate_gps(const RuntimeConfig &cfg) {
+  if (cfg.gps_min_fix_quality < GPS_MIN_FIX_QUALITY_MIN || cfg.gps_min_fix_quality > GPS_MIN_FIX_QUALITY_MAX) {
+    return false;
+  }
+  if (cfg.gps_min_sats < GPS_MIN_SATS_MIN || cfg.gps_min_sats > GPS_MIN_SATS_MAX) {
+    return false;
+  }
+  if (!(cfg.gps_max_hdop >= GPS_MAX_HDOP_MIN && cfg.gps_max_hdop <= GPS_MAX_HDOP_MAX)) {
+    return false;
+  }
+  if (cfg.gps_max_gga_age_ms < GPS_MAX_GGA_AGE_MS_MIN || cfg.gps_max_gga_age_ms > GPS_MAX_GGA_AGE_MS_MAX) {
+    return false;
   }
   return true;
 }
