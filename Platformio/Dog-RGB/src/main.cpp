@@ -47,6 +47,7 @@
 #include "gps/gps.h"
 #include "led/led_ui.h"
 #include "pins.h"
+#include "power/day_mode.h"
 #include "storage/nvs_store.h"
 #include "web/portal_http.h"
 #include "wifi/wifi_mgr.h"
@@ -314,7 +315,11 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(" speed=");
   Serial.print(eff_speed);
   Serial.print(" intensity=");
-  Serial.println(eff_intensity);
+  Serial.print(eff_intensity);
+  Serial.print(" day_mode=");
+  Serial.print(day_mode::state_name());
+  Serial.print(" local_min=");
+  Serial.println(day_mode::time_available() ? static_cast<int>(day_mode::local_min()) : -1);
 
   if (now_ms - last_sys_log_ms >= SYS_LOG_MS) {
     last_sys_log_ms = now_ms;
@@ -334,7 +339,11 @@ static void emit_periodic_logs(unsigned long now_ms) {
     Serial.print(" brightness=");
     Serial.print(config::get().brightness);
     Serial.print(" date=");
-    Serial.println(gps::current_date());
+    Serial.print(gps::current_date());
+    Serial.print(" day_mode=");
+    Serial.print(day_mode::state_name());
+    Serial.print(" local_min=");
+    Serial.println(day_mode::time_available() ? static_cast<int>(day_mode::local_min()) : -1);
     loop_sum_us = 0;
     loop_max_us = 0;
     loop_count = 0;

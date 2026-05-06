@@ -21,6 +21,9 @@ float max_speed_kph();
 unsigned long active_time_ms();
 uint32_t current_date();
 uint16_t last_update_min();
+bool has_time();
+uint16_t local_time_min(int16_t offset_min);
+unsigned long last_time_ms();
 
 bool has_last_point();
 float last_lat_deg();

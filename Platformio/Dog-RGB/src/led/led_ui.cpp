@@ -9,6 +9,7 @@
 #include "geofence/home.h"
 #include "gps/gps.h"
 #include "pins.h"
+#include "power/day_mode.h"
 #include "wifi/wifi_mgr.h"
 
 namespace led_ui {
@@ -636,6 +637,28 @@ static void paint_status_leds(unsigned long now_ms,
   }
 }
 
+static void clear_body_leds() {
+  const int seg_start = LED_STATUS_COUNT;
+  const int seg_count = LED_STRIP_COUNT - LED_STATUS_COUNT;
+  if (seg_count <= 0) {
+    return;
+  }
+  fill_range(leds_a, seg_start, seg_count, make_rgb(0, 0, 0));
+  if (LED_STRIP_MODE == 2) {
+    fill_range(leds_b, seg_start, seg_count, make_rgb(0, 0, 0));
+  }
+}
+
+static void render_day_mode_status(unsigned long now_ms,
+                                   bool gps_ok,
+                                   bool sta_ok,
+                                   bool sta_try,
+                                   bool critical_error) {
+  clear_body_leds();
+  paint_status_leds(now_ms, gps_ok, sta_ok, sta_try, critical_error);
+  show_leds();
+}
+
 static Rgb random_show_color() {
   const size_t palette_size = sizeof(SHOW_PALETTE) / sizeof(SHOW_PALETTE[0]);
   Rgb color = SHOW_PALETTE[random8(static_cast<uint8_t>(palette_size - 1))];
@@ -771,6 +794,11 @@ static void update_show_mode(unsigned long now_ms) {
 
   update_gps_fix_timer(now_ms, gps_ok);
   const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
+  const bool day_active = day_mode::active_now();
+  if (day_active) {
+    render_day_mode_status(now_ms, gps_ok, sta_ok, sta_try, critical_error);
+    return;
+  }
   const bool homogeneous_mode = (wifi_mgr::wifi_off() && gps_fix_ms >= WIFI_OFF_GPS_FIX_MS);
   const Rgb active_show_base = current_show_base(now_ms);
   const uint8_t transition_scale = show_transition_scale(now_ms);
@@ -848,6 +876,17 @@ static void update_simple_mode(unsigned long now_ms) {
   }
   last_led_update_ms = now_ms;
 
+  const bool gps_ok = gps::has_fix();
+  const bool sta_ok = (wifi_mgr::sta_connected() && WiFi.status() == WL_CONNECTED);
+  const bool sta_try = (!sta_ok && wifi_mgr::sta_connecting());
+  update_gps_fix_timer(now_ms, gps_ok);
+  const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
+  const bool day_active = day_mode::active_now();
+  if (day_active) {
+    render_day_mode_status(now_ms, gps_ok, sta_ok, sta_try, critical_error);
+    return;
+  }
+
   const Rgb base = make_rgb(config::get().single.base_r, config::get().single.base_g, config::get().single.base_b);
   apply_effect(config::get().single.effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, base,
                config::get().single.speed, config::get().single.intensity, simple_state_a);
@@ -894,6 +933,11 @@ static void update_led_ui() {
   const bool sta_try = (!sta_ok && wifi_mgr::sta_connecting());
   update_gps_fix_timer(now_ms, gps_ok);
   const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
+  const bool day_active = day_mode::active_now();
+  if (day_active) {
+    render_day_mode_status(now_ms, gps_ok, sta_ok, sta_try, critical_error);
+    return;
+  }
   const bool homogeneous_mode = (wifi_mgr::wifi_off() && gps_fix_ms >= WIFI_OFF_GPS_FIX_MS);
 
   const int seg_start = LED_STATUS_COUNT;

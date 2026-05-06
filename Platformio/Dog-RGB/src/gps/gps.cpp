@@ -48,6 +48,7 @@ unsigned long gps_last_fix_ms = 0;
 uint8_t gps_sats = 0;
 uint8_t gps_fix_quality = 0;
 float gps_hdop = NAN;
+unsigned long gps_last_time_ms = 0;
 
 static const unsigned long GPS_RMC_STALE_MS = 3000;
 static const unsigned long GPS_UART_STALE_MS = 5000;
@@ -1319,6 +1320,9 @@ void handle_nmea_line(const char *line) {
     if (valid_fix) {
       if (gps_trusted_fix) {
         last_update_min_val = time_min;
+        if (date_yyyymmdd != 0) {
+          gps_last_time_ms = now_ms;
+        }
       }
       current_lat_deg_val = lat_deg;
       current_lon_deg_val = lon_deg;
@@ -1623,6 +1627,27 @@ uint32_t current_date() {
 
 uint16_t last_update_min() {
   return last_update_min_val;
+}
+
+bool has_time() {
+  const unsigned long now_ms = millis();
+  return current_date_yyyymmdd != 0 &&
+         gps_last_time_ms > 0 &&
+         now_ms >= gps_last_time_ms &&
+         (now_ms - gps_last_time_ms) <= DAY_MODE_TIME_STALE_MS;
+}
+
+uint16_t local_time_min(int16_t offset_min) {
+  int local = static_cast<int>(last_update_min_val) + static_cast<int>(offset_min);
+  local %= 1440;
+  if (local < 0) {
+    local += 1440;
+  }
+  return static_cast<uint16_t>(local);
+}
+
+unsigned long last_time_ms() {
+  return gps_last_time_ms;
 }
 
 bool has_last_point() {

@@ -90,6 +90,12 @@ static const unsigned long LED_UPDATE_MS = 50; // Refresh interval for LED UI.
 static const unsigned long CRITICAL_NO_OK_MS = 600000; // Error if no GPS/Wi-Fi for this long.
 static const bool LED_UI_ENABLED = true; // Disable to turn off LED UI logic.
 
+// Day mode power saving. Times are local minutes since midnight.
+static const uint16_t DAY_MODE_START_MIN = 6 * 60;
+static const uint16_t DAY_MODE_END_MIN = 16 * 60;
+static const int16_t DAY_MODE_TZ_OFFSET_MIN = -300; // America/Bogota (UTC-5).
+static const unsigned long DAY_MODE_TIME_STALE_MS = 300000; // Require recent trusted GPS time.
+
 // LED SHOW mode (demo).
 static const uint8_t EFFECT_COUNT = 12; // IDs 0..11
 static const unsigned long SHOW_EFFECT_MS = 30000;

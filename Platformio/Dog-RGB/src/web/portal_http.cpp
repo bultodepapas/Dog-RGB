@@ -12,6 +12,7 @@
 #include "geofence/home.h"
 #include "gps/gps.h"
 #include "led/led_ui.h"
+#include "power/day_mode.h"
 #include "storage/nvs_store.h"
 #include "web/pages.h"
 #include "wifi/wifi_mgr.h"
@@ -144,7 +145,7 @@ void handle_summary() {
 
 void handle_status_get() {
   note_activity();
-  StaticJsonDocument<1152> doc;
+  StaticJsonDocument<1536> doc;
   const RuntimeConfig &cfg = config::get();
   doc["mode"] = config::mode_name(cfg.mode);
   JsonObject wifi = doc["wifi"].to<JsonObject>();
@@ -173,6 +174,13 @@ void handle_status_get() {
   const float dist = geofence::distance_to_home_m();
   home["distance_m"] = (dist >= 0.0f) ? dist : -1.0f;
 
+  JsonObject day = doc["day_mode"].to<JsonObject>();
+  day["enabled"] = day_mode::enabled();
+  day["active"] = day_mode::active_now();
+  day["state"] = day_mode::state_name();
+  day["time_available"] = day_mode::time_available();
+  day["local_min"] = day_mode::time_available() ? static_cast<int>(day_mode::local_min()) : -1;
+
   String out;
   serializeJson(doc, out);
   server.send(200, "application/json", out);
@@ -180,7 +188,7 @@ void handle_status_get() {
 
 void handle_dev_get() {
   note_activity();
-  StaticJsonDocument<6144> doc;
+  StaticJsonDocument<6656> doc;
   const RuntimeConfig &cfg = config::get();
   const unsigned long now_ms = millis();
 
@@ -248,6 +256,8 @@ void handle_dev_get() {
   gps["lon"] = gps::current_lon_deg();
   gps["date"] = gps::current_date();
   gps["last_update_min"] = gps::last_update_min();
+  gps["has_time"] = gps::has_time();
+  gps["local_time_min"] = gps::has_time() ? static_cast<int>(gps::local_time_min(DAY_MODE_TZ_OFFSET_MIN)) : -1;
   gps["bytes_rx"] = gps::bytes_rx();
   gps["sentences_rx"] = gps::sentences_rx();
   gps["rmc_seen"] = gps::rmc_seen();
@@ -324,6 +334,16 @@ void handle_dev_get() {
   const uint8_t show_id = led_ui::current_show_effect();
   show["effect"] = show_id;
   show["name"] = led_ui::effect_name(show_id);
+
+  JsonObject day = doc["day_mode"].to<JsonObject>();
+  day["enabled"] = day_mode::enabled();
+  day["active"] = day_mode::active_now();
+  day["state"] = day_mode::state_name();
+  day["time_available"] = day_mode::time_available();
+  day["local_min"] = day_mode::time_available() ? static_cast<int>(day_mode::local_min()) : -1;
+  day["start_min"] = DAY_MODE_START_MIN;
+  day["end_min"] = DAY_MODE_END_MIN;
+  day["tz_offset_min"] = DAY_MODE_TZ_OFFSET_MIN;
 
   String out;
   serializeJson(doc, out);
@@ -481,12 +501,17 @@ void handle_mode_post() {
 
 void handle_config_get() {
   note_activity();
-  StaticJsonDocument<4096> doc;
+  StaticJsonDocument<5120> doc;
   const RuntimeConfig &cfg = config::get();
   doc["version"] = config::version();
   doc["mode"] = config::mode_name(cfg.mode);
   doc["fence_max_m"] = cfg.fence_max_m;
   doc["led"]["brightness"] = cfg.brightness;
+  JsonObject day_cfg = doc["day_mode"].to<JsonObject>();
+  day_cfg["enabled"] = cfg.day_mode_enabled;
+  day_cfg["start_min"] = DAY_MODE_START_MIN;
+  day_cfg["end_min"] = DAY_MODE_END_MIN;
+  day_cfg["tz_offset_min"] = DAY_MODE_TZ_OFFSET_MIN;
   JsonObject gps_cfg = doc["gps"].to<JsonObject>();
   gps_cfg["min_fix_quality"] = cfg.gps_min_fix_quality;
   gps_cfg["min_sats"] = cfg.gps_min_sats;
@@ -530,7 +555,7 @@ void handle_config_post() {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
   }
-  StaticJsonDocument<4096> doc;
+  StaticJsonDocument<5120> doc;
   const DeserializationError err = deserializeJson(doc, server.arg("plain"));
   if (err) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
@@ -562,6 +587,19 @@ void handle_config_post() {
       return;
     }
     next.fence_max_m = static_cast<uint16_t>(fence_max);
+  }
+
+  if (doc.containsKey("day_mode")) {
+    JsonObject day_cfg = doc["day_mode"].as<JsonObject>();
+    if (day_cfg.isNull()) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"day_mode\"}");
+      return;
+    }
+    if (!day_cfg["enabled"].is<bool>()) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"day_mode\"}");
+      return;
+    }
+    next.day_mode_enabled = day_cfg["enabled"].as<bool>();
   }
 
   if (doc.containsKey("gps")) {

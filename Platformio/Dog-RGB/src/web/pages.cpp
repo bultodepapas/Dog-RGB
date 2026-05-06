@@ -131,6 +131,7 @@ String web_pages::html_page() {
           <span class="pill" id="pill-gps">GPS: --</span>
           <span class="pill" id="pill-wifi">Wi-Fi: --</span>
           <span class="pill" id="pill-mode">Modo: --</span>
+          <span class="pill" id="pill-day" style="display:none">DIA: --</span>
           <span class="pill" id="pill-home">Home: --</span>
         </div>
       </div>
@@ -457,6 +458,15 @@ String web_pages::html_page() {
 
       var modeText='Modo: '+(s.mode||'--');
       setPill('pill-mode',modeText,'');
+      const dayPill = $('pill-day');
+      if (dayPill && s.day_mode && s.day_mode.enabled){
+        const active = !!s.day_mode.active;
+        const waiting = s.day_mode.state === 'waiting_time';
+        dayPill.style.display = 'inline-flex';
+        setPill('pill-day', active ? 'DIA activo' : (waiting ? 'DIA esperando hora' : 'DIA armado'), active ? 'ok' : 'warn');
+      } else if (dayPill) {
+        dayPill.style.display = 'none';
+      }
       if (s.mode && document.activeElement !== modeSelect){
         modeSelect.value = s.mode;
       }
@@ -938,6 +948,10 @@ String web_pages::html_config_page() {
           <div class="field"><label>Brillo</label><input id="brightness_slider" type="range" min="1" max="255"></div>
           <div class="field"><label>Valor brillo</label><input id="brightness" type="number" min="1" max="255"></div>
         </div>
+        <div class="field">
+          <label><input id="day_mode_enabled" type="checkbox"> Modo DIA</label>
+          <div class="help">Apaga efectos de 06:00 a 16:00; alertas y rastreo siguen activos.</div>
+        </div>
         <div class="field" style="max-width:260px">
           <label>Modo</label>
           <select id="mode">
@@ -1131,6 +1145,7 @@ String web_pages::html_config_page() {
     const simpleB = $('simple_b');
     const brightness = $('brightness');
     const brightnessSlider = $('brightness_slider');
+    const dayModeEnabled = $('day_mode_enabled');
     const statusEl = $('status');
     const errorsEl = $('errors');
     const saveBtn = $('save_btn');
@@ -1177,7 +1192,8 @@ String web_pages::html_config_page() {
       'effect id':{field:'effects_block',msg:'ID de efecto invalido.'},
       single:{field:'simple_block',msg:'Bloque simple invalido.'},
       'single values':{field:'simple_block',msg:'Valores simple invalidos.'},
-      gps:{field:'gps_block',msg:'Parametros GPS invalidos.'}
+      gps:{field:'gps_block',msg:'Parametros GPS invalidos.'},
+      day_mode:{field:'day_mode_enabled',msg:'Modo DIA invalido.'}
     };
 
     function fillEffectSelect(sel){
@@ -1354,6 +1370,7 @@ String web_pages::html_config_page() {
       }
 
       if (cfg.led.brightness < 1 || cfg.led.brightness > 255) addError('brightness','Brillo fuera de rango (1..255).');
+      if (!cfg.day_mode || typeof cfg.day_mode.enabled !== 'boolean') addError('day_mode_enabled','Modo DIA invalido.');
 
       const ranges = cfg.speed_ranges_kph;
       if (ranges.length !== 9) addError('speed_block','Rangos requeridos.');
@@ -1406,10 +1423,11 @@ String web_pages::html_config_page() {
 
     function buildPayload(){
       const cfg = {
-        version:4,
+        version:5,
         mode: modeEl.value,
         fence_max_m: intVal(fenceMax,300),
         led:{brightness: intVal(brightness,1)},
+        day_mode:{enabled: !!dayModeEnabled.checked},
         gps:{
           min_fix_quality: intVal(gpsMinFix,1),
           min_sats: intVal(gpsMinSats,6),
@@ -1499,6 +1517,8 @@ String web_pages::html_config_page() {
       brightness.value = c.led.brightness;
       brightnessSlider.value = c.led.brightness;
       modeEl.value = c.mode || 'speed';
+      const day = c.day_mode || {};
+      dayModeEnabled.checked = !!day.enabled;
       fenceMax.value = c.fence_max_m || 300;
       const g = c.gps || {};
       gpsMinFix.value = (g.min_fix_quality !== undefined ? g.min_fix_quality : 1);
@@ -1660,6 +1680,8 @@ String web_pages::html_dev_page() {
         <div class="field"><label>Intensidad simple</label><div class="data mono" id="led-simple-intensity">--</div></div>
         <div class="field"><label>Simple RGB</label><div class="data mono" id="led-simple-rgb">--</div></div>
         <div class="field"><label>Efecto show</label><div class="data mono" id="led-show-effect">--</div></div>
+        <div class="field"><label>Modo DIA</label><div class="data mono" id="day-state">--</div></div>
+        <div class="field"><label>DIA hora local</label><div class="data mono" id="day-local">--</div></div>
       </div>
     </div>
 
@@ -1816,6 +1838,9 @@ String web_pages::html_dev_page() {
         if (led.show){
           setText('led-show-effect', led.show.name + ' (' + led.show.effect + ')');
         }
+        const day = d.day_mode || {};
+        setText('day-state', day.enabled ? (day.active ? 'activo' : day.state) : 'desactivado');
+        setText('day-local', day.time_available ? fmtMin(day.local_min) : '--');
 
         const geo = d.geofence || {};
         setText('geo-set', geo.set ? 'si' : 'no');

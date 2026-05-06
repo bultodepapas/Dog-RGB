@@ -27,6 +27,7 @@ struct RuntimeConfig {
   String ap_pass;
   String mdns;
   uint8_t mode;
+  bool day_mode_enabled;
   uint16_t fence_max_m;
   uint8_t gps_min_fix_quality;
   uint8_t gps_min_sats;

@@ -112,7 +112,7 @@ RuntimeConfig &get_mut() {
 }
 
 uint8_t version() {
-  return 4;
+  return 5;
 }
 
 void set_defaults() {
@@ -154,6 +154,7 @@ void set_defaults() {
   g_cfg.ap_pass = AP_PASS;
   g_cfg.mdns = MDNS_NAME;
   g_cfg.mode = MODE_SPEED;
+  g_cfg.day_mode_enabled = false;
   g_cfg.fence_max_m = GEOFENCE_MAX_M_DEFAULT;
   set_default_gps_config(g_cfg);
 }
@@ -174,6 +175,7 @@ void save() {
   prefs_cfg.putString("ap_pass", g_cfg.ap_pass);
   prefs_cfg.putString("mdns", g_cfg.mdns);
   prefs_cfg.putUChar("mode", g_cfg.mode);
+  prefs_cfg.putBool("day_mode", g_cfg.day_mode_enabled);
   prefs_cfg.putUShort("fence_max", g_cfg.fence_max_m);
   prefs_cfg.putUChar("gps_min_fix", g_cfg.gps_min_fix_quality);
   prefs_cfg.putUChar("gps_min_sats", g_cfg.gps_min_sats);
@@ -195,6 +197,7 @@ void load() {
       return;
     }
     next.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
+    next.day_mode_enabled = prefs_cfg.getBool("day_mode", false);
     next.fence_max_m = prefs_cfg.getUShort("fence_max", GEOFENCE_MAX_M_DEFAULT);
     load_single_config(next);
     load_gps_config(next);
@@ -213,12 +216,37 @@ void load() {
     return;
   }
 
+  if (ver == 4) {
+    RuntimeConfig migrated = g_cfg;
+    set_defaults();
+    migrated = g_cfg;
+    if (read_common_config(migrated)) {
+      migrated.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
+      migrated.day_mode_enabled = false;
+      migrated.fence_max_m = prefs_cfg.getUShort("fence_max", GEOFENCE_MAX_M_DEFAULT);
+      load_single_config(migrated);
+      load_gps_config(migrated);
+      if (!validate_mode(migrated.mode)) {
+        migrated.mode = MODE_SPEED;
+      }
+      migrated.fence_max_m = clamp_fence_max(migrated.fence_max_m);
+      if (!validate_gps(migrated)) {
+        set_default_gps_config(migrated);
+      }
+      migrate_legacy_ap_defaults(migrated);
+      g_cfg = migrated;
+      save();
+      return;
+    }
+  }
+
   if (ver == 3) {
     RuntimeConfig migrated = g_cfg;
     set_defaults();
     migrated = g_cfg;
     if (read_common_config(migrated)) {
       migrated.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
+      migrated.day_mode_enabled = false;
       migrated.fence_max_m = prefs_cfg.getUShort("fence_max", GEOFENCE_MAX_M_DEFAULT);
       if (!validate_mode(migrated.mode)) {
         migrated.mode = MODE_SPEED;
@@ -238,6 +266,7 @@ void load() {
     migrated = g_cfg;
     if (read_common_config(migrated)) {
       migrated.mode = MODE_SPEED;
+      migrated.day_mode_enabled = false;
       migrated.fence_max_m = GEOFENCE_MAX_M_DEFAULT;
       set_default_gps_config(migrated);
       g_cfg = migrated;
