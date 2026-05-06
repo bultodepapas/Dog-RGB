@@ -148,4 +148,14 @@ static const float GPS_MAX_MIN_SEGMENT_M_MAX = 50.0f;
 // Persistence (rare changes).
 static const unsigned long SAVE_INTERVAL_MS = 60000; // NVS save interval.
 
+// BLE summary feature.
+// The XIAO ESP32-S3 has a single PCB antenna shared between WiFi and BLE.
+// Espressif's coexistence table marks SoftAP + ANY BLE mode as C1 (unstable).
+// Even without advertising, BLEDevice::init() starts the BT controller which
+// permanently timeslices the radio with WiFi, causing beacon starvation and
+// making the SoftAP SSID invisible to phones.
+// Keep this false until the BLE feature is needed. Flip to true only when
+// running in STA-only mode or when a proper btStop()/btStart() strategy is in place.
+static const bool BLE_ENABLED = false;
+
 #endif

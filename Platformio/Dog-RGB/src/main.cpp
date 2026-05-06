@@ -37,6 +37,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <esp_system.h>
 #include <math.h>
 
 #include "ble/summary_ble.h"
@@ -388,11 +389,38 @@ void setup() {
     led_ui::start_welcome();
   }
 
+  // BLE must be initialized BEFORE WiFi when enabled so the coexistence module
+  // is configured before the WiFi stack starts. If BLE initializes after the AP
+  // is already running, BLEDevice::init() resets the RF scheduler and causes
+  // beacon starvation, making the SSID invisible on phones.
+  if (BLE_ENABLED) {
+    summary_ble::begin();
+  }
   wifi_mgr::begin();
   portal_http::begin();
-  summary_ble::begin();
 
   Serial.println("Dog-RGB ESP32-S3 GPS-first base firmware");
+
+  const esp_reset_reason_t rr = esp_reset_reason();
+  const char *rr_names[] = {
+    "UNKNOWN", "POWERON", "EXT_PIN", "SW", "PANIC",
+    "INT_WDT", "TASK_WDT", "WDT", "DEEPSLEEP", "BROWNOUT", "SDIO"
+  };
+  const char *rr_str = (rr <= 10) ? rr_names[rr] : "?";
+  Serial.print("[BOOT] reset_reason=");
+  Serial.print(rr_str);
+  Serial.print(" (");
+  Serial.print(rr);
+  Serial.println(")");
+  if (rr == ESP_RST_PANIC || rr == ESP_RST_INT_WDT || rr == ESP_RST_TASK_WDT || rr == ESP_RST_WDT) {
+    Serial.println("[BOOT] WARNING: last reset was a CRASH or WATCHDOG!");
+  }
+  if (rr == ESP_RST_BROWNOUT) {
+    Serial.println("[BOOT] WARNING: last reset was a BROWNOUT (power supply issue)!");
+  }
+
+  Serial.print("[BOOT] ble_enabled=");
+  Serial.println(BLE_ENABLED ? "1" : "0");
   Serial.print("GPS UART1: baud=");
   Serial.print(GPS_BAUD);
   Serial.print(" rx_pin=");
@@ -421,7 +449,9 @@ void loop() {
     emit_periodic_logs(now_ms);
   }
 
-  summary_ble::tick();
+  if (BLE_ENABLED) {
+    summary_ble::tick();
+  }
   wifi_mgr::tick(now_ms);
   led_ui::tick();
   portal_http::handle_client();
