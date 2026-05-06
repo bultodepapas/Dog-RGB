@@ -39,10 +39,19 @@ unsigned long rmc_seen();
 unsigned long rmc_valid();
 unsigned long gga_seen();
 unsigned long overflow();
+unsigned long checksum_fail();
+unsigned long parse_fail();
+unsigned long rmc_parse_fail();
+unsigned long gga_parse_fail();
+unsigned long speed_spike();
+unsigned long stale_count();
 unsigned long last_byte_ms();
 unsigned long last_rmc_ms();
 unsigned long last_gga_ms();
 unsigned long last_fix_ms();
+float last_segment_m();
+bool last_segment_accepted();
+const char *last_segment_reject_reason();
 
 struct TrackPoint {
   int32_t lat_e7;

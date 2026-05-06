@@ -34,6 +34,12 @@ unsigned long gps_rmc_seen = 0;
 unsigned long gps_rmc_valid = 0;
 unsigned long gps_gga_seen = 0;
 unsigned long gps_overflow = 0;
+unsigned long gps_checksum_fail = 0;
+unsigned long gps_parse_fail = 0;
+unsigned long gps_rmc_parse_fail = 0;
+unsigned long gps_gga_parse_fail = 0;
+unsigned long gps_speed_spike = 0;
+unsigned long gps_stale_count = 0;
 unsigned long gps_last_byte_ms = 0;
 unsigned long gps_last_sentence_ms = 0;
 unsigned long gps_last_rmc_ms = 0;
@@ -42,6 +48,9 @@ unsigned long gps_last_fix_ms = 0;
 uint8_t gps_sats = 0;
 uint8_t gps_fix_quality = 0;
 float gps_hdop = NAN;
+
+static const unsigned long GPS_RMC_STALE_MS = 3000;
+static const unsigned long GPS_UART_STALE_MS = 5000;
 
 // Rolling metrics for the current day.
 unsigned long last_sample_ms = 0;
@@ -182,6 +191,9 @@ bool has_current_fix_val = false;
 bool session_has_last_point = false;
 float session_last_lat_deg = 0.0f;
 float session_last_lon_deg = 0.0f;
+float gps_last_segment_m = 0.0f;
+bool gps_last_segment_accepted = false;
+const char *gps_last_segment_reject_reason = "none";
 
 // Daily reset date (YYYYMMDD from GPS).
 uint32_t current_date_yyyymmdd = 0;
@@ -191,17 +203,265 @@ float knots_to_kph(float knots) {
   return knots * 1.852f;
 }
 
-// Convert NMEA degree-minute format to decimal degrees.
-float nmea_to_decimal_degrees(const char *value, char hemi) {
-  // NMEA format: DDMM.MMMM (lat) or DDDMM.MMMM (lon)
-  const float raw = strtof(value, nullptr);
+bool is_hex_digit(char c) {
+  return (c >= '0' && c <= '9') ||
+         (c >= 'A' && c <= 'F') ||
+         (c >= 'a' && c <= 'f');
+}
+
+uint8_t hex_value(char c) {
+  if (c >= '0' && c <= '9') {
+    return static_cast<uint8_t>(c - '0');
+  }
+  if (c >= 'A' && c <= 'F') {
+    return static_cast<uint8_t>(10 + c - 'A');
+  }
+  return static_cast<uint8_t>(10 + c - 'a');
+}
+
+bool is_digit_string(const char *value, size_t len) {
+  if (value == nullptr || strlen(value) != len) {
+    return false;
+  }
+  for (size_t i = 0; i < len; ++i) {
+    if (value[i] < '0' || value[i] > '9') {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool is_sentence_type(const char *line, const char *type) {
+  return line != nullptr &&
+         strlen(line) >= 7 &&
+         line[0] == '$' &&
+         line[3] == type[0] &&
+         line[4] == type[1] &&
+         line[5] == type[2] &&
+         line[6] == ',';
+}
+
+bool nmea_checksum_ok(const char *line) {
+  if (line == nullptr || line[0] != '$') {
+    return false;
+  }
+  uint8_t checksum = 0;
+  const char *star = nullptr;
+  for (const char *p = line + 1; *p != '\0'; ++p) {
+    if (*p == '*') {
+      star = p;
+      break;
+    }
+    if (static_cast<uint8_t>(*p) < 32 || static_cast<uint8_t>(*p) > 126) {
+      return false;
+    }
+    checksum ^= static_cast<uint8_t>(*p);
+  }
+  if (star == nullptr || strlen(star) != 3 || !is_hex_digit(star[1]) || !is_hex_digit(star[2])) {
+    return false;
+  }
+  const uint8_t expected = static_cast<uint8_t>((hex_value(star[1]) << 4) | hex_value(star[2]));
+  return checksum == expected;
+}
+
+bool copy_nmea_field(const char *line, int target_field, char *out, size_t out_len) {
+  if (line == nullptr || out == nullptr || out_len == 0 || target_field < 0) {
+    return false;
+  }
+  out[0] = '\0';
+  int field = 0;
+  size_t len = 0;
+  for (const char *p = line; *p != '\0' && *p != '*'; ++p) {
+    if (*p == ',') {
+      if (field == target_field) {
+        break;
+      }
+      field++;
+      continue;
+    }
+    if (field == target_field) {
+      if (len + 1 >= out_len) {
+        return false;
+      }
+      out[len++] = *p;
+    }
+  }
+  out[len] = '\0';
+  return field >= target_field;
+}
+
+bool parse_float_strict(const char *value, float *out) {
+  if (value == nullptr || out == nullptr || value[0] == '\0') {
+    return false;
+  }
+  char *end = nullptr;
+  const float parsed = strtof(value, &end);
+  if (end == value || *end != '\0' || !isfinite(parsed)) {
+    return false;
+  }
+  *out = parsed;
+  return true;
+}
+
+bool parse_uint8_strict(const char *value, uint8_t *out) {
+  if (value == nullptr || out == nullptr || value[0] == '\0') {
+    return false;
+  }
+  uint16_t parsed = 0;
+  for (const char *p = value; *p != '\0'; ++p) {
+    if (*p < '0' || *p > '9') {
+      return false;
+    }
+    parsed = static_cast<uint16_t>((parsed * 10) + (*p - '0'));
+    if (parsed > 255) {
+      return false;
+    }
+  }
+  *out = static_cast<uint8_t>(parsed);
+  return true;
+}
+
+bool parse_nmea_coord(const char *value, char hemi, bool latitude, float *out) {
+  if (value == nullptr || out == nullptr || value[0] == '\0') {
+    return false;
+  }
+  if (latitude) {
+    if (hemi != 'N' && hemi != 'S') {
+      return false;
+    }
+  } else if (hemi != 'E' && hemi != 'W') {
+    return false;
+  }
+
+  float raw = 0.0f;
+  if (!parse_float_strict(value, &raw) || raw < 0.0f) {
+    return false;
+  }
   const int deg = static_cast<int>(raw / 100.0f);
   const float minutes = raw - (deg * 100.0f);
+  const int max_deg = latitude ? 90 : 180;
+  if (deg < 0 || deg > max_deg || minutes < 0.0f || minutes >= 60.0f) {
+    return false;
+  }
+  if (deg == max_deg && minutes > 0.0f) {
+    return false;
+  }
+
   float dec = static_cast<float>(deg) + (minutes / 60.0f);
   if (hemi == 'S' || hemi == 'W') {
     dec = -dec;
   }
-  return dec;
+  *out = dec;
+  return true;
+}
+
+bool parse_time_min(const char *value, uint16_t *out) {
+  if (value == nullptr || out == nullptr || strlen(value) < 6) {
+    return false;
+  }
+  for (size_t i = 0; i < 6; ++i) {
+    if (value[i] < '0' || value[i] > '9') {
+      return false;
+    }
+  }
+  if (value[6] == '\0') {
+    // Plain hhmmss is valid.
+  } else if (value[6] == '.') {
+    for (size_t i = 7; value[i] != '\0'; ++i) {
+      if (value[i] < '0' || value[i] > '9') {
+        return false;
+      }
+    }
+  } else {
+    return false;
+  }
+  const int hour = (value[0] - '0') * 10 + (value[1] - '0');
+  const int min = (value[2] - '0') * 10 + (value[3] - '0');
+  const int sec = (value[4] - '0') * 10 + (value[5] - '0');
+  if (hour > 23 || min > 59 || sec > 59) {
+    return false;
+  }
+  *out = static_cast<uint16_t>(hour * 60 + min);
+  return true;
+}
+
+bool is_leap_year(int year) {
+  return ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+}
+
+bool parse_date_yyyymmdd(const char *value, uint32_t *out) {
+  if (!is_digit_string(value, 6) || out == nullptr) {
+    return false;
+  }
+  const int day = (value[0] - '0') * 10 + (value[1] - '0');
+  const int mon = (value[2] - '0') * 10 + (value[3] - '0');
+  const int year = 2000 + ((value[4] - '0') * 10 + (value[5] - '0'));
+  if (year < 2020 || mon < 1 || mon > 12) {
+    return false;
+  }
+  static const uint8_t days_per_month[12] = {
+    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+  };
+  int max_day = days_per_month[mon - 1];
+  if (mon == 2 && is_leap_year(year)) {
+    max_day = 29;
+  }
+  if (day < 1 || day > max_day) {
+    return false;
+  }
+  *out = static_cast<uint32_t>(year) * 10000 +
+         static_cast<uint32_t>(mon) * 100 +
+         static_cast<uint32_t>(day);
+  return true;
+}
+
+void reset_distance_baseline() {
+  has_last_point_val = false;
+  session_has_last_point = false;
+  track_current.has_last_point = false;
+  last_sample_ms = 0;
+  gps_last_segment_m = 0.0f;
+  gps_last_segment_accepted = false;
+  gps_last_segment_reject_reason = "baseline";
+}
+
+void expire_gps_if_stale(unsigned long now_ms) {
+  const bool uart_stale = (gps_last_byte_ms > 0 && now_ms >= gps_last_byte_ms &&
+                           now_ms - gps_last_byte_ms > GPS_UART_STALE_MS);
+  const bool rmc_stale = (gps_last_rmc_ms > 0 && now_ms >= gps_last_rmc_ms &&
+                          now_ms - gps_last_rmc_ms > GPS_RMC_STALE_MS);
+  if (!uart_stale && !rmc_stale) {
+    return;
+  }
+
+  const bool had_live_state = has_gps_fix ||
+                              has_gps_fix_raw ||
+                              gps_quality_ok ||
+                              gps_trusted_fix ||
+                              has_current_fix_val ||
+                              last_speed_kph_val > 0.0f;
+  if (had_live_state) {
+    gps_stale_count++;
+  }
+  has_gps_fix = false;
+  has_gps_fix_raw = false;
+  gps_quality_ok = false;
+  gps_trusted_fix = false;
+  has_current_fix_val = false;
+  last_speed_kph_val = 0.0f;
+  reset_distance_baseline();
+  gps_last_segment_reject_reason = uart_stale ? "uart_stale" : "rmc_stale";
+}
+
+uint16_t kph_to_cmps_u16_clamped(float kph) {
+  if (!isfinite(kph) || kph <= 0.0f) {
+    return 0;
+  }
+  const float cmps = kph * 27.7778f;
+  if (cmps >= 65535.0f) {
+    return 65535;
+  }
+  return static_cast<uint16_t>(cmps + 0.5f);
 }
 
 // Parse RMC sentence for position, speed, fix status, and date/time.
@@ -212,124 +472,96 @@ bool parse_rmc(const char *line,
                bool *valid_fix,
                uint32_t *date_yyyymmdd,
                uint16_t *time_min) {
-  if (strncmp(line, "$GPRMC,", 7) != 0 && strncmp(line, "$GNRMC,", 7) != 0) {
+  if (!is_sentence_type(line, "RMC")) {
     return false;
   }
 
   // RMC fields:
   // 1 time, 2 status (A/V), 3 lat, 4 N/S, 5 lon, 6 E/W, 7 speed (knots), 9 date (ddmmyy)
-  int field = 0;
-  float knots = 0.0f;
-  char status = 'V';
-  char time_buf[8] = {0};
+  char time_buf[16] = {0};
+  char status_buf[2] = {0};
   char lat_buf[16] = {0};
+  char ns_buf[2] = {0};
   char lon_buf[16] = {0};
+  char ew_buf[2] = {0};
   char speed_buf[12] = {0};
-  char ns = 'N';
-  char ew = 'E';
   char date_buf[8] = {0};
-  int time_len = 0;
-  int lat_len = 0;
-  int lon_len = 0;
-  int speed_len = 0;
-  int date_len = 0;
 
-  for (const char *p = line; *p != '\0' && *p != '*'; ++p) {
-    if (*p == ',') {
-      field++;
-      continue;
-    }
-    if (field == 1 && time_len < 6) {
-      time_buf[time_len++] = *p;
-    }
-    if (field == 2 && status == 'V') {
-      status = *p;
-    }
-    if (field == 3 && lat_len < 15) {
-      lat_buf[lat_len++] = *p;
-    }
-    if (field == 4) {
-      ns = *p;
-    }
-    if (field == 5 && lon_len < 15) {
-      lon_buf[lon_len++] = *p;
-    }
-    if (field == 6) {
-      ew = *p;
-    }
-    if (field == 7 && speed_len < 11) {
-      speed_buf[speed_len++] = *p;
-    }
-    if (field == 9 && date_len < 6) {
-      date_buf[date_len++] = *p;
-    }
+  if (!copy_nmea_field(line, 1, time_buf, sizeof(time_buf)) ||
+      !copy_nmea_field(line, 2, status_buf, sizeof(status_buf)) ||
+      !copy_nmea_field(line, 3, lat_buf, sizeof(lat_buf)) ||
+      !copy_nmea_field(line, 4, ns_buf, sizeof(ns_buf)) ||
+      !copy_nmea_field(line, 5, lon_buf, sizeof(lon_buf)) ||
+      !copy_nmea_field(line, 6, ew_buf, sizeof(ew_buf)) ||
+      !copy_nmea_field(line, 7, speed_buf, sizeof(speed_buf)) ||
+      !copy_nmea_field(line, 9, date_buf, sizeof(date_buf))) {
+    return false;
   }
 
-  *valid_fix = (status == 'A');
-  if (speed_len > 0) {
-    knots = strtof(speed_buf, nullptr);
+  if (status_buf[0] != 'A' && status_buf[0] != 'V') {
+    return false;
+  }
+
+  *valid_fix = (status_buf[0] == 'A');
+  *speed_kph = 0.0f;
+  *date_yyyymmdd = 0;
+  *time_min = 0;
+
+  if (!*valid_fix) {
+    return true;
+  }
+
+  float knots = 0.0f;
+  if (!parse_time_min(time_buf, time_min) ||
+      !parse_date_yyyymmdd(date_buf, date_yyyymmdd) ||
+      !parse_nmea_coord(lat_buf, ns_buf[0], true, lat_deg) ||
+      !parse_nmea_coord(lon_buf, ew_buf[0], false, lon_deg) ||
+      !parse_float_strict(speed_buf, &knots) ||
+      knots < 0.0f) {
+    return false;
   }
   *speed_kph = knots_to_kph(knots);
-  if (lat_len > 0 && lon_len > 0) {
-    *lat_deg = nmea_to_decimal_degrees(lat_buf, ns);
-    *lon_deg = nmea_to_decimal_degrees(lon_buf, ew);
-  }
-  if (date_len == 6) {
-    const int day = (date_buf[0] - '0') * 10 + (date_buf[1] - '0');
-    const int mon = (date_buf[2] - '0') * 10 + (date_buf[3] - '0');
-    const int year = (date_buf[4] - '0') * 10 + (date_buf[5] - '0');
-    *date_yyyymmdd = static_cast<uint32_t>(2000 + year) * 10000 +
-                     static_cast<uint32_t>(mon) * 100 +
-                     static_cast<uint32_t>(day);
-  }
-  if (time_len >= 4) {
-    const int hour = (time_buf[0] - '0') * 10 + (time_buf[1] - '0');
-    const int min = (time_buf[2] - '0') * 10 + (time_buf[3] - '0');
-    *time_min = static_cast<uint16_t>(hour * 60 + min);
-  }
   return true;
 }
 
 // Parse GGA sentence for fix quality and satellites.
 bool parse_gga(const char *line, uint8_t *fix_quality, uint8_t *sats, float *hdop) {
-  if (strncmp(line, "$GPGGA,", 7) != 0 && strncmp(line, "$GNGGA,", 7) != 0) {
+  if (!is_sentence_type(line, "GGA")) {
     return false;
   }
 
   // GGA fields: 1 time, 2 lat, 3 N/S, 4 lon, 5 E/W, 6 fix quality, 7 satellites
-  int field = 0;
   char fix_buf[4] = {0};
   char sat_buf[4] = {0};
   char hdop_buf[8] = {0};
-  int fix_len = 0;
-  int sat_len = 0;
-  int hdop_len = 0;
 
-  for (const char *p = line; *p != '\0' && *p != '*'; ++p) {
-    if (*p == ',') {
-      field++;
-      continue;
-    }
-    if (field == 6 && fix_len < 3) {
-      fix_buf[fix_len++] = *p;
-    }
-    if (field == 7 && sat_len < 3) {
-      sat_buf[sat_len++] = *p;
-    }
-    if (field == 8 && hdop_len < 7) {
-      hdop_buf[hdop_len++] = *p;
-    }
+  if (!copy_nmea_field(line, 6, fix_buf, sizeof(fix_buf)) ||
+      !copy_nmea_field(line, 7, sat_buf, sizeof(sat_buf)) ||
+      !copy_nmea_field(line, 8, hdop_buf, sizeof(hdop_buf))) {
+    return false;
   }
 
-  if (fix_len > 0) {
-    *fix_quality = static_cast<uint8_t>(atoi(fix_buf));
+  uint8_t parsed_fix = 0;
+  uint8_t parsed_sats = 0;
+  if (!parse_uint8_strict(fix_buf, &parsed_fix) ||
+      !parse_uint8_strict(sat_buf, &parsed_sats)) {
+    return false;
   }
-  if (sat_len > 0) {
-    *sats = static_cast<uint8_t>(atoi(sat_buf));
+  if (parsed_fix > GPS_MIN_FIX_QUALITY_MAX) {
+    return false;
   }
-  if (hdop_len > 0) {
-    *hdop = strtof(hdop_buf, nullptr);
+
+  float parsed_hdop = NAN;
+  if (hdop_buf[0] != '\0') {
+    if (!parse_float_strict(hdop_buf, &parsed_hdop) || parsed_hdop <= 0.0f) {
+      return false;
+    }
+  } else if (parsed_fix > 0) {
+    return false;
   }
+  *fix_quality = parsed_fix;
+  *sats = parsed_sats;
+  *hdop = parsed_hdop;
   return true;
 }
 
@@ -407,11 +639,7 @@ SessionSummary build_session_snapshot(bool finalize) {
     }
   }
   s.avg_speed_cmps = static_cast<uint16_t>(avg_cmps);
-  uint32_t max_cmps = static_cast<uint32_t>(session_max_speed_kph * 27.7778f);
-  if (max_cmps > 65535) {
-    max_cmps = 65535;
-  }
-  s.max_speed_cmps = static_cast<uint16_t>(max_cmps);
+  s.max_speed_cmps = kph_to_cmps_u16_clamped(session_max_speed_kph);
   s.pad = 0;
   session_write_crc(s);
   return s;
@@ -920,8 +1148,8 @@ void build_summary_payload_internal(uint8_t *out, size_t len) {
                                   ? (total_distance_m_val / (active_time_ms_val / 1000.0f)) * 3.6f
                                   : 0.0f;
   const uint32_t distance_m = static_cast<uint32_t>(total_distance_m_val + 0.5f);
-  const uint16_t avg_speed_cmps = static_cast<uint16_t>(avg_speed_kph * 27.7778f);
-  const uint16_t max_speed_cmps = static_cast<uint16_t>(max_speed_kph_val * 27.7778f);
+  const uint16_t avg_speed_cmps = kph_to_cmps_u16_clamped(avg_speed_kph);
+  const uint16_t max_speed_cmps = kph_to_cmps_u16_clamped(max_speed_kph_val);
 
   memset(out, 0, len);
   out[0] = static_cast<uint8_t>(current_date_yyyymmdd & 0xFF);
@@ -999,8 +1227,8 @@ String build_summary_json_internal() {
                                   ? (total_distance_m_val / (active_time_ms_val / 1000.0f)) * 3.6f
                                   : 0.0f;
   const uint32_t distance_m = static_cast<uint32_t>(total_distance_m_val + 0.5f);
-  const uint16_t avg_speed_cmps = static_cast<uint16_t>(avg_speed_kph * 27.7778f);
-  const uint16_t max_speed_cmps = static_cast<uint16_t>(max_speed_kph_val * 27.7778f);
+  const uint16_t avg_speed_cmps = kph_to_cmps_u16_clamped(avg_speed_kph);
+  const uint16_t max_speed_cmps = kph_to_cmps_u16_clamped(max_speed_kph_val);
   const bool has_data = (current_date_yyyymmdd != 0);
 
   String json = "{";
@@ -1029,27 +1257,34 @@ void handle_nmea_line(const char *line) {
   uint16_t time_min = 0;
   const unsigned long now_ms = millis();
 
-  const bool is_rmc = (strncmp(line, "$GPRMC,", 7) == 0 || strncmp(line, "$GNRMC,", 7) == 0);
+  const bool is_rmc = is_sentence_type(line, "RMC");
   if (is_rmc) {
     gps_rmc_seen++;
-    gps_last_rmc_ms = now_ms;
   }
-  const bool is_gga = (strncmp(line, "$GPGGA,", 7) == 0 || strncmp(line, "$GNGGA,", 7) == 0);
+  const bool is_gga = is_sentence_type(line, "GGA");
   if (is_gga) {
-    gps_gga_seen++;
-    gps_last_gga_ms = now_ms;
     uint8_t fix_quality = gps_fix_quality;
     uint8_t sats = gps_sats;
     float hdop = NAN;
     if (parse_gga(line, &fix_quality, &sats, &hdop)) {
+      gps_gga_seen++;
+      gps_last_gga_ms = now_ms;
       gps_fix_quality = fix_quality;
       gps_sats = sats;
       gps_hdop = hdop;
+    } else {
+      gps_parse_fail++;
+      gps_gga_parse_fail++;
     }
   }
-  if (parse_rmc(line, &lat_deg, &lon_deg, &speed_kph, &valid_fix, &date_yyyymmdd, &time_min)) {
+  const bool parsed_rmc = parse_rmc(line, &lat_deg, &lon_deg, &speed_kph, &valid_fix, &date_yyyymmdd, &time_min);
+  if (is_rmc && !parsed_rmc) {
+    gps_parse_fail++;
+    gps_rmc_parse_fail++;
+  }
+  if (parsed_rmc) {
+    gps_last_rmc_ms = now_ms;
     has_gps_fix_raw = valid_fix;
-    last_speed_kph_val = speed_kph;
     last_gps_ms = now_ms;
 
     const RuntimeConfig &cfg = config::get();
@@ -1063,6 +1298,23 @@ void handle_nmea_line(const char *line) {
                      gga_fresh;
     gps_trusted_fix = (has_gps_fix_raw && gps_quality_ok);
     has_gps_fix = gps_trusted_fix;
+    const bool speed_usable = gps_trusted_fix &&
+                              isfinite(speed_kph) &&
+                              speed_kph >= 0.0f &&
+                              speed_kph <= SPEED_MAX_VALID_KPH;
+    last_speed_kph_val = speed_usable ? speed_kph : 0.0f;
+    if (gps_trusted_fix && isfinite(speed_kph) && speed_kph > SPEED_MAX_VALID_KPH) {
+      gps_speed_spike++;
+      gps_last_segment_reject_reason = "speed_spike";
+    }
+    if (!gps_trusted_fix || !speed_usable) {
+      reset_distance_baseline();
+      if (!gps_trusted_fix) {
+        gps_last_segment_reject_reason = "bad_fix";
+      } else if (!speed_usable) {
+        gps_last_segment_reject_reason = "speed_spike";
+      }
+    }
 
     if (valid_fix) {
       if (gps_trusted_fix) {
@@ -1095,32 +1347,43 @@ void handle_nmea_line(const char *line) {
         total_distance_m_val = 0.0f;
         active_time_ms_val = 0;
         max_speed_kph_val = 0.0f;
-        has_last_point_val = false;
+        reset_distance_baseline();
         save_metrics();
       }
     }
 
-    if (gps_trusted_fix && speed_kph <= SPEED_MAX_VALID_KPH) {
-      track_try_add_point(lat_deg, lon_deg, time_min, date_yyyymmdd, now_ms);
-      if (now_ms - last_sample_ms >= GPS_SAMPLE_MS) {
-        last_sample_ms = now_ms;
+    if (speed_usable && now_ms - last_sample_ms >= GPS_SAMPLE_MS) {
+      last_sample_ms = now_ms;
 
-        float min_segment_m = cfg.gps_min_segment_m;
-        if (!isnan(gps_hdop) && gps_hdop > 0.0f) {
-          const float hdop_segment = cfg.gps_hdop_factor * gps_hdop;
-          if (hdop_segment > min_segment_m) {
-            min_segment_m = hdop_segment;
-          }
+      float min_segment_m = cfg.gps_min_segment_m;
+      if (!isnan(gps_hdop) && gps_hdop > 0.0f) {
+        const float hdop_segment = cfg.gps_hdop_factor * gps_hdop;
+        if (hdop_segment > min_segment_m) {
+          min_segment_m = hdop_segment;
         }
-        if (min_segment_m > cfg.gps_max_min_segment_m) {
-          min_segment_m = cfg.gps_max_min_segment_m;
-        }
+      }
+      if (min_segment_m > cfg.gps_max_min_segment_m) {
+        min_segment_m = cfg.gps_max_min_segment_m;
+      }
 
+      const bool active_sample = (speed_kph > SPEED_ACTIVE_KPH);
+      if (active_sample) {
+        track_try_add_point(lat_deg, lon_deg, time_min, date_yyyymmdd, now_ms);
         if (has_last_point_val) {
           const float segment_m = haversine_m(last_lat_deg_val, last_lon_deg_val, lat_deg, lon_deg);
+          gps_last_segment_m = segment_m;
           if (segment_m >= min_segment_m && segment_m < 50.0f) {
             total_distance_m_val += segment_m;
+            gps_last_segment_accepted = true;
+            gps_last_segment_reject_reason = "ok";
+          } else {
+            gps_last_segment_accepted = false;
+            gps_last_segment_reject_reason = (segment_m < min_segment_m) ? "small_segment" : "large_segment";
           }
+        } else {
+          gps_last_segment_m = 0.0f;
+          gps_last_segment_accepted = false;
+          gps_last_segment_reject_reason = "baseline";
         }
         if (session_has_last_point) {
           const float segment_m = haversine_m(session_last_lat_deg, session_last_lon_deg, lat_deg, lon_deg);
@@ -1128,24 +1391,26 @@ void handle_nmea_line(const char *line) {
             session_total_distance_m += segment_m;
           }
         }
+        active_time_ms_val += GPS_SAMPLE_MS;
+        session_active_time_ms += GPS_SAMPLE_MS;
+      } else {
+        gps_last_segment_m = 0.0f;
+        gps_last_segment_accepted = false;
+        gps_last_segment_reject_reason = "inactive_speed";
+      }
 
-        last_lat_deg_val = lat_deg;
-        last_lon_deg_val = lon_deg;
-        has_last_point_val = true;
-        session_last_lat_deg = lat_deg;
-        session_last_lon_deg = lon_deg;
-        session_has_last_point = true;
+      last_lat_deg_val = lat_deg;
+      last_lon_deg_val = lon_deg;
+      has_last_point_val = true;
+      session_last_lat_deg = lat_deg;
+      session_last_lon_deg = lon_deg;
+      session_has_last_point = true;
 
-        if (speed_kph > SPEED_ACTIVE_KPH) {
-          active_time_ms_val += GPS_SAMPLE_MS;
-          session_active_time_ms += GPS_SAMPLE_MS;
-        }
-        if (speed_kph > max_speed_kph_val) {
-          max_speed_kph_val = speed_kph;
-        }
-        if (speed_kph > session_max_speed_kph) {
-          session_max_speed_kph = speed_kph;
-        }
+      if (speed_kph > max_speed_kph_val) {
+        max_speed_kph_val = speed_kph;
+      }
+      if (speed_kph > session_max_speed_kph) {
+        session_max_speed_kph = speed_kph;
       }
     }
   }
@@ -1161,8 +1426,12 @@ void read_gps() {
       nmea_line[nmea_len] = '\0';
       if (nmea_len > 6) {
         gps_sentences_rx++;
-        gps_last_sentence_ms = millis();
-        handle_nmea_line(nmea_line);
+        if (nmea_checksum_ok(nmea_line)) {
+          gps_last_sentence_ms = millis();
+          handle_nmea_line(nmea_line);
+        } else {
+          gps_checksum_fail++;
+        }
       }
       nmea_len = 0;
     } else if (c != '\r') {
@@ -1196,6 +1465,7 @@ void begin() {
 
 void tick() {
   read_gps();
+  expire_gps_if_stale(millis());
 }
 
 void track_tick(unsigned long now_ms) {
@@ -1415,6 +1685,30 @@ unsigned long overflow() {
   return gps_overflow;
 }
 
+unsigned long checksum_fail() {
+  return gps_checksum_fail;
+}
+
+unsigned long parse_fail() {
+  return gps_parse_fail;
+}
+
+unsigned long rmc_parse_fail() {
+  return gps_rmc_parse_fail;
+}
+
+unsigned long gga_parse_fail() {
+  return gps_gga_parse_fail;
+}
+
+unsigned long speed_spike() {
+  return gps_speed_spike;
+}
+
+unsigned long stale_count() {
+  return gps_stale_count;
+}
+
 unsigned long last_byte_ms() {
   return gps_last_byte_ms;
 }
@@ -1429,5 +1723,17 @@ unsigned long last_gga_ms() {
 
 unsigned long last_fix_ms() {
   return gps_last_fix_ms;
+}
+
+float last_segment_m() {
+  return gps_last_segment_m;
+}
+
+bool last_segment_accepted() {
+  return gps_last_segment_accepted;
+}
+
+const char *last_segment_reject_reason() {
+  return gps_last_segment_reject_reason;
 }
 } // namespace gps
