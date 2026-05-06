@@ -47,13 +47,25 @@ h2{font-size:18px;}
 .muted{color:var(--muted);font-size:12px;}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid transparent;background:var(--text);color:#fff;font-weight:600;font-size:14px;cursor:pointer;}
 .btn.ghost{background:transparent;color:var(--text);border-color:var(--border);}
+.btn.danger{background:var(--danger);color:#fff;}
 .btn:disabled{opacity:0.6;cursor:not-allowed;}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0;}
+.sticky-actions{position:sticky;top:8px;z-index:2;}
 .dashboard-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
 .advanced-menu{position:relative;}
 .advanced-menu > summary{list-style:none;}
 .advanced-menu > summary::-webkit-details-marker{display:none;}
 .advanced-menu .section{margin-top:8px;}
+.mode-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.mode-card{width:100%;text-align:left;border:1px solid var(--border);background:#F8FAFB;border-radius:12px;padding:12px;cursor:pointer;font-family:inherit;color:var(--text);}
+.mode-card strong{display:block;font-size:14px;margin-bottom:4px;}
+.mode-card span{display:block;color:var(--muted);font-size:12px;line-height:1.25;}
+.mode-card.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,209,193,0.15);background:#FFFFFF;}
+.preset-row,.swatch-row{display:flex;flex-wrap:wrap;gap:8px;}
+.preset-btn{border:1px solid var(--border);border-radius:999px;background:#F8FAFB;color:var(--text);padding:8px 12px;font-family:inherit;font-weight:600;cursor:pointer;}
+.preset-btn.active{border-color:var(--accent);background:rgba(0,209,193,0.14);color:#007A70;}
+.swatch{width:34px;height:34px;border-radius:999px;border:2px solid #fff;box-shadow:0 0 0 1px var(--border);cursor:pointer;}
+.swatch.active{box-shadow:0 0 0 3px rgba(0,209,193,0.35);}
 .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
 input,select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font-family:inherit;font-size:14px;color:var(--text);}
 input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,209,193,0.15);}
@@ -84,7 +96,9 @@ details.section[open] > summary::after{content:'-';}
 .session-card{margin:8px 0;padding:12px;background:#F8FAFB;border:1px solid var(--border);border-radius:12px;}
 .track-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;}
 .track-canvas{width:100%;height:220px;border:1px solid var(--border);border-radius:12px;background:#F8FAFB;}
-@media (max-width:760px){.grid-2,.grid-3,.dashboard-summary,.stat-grid{grid-template-columns:1fr;}.primary-metric{min-height:auto;}.primary-metric .value{font-size:38px;}.dashboard-actions .btn,.dashboard-actions summary.btn{flex:1 1 138px;}.effects-row{grid-template-columns:52px 1fr;grid-template-areas:"range a" "range b" "range speed" "range intensity";}.effects-row .range-label{align-self:start;padding-top:4px;}.hero-top{flex-direction:column;align-items:flex-start;}}
+.track-note{color:var(--muted);font-size:12px;margin:8px 0;}
+.is-hidden{display:none !important;}
+@media (max-width:760px){.grid-2,.grid-3,.dashboard-summary,.stat-grid,.mode-cards{grid-template-columns:1fr;}.primary-metric{min-height:auto;}.primary-metric .value{font-size:38px;}.dashboard-actions .btn,.dashboard-actions summary.btn{flex:1 1 138px;}.sticky-actions{top:0;margin-left:-20px;margin-right:-20px;border-radius:0;}.effects-row{grid-template-columns:52px 1fr;grid-template-areas:"range a" "range b" "range speed" "range intensity";}.effects-row .range-label{align-self:start;padding-top:4px;}.hero-top{flex-direction:column;align-items:flex-start;}}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
 )CSS";
 } // namespace
@@ -179,19 +193,20 @@ String web_pages::html_page() {
         <div id="session-current"></div>
         <div id="history"></div>
         <div class="track-controls section">
-          <h2>Ruta</h2>
+          <h2>Ruta GPS</h2>
           <select id="track_session">
             <option value="current">Sesion actual</option>
             <option value="0">Sesion 1 (ultima)</option>
             <option value="1">Sesion 2</option>
             <option value="2">Sesion 3</option>
           </select>
-          <button class="btn ghost" id="track_load" type="button" onclick="loadTrack()">Cargar ruta</button>
-          <a class="btn ghost" id="track_csv" href="/api/track.csv" style="display:none">Export CSV</a>
-          <a class="btn ghost" id="track_geo" href="/api/track.geojson" style="display:none">Export GeoJSON</a>
+          <button class="btn ghost" id="track_load" type="button" onclick="loadTrack()">Ver trazo</button>
+          <a class="btn ghost" id="track_csv" href="/api/track.csv" style="display:none">CSV completo</a>
+          <a class="btn ghost" id="track_geo" href="/api/track.geojson" style="display:none">GeoJSON completo</a>
         </div>
-        <canvas id="track_map" class="track-canvas"></canvas>
-        <div class="muted" id="track_status">Ruta: sin cargar</div>
+        <div class="track-note">Vista previa del trazo GPS, sin mapa base ni escala. Los exports descargan la sesion completa.</div>
+        <canvas id="track_map" class="track-canvas is-hidden"></canvas>
+        <div class="empty-state" id="track_status">Ruta: sin cargar</div>
       </div>
     </details>
   </div>
@@ -235,6 +250,10 @@ String web_pages::html_page() {
       if(trackGeo) trackGeo.style.display=visible?'inline-flex':'none';
     }
 
+    function setTrackCanvasVisible(visible){
+      if(trackCanvas) trackCanvas.classList.toggle('is-hidden',!visible);
+    }
+
     function clearTrack(msg){
       if(trackCanvas){
         const ctx=trackCanvas.getContext('2d');
@@ -243,8 +262,12 @@ String web_pages::html_page() {
         ctx.setTransform(dpr,0,0,dpr,0,0);
         ctx.clearRect(0,0,rect.width,rect.height);
       }
+      setTrackCanvasVisible(false);
       setTrackExportsVisible(false);
-      if(trackStatus) trackStatus.textContent=msg||'Ruta: --';
+      if(trackStatus){
+        trackStatus.textContent=msg||'Ruta: --';
+        trackStatus.className='empty-state';
+      }
     }
 
     function drawTrack(points,bbox){
@@ -287,6 +310,7 @@ String web_pages::html_page() {
         ctx.fillStyle='#E84545';
         ctx.beginPath();ctx.arc(ex,ey,4,0,Math.PI*2);ctx.fill();
       }
+      setTrackCanvasVisible(true);
     }
 
     async function loadTrack(){
@@ -297,7 +321,7 @@ String web_pages::html_page() {
       if(trackStatus) trackStatus.textContent='Ruta: cargando...';
       if(trackLoad) trackLoad.disabled=true;
       try{
-        const r=await fetch('/api/track?session='+session+'&max_points=400');
+        const r=await fetch('/api/track?session='+session+'&max_points=250');
         const d=await r.json();
         if(!d||!d.count||!d.points||d.points.length<2){
           clearTrack('Ruta: no hay puntos suficientes');
@@ -307,13 +331,19 @@ String web_pages::html_page() {
           clearTrack('Ruta: sin bbox');
           return;
         }
+        if(trackStatus){
+          trackStatus.className='muted';
+          trackStatus.textContent='Ruta: '+d.points.length+' puntos de vista previa, dibujando...';
+        }
         drawTrack(d.points,d.bbox);
         setTrackExportsVisible(true);
         var sDate=fmtDate(d.start_date);
         var eDate=fmtDate(d.end_date||d.start_date);
         var sTime=minToTime(d.start_min||0);
         var eTime=minToTime(d.end_min||0);
-        if(trackStatus) trackStatus.textContent='Ruta: '+d.count+' pts | '+sDate+' '+sTime+' a '+eDate+' '+eTime;
+        var shown=d.points.length;
+        var countText=(d.count&&d.count>shown)?(shown+' de '+d.count+' pts'):(shown+' pts');
+        if(trackStatus) trackStatus.textContent='Trazo GPS: '+countText+' | '+sDate+' '+sTime+' a '+eDate+' '+eTime;
       }catch(e){
         clearTrack('Ruta: error');
       }finally{
@@ -512,7 +542,7 @@ String web_pages::html_page() {
 }
 String web_pages::html_wifi_page() {
   String page;
-  page.reserve(9000);
+  page.reserve(13000);
   page += F(R"HTML(
 <!doctype html>
 <html>
@@ -535,18 +565,34 @@ String web_pages::html_wifi_page() {
           <div class="tagline">Configurar Wi-Fi</div>
         </div>
       </div>
-      <div class="muted">Conecta el collar a tu red de casa.</div>
+      <div class="muted">Home Wi-Fi y hotspot local del collar.</div>
+    </div>
+
+    <div class="card section">
+      <h2>Estado Wi-Fi</h2>
+      <div class="grid grid-2 section-body">
+        <div class="field"><label>Home Wi-Fi</label><div class="data" id="wifi_home_state">--</div></div>
+        <div class="field"><label>Hotspot collar</label><div class="data" id="wifi_ap_state">--</div></div>
+        <div class="field"><label>Portal local</label><div class="data mono" id="wifi_portal">--</div></div>
+        <div class="field"><label>mDNS</label><div class="data mono" id="wifi_mdns_state">--</div></div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="wifi_refresh_btn" type="button" onclick="loadWifiStatus()">Actualizar estado</button>
+      </div>
+      <div id="wifi_status_msg" class="notice"></div>
     </div>
 
     <form class="card section" id="sta_form" method="post" action="/api/wifi">
+      <h2>Home Wi-Fi</h2>
+      <div class="muted">Conecta DOG-RGB al router de casa. El hotspot local queda disponible durante la conexion.</div>
       <div class="field">
-        <label>SSID</label>
+        <label>Nombre de red (SSID)</label>
         <input name="ssid" value=")HTML");
   page += wifi_mgr::ssid();
   page += F(R"HTML(">
       </div>
       <div class="field">
-        <label>Password</label>
+        <label>Password red de casa</label>
         <input name="pass" id="pass" type="password" placeholder="Password">
       </div>
       <label class="muted"><input type="checkbox" id="show_pass"> Mostrar password</label>
@@ -557,21 +603,24 @@ String web_pages::html_wifi_page() {
     </form>
 
     <div class="card section" id="ap_block">
-      <h2>Wi-Fi AP</h2>
-      <div class="muted">Configura el hotspot del collar.</div>
+      <h2>Hotspot del collar</h2>
+      <div class="muted">Estos datos son para conectarte directo al collar desde el telefono.</div>
       <div class="grid grid-2 section-body">
-        <div class="field"><label>SSID</label><input id="ap_ssid" type="text"></div>
-        <div class="field"><label>mDNS</label><input id="mdns" type="text"></div>
+        <div class="field"><label>Nombre hotspot (SSID)</label><input id="ap_ssid" type="text"></div>
+        <div class="field"><label>Portal mDNS</label><input id="mdns" type="text"></div>
       </div>
       <div class="grid grid-2">
-        <div class="field"><label>Password</label><input id="ap_pass" type="password" placeholder="(sin cambio)"></div>
+        <div class="field"><label>Password hotspot</label><input id="ap_pass" type="password" placeholder="(sin cambio)"></div>
         <div class="field">
           <label>AP abierto</label>
           <label class="muted"><input id="ap_open" type="checkbox"> Sin password</label>
         </div>
       </div>
+      <label class="muted"><input type="checkbox" id="show_ap_pass"> Mostrar password hotspot</label>
       <div id="ap_hint" class="muted"></div>
       <div id="ap_warn" class="warn"></div>
+      <div id="ap_open_warn" class="warn"></div>
+      <div id="ap_recovery" class="notice"></div>
       <div class="actions">
         <button class="btn" id="ap_save_btn" type="button" onclick="saveAp()">Guardar AP</button>
       </div>
@@ -587,20 +636,31 @@ String web_pages::html_wifi_page() {
     const pass = document.getElementById('pass');
     const show = document.getElementById('show_pass');
     show.onchange = () => { pass.type = show.checked ? 'text' : 'password'; };
+    const showApPass = document.getElementById('show_ap_pass');
     const staForm = document.getElementById('sta_form');
     const staStatus = document.getElementById('sta_status');
+    const wifiHomeState = document.getElementById('wifi_home_state');
+    const wifiApState = document.getElementById('wifi_ap_state');
+    const wifiPortal = document.getElementById('wifi_portal');
+    const wifiMdnsState = document.getElementById('wifi_mdns_state');
+    const wifiStatusMsg = document.getElementById('wifi_status_msg');
+    const wifiRefreshBtn = document.getElementById('wifi_refresh_btn');
     const apSsid = document.getElementById('ap_ssid');
     const mdns = document.getElementById('mdns');
     const apPass = document.getElementById('ap_pass');
     const apOpen = document.getElementById('ap_open');
     const apHint = document.getElementById('ap_hint');
     const apWarn = document.getElementById('ap_warn');
+    const apOpenWarn = document.getElementById('ap_open_warn');
+    const apRecovery = document.getElementById('ap_recovery');
     const apStatus = document.getElementById('ap_status');
     const staSubmitBtn = document.getElementById('sta_submit_btn');
     const apSaveBtn = document.getElementById('ap_save_btn');
     let apHasPass = false;
     let initialAp = null;
     let baseCfg = null;
+    let staPollTimer = null;
+    showApPass.onchange = () => { apPass.type = showApPass.checked ? 'text' : 'password'; };
 
     const AP_ERROR_MAP = {
       ssid:{field:apSsid,msg:'SSID 1..32, sin espacios al inicio o final.'},
@@ -620,6 +680,10 @@ String web_pages::html_wifi_page() {
       [apSsid, apPass, mdns].forEach(el => el && el.classList.remove('invalid'));
     }
 
+    function setText(el, value){
+      if (el) el.textContent = value || '--';
+    }
+
     function validMdns(value){
       if (!value || value.length < 1 || value.length > 32) return false;
       if (value[0] === '-' || value[value.length - 1] === '-') return false;
@@ -634,6 +698,62 @@ String web_pages::html_wifi_page() {
       }
       if (e.field) e.field.classList.add('invalid');
       setApStatus(e.msg, 'error');
+    }
+
+    function renderWifiStatus(s){
+      const w = (s && s.wifi) ? s.wifi : {};
+      let home = 'Desconectado';
+      if (w.sta_connected){
+        home = 'Conectado' + (w.sta_ip && w.sta_ip !== '0.0.0.0' ? (' (' + w.sta_ip + ')') : '');
+      } else if (w.sta_connecting){
+        home = 'Conectando...';
+      } else if (w.wifi_off){
+        home = 'Wi-Fi off';
+      }
+      const ap = w.ap_enabled ? ('Activo: ' + (w.ap_ssid || 'dog') + ' (' + (w.ap_stations || 0) + ' clientes)') : 'Apagado';
+      const apIp = w.ap_ip || '192.168.4.1';
+      const mdnsName = w.mdns || '';
+      setText(wifiHomeState, home);
+      setText(wifiApState, ap);
+      setText(wifiPortal, 'http://' + apIp + '/');
+      setText(wifiMdnsState, mdnsName ? ('http://' + mdnsName + '.local/') : '--');
+      return w;
+    }
+
+    async function loadWifiStatus(){
+      if (wifiRefreshBtn) wifiRefreshBtn.disabled = true;
+      try{
+        const s = await fetch('/api/status').then(r=>r.json());
+        const w = renderWifiStatus(s);
+        wifiStatusMsg.textContent = w.sta_connected ? 'Home Wi-Fi conectado.' : (w.sta_connecting ? 'Intentando conectar a Home Wi-Fi...' : '');
+        return w;
+      }catch(e){
+        wifiStatusMsg.textContent = 'No se pudo leer el estado Wi-Fi.';
+        return null;
+      }finally{
+        if (wifiRefreshBtn) wifiRefreshBtn.disabled = false;
+      }
+    }
+
+    function pollStaStatus(){
+      if (staPollTimer) clearInterval(staPollTimer);
+      const deadline = Date.now() + 30000;
+      const tick = async () => {
+        const w = await loadWifiStatus();
+        if (w && w.sta_connected){
+          staStatus.textContent = 'Conectado a Home Wi-Fi. Portal: http://' + (w.mdns || 'dog-collar') + '.local/';
+          clearInterval(staPollTimer);
+          staPollTimer = null;
+          return;
+        }
+        if (Date.now() >= deadline){
+          staStatus.textContent = 'No se confirmo conexion. Revisa SSID/password; el hotspot sigue disponible en http://192.168.4.1/.';
+          clearInterval(staPollTimer);
+          staPollTimer = null;
+        }
+      };
+      staPollTimer = setInterval(tick, 3000);
+      tick();
     }
 
     function apChanged(){
@@ -654,6 +774,8 @@ String web_pages::html_wifi_page() {
         apHint.innerText = apHasPass ? 'Password configurada' : 'Sin password';
       }
       apWarn.innerText = apChanged() ? 'Nota: cambiar AP puede desconectar la sesion.' : '';
+      apOpenWarn.innerText = apOpen.checked ? 'Advertencia: el hotspot quedara sin password.' : '';
+      if (apChanged()) apRecovery.innerText = '';
     }
 
     async function loadConfig(){
@@ -703,27 +825,28 @@ String web_pages::html_wifi_page() {
         if (!confirm('Guardar cambios? El AP puede reiniciarse.')) return;
       }
       setApStatus('Guardando...', 'muted');
-      const payload = JSON.parse(JSON.stringify(baseCfg));
-      payload.wifi = payload.wifi || {};
-      payload.wifi.ap_ssid = ssid;
-      payload.wifi.ap_open = apOpen.checked;
-      payload.wifi.ap_pass = passVal;
-      payload.wifi.mdns = mdnsVal;
+      const payload = {ap_ssid:ssid, ap_open:apOpen.checked, ap_pass:passVal, mdns:mdnsVal};
       if (apSaveBtn) apSaveBtn.disabled = true;
       try{
-        const res = await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const res = await fetch('/api/wifi/ap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
         const r = await res.json();
         if (!res.ok || r.status !== 'ok'){
           handleApBackendError(r.reason);
           return;
         }
         setApStatus(r.status + (r.wifi_restart ? ' (reiniciando AP)' : ''), 'muted');
-        baseCfg = payload;
+        baseCfg.wifi = baseCfg.wifi || {};
+        baseCfg.wifi.ap_ssid = ssid;
+        baseCfg.wifi.mdns = mdnsVal;
         initialAp = { ap_ssid: ssid, mdns: mdnsVal, ap_open: apOpen.checked };
         if (apOpen.checked) apHasPass = false;
         else if (passVal.length >= 8) apHasPass = true;
+        baseCfg.wifi.has_ap_pass = apHasPass;
         apPass.value = '';
+        const securityText = apOpen.checked ? 'sin password' : (passVal.length >= 8 ? 'con el password nuevo' : 'con el password ya configurado');
+        apRecovery.innerText = r.wifi_restart ? ('Si el telefono se desconecta, reconectate al hotspot "' + ssid + '" ' + securityText + ' y abre http://192.168.4.1/.') : 'Hotspot actualizado.';
         updateApState();
+        loadWifiStatus();
       }catch(e){
         setApStatus('Error', 'error');
       }finally{
@@ -739,7 +862,12 @@ String web_pages::html_wifi_page() {
         const fd = new FormData(staForm);
         const r = await fetch('/api/wifi',{method:'POST',body:fd});
         const text = await r.text();
-        staStatus.textContent = r.ok ? 'Guardado, conectando... AP disponible en http://192.168.4.1/' : ('Error: ' + text);
+        if (r.ok){
+          staStatus.textContent = 'Guardado, conectando... el hotspot sigue disponible en http://192.168.4.1/.';
+          pollStaStatus();
+        } else {
+          staStatus.textContent = 'Error: ' + text;
+        }
       }catch(e){
         staStatus.textContent = 'Error';
       }finally{
@@ -752,6 +880,7 @@ String web_pages::html_wifi_page() {
     apSsid.oninput = updateApState;
     mdns.oninput = updateApState;
     loadConfig();
+    loadWifiStatus();
   </script>
 </body>
 </html>
@@ -760,7 +889,7 @@ String web_pages::html_wifi_page() {
 }
 String web_pages::html_config_page() {
   String page;
-  page.reserve(16000);
+  page.reserve(19000);
   page += F(R"CFG(
 <!doctype html>
 <html>
@@ -780,44 +909,48 @@ String web_pages::html_config_page() {
       <div class="hero-top">
         <div>
           <div class="brand">DOG-RGB</div>
-          <div class="tagline">Configuracion avanzada</div>
+          <div class="tagline">Modos y LEDs</div>
         </div>
       </div>
-      <div class="muted">Ajustes de LED y geofence</div>
+      <div class="muted">Elige el comportamiento principal primero; la calibracion queda en avanzado.</div>
     </div>
 
     <div id="errors" class="card error-box error section"></div>
 
-    <div class="card action-bar section">
-      <button class="btn" type="button" onclick="saveCfg()">Guardar</button>
-      <button class="btn ghost" type="button" onclick="resetCfg()">Restaurar defaults</button>
+    <div class="card action-bar section sticky-actions">
+      <button class="btn" id="save_btn" type="button" onclick="saveCfg()">Guardar cambios</button>
+      <button class="btn danger" id="reset_btn" type="button" onclick="resetCfg()">Restaurar defaults</button>
       <span id="status" class="muted"></span>
     </div>
 
     <details class="card section" id="common_block" open>
-      <summary>Comun</summary>
+      <summary>Modo y brillo</summary>
       <div class="section-body">
-        <div class="grid grid-2">
-          <div class="field">
-            <label>Brightness (1..255)</label>
-            <input id="brightness" type="number" min="1" max="255">
-          </div>
-          <div class="field">
-            <label>Modo</label>
-            <select id="mode">
-              <option value="speed">Velocidad</option>
-              <option value="geofence">Geocerca</option>
-              <option value="simple">Simple</option>
-              <option value="show">Show</option>
-            </select>
-          </div>
+        <div class="mode-cards" id="mode_cards">
+          <button class="mode-card" type="button" data-mode-card="speed"><strong>Velocidad</strong><span>LEDs reaccionan al movimiento. Requiere GPS confiable.</span></button>
+          <button class="mode-card" type="button" data-mode-card="geofence"><strong>Geocerca</strong><span>LEDs reaccionan a distancia del Home. Requiere GPS y Home.</span></button>
+          <button class="mode-card" type="button" data-mode-card="simple"><strong>Simple</strong><span>Un efecto fijo para toda la tira.</span></button>
+          <button class="mode-card" type="button" data-mode-card="show"><strong>Show</strong><span>Demo automatica de efectos.</span></button>
+        </div>
+        <div class="grid grid-2 section-body">
+          <div class="field"><label>Brillo</label><input id="brightness_slider" type="range" min="1" max="255"></div>
+          <div class="field"><label>Valor brillo</label><input id="brightness" type="number" min="1" max="255"></div>
+        </div>
+        <div class="field" style="max-width:260px">
+          <label>Modo</label>
+          <select id="mode">
+            <option value="speed">Velocidad</option>
+            <option value="geofence">Geocerca</option>
+            <option value="simple">Simple</option>
+            <option value="show">Show</option>
+          </select>
         </div>
         <div id="mode_help" class="help"></div>
       </div>
     </details>
 
-    <details class="card section" id="speed_block" open>
-      <summary>Speed ranges (kph)</summary>
+    <details class="card section" id="speed_block">
+      <summary>Umbrales de velocidad (avanzado)</summary>
       <div class="section-body">
         <div class="grid grid-3">
           <div class="field"><label>R1</label><input id="r1" type="number" step="0.1"></div>
@@ -849,14 +982,14 @@ String web_pages::html_config_page() {
         </div>
         <div class="row" style="margin-top:8px">
           <button class="btn" type="button" onclick="setHome()">Nuevo Home (GPS actual)</button>
-          <button class="btn ghost" type="button" onclick="clearHome()">Clear Home</button>
+          <button class="btn danger" type="button" onclick="clearHome()">Borrar Home</button>
         </div>
         <div id="home_status" class="muted"></div>
       </div>
     </details>
 
-    <details class="card section" id="gps_block" open>
-      <summary>GPS calidad</summary>
+    <details class="card section" id="gps_block">
+      <summary>GPS calidad (avanzado)</summary>
       <div class="section-body">
         <div class="grid grid-2">
           <div class="field">
@@ -899,6 +1032,20 @@ String web_pages::html_config_page() {
     <details class="card section" id="simple_block" open>
       <summary>Simple</summary>
       <div class="section-body">
+        <div class="field">
+          <label>Preajuste</label>
+          <div class="preset-row" id="simple_preset_buttons">
+            <button class="preset-btn" type="button" data-theme="calm">Calm</button>
+            <button class="preset-btn" type="button" data-theme="active">Active</button>
+            <button class="preset-btn" type="button" data-theme="sport">Sport</button>
+            <button class="preset-btn" type="button" data-theme="aurora">Aurora</button>
+            <button class="preset-btn" type="button" data-theme="manual">Manual</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Color base</label>
+          <div class="swatch-row" id="color_swatches"></div>
+        </div>
         <div class="grid grid-2">
           <div class="field">
             <label>Tema</label>
@@ -916,14 +1063,17 @@ String web_pages::html_config_page() {
           </div>
         </div>
         <div class="grid grid-2">
-          <div class="field"><label>Speed (0..255)</label><input id="simple_speed" type="number" min="0" max="255"></div>
-          <div class="field"><label>Intensity (0..255)</label><input id="simple_intensity" type="number" min="0" max="255"></div>
+          <div class="field"><label>Velocidad (0..255)</label><input id="simple_speed" type="number" min="0" max="255"></div>
+          <div class="field"><label>Intensidad (0..255)</label><input id="simple_intensity" type="number" min="0" max="255"></div>
         </div>
-        <div class="grid grid-3">
-          <div class="field"><label>R</label><input id="simple_r" type="number" min="0" max="255"></div>
-          <div class="field"><label>G</label><input id="simple_g" type="number" min="0" max="255"></div>
-          <div class="field"><label>B</label><input id="simple_b" type="number" min="0" max="255"></div>
-        </div>
+        <details class="section">
+          <summary>RGB manual</summary>
+          <div class="grid grid-3 section-body">
+            <div class="field"><label>R</label><input id="simple_r" type="number" min="0" max="255"></div>
+            <div class="field"><label>G</label><input id="simple_g" type="number" min="0" max="255"></div>
+            <div class="field"><label>B</label><input id="simple_b" type="number" min="0" max="255"></div>
+          </div>
+        </details>
         <div class="help">RAINBOW, GRADIENT_WAVE y FIRE ignoran el color base.</div>
       </div>
     </details>
@@ -935,14 +1085,18 @@ String web_pages::html_config_page() {
       </div>
     </details>
 
-    <details class="card section" id="effects_block" open>
-      <summary>Efectos por rango (1-10)</summary>
+    <details class="card section" id="effects_block">
+      <summary>Ajuste avanzado por rango (1-10)</summary>
       <div class="section-body">
         <div id="effects"></div>
       </div>
     </details>
 
     <div class="section">
+      <div class="card action-bar">
+        <button class="btn" type="button" onclick="saveCfg()">Guardar cambios</button>
+        <button class="btn danger" type="button" onclick="resetCfg()">Restaurar defaults</button>
+      </div>
       <a class="btn ghost" href="/">Volver</a>
     </div>
   </div>
@@ -974,8 +1128,11 @@ String web_pages::html_config_page() {
     const simpleG = $('simple_g');
     const simpleB = $('simple_b');
     const brightness = $('brightness');
+    const brightnessSlider = $('brightness_slider');
     const statusEl = $('status');
     const errorsEl = $('errors');
+    const saveBtn = $('save_btn');
+    const resetBtn = $('reset_btn');
 
     const rangeInputs = [ $('r1'),$('r2'),$('r3'),$('r4'),$('r5'),$('r6'),$('r7'),$('r8'),$('r9') ];
 
@@ -992,6 +1149,12 @@ String web_pages::html_config_page() {
       sport:{effect:7,speed:160,intensity:180,r:60,g:0,b:0},
       aurora:{effect:11,speed:120,intensity:180,r:0,g:180,b:120}
     };
+
+    const COLOR_PRESETS = [
+      {name:'Teal',r:0,g:60,b:60},{name:'Green',r:0,g:120,b:40},
+      {name:'Amber',r:80,g:48,b:0},{name:'Red',r:90,g:0,b:0},
+      {name:'Blue',r:0,g:40,b:120},{name:'White',r:120,g:120,b:120}
+    ];
 
     const MODE_HELP = {
       speed:'Usa rangos de velocidad para elegir efectos.',
@@ -1026,8 +1189,8 @@ String web_pages::html_config_page() {
           <div class="range-label">R${i}</div>
           <div class="field field-a"><label>A</label><select id="e${i}a"></select></div>
           <div class="field field-b"><label>B</label><select id="e${i}b"></select></div>
-          <div class="field field-speed"><label>Speed</label><input id="e${i}s" type="number" min="0" max="255"></div>
-          <div class="field field-intensity"><label>Intensity</label><input id="e${i}i" type="number" min="0" max="255"></div>
+          <div class="field field-speed"><label>Velocidad</label><input id="e${i}s" type="number" min="0" max="255"></div>
+          <div class="field field-intensity"><label>Intensidad</label><input id="e${i}i" type="number" min="0" max="255"></div>
         </div>`;
       }
       effectsDiv.innerHTML = html;
@@ -1046,6 +1209,7 @@ String web_pages::html_config_page() {
       simpleR.value = t.r;
       simpleG.value = t.g;
       simpleB.value = t.b;
+      updateSwatchSelection();
     }
 
     function readSimple(){
@@ -1072,6 +1236,48 @@ String web_pages::html_config_page() {
         if (themeMatches(current,SIMPLE_THEMES[key])){ match = key; break; }
       }
       simpleTheme.value = match;
+      document.querySelectorAll('[data-theme]').forEach(btn=>btn.classList.toggle('active',btn.dataset.theme===match));
+      updateSwatchSelection();
+    }
+
+    function buildColorSwatches(){
+      const el=$('color_swatches');
+      if(!el) return;
+      el.innerHTML = COLOR_PRESETS.map(c=>`<button class="swatch" type="button" title="${c.name}" data-r="${c.r}" data-g="${c.g}" data-b="${c.b}" style="background:rgb(${c.r},${c.g},${c.b})"></button>`).join('');
+      document.querySelectorAll('.swatch').forEach(btn=>{
+        btn.onclick=()=>{
+          simpleR.value=btn.dataset.r;
+          simpleG.value=btn.dataset.g;
+          simpleB.value=btn.dataset.b;
+          simpleTheme.value='manual';
+          updateThemeSelection();
+        };
+      });
+    }
+
+    function updateSwatchSelection(){
+      const cur=readSimple();
+      document.querySelectorAll('.swatch').forEach(btn=>{
+        const active=cur.r===parseInt(btn.dataset.r,10)&&cur.g===parseInt(btn.dataset.g,10)&&cur.b===parseInt(btn.dataset.b,10);
+        btn.classList.toggle('active',active);
+      });
+    }
+
+    function updateModeCards(){
+      document.querySelectorAll('[data-mode-card]').forEach(btn=>btn.classList.toggle('active',btn.dataset.modeCard===modeEl.value));
+    }
+
+    function selectMode(mode){
+      modeEl.value=mode;
+      updateModeVisibility();
+    }
+
+    function syncBrightness(source){
+      let v = parseInt(source.value,10);
+      if (isNaN(v)) v = 1;
+      v = Math.max(1,Math.min(255,v));
+      brightness.value = v;
+      brightnessSlider.value = v;
     }
 
     function updateFenceRanges(){
@@ -1095,6 +1301,7 @@ String web_pages::html_config_page() {
       showBlock.style.display = (mode === 'show') ? 'block' : 'none';
       effectsBlock.style.display = (mode === 'speed' || mode === 'geofence') ? 'block' : 'none';
       $('mode_help').innerText = MODE_HELP[mode] || '';
+      updateModeCards();
     }
 
     function loadHome(){
@@ -1235,6 +1442,7 @@ String web_pages::html_config_page() {
       const cfg = buildPayload();
       if (!validateConfig(cfg)) return;
       statusEl.innerText = 'Guardando...';
+      if (saveBtn) saveBtn.disabled = true;
       try{
         const r = await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)}).then(r=>r.json());
         if (r.status !== 'ok'){
@@ -1245,6 +1453,8 @@ String web_pages::html_config_page() {
         statusEl.innerText = r.status + (r.wifi_restart ? ' (reiniciando AP)' : '');
       }catch(e){
         statusEl.innerText = 'Error';
+      }finally{
+        if (saveBtn) saveBtn.disabled = false;
       }
     }
 
@@ -1264,21 +1474,28 @@ String web_pages::html_config_page() {
 
     function resetCfg(){
       if (!confirm('Restaurar defaults y reiniciar AP si aplica?')) return;
+      if (resetBtn) resetBtn.disabled = true;
       fetch('/api/config/reset',{method:'POST'}).then(r=>r.json()).then(r=>{
         statusEl.innerText = r.status;
-      }).catch(()=>{statusEl.innerText='error';});
+      }).catch(()=>{statusEl.innerText='error';}).finally(()=>{if(resetBtn) resetBtn.disabled=false;});
     }
 
     modeEl.onchange = updateModeVisibility;
+    document.querySelectorAll('[data-mode-card]').forEach(btn=>btn.onclick=()=>selectMode(btn.dataset.modeCard));
+    document.querySelectorAll('[data-theme]').forEach(btn=>btn.onclick=()=>{ simpleTheme.value=btn.dataset.theme; if(btn.dataset.theme !== 'manual') applyTheme(btn.dataset.theme); updateThemeSelection(); });
     simpleTheme.onchange = () => { if (simpleTheme.value !== 'manual') applyTheme(simpleTheme.value); updateThemeSelection(); };
     [simpleEffect,simpleSpeed,simpleIntensity,simpleR,simpleG,simpleB].forEach(el=>el.oninput=updateThemeSelection);
+    brightnessSlider.oninput = () => syncBrightness(brightnessSlider);
+    brightness.oninput = () => syncBrightness(brightness);
     fenceMax.oninput = updateFenceRanges;
 
     buildEffectsTable();
     fillEffectSelect(simpleEffect);
+    buildColorSwatches();
 
     fetch('/api/config').then(r=>r.json()).then(c=>{
       brightness.value = c.led.brightness;
+      brightnessSlider.value = c.led.brightness;
       modeEl.value = c.mode || 'speed';
       fenceMax.value = c.fence_max_m || 300;
       const g = c.gps || {};
@@ -1308,6 +1525,7 @@ String web_pages::html_config_page() {
       updateModeVisibility();
       updateFenceRanges();
       updateThemeSelection();
+      updateSwatchSelection();
       loadHome();
     });
   </script>
@@ -1339,7 +1557,7 @@ String web_pages::html_dev_page() {
       <div class="hero-top">
         <div>
           <div class="brand">DOG-RGB</div>
-          <div class="tagline">Developer Console</div>
+          <div class="tagline">Diagnostico tecnico</div>
         </div>
         <div class="chips">
           <span class="pill" id="dev-pill-gps">GPS: --</span>
@@ -1351,10 +1569,11 @@ String web_pages::html_dev_page() {
         <label class="muted"><input id="auto" type="checkbox"> Auto (5s)</label>
         <span class="muted" id="dev-updated">Ultima lectura: --</span>
       </div>
+      <div class="muted">Vista tecnica para validar AP, GPS, LED y memoria. No es necesaria para uso normal.</div>
     </div>
 
     <div class="card section">
-      <h2>System</h2>
+      <h2>Sistema</h2>
       <div class="grid grid-2">
         <div class="field"><label>Uptime</label><div class="data mono" id="dev-uptime">--</div></div>
         <div class="field"><label>Build</label><div class="data mono" id="dev-build">--</div></div>
@@ -1377,6 +1596,24 @@ String web_pages::html_dev_page() {
         <div class="field"><label>RSSI</label><div class="data mono" id="wifi-rssi">--</div></div>
       </div>
     </div>
+
+    <details class="card section" open>
+      <summary>Diagnostico AP</summary>
+      <div class="grid grid-2 section-body">
+        <div class="field"><label>AP start</label><div class="data mono" id="diag-ap-start">--</div></div>
+        <div class="field"><label>AP fail</label><div class="data mono" id="diag-ap-fail">--</div></div>
+        <div class="field"><label>AP stop</label><div class="data mono" id="diag-ap-stop">--</div></div>
+        <div class="field"><label>AP restart</label><div class="data mono" id="diag-ap-restart">--</div></div>
+        <div class="field"><label>Station connect</label><div class="data mono" id="diag-ap-sta-connect">--</div></div>
+        <div class="field"><label>Station disconnect</label><div class="data mono" id="diag-ap-sta-disconnect">--</div></div>
+        <div class="field"><label>DNS captive</label><div class="data mono" id="diag-dns">--</div></div>
+        <div class="field"><label>Canal AP</label><div class="data mono" id="diag-channel">--</div></div>
+        <div class="field"><label>Hold AP</label><div class="data mono" id="diag-hold">--</div></div>
+        <div class="field"><label>Next STA retry</label><div class="data mono" id="diag-next-retry">--</div></div>
+        <div class="field"><label>Last AP reason</label><div class="data mono" id="diag-ap-reason">--</div></div>
+        <div class="field"><label>Last STA reason</label><div class="data mono" id="diag-sta-reason">--</div></div>
+      </div>
+    </details>
 
     <div class="card section">
       <h2>GPS</h2>
@@ -1436,10 +1673,10 @@ String web_pages::html_dev_page() {
       </div>
     </div>
 
-    <div class="card section">
-      <h2>Raw JSON</h2>
-      <pre id="dev-json" class="code mono"></pre>
-    </div>
+    <details class="card section">
+      <summary>Raw JSON</summary>
+      <pre id="dev-json" class="code mono section-body"></pre>
+    </details>
 
     <div class="actions">
       <a class="btn ghost" href="/">Volver</a>
@@ -1505,6 +1742,20 @@ String web_pages::html_dev_page() {
         setText('wifi-sta-ip', wifi.sta_ip);
         setText('wifi-ap-ip', wifi.ap_ip);
         setText('wifi-rssi', wifi.rssi);
+        const diag = wifi.diagnostics || {};
+        const nowMs = d.time ? d.time.uptime_ms : 0;
+        setText('diag-ap-start', diag.ap_start_count);
+        setText('diag-ap-fail', diag.ap_start_fail_count);
+        setText('diag-ap-stop', diag.ap_stop_count);
+        setText('diag-ap-restart', diag.ap_restart_count);
+        setText('diag-ap-sta-connect', diag.ap_station_connect_count);
+        setText('diag-ap-sta-disconnect', diag.ap_station_disconnect_count);
+        setText('diag-dns', diag.dns_running ? 'on' : 'off');
+        setText('diag-channel', diag.current_ap_channel);
+        setText('diag-hold', (diag.ap_hold_until_ms && diag.ap_hold_until_ms > nowMs) ? fmtMs(diag.ap_hold_until_ms - nowMs) : '--');
+        setText('diag-next-retry', (diag.next_sta_retry_ms && diag.next_sta_retry_ms > nowMs) ? fmtMs(diag.next_sta_retry_ms - nowMs) : '--');
+        setText('diag-ap-reason', diag.last_ap_reason);
+        setText('diag-sta-reason', diag.last_sta_reason);
 
         const gps = d.gps || {};
         setText('gps-fix', gps.fix ? 'yes' : 'no');
