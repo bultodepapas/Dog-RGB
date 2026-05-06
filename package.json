@@ -1,0 +1,17 @@
+{
+  "name": "dog-rgb-ap-portal-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ap-portal:extract": "python3 tools/ap_portal_preview/extract_pages.py",
+    "ap-portal:serve": "node tools/ap_portal_preview/server.mjs --port 4173",
+    "ap-portal:screenshots": "playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium",
+    "ap-portal:visual": "AP_PORTAL_VISUAL=1 playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium",
+    "ap-portal:visual:update": "AP_PORTAL_VISUAL=1 playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --update-snapshots",
+    "ap-portal:ui": "playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
+  }
+}

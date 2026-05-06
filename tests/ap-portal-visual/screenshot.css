@@ -1,0 +1,13 @@
+*,
+*::before,
+*::after {
+  animation: none !important;
+  caret-color: transparent !important;
+  transition: none !important;
+}
+
+.sticky-actions {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  position: static !important;
+}

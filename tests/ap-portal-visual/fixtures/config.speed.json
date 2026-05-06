@@ -1,0 +1,45 @@
+{
+  "version": 4,
+  "mode": "speed",
+  "fence_max_m": 300,
+  "led": {
+    "brightness": 96
+  },
+  "gps": {
+    "min_fix_quality": 1,
+    "min_sats": 6,
+    "max_hdop": 2.5,
+    "max_gga_age_ms": 2000,
+    "min_segment_m": 3,
+    "hdop_factor": 2,
+    "max_min_segment_m": 10
+  },
+  "speed_ranges_kph": [2, 4, 6, 8, 10, 12, 15, 18, 22],
+  "effects": {
+    "range1": { "a": 2, "b": 0, "speed": 60, "intensity": 70 },
+    "range2": { "a": 2, "b": 1, "speed": 70, "intensity": 80 },
+    "range3": { "a": 4, "b": 1, "speed": 84, "intensity": 95 },
+    "range4": { "a": 4, "b": 3, "speed": 96, "intensity": 110 },
+    "range5": { "a": 5, "b": 3, "speed": 110, "intensity": 125 },
+    "range6": { "a": 7, "b": 4, "speed": 124, "intensity": 140 },
+    "range7": { "a": 8, "b": 4, "speed": 138, "intensity": 155 },
+    "range8": { "a": 9, "b": 7, "speed": 152, "intensity": 170 },
+    "range9": { "a": 10, "b": 8, "speed": 170, "intensity": 190 },
+    "range10": { "a": 11, "b": 9, "speed": 190, "intensity": 210 }
+  },
+  "single": {
+    "effect": 2,
+    "speed": 60,
+    "intensity": 90,
+    "rgb": {
+      "r": 0,
+      "g": 60,
+      "b": 60
+    }
+  },
+  "wifi": {
+    "ap_ssid": "DOG-RGB-42",
+    "has_ap_pass": true,
+    "mdns": "dog-rgb"
+  }
+}

@@ -1,0 +1,7 @@
+.DS_Store
+node_modules/
+playwright-report/
+test-results/
+.ap-portal-preview/
+tests/ap-portal-visual/screenshots/current/
+tests/ap-portal-visual/screenshots/diff/

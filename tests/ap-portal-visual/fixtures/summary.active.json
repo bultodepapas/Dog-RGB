@@ -1,0 +1,45 @@
+{
+  "has_data": true,
+  "date": 20260506,
+  "distance_m": 1842.6,
+  "avg_speed_cmps": 176,
+  "max_speed_cmps": 612,
+  "gps_fix": true,
+  "gps_raw_fix": true,
+  "last_update_min": 643,
+  "session_current": {
+    "flags": 1,
+    "start_date": 20260506,
+    "start_min": 602,
+    "end_date": 20260506,
+    "end_min": 643,
+    "distance_m": 1842.6,
+    "avg_speed_cmps": 176,
+    "max_speed_cmps": 612,
+    "active_s": 1610
+  },
+  "history": [
+    {
+      "flags": 1,
+      "start_date": 20260505,
+      "start_min": 1020,
+      "end_date": 20260505,
+      "end_min": 1082,
+      "distance_m": 3180.2,
+      "avg_speed_cmps": 142,
+      "max_speed_cmps": 528,
+      "active_s": 2460
+    },
+    {
+      "flags": 1,
+      "start_date": 20260504,
+      "start_min": 715,
+      "end_date": 20260504,
+      "end_min": 748,
+      "distance_m": 1260.4,
+      "avg_speed_cmps": 111,
+      "max_speed_cmps": 410,
+      "active_s": 1215
+    }
+  ]
+}

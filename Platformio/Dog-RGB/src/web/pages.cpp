@@ -272,6 +272,7 @@ String web_pages::html_page() {
 
     function drawTrack(points,bbox){
       if(!trackCanvas){return;}
+      setTrackCanvasVisible(true);
       resizeTrackCanvas();
       const ctx=trackCanvas.getContext('2d');
       const rect=trackCanvas.getBoundingClientRect();
@@ -294,8 +295,10 @@ String web_pages::html_page() {
         const y=rect.height-(pad+(lat-minLat)*scale);
         if(i===0){ctx.moveTo(x,y);} else {ctx.lineTo(x,y);}
       }
-      ctx.strokeStyle='#0B1220';
-      ctx.lineWidth=2;
+      ctx.strokeStyle='#00D1C1';
+      ctx.lineWidth=4;
+      ctx.lineJoin='round';
+      ctx.lineCap='round';
       ctx.stroke();
 
       if(points.length>0){
@@ -305,12 +308,11 @@ String web_pages::html_page() {
         const sy=rect.height-(pad+(start[0]-minLat)*scale);
         const ex=pad+(end[1]-minLon)*scale;
         const ey=rect.height-(pad+(end[0]-minLat)*scale);
-        ctx.fillStyle='#00D1C1';
+        ctx.fillStyle='#0B1220';
         ctx.beginPath();ctx.arc(sx,sy,4,0,Math.PI*2);ctx.fill();
         ctx.fillStyle='#E84545';
         ctx.beginPath();ctx.arc(ex,ey,4,0,Math.PI*2);ctx.fill();
       }
-      setTrackCanvasVisible(true);
     }
 
     async function loadTrack(){

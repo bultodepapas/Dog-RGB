@@ -1,0 +1,27 @@
+{
+  "mode": "geofence",
+  "wifi": {
+    "ap_enabled": true,
+    "ap_ssid": "DOG-RGB-42",
+    "ap_stations": 1,
+    "sta_connected": false,
+    "sta_connecting": false,
+    "wifi_off": false,
+    "mdns": "dog-rgb",
+    "sta_ip": "0.0.0.0",
+    "ap_ip": "192.168.4.1"
+  },
+  "gps": {
+    "fix": true,
+    "raw_fix": true,
+    "quality_ok": true,
+    "sats": 9,
+    "fix_quality": 1,
+    "hdop": 1.21
+  },
+  "home": {
+    "set": true,
+    "source": "manual",
+    "distance_m": 185.6
+  }
+}

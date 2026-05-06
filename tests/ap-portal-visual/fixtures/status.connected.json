@@ -1,0 +1,27 @@
+{
+  "mode": "speed",
+  "wifi": {
+    "ap_enabled": true,
+    "ap_ssid": "DOG-RGB-42",
+    "ap_stations": 1,
+    "sta_connected": true,
+    "sta_connecting": false,
+    "wifi_off": false,
+    "mdns": "dog-rgb",
+    "sta_ip": "192.168.1.74",
+    "ap_ip": "192.168.4.1"
+  },
+  "gps": {
+    "fix": true,
+    "raw_fix": true,
+    "quality_ok": true,
+    "sats": 11,
+    "fix_quality": 1,
+    "hdop": 0.92
+  },
+  "home": {
+    "set": true,
+    "source": "manual",
+    "distance_m": 37.4
+  }
+}
