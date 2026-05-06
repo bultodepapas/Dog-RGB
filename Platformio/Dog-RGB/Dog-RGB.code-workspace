@@ -8,5 +8,16 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"chat.tools.terminal.autoApprove": {
+			"/^cd /Users/angel/Documents/Dog-RGB/Platformio/Dog-RGB && pio run 2>&1 \\| tail -30$/": {
+				"approve": true,
+				"matchCommandLine": true
+			},
+			"/^~/\\.platformio/penv/bin/pio run 2>&1 \\| tail -30$/": {
+				"approve": true,
+				"matchCommandLine": true
+			}
+		}
+	}
 }

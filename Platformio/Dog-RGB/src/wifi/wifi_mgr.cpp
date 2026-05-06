@@ -340,10 +340,15 @@ void update_ap_policy(unsigned long now_ms) {
     }
     if ((now_ms - last_ap_client_ms) >= AP_IDLE_TIMEOUT_MS) {
       disable_ap("idle_timeout");
-      stationary_ms = 0;
-      if (!wifi_sta_connected || wifi_ssid.length() == 0) {
-        set_wifi_off(true);
-      }
+      // Bug fix: do NOT call set_wifi_off(true) here. Turning WiFi completely off
+      // when there is no STA connection means the portal becomes permanently
+      // unreachable while the dog has a GPS fix and is moving, because
+      // ap_force_on=false and ap_request_on=false in that state.
+      // Leaving WiFi on allows STA retry to keep running and the AP policy to
+      // re-enable the AP as soon as the dog stops (stationary_ms accumulates).
+      // Bug fix: do NOT reset stationary_ms here. If the dog is already
+      // stationary, resetting it forced an extra 2-minute wait before the AP
+      // came back on.
     }
   }
 }
@@ -356,7 +361,10 @@ void begin() {
   ap_enabled_state = false;
   wifi_off_state = false;
   if (wifi_ssid.length() > 0) {
-    start_ap_radio("boot_with_sta", false);
+    // Bug fix: use preserve_sta=true so WiFi starts directly in WIFI_AP_STA mode.
+    // Previously preserve_sta=false caused WIFI_AP → WIFI_AP_STA mode switch
+    // immediately after softAP(), forcing the AP stack to reinitialize.
+    start_ap_radio("boot_with_sta", true);
     start_sta_mode_internal("boot");
   } else {
     start_ap_mode_internal("boot_no_sta");

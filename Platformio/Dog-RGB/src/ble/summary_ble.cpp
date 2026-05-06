@@ -24,6 +24,13 @@ void begin() {
   BLEAdvertising *adv = BLEDevice::getAdvertising();
   adv->addServiceUUID(BLE_SERVICE_UUID);
   adv->setScanResponse(true);
+  // Bug fix: ESP32-S3 official docs classify SoftAP + BLE as C1 (performance
+  // unstable). The default advertising interval (20-40 ms) aggressively competes
+  // with WiFi AP beacons (~102 ms period), causing beacon gaps that make the
+  // SSID appear/disappear on phones. Slowing advertising to 500-1000 ms gives
+  // the radio scheduler enough breathing room to send WiFi beacons reliably.
+  adv->setMinInterval(800);  // 800 * 0.625 ms = 500 ms
+  adv->setMaxInterval(1600); // 1600 * 0.625 ms = 1000 ms
   adv->start();
 }
 
