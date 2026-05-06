@@ -90,6 +90,15 @@ bool read_common_config(RuntimeConfig &cfg) {
   }
   return true;
 }
+
+bool migrate_legacy_ap_defaults(RuntimeConfig &cfg) {
+  if (cfg.ap_ssid == "dog" && cfg.ap_pass == "Dog123456789") {
+    cfg.ap_ssid = AP_SSID;
+    cfg.ap_pass = AP_PASS;
+    return true;
+  }
+  return false;
+}
 } // namespace
 
 const RuntimeConfig &get() {
@@ -194,7 +203,11 @@ void load() {
     if (!validate_gps(next)) {
       set_default_gps_config(next);
     }
+    const bool migrated_ap_defaults = migrate_legacy_ap_defaults(next);
     g_cfg = next;
+    if (migrated_ap_defaults) {
+      save();
+    }
     return;
   }
 
