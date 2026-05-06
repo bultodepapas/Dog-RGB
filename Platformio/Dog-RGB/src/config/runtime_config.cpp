@@ -92,9 +92,11 @@ bool read_common_config(RuntimeConfig &cfg) {
 }
 
 bool migrate_legacy_ap_defaults(RuntimeConfig &cfg) {
-  if (cfg.ap_ssid == "dog" && cfg.ap_pass == "Dog123456789") {
+  if (cfg.ap_ssid == "dog") {
     cfg.ap_ssid = AP_SSID;
-    cfg.ap_pass = AP_PASS;
+    if (cfg.ap_pass == "Dog123456789") {
+      cfg.ap_pass = AP_PASS;
+    }
     return true;
   }
   return false;
