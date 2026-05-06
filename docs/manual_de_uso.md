@@ -84,7 +84,7 @@ Segmento resto:
 - Si Wi-Fi esta OFF y GPS OK por >5 min, los LEDs de estado se igualan al segmento resto.
 
 Modos especiales:
-- Show: demo visual que recorre efectos automaticamente.
+- Show: demo visual que recorre los 12 efectos automaticamente; usa color base aleatorio por efecto cuando el efecto lo permite. RAINBOW, GRADIENT_WAVE y FIRE no reflejan directamente ese color base.
 - Simple: un solo efecto configurado por el usuario, aplicado a toda la tira (incluye LEDs de estado).
 
 AP/Wi-Fi auto:
@@ -146,6 +146,7 @@ Acciones:
 
 Nota: si cambias SSID/password del AP, el AP se reinicia y puede desconectar la sesion.
 Nota: RAINBOW, GRADIENT_WAVE y FIRE ignoran el color base en modo Simple.
+Nota: en modo Show, los LEDs de estado siguen indicando Wi-Fi/GPS salvo que se active el modo homogeneo.
 
 ---
 

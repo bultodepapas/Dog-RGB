@@ -54,7 +54,8 @@ Override critico:
 
 ## Modo SHOW (demo)
 
-- Recorre todos los efectos (IDs 0..11) cada 15 s.
+- Recorre todos los efectos (IDs 0..11) cada 15 s usando una bolsa barajada interna.
+- No repite efectos dentro de la misma bolsa y evita repetir el ultimo efecto anterior al iniciar una bolsa nueva.
 - Usa color base aleatorio por efecto.
 - Segmento B siempre en demo.
 - Segmento A sigue mostrando estado Wi‑Fi/GPS, **excepto** si se activa modo homogeneo.

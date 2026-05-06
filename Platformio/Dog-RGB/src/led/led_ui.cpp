@@ -42,6 +42,9 @@ uint8_t show_effect_id = 0;
 unsigned long show_effect_since_ms = 0;
 Rgb show_base = {0, 0, 0};
 bool show_first_tick = true;
+uint8_t show_effect_order[EFFECT_COUNT];
+uint8_t show_effect_order_index = EFFECT_COUNT;
+uint8_t show_last_effect_id = 255;
 EffectState simple_state_a;
 EffectState simple_state_b;
 bool simple_first_tick = true;
@@ -601,30 +604,71 @@ static Rgb random_show_color() {
   return hsv_to_rgb(hue, sat, val);
 }
 
-static void maybe_reset_show_state() {
+static void clear_show_buffers() {
+  fill_range(leds_a, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
+  if (LED_STRIP_MODE == 2) {
+    fill_range(leds_b, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
+  }
+}
+
+static void shuffle_show_effect_order() {
+  for (uint8_t i = 0; i < EFFECT_COUNT; ++i) {
+    show_effect_order[i] = i;
+  }
+  for (int i = EFFECT_COUNT - 1; i > 0; --i) {
+    const int j = random8(static_cast<uint8_t>(i));
+    const uint8_t tmp = show_effect_order[i];
+    show_effect_order[i] = show_effect_order[j];
+    show_effect_order[j] = tmp;
+  }
+  if (EFFECT_COUNT > 1 && show_last_effect_id < EFFECT_COUNT &&
+      show_effect_order[0] == show_last_effect_id) {
+    const uint8_t swap_idx = random8(1, EFFECT_COUNT - 1);
+    show_effect_order[0] = show_effect_order[swap_idx];
+    show_effect_order[swap_idx] = show_last_effect_id;
+  }
+  show_effect_order_index = 0;
+}
+
+static uint8_t next_show_effect() {
+  if (show_effect_order_index >= EFFECT_COUNT) {
+    shuffle_show_effect_order();
+  }
+  const uint8_t effect_id = show_effect_order[show_effect_order_index++];
+  show_last_effect_id = effect_id;
+  return effect_id;
+}
+
+static void prepare_show_effect() {
+  show_base = random_show_color();
+  show_state_a = {};
+  show_state_b = {};
+  if (show_effect_id == 9 || show_effect_id == 11) { // RAINBOW / GRADIENT_WAVE
+    show_state_a.hue = random8();
+    show_state_b.hue = random8();
+  }
   if (show_effect_id == 10) { // FIRE
     for (int i = 0; i < LED_STRIP_COUNT; ++i) {
       heat_a[i] = 0;
       heat_b[i] = 0;
     }
   }
+  clear_show_buffers();
 }
 
 static void update_show_mode(unsigned long now_ms) {
   if (show_first_tick) {
     show_first_tick = false;
-    show_effect_id = 0;
+    shuffle_show_effect_order();
+    show_effect_id = next_show_effect();
     show_effect_since_ms = now_ms;
-    show_base = random_show_color();
-    show_state_a = {};
-    show_state_b = {};
+    prepare_show_effect();
   }
 
   if (now_ms - show_effect_since_ms >= SHOW_EFFECT_MS) {
-    show_effect_id = static_cast<uint8_t>((show_effect_id + 1) % EFFECT_COUNT);
+    show_effect_id = next_show_effect();
     show_effect_since_ms = now_ms;
-    show_base = random_show_color();
-    maybe_reset_show_state();
+    prepare_show_effect();
   }
 
   if (now_ms - last_led_update_ms < LED_UPDATE_MS) {

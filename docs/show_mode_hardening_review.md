@@ -12,10 +12,10 @@ La percepcion de que los colores no son suficientemente aleatorios esta parcialm
 
 - El README promete "12 effects" y modos Show/Simple, pero no promete aleatoriedad total. Evidencia: `README.md:45-58`.
 - La especificacion local dice que SHOW "recorre todos los efectos (IDs 0..11) cada 15 s" y usa "color base aleatorio por efecto". Evidencia: `docs/led_ui_spec.md:55-60`.
-- El codigo implementa exactamente eso: entra en SHOW, arranca siempre en `show_effect_id = 0`, avanza `+1 mod EFFECT_COUNT`, y genera un color base nuevo solo al cambiar de efecto. Evidencia: `Platformio/Dog-RGB/src/led/led_ui.cpp:613-628`.
+- La auditoria inicial encontro que SHOW arrancaba siempre en `show_effect_id = 0` y avanzaba `+1 mod EFFECT_COUNT`. Fase 1 reemplazo eso por una bolsa barajada interna. Evidencia actual: `Platformio/Dog-RGB/src/led/led_ui.cpp:614-671`.
 - En ESP32 Arduino, `random()` usa hardware RNG por defecto en este core local, salvo que se llame `randomSeed()`. Evidencia: `~/.platformio/packages/framework-arduinoespressif32/cores/esp32/WMath.cpp:32-63`. Por tanto, el punto debil mas visible no es "no hay seed", sino que el show tiene muy pocos eventos aleatorios y mucha simetria.
 
-Diagnostico: SHOW hoy es correcto contra la especificacion, pero poco teatral. Se ve predecible porque el orden de efectos es fijo, ambas tiras comparten color y efecto, varios efectos ignoran `show_base`, y el portal solo muestra el efecto actual, no el color/base/temporizador que permitiria auditarlo en vivo.
+Diagnostico actualizado: Fase 1 ya corrige el orden fijo de efectos. Persisten oportunidades visuales porque ambas tiras comparten color y efecto, varios efectos ignoran `show_base`, y el portal solo muestra el efecto actual, no el color/base/temporizador que permitiria auditarlo en vivo.
 
 ---
 
@@ -24,17 +24,17 @@ Diagnostico: SHOW hoy es correcto contra la especificacion, pero poco teatral. S
 | ID | Investigacion | Evidencia | Conclusion |
 | --- | --- | --- | --- |
 | I01 | README como punto de partida | `README.md:45-58`, `README.md:84-88` | El proyecto declara LED UI con 12 efectos y Show/Simple; no define el nivel de aleatoriedad esperado. |
-| I02 | Spec de SHOW | `docs/led_ui_spec.md:55-60` | La spec pide recorrido secuencial de efectos y color base aleatorio por efecto. El firmware cumple esa definicion. |
+| I02 | Spec de SHOW | `docs/led_ui_spec.md:55-60` | La spec actual pide recorrer todos los efectos con bolsa barajada interna y color base aleatorio por efecto. |
 | I03 | Plan historico de SHOW | `docs/led_show_mode_plan.md:26-33`, `docs/led_show_mode_plan.md:85-100` | El plan original ya separaba "recorrer efectos" de "color aleatorio"; tambien advertia que FIRE/RAINBOW/GRADIENT_WAVE no dependen realmente del color base. |
-| I04 | Arranque del modo | `Platformio/Dog-RGB/src/led/led_ui.cpp:613-621` | Cada entrada a SHOW empieza en efecto 0 y resetea estados A/B a cero. Esto hace repetible el primer tramo visual. |
-| I05 | Seleccion de efecto | `Platformio/Dog-RGB/src/led/led_ui.cpp:623-628` | No hay seleccion aleatoria de efecto: el orden siempre es 0,1,2,...,11. Esto explica una parte grande de la sensacion "poco random". |
-| I06 | Seleccion de color | `Platformio/Dog-RGB/src/led/led_ui.cpp:597-602` | El color si es aleatorio por HSV, con saturacion 200..255 y valor 180..255. Es una buena base, pero ocurre solo cada 15 s. |
+| I04 | Arranque del modo | `Platformio/Dog-RGB/src/led/led_ui.cpp:659-666` | Fase 1 baraja la bolsa al entrar a SHOW y toma el primer efecto desde esa bolsa; ya no inicia siempre en SOLID. |
+| I05 | Seleccion de efecto | `Platformio/Dog-RGB/src/led/led_ui.cpp:604-649` | Fase 1 reemplaza el orden fijo por una bolsa barajada interna que recorre los 12 efectos sin repeticion dentro de la bolsa. |
+| I06 | Seleccion de color | `Platformio/Dog-RGB/src/led/led_ui.cpp:600-604` | El color si es aleatorio por HSV, con saturacion 200..255 y valor 180..255. Es una buena base, pero ocurre solo al preparar/cambiar efecto. |
 | I07 | Efectos que ignoran color base | `Platformio/Dog-RGB/src/led/led_ui.cpp:421-435`, `Platformio/Dog-RGB/src/led/led_ui.cpp:428-430` | RAINBOW, GRADIENT_WAVE y FIRE no usan `show_base`. En 3 de 12 pasos el "color aleatorio" no se percibe como tal. |
-| I08 | Simetria de dos tiras | `Platformio/Dog-RGB/src/led/led_ui.cpp:643-661` | Las tiras A/B usan el mismo efecto, mismo color y estados iniciales equivalentes. Si se busca show, esa simetria resta riqueza visual. |
-| I09 | LEDs de estado y modo homogeneo | `Platformio/Dog-RGB/src/led/led_ui.cpp:635-673` | SHOW mantiene status LEDs, salvo modo homogeneo. Correcto para seguridad, pero visualmente reduce el segmento show de 24 a 22 LEDs por tira mientras status esta activo. |
+| I08 | Simetria de dos tiras | `Platformio/Dog-RGB/src/led/led_ui.cpp:687-705` | Las tiras A/B usan el mismo efecto y mismo color. Si se busca show mas teatral, esa simetria resta riqueza visual. |
+| I09 | LEDs de estado y modo homogeneo | `Platformio/Dog-RGB/src/led/led_ui.cpp:679-717` | SHOW mantiene status LEDs, salvo modo homogeneo. Correcto para seguridad, pero visualmente reduce el segmento show de 24 a 22 LEDs por tira mientras status esta activo. |
 | I10 | Observabilidad del portal dev | `Platformio/Dog-RGB/src/web/portal_http.cpp:319-323`, `Platformio/Dog-RGB/src/web/pages.cpp:1478-1480` | `/api/dev` expone solo `show.effect` y nombre. No expone color base, edad del efecto, proximo cambio, ni si esta en homogeneo. Dificulta probar la aleatoriedad. |
 | I11 | Persistencia/config | `Platformio/Dog-RGB/src/config/runtime_config.cpp:150-166`, `Platformio/Dog-RGB/src/config/runtime_config.cpp:243-281` | `mode` persiste y SHOW esta validado, pero no hay parametros de show. Bien para no aumentar funciones; las mejoras deben ser internas/constantes. |
-| I12 | Documentacion desactualizada | `docs/led_effects.md:7-16`, `docs/led_effects.md:42-52`, `Platformio/Dog-RGB/include/config.h:19-38` | `docs/led_effects.md` dice que los efectos estan en `Platformio/Dog-RGB/src/main.cpp` y lista defaults antiguos. El codigo actual esta en `Platformio/Dog-RGB/src/led/led_ui.cpp` y todos los rangos default usan JUGGLE. |
+| I12 | Documentacion de efectos | `docs/led_effects.md:7-16`, `docs/led_effects.md:43-65`, `docs/led_effects.md:75-78` | Fase 0 corrige la referencia del motor, defaults actuales y nota de efectos que no reflejan directamente el color base. |
 | I13 | RNG local del core ESP32 Arduino | `~/.platformio/packages/framework-arduinoespressif32/cores/esp32/WMath.cpp:32-63` | En este entorno, `random()` usa `esp_random()` por defecto. No se encontro llamada a `randomSeed()` en el firmware activo. |
 | I14 | Timing de LEDs RGBW | `Platformio/Dog-RGB/platformio.ini:12-14`, `Platformio/Dog-RGB/src/led/led_ui.cpp:28-29`, datasheet SK6812RGBW | El proyecto usa Adafruit NeoPixel con `NEO_GRBW + NEO_KHZ800`. SK6812RGBW trabaja con estructura de 32 bits y frecuencia tipica de 800 kHz; 2 x 24 LEDs cada 50 ms es razonable. |
 
@@ -53,29 +53,27 @@ Diagnostico: SHOW hoy es correcto contra la especificacion, pero poco teatral. S
 
 ## Hallazgos tecnicos
 
-### H1. SHOW no es aleatorio en el orden de efectos
+### H1. SHOW no era aleatorio en el orden de efectos
 
-Severidad: media.  
-Impacto: alta percepcion de repeticion.
+Severidad original: media.
+Estado: corregido en Fase 1.
 
-El firmware hace:
+Durante la auditoria inicial, el firmware hacia:
 
 ```cpp
 show_effect_id = static_cast<uint8_t>((show_effect_id + 1) % EFFECT_COUNT);
 ```
 
-Evidencia: `Platformio/Dog-RGB/src/led/led_ui.cpp:623-625`.
+Fase 1 lo reemplazo por una bolsa barajada interna (`show_effect_order`) y `next_show_effect()`. Evidencia actual: `Platformio/Dog-RGB/src/led/led_ui.cpp:604-649`.
 
-Esto cumple la spec, pero si el usuario espera "show" como demo viva, el orden fijo se aprende rapido. Ademas el primer efecto tras entrar al modo siempre es `SOLID`, porque `show_first_tick` fuerza `show_effect_id = 0`. Evidencia: `Platformio/Dog-RGB/src/led/led_ui.cpp:614-618`.
-
-Mejora sin nueva funcion: usar una bolsa barajada interna de IDs `0..11`, evitando repetir el efecto anterior al reiniciar la bolsa. El usuario seguiria teniendo "Show", no un modo nuevo.
+Riesgo restante: la UI `/dev` todavia solo muestra el efecto actual; no muestra el orden interno ni cuantos efectos quedan en la bolsa.
 
 ### H2. El color aleatorio cambia poco
 
 Severidad: media.  
 Impacto: show visualmente estatico durante tramos largos.
 
-`SHOW_EFFECT_MS = 15000`, y `show_base` solo se recalcula cuando cambia el efecto. Evidencia: `Platformio/Dog-RGB/include/config.h:90-94` y `Platformio/Dog-RGB/src/led/led_ui.cpp:623-627`.
+`SHOW_EFFECT_MS = 15000`, y `show_base` se recalcula cuando SHOW prepara un efecto nuevo. Evidencia: `Platformio/Dog-RGB/include/config.h:90-94` y `Platformio/Dog-RGB/src/led/led_ui.cpp:642-671`.
 
 Para efectos lentos o basados en base fija, 15 s puede sentirse como "el mismo color" demasiado tiempo. En SOLID/PULSE/BREATH/BPM esto es especialmente obvio.
 
@@ -97,7 +95,7 @@ Mejora sin nueva funcion: randomizar `state.hue` al entrar a esos efectos y perm
 Severidad: baja-media.  
 Impacto: menos sensacion de show.
 
-El plan historico decidio que ambas tiras muestren el mismo efecto y mismo color. Evidencia: `docs/led_show_mode_plan.md:28-32`, `docs/led_show_mode_plan.md:42-44`. El codigo lo cumple. Evidencia: `Platformio/Dog-RGB/src/led/led_ui.cpp:643-661`.
+El plan historico decidio que ambas tiras muestren el mismo efecto y mismo color. Evidencia: `docs/led_show_mode_plan.md:28-32`, `docs/led_show_mode_plan.md:42-44`. El codigo lo cumple. Evidencia: `Platformio/Dog-RGB/src/led/led_ui.cpp:687-705`.
 
 Para un collar con dos tiras, esa simetria es segura y legible, pero visualmente pobre. El welcome ya usa direccion inversa en B (`reverse`) y demuestra que el proyecto acepta diferencia visual controlada entre tiras. Evidencia: `Platformio/Dog-RGB/src/led/led_ui.cpp:461-492`.
 
@@ -125,14 +123,14 @@ No se puede ver desde el portal el RGB elegido, cuanto falta para cambiar, si la
 
 Mejora sin nueva funcion: agregar diagnosticos dev-only: `show.base_rgb`, `show.elapsed_ms`, `show.remaining_ms`, `show.homogeneous`, `show.order_index`. No son funciones de usuario; son evidencia operativa.
 
-### H7. Documentacion de efectos no coincide con el firmware activo
+### H7. Documentacion de efectos no coincidia con el firmware activo
 
-Severidad: media.  
-Impacto: decisiones equivocadas de tuning.
+Severidad original: media.
+Estado: corregido en Fase 0.
 
-`docs/led_effects.md` dice que la implementacion esta en `Platformio/Dog-RGB/src/main.cpp`; actualmente esta en `Platformio/Dog-RGB/src/led/led_ui.cpp`. Tambien lista defaults por rango que ya no coinciden con `config.h`, donde todos los rangos default usan `JUGGLE`. Evidencia: `docs/led_effects.md:7-16`, `docs/led_effects.md:42-52`, `Platformio/Dog-RGB/include/config.h:19-38`.
+Durante la auditoria inicial, `docs/led_effects.md` apuntaba a `Platformio/Dog-RGB/src/main.cpp` y listaba defaults antiguos. Fase 0 actualizo la referencia real del motor, los defaults actuales y la nota de color base. Evidencia actual: `docs/led_effects.md:7-16`, `docs/led_effects.md:43-65`, `docs/led_effects.md:75-78`.
 
-Mejora sin nueva funcion: corregir docs antes de tocar comportamiento; si el equipo prueba con una expectativa obsoleta, cualquier conclusion sobre show queda contaminada.
+Riesgo restante: si cambia `Platformio/Dog-RGB/include/config.h`, `docs/led_effects.md` debe actualizarse en el mismo cambio.
 
 ### H8. Brillo y white-channel estan bien orientados, pero conviene no abusar de `setBrightness()`
 
@@ -151,6 +149,8 @@ Mejora sin nueva funcion: mantener brillo global estable y hacer fades/transicio
 
 Objetivo: que todos midan lo mismo antes de cambiar visuales.
 
+Estado: implementada en documentacion. Ver `docs/led_effects.md`, `docs/manual_de_uso.md`, `docs/portal_config.md` y `docs/show_mode_manual_test_checklist.md`.
+
 Acciones:
 - Actualizar `docs/led_effects.md`: implementacion real en `Platformio/Dog-RGB/src/led/led_ui.cpp`, defaults actuales de `config.h`, nota explicita de efectos que ignoran color base.
 - Agregar al informe de uso una frase clara: SHOW recorre efectos y usa color base aleatorio cuando el efecto lo permite.
@@ -163,6 +163,8 @@ Criterio de salida:
 ### Fase 1: Robustez interna de aleatoriedad
 
 Objetivo: que SHOW deje de ser predecible sin agregar controles.
+
+Estado: implementada en firmware. Ver `Platformio/Dog-RGB/src/led/led_ui.cpp`.
 
 Acciones:
 - Reemplazar orden `0..11` por bolsa barajada interna.
@@ -239,4 +241,4 @@ La mejora mas costo/beneficio es la bolsa barajada + fase aleatoria + diagnostic
 - No se verifico en hardware fisico durante esta revision; el analisis es estatico sobre repo, docs y fuentes tecnicas.
 - Hay un cambio local previo en `Platformio/Dog-RGB/src/gps/gps.cpp`; esta auditoria no lo toca.
 - La aleatoriedad criptografica no es objetivo del modo SHOW. La meta es variacion visual. Para eso, el uso actual de `random()`/`esp_random()` es suficiente; el problema esta en la frecuencia y distribucion de decisiones visuales.
-- Si se cambia el orden de efectos, actualizar la spec: ya no seria "recorre 0..11 en orden", sino "recorre los 12 efectos en orden barajado sin repeticion dentro del ciclo".
+- Si se vuelve a cambiar la politica de orden de efectos, actualizar `docs/led_effects.md`, `docs/led_ui_spec.md` y la checklist manual en el mismo cambio.

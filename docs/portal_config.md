@@ -99,7 +99,7 @@ Notas:
 - Si `ap_open` es `true`, el AP se guarda sin password.
 - `mode`: `"speed"` (default), `"geofence"`, `"show"` o `"simple"`.
 - `fence_max_m`: distancia maxima en metros (se divide en 10 rangos iguales).
-- `mode: "show"` habilita demo de efectos en Segmento B (homogeneous puede pisar todo).
+- `mode: "show"` habilita demo de efectos en Segmento B (homogeneous puede pisar todo). El modo Show recorre los 12 efectos y usa color base aleatorio por efecto cuando el efecto lo permite; RAINBOW, GRADIENT_WAVE y FIRE no reflejan directamente ese color base.
 - `mode: "simple"` aplica un solo efecto a toda la tira (incluye LEDs de estado).
 - `single`: parametros del modo simple (effect/speed/intensity/rgb).
 

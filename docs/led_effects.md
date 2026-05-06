@@ -7,12 +7,13 @@ Este documento describe los efectos disponibles y su uso actual en el firmware.
 ## Motor actual
 
 - Libreria: Adafruit NeoPixel
-- Implementacion: efectos custom en `Platformio/Dog-RGB/src/main.cpp`
+- Implementacion: efectos custom en `Platformio/Dog-RGB/src/led/led_ui.cpp`
 - Cada rango de velocidad define:
   - effect_A (tira A)
   - effect_B (tira B)
   - speed (0-255)
   - intensity (0-255)
+- SHOW usa el mismo motor de efectos con constantes internas (`SHOW_SPEED`, `SHOW_INTENSITY`, `SHOW_EFFECT_MS`).
 
 ---
 
@@ -39,17 +40,30 @@ Este documento describe los efectos disponibles y su uso actual en el firmware.
 - Cada rango tiene efecto A/B + speed/intensity.
 - El color base por rango esta en `docs/manual_de_colores.md`.
 
-Defaults actuales (ver `config.h`):
-- R1: SOLID / SOLID
-- R2: PULSE / PULSE
-- R3: BREATH / BREATH
-- R4: CHASE / CHASE
-- R5: SINELON / SINELON
-- R6: JUGGLE / JUGGLE
-- R7: BPM / BPM
-- R8: RAINBOW / RAINBOW
-- R9: GRADIENT_WAVE / GRADIENT_WAVE
-- R10: FIRE / FIRE
+Defaults actuales (ver `Platformio/Dog-RGB/include/config.h`):
+- R1 (<=2.0 km/h): JUGGLE / JUGGLE (speed 40, intensity 80)
+- R2 (<=4.0 km/h): JUGGLE / JUGGLE (58, 95)
+- R3 (<=6.0 km/h): JUGGLE / JUGGLE (76, 110)
+- R4 (<=8.0 km/h): JUGGLE / JUGGLE (94, 125)
+- R5 (<=10.0 km/h): JUGGLE / JUGGLE (112, 140)
+- R6 (<=12.0 km/h): JUGGLE / JUGGLE (130, 155)
+- R7 (<=14.0 km/h): JUGGLE / JUGGLE (148, 170)
+- R8 (<=16.0 km/h): JUGGLE / JUGGLE (166, 180)
+- R9 (<=18.0 km/h): JUGGLE / JUGGLE (184, 190)
+- R10 (>18.0 km/h): JUGGLE / JUGGLE (200, 200)
+
+---
+
+## Modo SHOW
+
+- Recorre los 12 efectos disponibles.
+- Duracion por efecto: `SHOW_EFFECT_MS` (default 15 s).
+- Usa un color base aleatorio por efecto cuando el efecto lo permite.
+- El orden actual usa una bolsa barajada interna: no repite efectos hasta recorrer los 12.
+- Al reiniciar la bolsa, evita que el primer efecto nuevo sea igual al ultimo efecto mostrado.
+- Al entrar a SHOW, se baraja la bolsa y el primer efecto ya no esta fijado a SOLID.
+- Segmento B muestra la demo; Segmento A conserva Wi-Fi/GPS salvo modo homogeneo.
+- En modo homogeneo, SHOW se aplica a toda la tira.
 
 ---
 
@@ -57,6 +71,12 @@ Defaults actuales (ver `config.h`):
 
 - `speed`: controla la velocidad del efecto (0-255)
 - `intensity`: controla brillo/energia interna del efecto (0-255)
+- `base`: color RGB base del efecto cuando aplica.
+
+Notas sobre color base:
+- SOLID, PULSE, BREATH, CHASE, COMET, SINELON, CONFETTI, JUGGLE y BPM usan el color base.
+- RAINBOW y GRADIENT_WAVE generan color desde HSV interno y no respetan directamente el color base.
+- FIRE usa `heat_color()` y no respeta directamente el color base.
 
 ---
 
@@ -72,3 +92,4 @@ Defaults actuales (ver `config.h`):
 
 - Segmento A (estado) es independiente del Segmento B.
 - En modo homogeneo, el efecto se aplica a toda la tira.
+- Para auditar SHOW en vivo, usar `/dev`; actualmente expone el efecto actual, pero no el color base ni el temporizador.
