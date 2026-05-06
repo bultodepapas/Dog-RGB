@@ -11,7 +11,7 @@ Objetivo: auditar por que el modo SHOW puede sentirse poco aleatorio, y proponer
 La percepcion de que los colores no son suficientemente aleatorios esta parcialmente justificada, pero el problema principal no es solo el RNG. El modo SHOW actual es una demo determinista con color base aleatorio por efecto:
 
 - El README promete "12 effects" y modos Show/Simple, pero no promete aleatoriedad total. Evidencia: `README.md:45-58`.
-- La especificacion local dice que SHOW "recorre todos los efectos (IDs 0..11) cada 15 s" y usa "color base aleatorio por efecto". Evidencia: `docs/led_ui_spec.md:55-60`.
+- La especificacion local dice que SHOW recorre todos los efectos (IDs 0..11) cada 30 s y usa color base aleatorio por efecto. Evidencia: `docs/led_ui_spec.md:55-60`.
 - La auditoria inicial encontro que SHOW arrancaba siempre en `show_effect_id = 0` y avanzaba `+1 mod EFFECT_COUNT`. Fase 1 reemplazo eso por una bolsa barajada interna. Evidencia actual: `Platformio/Dog-RGB/src/led/led_ui.cpp:614-671`.
 - En ESP32 Arduino, `random()` usa hardware RNG por defecto en este core local, salvo que se llame `randomSeed()`. Evidencia: `~/.platformio/packages/framework-arduinoespressif32/cores/esp32/WMath.cpp:32-63`. Por tanto, el punto debil mas visible no es "no hay seed", sino que el show tiene muy pocos eventos aleatorios y mucha simetria.
 
@@ -26,12 +26,12 @@ Diagnostico actualizado: Fase 1 ya corrige el orden fijo de efectos. Persisten o
 | I01 | README como punto de partida | `README.md:45-58`, `README.md:84-88` | El proyecto declara LED UI con 12 efectos y Show/Simple; no define el nivel de aleatoriedad esperado. |
 | I02 | Spec de SHOW | `docs/led_ui_spec.md:55-60` | La spec actual pide recorrer todos los efectos con bolsa barajada interna y color base aleatorio por efecto. |
 | I03 | Plan historico de SHOW | `docs/led_show_mode_plan.md:26-33`, `docs/led_show_mode_plan.md:85-100` | El plan original ya separaba "recorrer efectos" de "color aleatorio"; tambien advertia que FIRE/RAINBOW/GRADIENT_WAVE no dependen realmente del color base. |
-| I04 | Arranque del modo | `Platformio/Dog-RGB/src/led/led_ui.cpp:659-666` | Fase 1 baraja la bolsa al entrar a SHOW y toma el primer efecto desde esa bolsa; ya no inicia siempre en SOLID. |
-| I05 | Seleccion de efecto | `Platformio/Dog-RGB/src/led/led_ui.cpp:604-649` | Fase 1 reemplaza el orden fijo por una bolsa barajada interna que recorre los 12 efectos sin repeticion dentro de la bolsa. |
-| I06 | Seleccion de color | `Platformio/Dog-RGB/src/led/led_ui.cpp:600-604` | El color si es aleatorio por HSV, con saturacion 200..255 y valor 180..255. Es una buena base, pero ocurre solo al preparar/cambiar efecto. |
+| I04 | Arranque del modo | `Platformio/Dog-RGB/src/led/led_ui.cpp:743-750` | Fase 1 baraja la bolsa al entrar a SHOW y toma el primer efecto desde esa bolsa; ya no inicia siempre en SOLID. |
+| I05 | Seleccion de efecto | `Platformio/Dog-RGB/src/led/led_ui.cpp:650-676` | Fase 1 reemplaza el orden fijo por una bolsa barajada interna que recorre los 12 efectos sin repeticion dentro de la bolsa. |
+| I06 | Seleccion de color | `Platformio/Dog-RGB/src/led/led_ui.cpp:82-95`, `Platformio/Dog-RGB/src/led/led_ui.cpp:634-640`, `Platformio/Dog-RGB/src/led/led_ui.cpp:718-725` | Fase 2 usa paleta interna curada, variacion leve de color, mezcla hacia un segundo color y variacion interna de speed/intensity. |
 | I07 | Efectos que ignoran color base | `Platformio/Dog-RGB/src/led/led_ui.cpp:421-435`, `Platformio/Dog-RGB/src/led/led_ui.cpp:428-430` | RAINBOW, GRADIENT_WAVE y FIRE no usan `show_base`. En 3 de 12 pasos el "color aleatorio" no se percibe como tal. |
-| I08 | Simetria de dos tiras | `Platformio/Dog-RGB/src/led/led_ui.cpp:687-705` | Las tiras A/B usan el mismo efecto y mismo color. Si se busca show mas teatral, esa simetria resta riqueza visual. |
-| I09 | LEDs de estado y modo homogeneo | `Platformio/Dog-RGB/src/led/led_ui.cpp:679-717` | SHOW mantiene status LEDs, salvo modo homogeneo. Correcto para seguridad, pero visualmente reduce el segmento show de 24 a 22 LEDs por tira mientras status esta activo. |
+| I08 | Simetria de dos tiras | `Platformio/Dog-RGB/src/led/led_ui.cpp:773-807` | Fase 2 mantiene ambas tiras con el mismo efecto SHOW y los mismos parametros internos. |
+| I09 | LEDs de estado y modo homogeneo | `Platformio/Dog-RGB/src/led/led_ui.cpp:763-811` | SHOW mantiene status LEDs, salvo modo homogeneo. Correcto para seguridad, pero visualmente reduce el segmento show de 24 a 22 LEDs por tira mientras status esta activo. |
 | I10 | Observabilidad del portal dev | `Platformio/Dog-RGB/src/web/portal_http.cpp:319-323`, `Platformio/Dog-RGB/src/web/pages.cpp:1478-1480` | `/api/dev` expone solo `show.effect` y nombre. No expone color base, edad del efecto, proximo cambio, ni si esta en homogeneo. Dificulta probar la aleatoriedad. |
 | I11 | Persistencia/config | `Platformio/Dog-RGB/src/config/runtime_config.cpp:150-166`, `Platformio/Dog-RGB/src/config/runtime_config.cpp:243-281` | `mode` persiste y SHOW esta validado, pero no hay parametros de show. Bien para no aumentar funciones; las mejoras deben ser internas/constantes. |
 | I12 | Documentacion de efectos | `docs/led_effects.md:7-16`, `docs/led_effects.md:43-65`, `docs/led_effects.md:75-78` | Fase 0 corrige la referencia del motor, defaults actuales y nota de efectos que no reflejan directamente el color base. |
@@ -73,11 +73,11 @@ Riesgo restante: la UI `/dev` todavia solo muestra el efecto actual; no muestra 
 Severidad: media.  
 Impacto: show visualmente estatico durante tramos largos.
 
-`SHOW_EFFECT_MS = 15000`, y `show_base` se recalcula cuando SHOW prepara un efecto nuevo. Evidencia: `Platformio/Dog-RGB/include/config.h:90-94` y `Platformio/Dog-RGB/src/led/led_ui.cpp:642-671`.
+`SHOW_EFFECT_MS = 30000`, y Fase 2 agrega `show_next_base` para interpolar color dentro del mismo efecto. Evidencia: `Platformio/Dog-RGB/include/config.h:90-94`, `Platformio/Dog-RGB/src/led/led_ui.cpp:678-688` y `Platformio/Dog-RGB/src/led/led_ui.cpp:718-725`.
 
-Para efectos lentos o basados en base fija, 15 s puede sentirse como "el mismo color" demasiado tiempo. En SOLID/PULSE/BREATH/BPM esto es especialmente obvio.
+Para efectos lentos o basados en base fija, la evolucion interna de color evita que los 30 s se sientan como un bloque estatico. En SOLID/PULSE/BREATH/BPM esto es especialmente importante.
 
-Mejora sin nueva funcion: mantener 15 s por efecto, pero agregar variacion interna de paleta por subfases o interpolacion lenta hacia un segundo color aleatorio. No agrega controles ni nuevos modos.
+Estado: mejorado en Fase 2 con paleta curada, mezcla gradual de color y variacion interna de parametros. No agrega controles ni nuevos modos.
 
 ### H3. Tres efectos no muestran el color aleatorio
 
@@ -95,11 +95,11 @@ Mejora sin nueva funcion: randomizar `state.hue` al entrar a esos efectos y perm
 Severidad: baja-media.  
 Impacto: menos sensacion de show.
 
-El plan historico decidio que ambas tiras muestren el mismo efecto y mismo color. Evidencia: `docs/led_show_mode_plan.md:28-32`, `docs/led_show_mode_plan.md:42-44`. El codigo lo cumple. Evidencia: `Platformio/Dog-RGB/src/led/led_ui.cpp:687-705`.
+El plan historico decidio que ambas tiras muestren el mismo efecto y mismo color. Evidencia: `docs/led_show_mode_plan.md:28-32`, `docs/led_show_mode_plan.md:42-44`. Fase 2 conserva el mismo `show_effect_id` y los mismos parametros internos para A/B. Evidencia: `Platformio/Dog-RGB/src/led/led_ui.cpp:773-807`.
 
-Para un collar con dos tiras, esa simetria es segura y legible, pero visualmente pobre. El welcome ya usa direccion inversa en B (`reverse`) y demuestra que el proyecto acepta diferencia visual controlada entre tiras. Evidencia: `Platformio/Dog-RGB/src/led/led_ui.cpp:461-492`.
+Para este pase se mantiene explicitamente la misma seleccion de efecto en ambas cintas. Las mejoras visuales se concentran en paleta, transicion y evolucion de color, no en efectos distintos por tira.
 
-Mejora sin nueva funcion: conservar mismo efecto y color base, pero aplicar offset de fase/posicion en B o direccion invertida en efectos de movimiento. Es un endurecimiento visual interno, no un modo nuevo.
+Riesgo restante: ambas tiras pueden seguir viendose muy simetricas en algunos efectos. Esto se acepta por la restriccion de mantener el mismo efecto siempre.
 
 ### H5. El estado LED reduce el area del show
 
@@ -181,16 +181,18 @@ Criterio de salida:
 
 Objetivo: mas bonito y mas show usando los mismos 12 efectos.
 
+Estado: implementada en firmware manteniendo ambas cintas con el mismo efecto SHOW.
+
 Acciones:
-- Aplicar offsets de fase entre tira A y B para movimiento; por ejemplo, B inicia con `pos` desplazado o direccion inversa.
-- Introducir transicion corta entre efectos: fade-out/fade-in o crossfade simple de 300..600 ms.
-- Usar paletas curadas internas para `show_base` en vez de HSV puro siempre. Ejemplos: neon frio, alerta elegante, aurora, fiesta, blanco-calido-acento. Se elige internamente, no se expone en UI.
-- En efectos basados en base fija, interpolar lentamente hacia un segundo color durante los 15 s.
-- En FIRE, variar `intensity`/sparking dentro de una ventana segura o tintar sombras bajas para que no sea siempre el mismo fuego.
+- No se aplican efectos distintos por tira; A/B mantienen el mismo `show_effect_id`.
+- Se introduce transicion corta entre efectos con fade-in/fade-out de 500 ms.
+- Se usan paletas curadas internas para `show_base` en vez de HSV puro siempre.
+- En efectos basados en base fija, el color interpola lentamente hacia un segundo color durante los 30 s.
+- En FIRE, `speed` e `intensity` varian dentro de una ventana segura.
 
 Criterio de salida:
-- El usuario percibe variacion dentro de un mismo efecto, no solo al cambio de 15 s.
-- Ambas tiras se sienten coordinadas, no duplicadas pixel a pixel.
+- El usuario percibe variacion dentro de un mismo efecto, no solo al cambio de 30 s.
+- Ambas tiras mantienen siempre el mismo efecto SHOW.
 
 ### Fase 3: Diagnostico y hardening de ejecucion
 
@@ -226,13 +228,13 @@ Criterio de salida:
 
 ## Recomendacion priorizada
 
-1. Corregir documentacion y defaults (`docs/led_effects.md`) antes de tocar firmware.
+1. Corregir documentacion y defaults (`docs/led_effects.md`) antes de tocar firmware. Estado: hecho.
 2. Agregar diagnostico dev de SHOW: color, elapsed/remaining y homogeneo.
-3. Cambiar orden secuencial por bolsa barajada interna.
-4. Randomizar fase/hue en efectos que hoy ignoran `show_base`.
-5. Agregar offsets entre tiras A/B y transiciones cortas entre efectos.
+3. Cambiar orden secuencial por bolsa barajada interna. Estado: hecho.
+4. Randomizar fase/hue en efectos que hoy ignoran `show_base`. Estado: hecho, con la misma fase inicial para ambas cintas.
+5. Mantener ambas cintas con el mismo efecto y mejorar SHOW con transiciones, paleta curada y evolucion interna de color. Estado: hecho.
 
-La mejora mas costo/beneficio es la bolsa barajada + fase aleatoria + diagnostico. Eso atacaria directamente la queja de "no parece random" sin crear nuevos modos, pantallas o parametros de usuario.
+La mejora restante de mayor costo/beneficio es diagnostico dev-only de SHOW. Eso permitiria verificar color, temporizador y estado homogeneo sin agregar controles nuevos.
 
 ---
 

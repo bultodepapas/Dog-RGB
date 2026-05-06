@@ -41,6 +41,9 @@ EffectState show_state_b;
 uint8_t show_effect_id = 0;
 unsigned long show_effect_since_ms = 0;
 Rgb show_base = {0, 0, 0};
+Rgb show_next_base = {0, 0, 0};
+uint8_t show_speed = SHOW_SPEED;
+uint8_t show_intensity = SHOW_INTENSITY;
 bool show_first_tick = true;
 uint8_t show_effect_order[EFFECT_COUNT];
 uint8_t show_effect_order_index = EFFECT_COUNT;
@@ -68,12 +71,27 @@ EffectState welcome_state_b;
 const uint8_t WELCOME_LAPS = 5;
 const uint8_t WELCOME_SPEED = 32;
 const uint8_t WELCOME_INTENSITY = 255;
+const unsigned long SHOW_TRANSITION_MS = 500;
 const Rgb WELCOME_COLORS[5] = {
   {255, 0, 0},     // rojo
   {255, 255, 255}, // blanco
   {255, 0, 128},   // rosado
   {0, 0, 255},     // azul
   {0, 255, 0}      // verde
+};
+const Rgb SHOW_PALETTE[] = {
+  {255, 0, 80},
+  {0, 180, 255},
+  {0, 255, 120},
+  {255, 180, 0},
+  {150, 0, 255},
+  {255, 255, 255},
+  {255, 70, 0},
+  {0, 70, 255},
+  {255, 0, 190},
+  {70, 255, 220},
+  {255, 230, 60},
+  {120, 255, 0}
 };
 
 } // namespace
@@ -98,6 +116,22 @@ static uint8_t scale8(uint8_t value, uint8_t scale) {
 static Rgb scale_rgb(const Rgb &c, float scale) {
   const uint8_t s = clamp_u8(static_cast<int>(scale * 255.0f));
   return make_rgb(scale8(c.r, s), scale8(c.g, s), scale8(c.b, s));
+}
+
+static Rgb scale_rgb8(const Rgb &c, uint8_t scale) {
+  return make_rgb(scale8(c.r, scale), scale8(c.g, scale), scale8(c.b, scale));
+}
+
+static uint8_t blend_u8(uint8_t a, uint8_t b, uint8_t amount) {
+  const uint16_t inv = static_cast<uint16_t>(255 - amount);
+  return static_cast<uint8_t>(((static_cast<uint16_t>(a) * inv) +
+                               (static_cast<uint16_t>(b) * amount)) / 255);
+}
+
+static Rgb blend_rgb(const Rgb &a, const Rgb &b, uint8_t amount) {
+  return make_rgb(blend_u8(a.r, b.r, amount),
+                  blend_u8(a.g, b.g, amount),
+                  blend_u8(a.b, b.b, amount));
 }
 
 static void fade_rgb(Rgb &c, uint8_t amount) {
@@ -598,10 +632,12 @@ static void paint_status_leds(unsigned long now_ms,
 }
 
 static Rgb random_show_color() {
-  const uint8_t hue = random8(0, 255);
-  const uint8_t sat = random8(200, 255);
-  const uint8_t val = random8(180, 255);
-  return hsv_to_rgb(hue, sat, val);
+  const size_t palette_size = sizeof(SHOW_PALETTE) / sizeof(SHOW_PALETTE[0]);
+  Rgb color = SHOW_PALETTE[random8(static_cast<uint8_t>(palette_size - 1))];
+  color.r = clamp_u8(static_cast<int>(color.r) + static_cast<int>(random8(0, 40)) - 20);
+  color.g = clamp_u8(static_cast<int>(color.g) + static_cast<int>(random8(0, 40)) - 20);
+  color.b = clamp_u8(static_cast<int>(color.b) + static_cast<int>(random8(0, 40)) - 20);
+  return color;
 }
 
 static void clear_show_buffers() {
@@ -639,13 +675,61 @@ static uint8_t next_show_effect() {
   return effect_id;
 }
 
+static uint8_t show_elapsed_amount(unsigned long now_ms) {
+  const unsigned long elapsed_ms = now_ms - show_effect_since_ms;
+  if (elapsed_ms >= SHOW_EFFECT_MS) {
+    return 255;
+  }
+  return static_cast<uint8_t>((elapsed_ms * 255UL) / SHOW_EFFECT_MS);
+}
+
+static Rgb current_show_base(unsigned long now_ms) {
+  return blend_rgb(show_base, show_next_base, show_elapsed_amount(now_ms));
+}
+
+static uint8_t show_transition_scale(unsigned long now_ms) {
+  if (SHOW_TRANSITION_MS == 0) {
+    return 255;
+  }
+  const unsigned long elapsed_ms = now_ms - show_effect_since_ms;
+  const unsigned long remaining_ms = (elapsed_ms < SHOW_EFFECT_MS) ? (SHOW_EFFECT_MS - elapsed_ms) : 0;
+  uint8_t scale = 255;
+  if (elapsed_ms < SHOW_TRANSITION_MS) {
+    scale = static_cast<uint8_t>((elapsed_ms * 255UL) / SHOW_TRANSITION_MS);
+  }
+  if (remaining_ms < SHOW_TRANSITION_MS) {
+    const uint8_t fade_out = static_cast<uint8_t>((remaining_ms * 255UL) / SHOW_TRANSITION_MS);
+    if (fade_out < scale) {
+      scale = fade_out;
+    }
+  }
+  return scale;
+}
+
+static void scale_show_range(Rgb *leds, int start, int count, uint8_t scale) {
+  if (scale == 255) {
+    return;
+  }
+  for (int i = start; i < start + count; ++i) {
+    leds[i] = scale_rgb8(leds[i], scale);
+  }
+}
+
 static void prepare_show_effect() {
   show_base = random_show_color();
+  show_next_base = random_show_color();
+  show_speed = clamp_u8(static_cast<int>(SHOW_SPEED) + static_cast<int>(random8(0, 50)) - 25);
+  show_intensity = clamp_u8(static_cast<int>(SHOW_INTENSITY) + static_cast<int>(random8(0, 50)) - 25);
+  if (show_effect_id == 10) { // FIRE
+    show_speed = random8(130, 180);
+    show_intensity = random8(175, 220);
+  }
   show_state_a = {};
   show_state_b = {};
   if (show_effect_id == 9 || show_effect_id == 11) { // RAINBOW / GRADIENT_WAVE
-    show_state_a.hue = random8();
-    show_state_b.hue = random8();
+    const uint8_t hue = random8();
+    show_state_a.hue = hue;
+    show_state_b.hue = hue;
   }
   if (show_effect_id == 10) { // FIRE
     for (int i = 0; i < LED_STRIP_COUNT; ++i) {
@@ -683,13 +767,17 @@ static void update_show_mode(unsigned long now_ms) {
   update_gps_fix_timer(now_ms, gps_ok);
   const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
   const bool homogeneous_mode = (wifi_mgr::wifi_off() && gps_fix_ms >= WIFI_OFF_GPS_FIX_MS);
+  const Rgb active_show_base = current_show_base(now_ms);
+  const uint8_t transition_scale = show_transition_scale(now_ms);
 
   if (homogeneous_mode) {
-    apply_effect(show_effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, show_base, SHOW_SPEED, SHOW_INTENSITY,
+    apply_effect(show_effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, active_show_base, show_speed, show_intensity,
                  show_state_a);
+    scale_show_range(leds_a, 0, LED_STRIP_COUNT, transition_scale);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(show_effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, show_base, SHOW_SPEED, SHOW_INTENSITY,
+      apply_effect(show_effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, active_show_base, show_speed, show_intensity,
                    show_state_b);
+      scale_show_range(leds_b, 0, LED_STRIP_COUNT, transition_scale);
     }
     show_leds();
     return;
@@ -698,18 +786,22 @@ static void update_show_mode(unsigned long now_ms) {
   const int seg_start = LED_STATUS_COUNT;
   const int seg_count = LED_STRIP_COUNT - LED_STATUS_COUNT;
   if (seg_count > 0) {
-    apply_effect(show_effect_id, leds_a, heat_a, seg_start, seg_count, show_base, SHOW_SPEED, SHOW_INTENSITY,
+    apply_effect(show_effect_id, leds_a, heat_a, seg_start, seg_count, active_show_base, show_speed, show_intensity,
                  show_state_a);
+    scale_show_range(leds_a, seg_start, seg_count, transition_scale);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(show_effect_id, leds_b, heat_b, seg_start, seg_count, show_base, SHOW_SPEED, SHOW_INTENSITY,
+      apply_effect(show_effect_id, leds_b, heat_b, seg_start, seg_count, active_show_base, show_speed, show_intensity,
                    show_state_b);
+      scale_show_range(leds_b, seg_start, seg_count, transition_scale);
     }
   } else {
-    apply_effect(show_effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, show_base, SHOW_SPEED, SHOW_INTENSITY,
+    apply_effect(show_effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, active_show_base, show_speed, show_intensity,
                  show_state_a);
+    scale_show_range(leds_a, 0, LED_STRIP_COUNT, transition_scale);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(show_effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, show_base, SHOW_SPEED, SHOW_INTENSITY,
+      apply_effect(show_effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, active_show_base, show_speed, show_intensity,
                    show_state_b);
+      scale_show_range(leds_b, 0, LED_STRIP_COUNT, transition_scale);
     }
   }
 

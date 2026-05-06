@@ -57,11 +57,16 @@ Defaults actuales (ver `Platformio/Dog-RGB/include/config.h`):
 ## Modo SHOW
 
 - Recorre los 12 efectos disponibles.
-- Duracion por efecto: `SHOW_EFFECT_MS` (default 15 s).
+- Duracion por efecto: `SHOW_EFFECT_MS` (default 30 s).
 - Usa un color base aleatorio por efecto cuando el efecto lo permite.
 - El orden actual usa una bolsa barajada interna: no repite efectos hasta recorrer los 12.
 - Al reiniciar la bolsa, evita que el primer efecto nuevo sea igual al ultimo efecto mostrado.
 - Al entrar a SHOW, se baraja la bolsa y el primer efecto ya no esta fijado a SOLID.
+- El color base sale de una paleta interna curada con variacion leve por canal.
+- Durante cada efecto, el color base se interpola hacia un segundo color interno.
+- Cada cambio de efecto usa fade-in/fade-out corto (`SHOW_TRANSITION_MS`, 500 ms).
+- `speed` e `intensity` tienen variacion interna segura por efecto; FIRE usa una ventana propia.
+- Ambas cintas reciben siempre el mismo efecto SHOW y los mismos parametros internos.
 - Segmento B muestra la demo; Segmento A conserva Wi-Fi/GPS salvo modo homogeneo.
 - En modo homogeneo, SHOW se aplica a toda la tira.
 

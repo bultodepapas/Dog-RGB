@@ -89,7 +89,7 @@ static const bool LED_UI_ENABLED = true; // Disable to turn off LED UI logic.
 
 // LED SHOW mode (demo).
 static const uint8_t EFFECT_COUNT = 12; // IDs 0..11
-static const unsigned long SHOW_EFFECT_MS = 15000;
+static const unsigned long SHOW_EFFECT_MS = 30000;
 static const uint8_t SHOW_SPEED = 150;
 static const uint8_t SHOW_INTENSITY = 200;
 static const uint8_t SINGLE_EFFECT_DEFAULT = 0; // SOLID

@@ -47,22 +47,24 @@ Registrar cada cambio de efecto:
 | Cambio | Tiempo aproximado | Efecto observado | ID observado | Notas |
 | --- | --- | --- | --- | --- |
 | 1 | 00:00 |  |  |  |
-| 2 | 00:15 |  |  |  |
-| 3 | 00:30 |  |  |  |
-| 4 | 00:45 |  |  |  |
-| 5 | 01:00 |  |  |  |
-| 6 | 01:15 |  |  |  |
-| 7 | 01:30 |  |  |  |
-| 8 | 01:45 |  |  |  |
-| 9 | 02:00 |  |  |  |
-| 10 | 02:15 |  |  |  |
-| 11 | 02:30 |  |  |  |
-| 12 | 02:45 |  |  |  |
+| 2 | 00:30 |  |  |  |
+| 3 | 01:00 |  |  |  |
+| 4 | 01:30 |  |  |  |
+| 5 | 02:00 |  |  |  |
+| 6 | 02:30 |  |  |  |
+| 7 | 03:00 |  |  |  |
+| 8 | 03:30 |  |  |  |
+| 9 | 04:00 |  |  |  |
+| 10 | 04:30 |  |  |  |
+| 11 | 05:00 |  |  |  |
+| 12 | 05:30 |  |  |  |
 
 Resultado esperado:
 - Los 12 IDs aparecen una vez antes de repetir bolsa.
 - Al iniciar una bolsa nueva, el primer efecto no debe ser igual al ultimo efecto de la bolsa anterior.
-- Cada efecto dura aproximadamente 15 s.
+- Cada efecto dura aproximadamente 30 s.
+- Cada cambio de efecto tiene una transicion breve, sin corte brusco.
+- En efectos que usan color base, debe notarse evolucion de color dentro de los 30 s.
 - El color base cambia al pasar de efecto, aunque RAINBOW, FIRE y GRADIENT_WAVE no lo reflejan directamente.
 
 ---
@@ -105,8 +107,9 @@ Si `LED_STRIP_MODE = 2`:
 - Registrar si la simetria visual parece pobre o repetitiva.
 
 Resultado esperado:
-- Ambas tiras usan el mismo efecto y color base.
-- La simetria actual es comportamiento esperado, no fallo; la aleatoriedad de Fase 1 cambia el orden/fase, no agrega offsets visuales entre tiras.
+- Ambas tiras usan el mismo efecto SHOW en todo momento.
+- Ambas tiras usan los mismos parametros internos de SHOW; no debe aparecer un efecto distinto en una sola tira.
+- La simetria actual es comportamiento esperado, no fallo.
 
 ---
 
@@ -117,6 +120,9 @@ La Fase 1 queda validada si:
 - El modo SHOW puede activarse desde `/config`.
 - `/dev` muestra `mode = show` y el efecto actual.
 - Se observan 12 efectos sin repeticion dentro de la bolsa.
+- Se observan transiciones breves entre efectos.
+- Se observa variacion de color dentro de efectos que usan color base.
+- Ambas cintas mantienen el mismo efecto en todo momento.
 - Status LEDs se conservan fuera de homogeneo.
 - Homogeneo pisa toda la tira cuando corresponde.
 - Cualquier diferencia visual se registra como hallazgo, no como cambio aplicado.
