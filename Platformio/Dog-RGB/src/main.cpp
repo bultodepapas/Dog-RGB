@@ -280,7 +280,13 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(" ssid_set=");
   Serial.print(wifi_mgr::ssid().length() > 0 ? "1" : "0");
   Serial.print(" rssi=");
-  Serial.println(sta_ok ? WiFi.RSSI() : 0);
+  Serial.print(sta_ok ? WiFi.RSSI() : 0);
+  Serial.print(" ap_ip=");
+  Serial.print(WiFi.softAPIP().toString());
+  Serial.print(" sta_ip=");
+  Serial.print(sta_ok ? WiFi.localIP().toString() : String("0.0.0.0"));
+  Serial.print(" ap_ch=");
+  Serial.println(wifi_mgr::diagnostics().current_ap_channel);
 
   const bool has_range = (!body_idle && !home_missing);
   int effect_a = RANGE_1_EFFECT_A;
@@ -331,6 +337,39 @@ static void emit_periodic_logs(unsigned long now_ms) {
     loop_sum_us = 0;
     loop_max_us = 0;
     loop_count = 0;
+    const wifi_mgr::WifiDiagnostics &wd = wifi_mgr::diagnostics();
+    const long ap_hold_s = (wifi_mgr::ap_enabled() && wd.ap_hold_until_ms > now_ms)
+                               ? static_cast<long>((wd.ap_hold_until_ms - now_ms) / 1000) : -1;
+    const long retry_s = (!sta_ok && wd.next_sta_retry_ms > now_ms)
+                             ? static_cast<long>((wd.next_sta_retry_ms - now_ms) / 1000) : -1;
+    Serial.print("[WIFI_DIAG] ap_start=");
+    Serial.print(wd.ap_start_count);
+    Serial.print(" ap_fail=");
+    Serial.print(wd.ap_start_fail_count);
+    Serial.print(" ap_stop=");
+    Serial.print(wd.ap_stop_count);
+    Serial.print(" ap_restart=");
+    Serial.print(wd.ap_restart_count);
+    Serial.print(" sta_retry=");
+    Serial.print(wd.sta_retry_count);
+    Serial.print(" sta_fail=");
+    Serial.print(wd.sta_connect_fail_count);
+    Serial.print(" sta_got_ip=");
+    Serial.print(wd.sta_got_ip_count);
+    Serial.print(" sta_disc=");
+    Serial.print(wd.sta_disconnect_count);
+    Serial.print(" ap_conn=");
+    Serial.print(wd.ap_station_connect_count);
+    Serial.print(" ap_disc=");
+    Serial.print(wd.ap_station_disconnect_count);
+    Serial.print(" ap_hold_s=");
+    Serial.print(ap_hold_s);
+    Serial.print(" retry_s=");
+    Serial.print(retry_s);
+    Serial.print(" last_ap_rsn=");
+    Serial.print(wd.last_ap_reason);
+    Serial.print(" last_sta_rsn=");
+    Serial.println(wd.last_sta_reason);
   }
 }
 

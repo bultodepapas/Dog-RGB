@@ -100,6 +100,18 @@ bool start_ap_radio(const char *reason, bool preserve_sta) {
     ap_enabled_state = false;
     ap_station_count_state = 0;
   }
+  Serial.print("[WIFI_AP] start ");
+  Serial.print(ok ? "OK" : "FAIL");
+  Serial.print(" ssid=");
+  Serial.print(cfg.ap_ssid);
+  Serial.print(" ch=");
+  Serial.print(channel);
+  Serial.print(" mode=");
+  Serial.print(use_ap_sta ? "AP_STA" : "AP");
+  Serial.print(" reason=");
+  Serial.print(reason);
+  Serial.print(" ip=");
+  Serial.println(ok ? WiFi.softAPIP().toString() : String("n/a"));
   return ok;
 }
 
@@ -115,6 +127,8 @@ void stop_ap_radio(const char *reason) {
   wifi_diag.last_ap_stop_ms = millis();
   wifi_diag.ap_hold_until_ms = 0;
   set_reason(wifi_diag.last_ap_reason, sizeof(wifi_diag.last_ap_reason), reason);
+  Serial.print("[WIFI_AP] stop reason=");
+  Serial.println(reason);
 }
 
 void reset_sta_backoff() {
@@ -129,6 +143,14 @@ void schedule_sta_retry(unsigned long now_ms, const char *reason) {
   sta_retry_backoff_ms = (sta_retry_backoff_ms >= STA_RETRY_BACKOFF_MAX_MS / 2)
                              ? STA_RETRY_BACKOFF_MAX_MS
                              : sta_retry_backoff_ms * 2;
+  Serial.print("[WIFI_STA] retry_sched delay_ms=");
+  Serial.print(wifi_diag.next_sta_retry_ms - now_ms);
+  Serial.print(" next_backoff_ms=");
+  Serial.print(sta_retry_backoff_ms);
+  Serial.print(" fail_count=");
+  Serial.print(wifi_diag.sta_connect_fail_count);
+  Serial.print(" reason=");
+  Serial.println(reason);
 }
 
 void begin_mdns() {
@@ -152,6 +174,8 @@ void on_wifi_event(WiFiEvent_t event) {
     update_ap_station_count();
     last_ap_client_ms = now_ms;
     hold_ap(now_ms, AP_PORTAL_ACTIVITY_HOLD_MS);
+    Serial.print("[WIFI_EVT] AP_STA_CONN clients=");
+    Serial.println(ap_station_count_state);
     return;
   }
 
@@ -164,6 +188,8 @@ void on_wifi_event(WiFiEvent_t event) {
 #endif
     wifi_diag.ap_station_disconnect_count++;
     update_ap_station_count();
+    Serial.print("[WIFI_EVT] AP_STA_DISC clients=");
+    Serial.println(ap_station_count_state);
     return;
   }
 
@@ -180,6 +206,10 @@ void on_wifi_event(WiFiEvent_t event) {
     wifi_diag.current_ap_channel = WiFi.channel();
     reset_sta_backoff();
     begin_mdns();
+    Serial.print("[WIFI_EVT] STA_GOT_IP ip=");
+    Serial.print(WiFi.localIP().toString());
+    Serial.print(" rssi=");
+    Serial.println(WiFi.RSSI());
     return;
   }
 
@@ -198,6 +228,7 @@ void on_wifi_event(WiFiEvent_t event) {
     } else {
       set_reason(wifi_diag.last_sta_reason, sizeof(wifi_diag.last_sta_reason), "sta_disconnected");
     }
+    Serial.println("[WIFI_EVT] STA_DISC");
   }
 }
 
@@ -234,6 +265,12 @@ void start_sta_mode_internal(const char *reason) {
   wifi_diag.sta_retry_count++;
   wifi_diag.last_sta_retry_ms = wifi_sta_start_ms;
   set_reason(wifi_diag.last_sta_reason, sizeof(wifi_diag.last_sta_reason), reason);
+  Serial.print("[WIFI_STA] begin ssid=");
+  Serial.print(wifi_ssid);
+  Serial.print(" retry_count=");
+  Serial.print(wifi_diag.sta_retry_count);
+  Serial.print(" reason=");
+  Serial.println(reason);
 }
 
 void enable_ap(const char *reason) {
@@ -266,11 +303,13 @@ void set_wifi_off(bool off) {
     wifi_sta_connecting = false;
     last_ap_client_ms = 0;
     last_ap_poll_ms = 0;
+    Serial.println("[WIFI_OFF] radio disabled");
     return;
   }
   if (!wifi_off_state) {
     return;
   }
+  Serial.println("[WIFI_OFF] radio re-enabled");
   wifi_off_state = false;
   if (wifi_ssid.length() > 0) {
     start_ap_radio("wifi_on", false);
@@ -379,6 +418,8 @@ void tick(unsigned long now_ms) {
       wifi_diag.current_ap_channel = WiFi.channel();
     }
     if (wifi_sta_connected && WiFi.status() != WL_CONNECTED) {
+      Serial.print("[WIFI_STA] status_lost wl_status=");
+      Serial.println(WiFi.status());
       wifi_sta_connected = false;
       if (wifi_ssid.length() > 0) {
         schedule_sta_retry(now_ms, "status_lost");
@@ -391,7 +432,15 @@ void tick(unsigned long now_ms) {
         wifi_sta_connecting = false;
         reset_sta_backoff();
         begin_mdns();
+        Serial.print("[WIFI_STA] connected ip=");
+        Serial.print(WiFi.localIP().toString());
+        Serial.print(" rssi=");
+        Serial.println(WiFi.RSSI());
       } else if ((now_ms - wifi_sta_start_ms) >= STA_CONNECT_TIMEOUT_MS) {
+        Serial.print("[WIFI_STA] connect_timeout after_ms=");
+        Serial.print(now_ms - wifi_sta_start_ms);
+        Serial.print(" wl_status=");
+        Serial.println(WiFi.status());
         wifi_sta_connecting = false;
         WiFi.disconnect(false, false);
         if (!ap_enabled_state) {
