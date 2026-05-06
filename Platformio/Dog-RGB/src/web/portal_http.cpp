@@ -144,7 +144,7 @@ void handle_summary() {
 
 void handle_status_get() {
   note_activity();
-  StaticJsonDocument<896> doc;
+  StaticJsonDocument<1152> doc;
   const RuntimeConfig &cfg = config::get();
   doc["mode"] = config::mode_name(cfg.mode);
   JsonObject wifi = doc["wifi"].to<JsonObject>();
@@ -152,7 +152,11 @@ void handle_status_get() {
   wifi["ap_ssid"] = cfg.ap_ssid;
   wifi["ap_stations"] = wifi_mgr::ap_station_count();
   wifi["sta_connected"] = wifi_mgr::sta_connected();
+  wifi["sta_connecting"] = wifi_mgr::sta_connecting();
+  wifi["wifi_off"] = wifi_mgr::wifi_off();
   wifi["mdns"] = cfg.mdns;
+  wifi["sta_ip"] = WiFi.localIP().toString();
+  wifi["ap_ip"] = WiFi.softAPIP().toString();
 
   JsonObject gps = doc["gps"].to<JsonObject>();
   gps["fix"] = gps::has_fix();
@@ -724,6 +728,61 @@ void handle_config_reset() {
   server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
+void handle_wifi_ap_save() {
+  note_activity();
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
+    return;
+  }
+  StaticJsonDocument<512> doc;
+  const DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
+    return;
+  }
+
+  RuntimeConfig next = config::get();
+  const String ap_ssid = doc["ap_ssid"] | next.ap_ssid;
+  const String ap_pass = doc["ap_pass"] | String("");
+  const bool ap_open = doc["ap_open"] | false;
+  const String mdns = doc["mdns"] | next.mdns;
+  if (!config::valid_ap_ssid(ap_ssid)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ssid\"}");
+    return;
+  }
+  if (!ap_open && ap_pass.length() == 0 && next.ap_pass.length() == 0) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"pass required\"}");
+    return;
+  }
+  if (!ap_open && ap_pass.length() > 0 && !config::valid_ap_pass(ap_pass)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"pass\"}");
+    return;
+  }
+  if (!config::valid_mdns(mdns)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"mdns\"}");
+    return;
+  }
+
+  next.ap_ssid = ap_ssid;
+  if (ap_open) {
+    next.ap_pass = "";
+  } else if (ap_pass.length() > 0) {
+    next.ap_pass = ap_pass;
+  }
+  next.mdns = mdns;
+
+  RuntimeConfig previous = config::get();
+  config::get_mut() = next;
+  config::save();
+  config::apply(previous);
+  const bool wifi_restart = (config::get().ap_ssid != previous.ap_ssid || config::get().ap_pass != previous.ap_pass);
+  if (wifi_restart) {
+    wifi_mgr::schedule_ap_restart();
+  }
+  server.send(200, "application/json", wifi_restart ? "{\"status\":\"ok\",\"wifi_restart\":true}"
+                                                     : "{\"status\":\"ok\",\"wifi_restart\":false}");
+}
+
 void handle_config_page() {
   note_activity();
   server.send(200, "text/html", web_pages::html_config_page());
@@ -804,6 +863,7 @@ void begin() {
   server.on("/api/home/clear", HTTP_POST, handle_home_clear);
   server.on("/wifi", HTTP_GET, handle_wifi_page);
   server.on("/api/wifi", HTTP_POST, handle_wifi_save);
+  server.on("/api/wifi/ap", HTTP_POST, handle_wifi_ap_save);
   server.on("/generate_204", HTTP_GET, handle_captive_probe);
   server.on("/gen_204", HTTP_GET, handle_captive_probe);
   server.on("/hotspot-detect.html", HTTP_GET, handle_captive_probe);

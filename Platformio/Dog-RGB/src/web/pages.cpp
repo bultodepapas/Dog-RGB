@@ -36,11 +36,24 @@ h2{font-size:18px;}
 .metric .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
 .metric .value{font-size:28px;font-weight:700;line-height:1.1;}
 .metric .unit{font-size:12px;color:var(--muted);}
+.dashboard-summary{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:stretch;}
+.primary-metric{display:flex;flex-direction:column;justify-content:center;min-height:118px;}
+.primary-metric .value{font-size:42px;font-weight:700;line-height:1;}
+.stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.stat{background:#F8FAFB;border:1px solid var(--border);border-radius:12px;padding:12px;}
+.stat .value{font-size:24px;font-weight:700;line-height:1.1;}
+.summary-meta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;color:var(--muted);font-size:12px;}
+.empty-state{padding:12px;background:#F8FAFB;border:1px solid var(--border);border-radius:12px;color:var(--muted);font-size:13px;}
 .muted{color:var(--muted);font-size:12px;}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid transparent;background:var(--text);color:#fff;font-weight:600;font-size:14px;cursor:pointer;}
 .btn.ghost{background:transparent;color:var(--text);border-color:var(--border);}
 .btn:disabled{opacity:0.6;cursor:not-allowed;}
 .actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0;}
+.dashboard-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.advanced-menu{position:relative;}
+.advanced-menu > summary{list-style:none;}
+.advanced-menu > summary::-webkit-details-marker{display:none;}
+.advanced-menu .section{margin-top:8px;}
 .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
 input,select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font-family:inherit;font-size:14px;color:var(--text);}
 input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,209,193,0.15);}
@@ -68,17 +81,17 @@ details.section[open] > summary::after{content:'-';}
 .action-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
 .mode-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;}
 .field-inline{min-width:180px;}
-.session-card{margin:8px 0;}
+.session-card{margin:8px 0;padding:12px;background:#F8FAFB;border:1px solid var(--border);border-radius:12px;}
 .track-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;}
 .track-canvas{width:100%;height:220px;border:1px solid var(--border);border-radius:12px;background:#F8FAFB;}
-@media (max-width:760px){.grid-2,.grid-3{grid-template-columns:1fr;}.effects-row{grid-template-columns:52px 1fr;grid-template-areas:"range a" "range b" "range speed" "range intensity";}.effects-row .range-label{align-self:start;padding-top:4px;}.hero-top{flex-direction:column;align-items:flex-start;}}
+@media (max-width:760px){.grid-2,.grid-3,.dashboard-summary,.stat-grid{grid-template-columns:1fr;}.primary-metric{min-height:auto;}.primary-metric .value{font-size:38px;}.dashboard-actions .btn,.dashboard-actions summary.btn{flex:1 1 138px;}.effects-row{grid-template-columns:52px 1fr;grid-template-areas:"range a" "range b" "range speed" "range intensity";}.effects-row .range-label{align-self:start;padding-top:4px;}.hero-top{flex-direction:column;align-items:flex-start;}}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
 )CSS";
 } // namespace
 
 String web_pages::html_page() {
   String page;
-  page.reserve(12000);
+  page.reserve(13000);
   page += F(R"HTML(
 <!doctype html>
 <html>
@@ -117,76 +130,85 @@ String web_pages::html_page() {
             <option value="show">Show</option>
           </select>
         </div>
-        <button class="btn" onclick="saveMode()">Aplicar</button>
+        <button class="btn" id="mode_btn" onclick="saveMode()">Aplicar</button>
         <span class="muted" id="mode_status"></span>
       </div>
+      <div class="dashboard-actions">
+        <button class="btn" onclick="refreshAll()">Actualizar</button>
+        <a class="btn ghost" href="/wifi">Configurar Wi-Fi</a>
+        <a class="btn ghost" href="/config">Ajustes</a>
+        <button class="btn ghost" id="home_btn" onclick="updateHome()" style="display:none">Actualizar Home</button>
+        <details class="advanced-menu">
+          <summary class="btn ghost">Avanzado</summary>
+          <div class="section">
+            <a class="btn ghost" href="/dev">Diagnostico</a>
+          </div>
+        </details>
+      </div>
+      <div class="muted" id="status">Estado: --</div>
     </div>
 
-    <div class="grid grid-2 section">
-      <div class="card metric">
+    <div class="card section dashboard-summary">
+      <div class="primary-metric metric">
         <div class="label">Distancia</div>
         <div class="value" id="dist">--</div>
         <div class="unit">km</div>
       </div>
-      <div class="card metric">
-        <div class="label">Velocidad promedio</div>
-        <div class="value" id="avg">--</div>
-        <div class="unit">km/h</div>
+      <div class="stat-grid">
+        <div class="stat metric">
+          <div class="label">Vel. promedio</div>
+          <div class="value" id="avg">--</div>
+          <div class="unit">km/h</div>
+        </div>
+        <div class="stat metric">
+          <div class="label">Vel. maxima</div>
+          <div class="value" id="max">--</div>
+          <div class="unit">km/h</div>
+        </div>
       </div>
-      <div class="card metric">
-        <div class="label">Velocidad maxima</div>
-        <div class="value" id="max">--</div>
-        <div class="unit">km/h</div>
-      </div>
-      <div class="card metric">
-        <div class="label">Fecha</div>
-        <div class="value" id="date">--</div>
-        <div class="muted" id="updated">Ultima lectura: --</div>
+      <div class="summary-meta">
+        <span>Fecha: <span id="date">--</span></span>
+        <span id="updated">Ultima lectura: --</span>
       </div>
     </div>
 
-    <div class="card section">
-      <h2>Sesiones</h2>
-      <div id="session-current"></div>
-      <div id="history"></div>
-    </div>
-
-    <div class="card section">
-      <div class="track-controls">
-        <h2>Ruta</h2>
-        <select id="track_session">
-          <option value="current">Sesion actual</option>
-          <option value="0">Sesion 1 (ultima)</option>
-          <option value="1">Sesion 2</option>
-          <option value="2">Sesion 3</option>
-        </select>
-        <a class="btn ghost" id="track_csv" href="/api/track.csv">Export CSV</a>
-        <a class="btn ghost" id="track_geo" href="/api/track.geojson">Export GeoJSON</a>
+    <details class="card section">
+      <summary>Historial y ruta</summary>
+      <div class="section-body">
+        <h2>Sesiones</h2>
+        <div id="session-current"></div>
+        <div id="history"></div>
+        <div class="track-controls section">
+          <h2>Ruta</h2>
+          <select id="track_session">
+            <option value="current">Sesion actual</option>
+            <option value="0">Sesion 1 (ultima)</option>
+            <option value="1">Sesion 2</option>
+            <option value="2">Sesion 3</option>
+          </select>
+          <button class="btn ghost" id="track_load" type="button" onclick="loadTrack()">Cargar ruta</button>
+          <a class="btn ghost" id="track_csv" href="/api/track.csv" style="display:none">Export CSV</a>
+          <a class="btn ghost" id="track_geo" href="/api/track.geojson" style="display:none">Export GeoJSON</a>
+        </div>
+        <canvas id="track_map" class="track-canvas"></canvas>
+        <div class="muted" id="track_status">Ruta: sin cargar</div>
       </div>
-      <canvas id="track_map" class="track-canvas"></canvas>
-      <div class="muted" id="track_status">Ruta: --</div>
-    </div>
-
-    <div class="actions">
-      <button class="btn" onclick="refreshAll()">Actualizar</button>
-      <button class="btn ghost" id="home_btn" onclick="updateHome()" style="display:none">Actualizar Home</button>
-      <a class="btn ghost" href="/config">Config</a>
-      <a class="btn ghost" href="/wifi">Wi-Fi</a>
-      <a class="btn ghost" href="/dev">Dev</a>
-    </div>
-    <div class="muted" id="status">Estado: --</div>
+    </details>
   </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
     const modeSelect = $('mode_select');
     const homeBtn = $('home_btn');
+    const modeBtn = $('mode_btn');
     const modeStatus = $('mode_status');
     const trackCanvas = $('track_map');
     const trackSession = $('track_session');
     const trackStatus = $('track_status');
     const trackCsv = $('track_csv');
     const trackGeo = $('track_geo');
+    const trackLoad = $('track_load');
+    let trackLoaded = false;
     function minToTime(m){var h=Math.floor(m/60);var mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
     function cmpsToKph(v){return (v*0.036).toFixed(1);}
     function fmtDate(d){if(!d){return '--';}var s=String(d);if(s.length!==8){return s;}return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);}
@@ -208,6 +230,11 @@ String web_pages::html_page() {
       if(trackGeo) trackGeo.href='/api/track.geojson?session='+session;
     }
 
+    function setTrackExportsVisible(visible){
+      if(trackCsv) trackCsv.style.display=visible?'inline-flex':'none';
+      if(trackGeo) trackGeo.style.display=visible?'inline-flex':'none';
+    }
+
     function clearTrack(msg){
       if(trackCanvas){
         const ctx=trackCanvas.getContext('2d');
@@ -216,6 +243,7 @@ String web_pages::html_page() {
         ctx.setTransform(dpr,0,0,dpr,0,0);
         ctx.clearRect(0,0,rect.width,rect.height);
       }
+      setTrackExportsVisible(false);
       if(trackStatus) trackStatus.textContent=msg||'Ruta: --';
     }
 
@@ -264,13 +292,15 @@ String web_pages::html_page() {
     async function loadTrack(){
       if(!trackSession){return;}
       const session=trackSession.value||'current';
+      trackLoaded=true;
       setTrackLinks(session);
       if(trackStatus) trackStatus.textContent='Ruta: cargando...';
+      if(trackLoad) trackLoad.disabled=true;
       try{
         const r=await fetch('/api/track?session='+session+'&max_points=400');
         const d=await r.json();
         if(!d||!d.count||!d.points||d.points.length<2){
-          clearTrack('Ruta: sin datos');
+          clearTrack('Ruta: no hay puntos suficientes');
           return;
         }
         if(!d.bbox){
@@ -278,6 +308,7 @@ String web_pages::html_page() {
           return;
         }
         drawTrack(d.points,d.bbox);
+        setTrackExportsVisible(true);
         var sDate=fmtDate(d.start_date);
         var eDate=fmtDate(d.end_date||d.start_date);
         var sTime=minToTime(d.start_min||0);
@@ -285,16 +316,28 @@ String web_pages::html_page() {
         if(trackStatus) trackStatus.textContent='Ruta: '+d.count+' pts | '+sDate+' '+sTime+' a '+eDate+' '+eTime;
       }catch(e){
         clearTrack('Ruta: error');
+      }finally{
+        if(trackLoad) trackLoad.disabled=false;
       }
     }
 
     function renderSummary(d){
       if(!d||!d.has_data){
-        $('status').textContent='Estado: Sin datos';
-        $('dist').textContent='--';
+        const gpsFix=!!(d&&d.gps_fix);
+        const gpsRaw=!!(d&&d.gps_raw_fix);
+        if(gpsFix){
+          $('status').textContent='Estado: Sin actividad registrada hoy';
+          $('dist').textContent='0.00';
+        } else if(gpsRaw){
+          $('status').textContent='Estado: GPS no confiable';
+          $('dist').textContent='--';
+        } else {
+          $('status').textContent='Estado: Esperando GPS';
+          $('dist').textContent='--';
+        }
         $('avg').textContent='--';
         $('max').textContent='--';
-        $('date').textContent='--';
+        $('date').textContent=(d&&d.date)?fmtDate(d.date):'--';
         $('updated').textContent='Ultima lectura: --';
         return;
       }
@@ -317,7 +360,7 @@ String web_pages::html_page() {
       var flags=s.flags||0;
       var noFix=hasFlag(flags,3)||!hasFlag(flags,0);
       if(noFix){
-        return "<div class='card session-card'><div class='label'>"+label+"</div><div>Sin GPS</div></div>";
+        return "<div class='session-card'><div class='label'>"+label+"</div><div class='muted'>GPS no disponible para esta sesion</div></div>";
       }
       var startDate=yyyymmddToDate(s.start_date);
       var startTime=minToTime(s.start_min||0);
@@ -327,7 +370,7 @@ String web_pages::html_page() {
       var avg=cmpsToKph(s.avg_speed_cmps||0);
       var max=cmpsToKph(s.max_speed_cmps||0);
       var active=formatDuration(s.active_s||0);
-      return "<div class='card session-card'><div class='label'>"+label+"</div>"+
+      return "<div class='session-card'><div class='label'>"+label+"</div>"+
              "<div class='muted'>"+startDate+" "+startTime+" a "+endDate+" "+endTime+"</div>"+
              "<div>Distancia: <strong>"+distKm+"</strong> km</div>"+
              "<div class='muted'>Tiempo activo: "+active+"</div>"+
@@ -338,7 +381,7 @@ String web_pages::html_page() {
       var el=$('session-current');
       if(!el){return;}
       if(!s){
-        el.innerHTML="<div class='card session-card'>Sesion actual: --</div>";
+        el.innerHTML="<div class='empty-state'>Sesion actual: sin datos todavia</div>";
         return;
       }
       el.innerHTML=renderSessionCard('Sesion actual',s);
@@ -348,7 +391,7 @@ String web_pages::html_page() {
       var el=$('history');
       if(!el){return;}
       if(!list||list.length===0){
-        el.innerHTML="<div class='card session-card'>Sin historial</div>";
+        el.innerHTML="<div class='empty-state'>Sin sesiones anteriores</div>";
         return;
       }
       var out='';
@@ -424,6 +467,7 @@ String web_pages::html_page() {
 
     async function saveMode(){
       modeStatus.textContent='Guardando...';
+      if(modeBtn) modeBtn.disabled=true;
       try{
         const payload={mode:modeSelect.value};
         const r=await fetch('/api/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json());
@@ -436,9 +480,10 @@ String web_pages::html_page() {
       }catch(e){
         modeStatus.textContent='Error';
       }
+      if(modeBtn) modeBtn.disabled=false;
     }
 
-    function refreshAll(){loadSummary();loadStatus();loadTrack();}
+    function refreshAll(){loadSummary();loadStatus();}
     async function updateHome(){
       if (homeBtn) homeBtn.disabled = true;
       try{
@@ -450,14 +495,15 @@ String web_pages::html_page() {
       if (homeBtn) homeBtn.disabled = false;
     }
     if (trackSession){
-      trackSession.addEventListener('change',loadTrack);
+      trackSession.addEventListener('change',()=>{ if(trackLoaded) loadTrack(); else setTrackLinks(trackSession.value||'current'); });
     }
     window.addEventListener('resize',resizeTrackCanvas);
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshAll(); });
     resizeTrackCanvas();
+    setTrackLinks(trackSession ? (trackSession.value||'current') : 'current');
     refreshAll();
-    setInterval(loadStatus,5000);
-    setInterval(loadSummary,10000);
-    setInterval(loadTrack,15000);
+    setInterval(()=>{ if(!document.hidden) loadStatus(); },5000);
+    setInterval(()=>{ if(!document.hidden) loadSummary(); },10000);
   </script>
 </body>
 </html>
@@ -505,7 +551,7 @@ String web_pages::html_wifi_page() {
       </div>
       <label class="muted"><input type="checkbox" id="show_pass"> Mostrar password</label>
       <div class="actions">
-        <button class="btn" type="submit">Guardar y conectar</button>
+        <button class="btn" id="sta_submit_btn" type="submit">Guardar y conectar</button>
       </div>
       <div id="sta_status" class="notice"></div>
     </form>
@@ -527,7 +573,7 @@ String web_pages::html_wifi_page() {
       <div id="ap_hint" class="muted"></div>
       <div id="ap_warn" class="warn"></div>
       <div class="actions">
-        <button class="btn" type="button" onclick="saveAp()">Guardar AP</button>
+        <button class="btn" id="ap_save_btn" type="button" onclick="saveAp()">Guardar AP</button>
       </div>
       <div id="ap_status" class="muted"></div>
     </div>
@@ -550,9 +596,18 @@ String web_pages::html_wifi_page() {
     const apHint = document.getElementById('ap_hint');
     const apWarn = document.getElementById('ap_warn');
     const apStatus = document.getElementById('ap_status');
+    const staSubmitBtn = document.getElementById('sta_submit_btn');
+    const apSaveBtn = document.getElementById('ap_save_btn');
     let apHasPass = false;
     let initialAp = null;
     let baseCfg = null;
+
+    const AP_ERROR_MAP = {
+      ssid:{field:apSsid,msg:'SSID 1..32, sin espacios al inicio o final.'},
+      pass:{field:apPass,msg:'Password 8..63.'},
+      'pass required':{field:apPass,msg:'Password requerida o marca AP abierto.'},
+      mdns:{field:mdns,msg:'mDNS invalido (1..32 letras, numeros o guiones).'}
+    };
 
     function setApStatus(msg, tone){
       apStatus.textContent = msg || '';
@@ -563,6 +618,22 @@ String web_pages::html_wifi_page() {
 
     function clearApInvalid(){
       [apSsid, apPass, mdns].forEach(el => el && el.classList.remove('invalid'));
+    }
+
+    function validMdns(value){
+      if (!value || value.length < 1 || value.length > 32) return false;
+      if (value[0] === '-' || value[value.length - 1] === '-') return false;
+      return /^[A-Za-z0-9-]+$/.test(value);
+    }
+
+    function handleApBackendError(reason){
+      const e = AP_ERROR_MAP[reason] || null;
+      if (!e){
+        setApStatus('Error guardando AP.', 'error');
+        return;
+      }
+      if (e.field) e.field.classList.add('invalid');
+      setApStatus(e.msg, 'error');
     }
 
     function apChanged(){
@@ -618,6 +689,11 @@ String web_pages::html_wifi_page() {
         setApStatus('Password >= 8.', 'error');
         return;
       }
+      if (!apOpen.checked && passVal.length === 0 && !apHasPass){
+        apPass.classList.add('invalid');
+        setApStatus('Password requerida o marca AP abierto.', 'error');
+        return;
+      }
       if (!validMdns(mdnsVal)){
         mdns.classList.add('invalid');
         setApStatus('mDNS invalido (1..32 a-z0-9-).', 'error');
@@ -627,18 +703,22 @@ String web_pages::html_wifi_page() {
         if (!confirm('Guardar cambios? El AP puede reiniciarse.')) return;
       }
       setApStatus('Guardando...', 'muted');
-      baseCfg.wifi = baseCfg.wifi || {};
-      baseCfg.wifi.ap_ssid = ssid;
-      baseCfg.wifi.ap_open = apOpen.checked;
-      baseCfg.wifi.ap_pass = passVal;
-      baseCfg.wifi.mdns = mdnsVal;
+      const payload = JSON.parse(JSON.stringify(baseCfg));
+      payload.wifi = payload.wifi || {};
+      payload.wifi.ap_ssid = ssid;
+      payload.wifi.ap_open = apOpen.checked;
+      payload.wifi.ap_pass = passVal;
+      payload.wifi.mdns = mdnsVal;
+      if (apSaveBtn) apSaveBtn.disabled = true;
       try{
-        const r = await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(baseCfg)}).then(r=>r.json());
-        if (r.status !== 'ok'){
-          setApStatus('Error', 'error');
+        const res = await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const r = await res.json();
+        if (!res.ok || r.status !== 'ok'){
+          handleApBackendError(r.reason);
           return;
         }
         setApStatus(r.status + (r.wifi_restart ? ' (reiniciando AP)' : ''), 'muted');
+        baseCfg = payload;
         initialAp = { ap_ssid: ssid, mdns: mdnsVal, ap_open: apOpen.checked };
         if (apOpen.checked) apHasPass = false;
         else if (passVal.length >= 8) apHasPass = true;
@@ -646,19 +726,24 @@ String web_pages::html_wifi_page() {
         updateApState();
       }catch(e){
         setApStatus('Error', 'error');
+      }finally{
+        if (apSaveBtn) apSaveBtn.disabled = false;
       }
     }
 
     staForm.onsubmit = async (e) => {
       e.preventDefault();
       staStatus.textContent = 'Guardando...';
+      if (staSubmitBtn) staSubmitBtn.disabled = true;
       try{
         const fd = new FormData(staForm);
         const r = await fetch('/api/wifi',{method:'POST',body:fd});
         const text = await r.text();
-        staStatus.textContent = r.ok ? 'Guardado, conectando...' : ('Error: ' + text);
+        staStatus.textContent = r.ok ? 'Guardado, conectando... AP disponible en http://192.168.4.1/' : ('Error: ' + text);
       }catch(e){
         staStatus.textContent = 'Error';
+      }finally{
+        if (staSubmitBtn) staSubmitBtn.disabled = false;
       }
     };
 
