@@ -1,6 +1,7 @@
 #include "web/portal_http.h"
 
 #include <ArduinoJson.h>
+#include <DNSServer.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <math.h>
@@ -18,6 +19,56 @@
 namespace portal_http {
 namespace {
 WebServer server(80);
+DNSServer dns_server;
+bool dns_running = false;
+uint32_t dns_start_count = 0;
+uint32_t dns_stop_count = 0;
+static const uint16_t DNS_PORT = 53;
+
+void note_activity() {
+  wifi_mgr::note_portal_activity();
+}
+
+String ap_base_url() {
+  return String("http://") + WiFi.softAPIP().toString() + "/";
+}
+
+void redirect_to_portal() {
+  note_activity();
+  server.sendHeader("Location", ap_base_url(), true);
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(302, "text/plain", "");
+}
+
+void handle_captive_probe() {
+  note_activity();
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "text/html",
+              "<!doctype html><html><head><meta http-equiv='refresh' content='0;url=/'></head>"
+              "<body><a href='/'>Dog-RGB</a></body></html>");
+}
+
+void sync_dns() {
+  if (wifi_mgr::ap_enabled()) {
+    if (!dns_running) {
+      dns_server.setErrorReplyCode(DNSReplyCode::NoError);
+      dns_running = dns_server.start(DNS_PORT, "*", WiFi.softAPIP());
+      if (dns_running) {
+        dns_start_count++;
+      }
+    }
+    if (dns_running) {
+      dns_server.processNextRequest();
+    }
+    return;
+  }
+
+  if (dns_running) {
+    dns_server.stop();
+    dns_running = false;
+    dns_stop_count++;
+  }
+}
 
 const char *wifi_mode_name(wifi_mode_t mode) {
   switch (mode) {
@@ -72,22 +123,27 @@ uint32_t track_point_date(const gps::TrackView &view, const gps::TrackPoint &p) 
 }
 
 void handle_root() {
+  note_activity();
   server.send(200, "text/html", web_pages::html_page());
 }
 
 void handle_wifi_page() {
+  note_activity();
   server.send(200, "text/html", web_pages::html_wifi_page());
 }
 
 void handle_dev_page() {
+  note_activity();
   server.send(200, "text/html", web_pages::html_dev_page());
 }
 
 void handle_summary() {
+  note_activity();
   server.send(200, "application/json", gps::build_summary_json());
 }
 
 void handle_status_get() {
+  note_activity();
   StaticJsonDocument<896> doc;
   const RuntimeConfig &cfg = config::get();
   doc["mode"] = config::mode_name(cfg.mode);
@@ -119,7 +175,8 @@ void handle_status_get() {
 }
 
 void handle_dev_get() {
-  StaticJsonDocument<4096> doc;
+  note_activity();
+  StaticJsonDocument<6144> doc;
   const RuntimeConfig &cfg = config::get();
   const unsigned long now_ms = millis();
 
@@ -142,6 +199,35 @@ void handle_dev_get() {
   wifi["sta_ip"] = WiFi.localIP().toString();
   wifi["ap_ip"] = WiFi.softAPIP().toString();
   wifi["rssi"] = WiFi.RSSI();
+  wifi["ap_mac"] = WiFi.softAPmacAddress();
+  wifi["sta_mac"] = WiFi.macAddress();
+
+  const wifi_mgr::WifiDiagnostics &diag = wifi_mgr::diagnostics();
+  JsonObject wifiDiag = wifi["diagnostics"].to<JsonObject>();
+  wifiDiag["last_ap_start_ok"] = diag.last_ap_start_ok;
+  wifiDiag["ap_start_count"] = diag.ap_start_count;
+  wifiDiag["ap_start_fail_count"] = diag.ap_start_fail_count;
+  wifiDiag["ap_stop_count"] = diag.ap_stop_count;
+  wifiDiag["ap_restart_count"] = diag.ap_restart_count;
+  wifiDiag["sta_retry_count"] = diag.sta_retry_count;
+  wifiDiag["sta_connect_fail_count"] = diag.sta_connect_fail_count;
+  wifiDiag["ap_station_connect_count"] = diag.ap_station_connect_count;
+  wifiDiag["ap_station_disconnect_count"] = diag.ap_station_disconnect_count;
+  wifiDiag["sta_got_ip_count"] = diag.sta_got_ip_count;
+  wifiDiag["sta_disconnect_count"] = diag.sta_disconnect_count;
+  wifiDiag["last_ap_start_ms"] = diag.last_ap_start_ms;
+  wifiDiag["last_ap_stop_ms"] = diag.last_ap_stop_ms;
+  wifiDiag["last_sta_retry_ms"] = diag.last_sta_retry_ms;
+  wifiDiag["next_sta_retry_ms"] = diag.next_sta_retry_ms;
+  wifiDiag["ap_hold_until_ms"] = diag.ap_hold_until_ms;
+  wifiDiag["last_wifi_event_ms"] = diag.last_wifi_event_ms;
+  wifiDiag["last_wifi_event"] = diag.last_wifi_event;
+  wifiDiag["current_ap_channel"] = diag.current_ap_channel;
+  wifiDiag["last_ap_reason"] = diag.last_ap_reason;
+  wifiDiag["last_sta_reason"] = diag.last_sta_reason;
+  wifiDiag["dns_running"] = dns_running;
+  wifiDiag["dns_start_count"] = dns_start_count;
+  wifiDiag["dns_stop_count"] = dns_stop_count;
 
   JsonObject gps = doc["gps"].to<JsonObject>();
   gps["fix"] = gps::has_fix();
@@ -280,6 +366,7 @@ bool track_geojson_cb(const gps::TrackPoint &p, void *ctx) {
 }
 
 void handle_track_get() {
+  note_activity();
   int session_id = -1;
   if (!parse_track_session(server.arg("session"), session_id)) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"session\"}");
@@ -322,6 +409,7 @@ void handle_track_get() {
 }
 
 void handle_track_csv() {
+  note_activity();
   int session_id = -1;
   if (!parse_track_session(server.arg("session"), session_id)) {
     server.send(400, "text/plain", "session");
@@ -340,6 +428,7 @@ void handle_track_csv() {
 }
 
 void handle_track_geojson() {
+  note_activity();
   int session_id = -1;
   if (!parse_track_session(server.arg("session"), session_id)) {
     server.send(400, "application/geo+json", "{\"status\":\"error\",\"reason\":\"session\"}");
@@ -360,6 +449,7 @@ void handle_track_geojson() {
 }
 
 void handle_mode_post() {
+  note_activity();
   if (!server.hasArg("plain")) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
@@ -386,6 +476,7 @@ void handle_mode_post() {
 }
 
 void handle_config_get() {
+  note_activity();
   StaticJsonDocument<4096> doc;
   const RuntimeConfig &cfg = config::get();
   doc["version"] = config::version();
@@ -430,6 +521,7 @@ void handle_config_get() {
 }
 
 void handle_config_post() {
+  note_activity();
   if (!server.hasArg("plain")) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
@@ -583,11 +675,15 @@ void handle_config_post() {
   const String ap_pass = doc["wifi"]["ap_pass"] | String("");
   const bool ap_open = doc["wifi"]["ap_open"] | false;
   const String mdns = doc["wifi"]["mdns"] | next.mdns;
-  if (ap_ssid.length() < 1 || ap_ssid.length() > 32) {
+  if (!config::valid_ap_ssid(ap_ssid)) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ssid\"}");
     return;
   }
-  if (!ap_open && ap_pass.length() > 0 && ap_pass.length() < 8) {
+  if (!ap_open && ap_pass.length() == 0 && next.ap_pass.length() == 0) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"pass required\"}");
+    return;
+  }
+  if (!ap_open && ap_pass.length() > 0 && !config::valid_ap_pass(ap_pass)) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"pass\"}");
     return;
   }
@@ -616,6 +712,7 @@ void handle_config_post() {
 }
 
 void handle_config_reset() {
+  note_activity();
   storage::prefs_cfg().clear();
   RuntimeConfig previous = config::get();
   config::set_defaults();
@@ -628,10 +725,12 @@ void handle_config_reset() {
 }
 
 void handle_config_page() {
+  note_activity();
   server.send(200, "text/html", web_pages::html_config_page());
 }
 
 void handle_home_get() {
+  note_activity();
   StaticJsonDocument<512> doc;
   doc["home_set"] = geofence::is_set();
   doc["home_source"] = geofence::source_name(geofence::source());
@@ -649,6 +748,7 @@ void handle_home_get() {
 }
 
 void handle_home_set() {
+  note_activity();
   if (!gps::has_fix() || !gps::has_current_fix()) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no_gps\"}");
     return;
@@ -658,17 +758,27 @@ void handle_home_set() {
 }
 
 void handle_home_clear() {
+  note_activity();
   geofence::clear_home();
   server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
 void handle_wifi_save() {
+  note_activity();
   if (!server.hasArg("ssid")) {
     server.send(400, "text/plain", "missing ssid");
     return;
   }
   const String ssid = server.arg("ssid");
   const String pass = server.arg("pass");
+  if (!config::valid_ap_ssid(ssid)) {
+    server.send(400, "text/plain", "ssid");
+    return;
+  }
+  if (pass.length() > 0 && !config::valid_ap_pass(pass)) {
+    server.send(400, "text/plain", "pass");
+    return;
+  }
   wifi_mgr::save_creds(ssid, pass);
   wifi_mgr::start_sta_mode();
   server.send(200, "text/plain", "saved, connecting");
@@ -694,10 +804,18 @@ void begin() {
   server.on("/api/home/clear", HTTP_POST, handle_home_clear);
   server.on("/wifi", HTTP_GET, handle_wifi_page);
   server.on("/api/wifi", HTTP_POST, handle_wifi_save);
+  server.on("/generate_204", HTTP_GET, handle_captive_probe);
+  server.on("/gen_204", HTTP_GET, handle_captive_probe);
+  server.on("/hotspot-detect.html", HTTP_GET, handle_captive_probe);
+  server.on("/library/test/success.html", HTTP_GET, handle_captive_probe);
+  server.on("/ncsi.txt", HTTP_GET, handle_captive_probe);
+  server.on("/connecttest.txt", HTTP_GET, handle_captive_probe);
+  server.onNotFound(redirect_to_portal);
   server.begin();
 }
 
 void handle_client() {
+  sync_dns();
   server.handleClient();
 }
 } // namespace portal_http

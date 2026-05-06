@@ -2,6 +2,8 @@
 
 #include <ESPmDNS.h>
 #include <WiFi.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "config/runtime_config.h"
 #include "config.h"
@@ -23,64 +25,85 @@ unsigned long last_ap_poll_ms = 0;
 uint8_t ap_station_count_state = 0;
 unsigned long stationary_ms = 0;
 unsigned long last_stationary_ms = 0;
+unsigned long sta_retry_backoff_ms = WIFI_RETRY_INTERVAL_MS;
 
 bool pending_ap_restart = false;
 unsigned long pending_ap_at_ms = 0;
 const unsigned long AP_RESTART_DELAY_MS = 500;
+const IPAddress AP_LOCAL_IP(192, 168, 4, 1);
+const IPAddress AP_GATEWAY_IP(192, 168, 4, 1);
+const IPAddress AP_SUBNET_MASK(255, 255, 255, 0);
+WifiDiagnostics wifi_diag = {};
 
-void load_wifi_creds() {
-  Preferences &prefs = storage::prefs();
-  wifi_ssid = prefs.getString("wifi_ssid", "");
-  wifi_pass = prefs.getString("wifi_pass", "");
-}
-
-void start_ap_mode_internal() {
-  const RuntimeConfig &cfg = config::get();
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP(cfg.ap_ssid.c_str(), cfg.ap_pass.c_str());
-  ap_enabled_state = true;
-  wifi_off_state = false;
-  ap_station_count_state = 0;
-  last_ap_client_ms = millis();
-  wifi_sta_connected = false;
-  wifi_sta_connecting = false;
-}
-
-void start_sta_mode_internal() {
-  const RuntimeConfig &cfg = config::get();
-  if (ap_enabled_state) {
-    WiFi.mode(WIFI_AP_STA);
-    WiFi.softAP(cfg.ap_ssid.c_str(), cfg.ap_pass.c_str());
-    ap_station_count_state = 0;
-    last_ap_client_ms = millis();
-  } else {
-    WiFi.mode(WIFI_STA);
-  }
-  wifi_off_state = false;
-  WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
-  wifi_sta_connected = false;
-  wifi_sta_connecting = true;
-  wifi_sta_start_ms = millis();
-}
-
-void enable_ap() {
-  if (ap_enabled_state) {
+void set_reason(char *dest, size_t size, const char *reason) {
+  if (size == 0) {
     return;
   }
-  if (wifi_ssid.length() > 0) {
-    WiFi.mode(WIFI_AP_STA);
-  } else {
-    WiFi.mode(WIFI_AP);
-  }
-  const RuntimeConfig &cfg = config::get();
-  WiFi.softAP(cfg.ap_ssid.c_str(), cfg.ap_pass.c_str());
-  ap_enabled_state = true;
-  wifi_off_state = false;
-  ap_station_count_state = 0;
-  last_ap_client_ms = millis();
+  snprintf(dest, size, "%s", reason != nullptr ? reason : "unknown");
 }
 
-void disable_ap() {
+bool timer_active(unsigned long now_ms, unsigned long until_ms) {
+  return until_ms != 0 && static_cast<long>(until_ms - now_ms) > 0;
+}
+
+void hold_ap(unsigned long now_ms, unsigned long hold_ms) {
+  const unsigned long until = now_ms + hold_ms;
+  if (!timer_active(now_ms, wifi_diag.ap_hold_until_ms) ||
+      static_cast<long>(until - wifi_diag.ap_hold_until_ms) > 0) {
+    wifi_diag.ap_hold_until_ms = until;
+  }
+}
+
+uint8_t ap_channel() {
+  const uint8_t sta_channel = WiFi.channel();
+  if (wifi_sta_connected && sta_channel >= 1 && sta_channel <= 13) {
+    return sta_channel;
+  }
+  return AP_CHANNEL;
+}
+
+void update_ap_station_count() {
+  if (!ap_enabled_state) {
+    ap_station_count_state = 0;
+    return;
+  }
+  const int stations = WiFi.softAPgetStationNum();
+  ap_station_count_state = (stations > 0) ? static_cast<uint8_t>(stations) : 0;
+}
+
+bool start_ap_radio(const char *reason, bool preserve_sta) {
+  const RuntimeConfig &cfg = config::get();
+  const unsigned long now_ms = millis();
+  const bool use_ap_sta = preserve_sta && wifi_ssid.length() > 0;
+  WiFi.mode(use_ap_sta ? WIFI_AP_STA : WIFI_AP);
+  WiFi.setSleep(false);
+  WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY_IP, AP_SUBNET_MASK);
+
+  const char *pass = (cfg.ap_pass.length() == 0) ? nullptr : cfg.ap_pass.c_str();
+  const uint8_t channel = use_ap_sta ? ap_channel() : AP_CHANNEL;
+  const bool ok = WiFi.softAP(cfg.ap_ssid.c_str(), pass, channel, false, AP_MAX_CLIENTS);
+
+  wifi_diag.last_ap_start_ok = ok;
+  wifi_diag.ap_start_count++;
+  wifi_diag.last_ap_start_ms = now_ms;
+  wifi_diag.current_ap_channel = channel;
+  set_reason(wifi_diag.last_ap_reason, sizeof(wifi_diag.last_ap_reason), reason);
+
+  if (ok) {
+    ap_enabled_state = true;
+    wifi_off_state = false;
+    update_ap_station_count();
+    last_ap_client_ms = now_ms;
+    hold_ap(now_ms, AP_SETUP_HOLD_MS);
+  } else {
+    wifi_diag.ap_start_fail_count++;
+    ap_enabled_state = false;
+    ap_station_count_state = 0;
+  }
+  return ok;
+}
+
+void stop_ap_radio(const char *reason) {
   if (!ap_enabled_state) {
     return;
   }
@@ -88,7 +111,146 @@ void disable_ap() {
   ap_enabled_state = false;
   ap_station_count_state = 0;
   last_ap_client_ms = 0;
-  WiFi.mode(WIFI_STA);
+  wifi_diag.ap_stop_count++;
+  wifi_diag.last_ap_stop_ms = millis();
+  wifi_diag.ap_hold_until_ms = 0;
+  set_reason(wifi_diag.last_ap_reason, sizeof(wifi_diag.last_ap_reason), reason);
+}
+
+void reset_sta_backoff() {
+  sta_retry_backoff_ms = WIFI_RETRY_INTERVAL_MS;
+  wifi_diag.next_sta_retry_ms = 0;
+}
+
+void schedule_sta_retry(unsigned long now_ms, const char *reason) {
+  wifi_diag.sta_connect_fail_count++;
+  set_reason(wifi_diag.last_sta_reason, sizeof(wifi_diag.last_sta_reason), reason);
+  wifi_diag.next_sta_retry_ms = now_ms + sta_retry_backoff_ms;
+  sta_retry_backoff_ms = (sta_retry_backoff_ms >= STA_RETRY_BACKOFF_MAX_MS / 2)
+                             ? STA_RETRY_BACKOFF_MAX_MS
+                             : sta_retry_backoff_ms * 2;
+}
+
+void begin_mdns() {
+  MDNS.end();
+  MDNS.begin(config::get().mdns.c_str());
+}
+
+void on_wifi_event(WiFiEvent_t event) {
+  const unsigned long now_ms = millis();
+  wifi_diag.last_wifi_event = static_cast<uint32_t>(event);
+  wifi_diag.last_wifi_event_ms = now_ms;
+
+#if defined(ARDUINO_EVENT_WIFI_AP_STACONNECTED)
+  if (event == ARDUINO_EVENT_WIFI_AP_STACONNECTED) {
+#elif defined(SYSTEM_EVENT_AP_STACONNECTED)
+  if (event == SYSTEM_EVENT_AP_STACONNECTED) {
+#else
+  if (false) {
+#endif
+    wifi_diag.ap_station_connect_count++;
+    update_ap_station_count();
+    last_ap_client_ms = now_ms;
+    hold_ap(now_ms, AP_PORTAL_ACTIVITY_HOLD_MS);
+    return;
+  }
+
+#if defined(ARDUINO_EVENT_WIFI_AP_STADISCONNECTED)
+  if (event == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED) {
+#elif defined(SYSTEM_EVENT_AP_STADISCONNECTED)
+  if (event == SYSTEM_EVENT_AP_STADISCONNECTED) {
+#else
+  if (false) {
+#endif
+    wifi_diag.ap_station_disconnect_count++;
+    update_ap_station_count();
+    return;
+  }
+
+#if defined(ARDUINO_EVENT_WIFI_STA_GOT_IP)
+  if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+#elif defined(SYSTEM_EVENT_STA_GOT_IP)
+  if (event == SYSTEM_EVENT_STA_GOT_IP) {
+#else
+  if (false) {
+#endif
+    wifi_sta_connected = true;
+    wifi_sta_connecting = false;
+    wifi_diag.sta_got_ip_count++;
+    wifi_diag.current_ap_channel = WiFi.channel();
+    reset_sta_backoff();
+    begin_mdns();
+    return;
+  }
+
+#if defined(ARDUINO_EVENT_WIFI_STA_DISCONNECTED)
+  if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+#elif defined(SYSTEM_EVENT_STA_DISCONNECTED)
+  if (event == SYSTEM_EVENT_STA_DISCONNECTED) {
+#else
+  if (false) {
+#endif
+    wifi_sta_connected = false;
+    wifi_sta_connecting = false;
+    wifi_diag.sta_disconnect_count++;
+    if (wifi_ssid.length() > 0 && wifi_diag.next_sta_retry_ms == 0) {
+      schedule_sta_retry(now_ms, "sta_disconnected");
+    } else {
+      set_reason(wifi_diag.last_sta_reason, sizeof(wifi_diag.last_sta_reason), "sta_disconnected");
+    }
+  }
+}
+
+void load_wifi_creds() {
+  Preferences &prefs = storage::prefs();
+  wifi_ssid = prefs.getString("wifi_ssid", "");
+  wifi_pass = prefs.getString("wifi_pass", "");
+}
+
+void start_ap_mode_internal(const char *reason) {
+  wifi_sta_connected = false;
+  wifi_sta_connecting = false;
+  reset_sta_backoff();
+  start_ap_radio(reason, false);
+}
+
+void start_sta_mode_internal(const char *reason) {
+  if (wifi_ssid.length() == 0) {
+    start_ap_mode_internal("no_sta_creds");
+    return;
+  }
+
+  if (ap_enabled_state && WiFi.getMode() != WIFI_AP_STA) {
+    WiFi.mode(WIFI_AP_STA);
+  } else if (!ap_enabled_state) {
+    WiFi.mode(WIFI_STA);
+  }
+  wifi_off_state = false;
+  WiFi.setSleep(false);
+  WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
+  wifi_sta_connected = false;
+  wifi_sta_connecting = true;
+  wifi_sta_start_ms = millis();
+  wifi_diag.sta_retry_count++;
+  wifi_diag.last_sta_retry_ms = wifi_sta_start_ms;
+  set_reason(wifi_diag.last_sta_reason, sizeof(wifi_diag.last_sta_reason), reason);
+}
+
+void enable_ap(const char *reason) {
+  if (ap_enabled_state) {
+    return;
+  }
+  start_ap_radio(reason, wifi_ssid.length() > 0 && (wifi_sta_connected || wifi_sta_connecting));
+}
+
+void disable_ap(const char *reason) {
+  if (!ap_enabled_state) {
+    return;
+  }
+  stop_ap_radio(reason);
+  if (wifi_ssid.length() > 0) {
+    WiFi.mode(WIFI_STA);
+  }
 }
 
 void set_wifi_off(bool off) {
@@ -110,11 +272,11 @@ void set_wifi_off(bool off) {
     return;
   }
   wifi_off_state = false;
-  ap_enabled_state = true;
   if (wifi_ssid.length() > 0) {
-    start_sta_mode_internal();
+    start_ap_radio("wifi_on", false);
+    start_sta_mode_internal("wifi_on");
   } else {
-    start_ap_mode_internal();
+    start_ap_mode_internal("wifi_on");
   }
 }
 
@@ -159,22 +321,25 @@ void update_ap_policy(unsigned long now_ms) {
 
   if (ap_force_on) {
     if (!ap_enabled_state) {
-      enable_ap();
+      enable_ap("gps_no_fix");
     }
     last_ap_client_ms = now_ms;
     return;
   }
 
   if (ap_request_on && !ap_enabled_state) {
-    enable_ap();
+    enable_ap("stationary");
   }
 
   if (ap_enabled_state) {
     if (last_ap_client_ms == 0) {
       last_ap_client_ms = now_ms;
     }
+    if (timer_active(now_ms, wifi_diag.ap_hold_until_ms)) {
+      return;
+    }
     if ((now_ms - last_ap_client_ms) >= AP_IDLE_TIMEOUT_MS) {
-      disable_ap();
+      disable_ap("idle_timeout");
       stationary_ms = 0;
       if (!wifi_sta_connected || wifi_ssid.length() == 0) {
         set_wifi_off(true);
@@ -186,51 +351,62 @@ void update_ap_policy(unsigned long now_ms) {
 } // namespace
 
 void begin() {
+  WiFi.onEvent(on_wifi_event);
   load_wifi_creds();
-  ap_enabled_state = true;
+  ap_enabled_state = false;
   wifi_off_state = false;
   if (wifi_ssid.length() > 0) {
-    start_sta_mode_internal();
+    start_ap_radio("boot_with_sta", false);
+    start_sta_mode_internal("boot");
   } else {
-    start_ap_mode_internal();
+    start_ap_mode_internal("boot_no_sta");
   }
 }
 
 void tick(unsigned long now_ms) {
   if (!wifi_off_state && (now_ms - last_wifi_check_ms >= WIFI_RETRY_INTERVAL_MS)) {
     last_wifi_check_ms = now_ms;
+    update_ap_station_count();
+    if (ap_enabled_state) {
+      wifi_diag.current_ap_channel = WiFi.channel();
+    }
     if (wifi_sta_connected && WiFi.status() != WL_CONNECTED) {
       wifi_sta_connected = false;
       if (wifi_ssid.length() > 0) {
-        start_sta_mode_internal();
+        schedule_sta_retry(now_ms, "status_lost");
       } else {
-        start_ap_mode_internal();
+        start_ap_mode_internal("status_lost_no_sta");
       }
     } else if (wifi_sta_connecting) {
       if (WiFi.status() == WL_CONNECTED) {
         wifi_sta_connected = true;
         wifi_sta_connecting = false;
-        MDNS.begin(config::get().mdns.c_str());
+        reset_sta_backoff();
+        begin_mdns();
       } else if ((now_ms - wifi_sta_start_ms) >= STA_CONNECT_TIMEOUT_MS) {
         wifi_sta_connecting = false;
-        start_ap_mode_internal();
+        WiFi.disconnect(false, false);
+        if (!ap_enabled_state) {
+          start_ap_radio("sta_timeout_ap_fallback", false);
+        }
+        schedule_sta_retry(now_ms, "sta_timeout");
       }
-    } else if (!wifi_sta_connected && wifi_ssid.length() > 0) {
-      start_sta_mode_internal();
+    } else if (!wifi_sta_connected && wifi_ssid.length() > 0 &&
+               (wifi_diag.next_sta_retry_ms == 0 ||
+                static_cast<long>(now_ms - wifi_diag.next_sta_retry_ms) >= 0)) {
+      if (ap_station_count_state > 0) {
+        wifi_diag.next_sta_retry_ms = now_ms + WIFI_RETRY_INTERVAL_MS;
+      } else {
+        start_sta_mode_internal("retry");
+      }
     }
   }
 
   if (pending_ap_restart && (now_ms - pending_ap_at_ms) >= AP_RESTART_DELAY_MS) {
     pending_ap_restart = false;
-    const RuntimeConfig &cfg = config::get();
     if (ap_enabled_state) {
-      if (wifi_sta_connected || wifi_ssid.length() > 0) {
-        WiFi.mode(WIFI_AP_STA);
-      } else {
-        WiFi.mode(WIFI_AP);
-      }
-      WiFi.softAP(cfg.ap_ssid.c_str(), cfg.ap_pass.c_str());
-      last_ap_client_ms = now_ms;
+      wifi_diag.ap_restart_count++;
+      start_ap_radio("config_restart", wifi_ssid.length() > 0 && (wifi_sta_connected || wifi_sta_connecting));
     }
   }
 
@@ -238,11 +414,12 @@ void tick(unsigned long now_ms) {
 }
 
 void start_sta_mode() {
-  start_sta_mode_internal();
+  reset_sta_backoff();
+  start_sta_mode_internal("manual");
 }
 
 void start_ap_mode() {
-  start_ap_mode_internal();
+  start_ap_mode_internal("manual");
 }
 
 void save_creds(const String &ssid, const String &pass) {
@@ -251,6 +428,7 @@ void save_creds(const String &ssid, const String &pass) {
   prefs.putString("wifi_pass", pass);
   wifi_ssid = ssid;
   wifi_pass = pass;
+  reset_sta_backoff();
 }
 
 const String &ssid() {
@@ -283,6 +461,19 @@ uint8_t ap_station_count() {
 
 bool is_ap_mode() {
   return WiFi.getMode() == WIFI_AP;
+}
+
+const WifiDiagnostics &diagnostics() {
+  return wifi_diag;
+}
+
+void note_portal_activity() {
+  if (!ap_enabled_state) {
+    return;
+  }
+  const unsigned long now_ms = millis();
+  last_ap_client_ms = now_ms;
+  hold_ap(now_ms, AP_PORTAL_ACTIVITY_HOLD_MS);
 }
 
 void schedule_ap_restart() {

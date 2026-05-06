@@ -119,9 +119,14 @@ Mapeo de color:
 - AP_SSID: dog
 - AP_PASS: Dog123456789
 - MDNS_NAME: dog-collar
+- AP_CHANNEL: 1
+- AP_MAX_CLIENTS: 2
 - STA_CONNECT_TIMEOUT_MS: 10000
 - WIFI_RETRY_INTERVAL_MS: 10000
-- AP_IDLE_TIMEOUT_MS: 300000 (AP off si no hay clientes por 5 min)
+- STA_RETRY_BACKOFF_MAX_MS: 300000
+- AP_SETUP_HOLD_MS: 900000 (AP visible por al menos 15 min tras arrancar/reiniciar)
+- AP_PORTAL_ACTIVITY_HOLD_MS: 300000 (actividad del portal extiende AP por 5 min)
+- AP_IDLE_TIMEOUT_MS: 600000 (AP off si no hay clientes/hold por 10 min)
 - AP_STATIONARY_MS: 120000 (AP on si velocidad baja por 2 min)
 - AP_CLIENT_POLL_MS: 1000
 - AP_STATIONARY_ON_KPH: 2.0

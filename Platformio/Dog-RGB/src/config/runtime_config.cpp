@@ -76,6 +76,15 @@ bool read_common_config(RuntimeConfig &cfg) {
   cfg.ap_ssid = prefs_cfg.getString("ap_ssid", AP_SSID);
   cfg.ap_pass = prefs_cfg.getString("ap_pass", AP_PASS);
   cfg.mdns = prefs_cfg.getString("mdns", MDNS_NAME);
+  if (!valid_ap_ssid(cfg.ap_ssid)) {
+    cfg.ap_ssid = AP_SSID;
+  }
+  if (!valid_ap_pass(cfg.ap_pass)) {
+    cfg.ap_pass = AP_PASS;
+  }
+  if (!valid_mdns(cfg.mdns)) {
+    cfg.mdns = MDNS_NAME;
+  }
   if (!validate_ranges(cfg.ranges) || !validate_effects(cfg.effects)) {
     return false;
   }
@@ -329,8 +338,43 @@ bool validate_gps(const RuntimeConfig &cfg) {
   return true;
 }
 
+bool valid_ap_ssid(const String &value) {
+  if (value.length() < 1 || value.length() > 32) {
+    return false;
+  }
+  if (value[0] == ' ' || value[value.length() - 1] == ' ') {
+    return false;
+  }
+  for (size_t i = 0; i < value.length(); ++i) {
+    const char c = value[i];
+    if (c < 32 || c == 127) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool valid_ap_pass(const String &value) {
+  if (value.length() == 0) {
+    return true;
+  }
+  if (value.length() < 8 || value.length() > 63) {
+    return false;
+  }
+  for (size_t i = 0; i < value.length(); ++i) {
+    const char c = value[i];
+    if (c < 32 || c == 127) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool valid_mdns(const String &value) {
   if (value.length() < 1 || value.length() > 32) {
+    return false;
+  }
+  if (value[0] == '-' || value[value.length() - 1] == '-') {
     return false;
   }
   for (size_t i = 0; i < value.length(); ++i) {

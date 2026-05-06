@@ -4,6 +4,30 @@
 #include <stdint.h>
 
 namespace wifi_mgr {
+struct WifiDiagnostics {
+  bool last_ap_start_ok;
+  uint32_t ap_start_count;
+  uint32_t ap_start_fail_count;
+  uint32_t ap_stop_count;
+  uint32_t ap_restart_count;
+  uint32_t sta_retry_count;
+  uint32_t sta_connect_fail_count;
+  uint32_t ap_station_connect_count;
+  uint32_t ap_station_disconnect_count;
+  uint32_t sta_got_ip_count;
+  uint32_t sta_disconnect_count;
+  unsigned long last_ap_start_ms;
+  unsigned long last_ap_stop_ms;
+  unsigned long last_sta_retry_ms;
+  unsigned long next_sta_retry_ms;
+  unsigned long ap_hold_until_ms;
+  unsigned long last_wifi_event_ms;
+  uint32_t last_wifi_event;
+  uint8_t current_ap_channel;
+  char last_ap_reason[32];
+  char last_sta_reason[32];
+};
+
 void begin();
 void tick(unsigned long now_ms);
 
@@ -20,7 +44,9 @@ bool ap_enabled();
 bool wifi_off();
 uint8_t ap_station_count();
 bool is_ap_mode();
+const WifiDiagnostics &diagnostics();
 
+void note_portal_activity();
 void schedule_ap_restart();
 void apply_mdns(const String &previous, const String &current);
 }

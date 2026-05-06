@@ -25,9 +25,21 @@ Este documento describe el portal web local del collar y su comportamiento en AP
 ### Defaults (runtime)
 - SSID: `dog`
 - Password: `Dog123456789`
+- IP portal: `http://192.168.4.1/`
+- Canal AP por defecto: `AP_CHANNEL` (canal 1 mientras STA no esta conectado)
+- Clientes AP maximos: `AP_MAX_CLIENTS` (2)
 - AP abierto: opcional via `/config` (sin password)
 
 Los valores por defecto vienen de `config.h`, pero se pueden cambiar en runtime desde `/config`.
+
+### Portal cautivo
+
+El firmware levanta `DNSServer` mientras el AP esta activo y responde DNS wildcard hacia `WiFi.softAPIP()`.
+Tambien redirige rutas desconocidas hacia `/` y atiende endpoints comunes de deteccion de portal cautivo
+(`/generate_204`, `/gen_204`, `/hotspot-detect.html`, `/ncsi.txt`, `/connecttest.txt`).
+
+Esto no garantiza que todos los sistemas abran el portal automaticamente, pero mejora el flujo en telefonos
+que detectan redes Wi-Fi sin Internet. El fallback manual sigue siendo `http://192.168.4.1/`.
 
 ---
 
@@ -99,9 +111,22 @@ Mientras conecta, el firmware usa modo `AP+STA`. El AP puede apagarse despues po
 
 - Sin GPS fix: AP forzado ON.
 - Con GPS OK: si velocidad <= `AP_STATIONARY_ON_KPH` por `AP_STATIONARY_MS`, AP ON.
-- AP ON sin clientes por `AP_IDLE_TIMEOUT_MS`: AP OFF.
+- Cada arranque/reinicio del AP mantiene el AP visible al menos `AP_SETUP_HOLD_MS`.
+- La actividad HTTP del portal extiende el hold por `AP_PORTAL_ACTIVITY_HOLD_MS`.
+- AP ON sin clientes, sin hold activo y sin actividad por `AP_IDLE_TIMEOUT_MS`: AP OFF.
 - Si AP OFF y no hay STA conectado, Wi-Fi OFF para ahorrar bateria.
 - Si Wi-Fi OFF y se cumple "sin GPS" o "estacionario", se reactiva AP.
+- Si STA falla, los reintentos usan backoff hasta `STA_RETRY_BACKOFF_MAX_MS` y se posponen mientras hay clientes AP.
+
+## Diagnostico
+
+`GET /api/dev` expone diagnostico Wi-Fi/AP:
+
+- Resultado del ultimo `WiFi.softAP()`.
+- Contadores de AP start/stop/restart/fail.
+- Contadores de eventos AP station connect/disconnect y STA got IP/disconnect.
+- Timestamps de ultimo evento, proximo retry STA y hold AP.
+- Canal AP, MAC AP/STA y estado del DNS cautivo.
 
 ---
 

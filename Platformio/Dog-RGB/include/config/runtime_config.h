@@ -57,5 +57,7 @@ bool validate_ranges(const float *ranges);
 bool validate_effects(const RangeEffect *effects);
 bool validate_gps(const RuntimeConfig &cfg);
 
+bool valid_ap_ssid(const String &value);
+bool valid_ap_pass(const String &value);
 bool valid_mdns(const String &value);
 }

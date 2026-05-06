@@ -90,7 +90,9 @@ Modos especiales:
 AP/Wi-Fi auto:
 - Si no hay GPS fix, el AP se mantiene encendido.
 - Si la velocidad es <= 2 km/h por ~2 min, el AP se enciende automaticamente.
-- Si no hay clientes conectados al AP por 5 min, el AP se apaga.
+- Al arrancar o reiniciar el AP, queda visible al menos 15 min.
+- La actividad del portal mantiene el AP activo por 5 min adicionales.
+- Si no hay clientes ni actividad del portal por 10 min, el AP se apaga.
 - Si no hay STA y no hay AP, el Wi-Fi se apaga para ahorrar bateria.
 
 ---
@@ -99,7 +101,7 @@ AP/Wi-Fi auto:
 
 1) Busca la red Wi-Fi del collar: `dog`
 2) Password por defecto: `Dog123456789`
-3) Abre el navegador:
+3) El telefono puede mostrar automaticamente el portal cautivo. Si no aparece, abre el navegador:
    - `http://192.168.4.1`
 4) Veras el dashboard con:
    - Distancia

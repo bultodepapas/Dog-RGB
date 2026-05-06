@@ -2,6 +2,9 @@
 
 Fecha: 2026-02-03
 
+Nota 2026-05-05: este documento queda como historial. El analisis actualizado y la implementacion de hardening
+estan en `docs/ap_access_point_comprehensive_review_2026-05-05.md`.
+
 ## Alcance
 
 Se reviso el flujo de Wi-Fi/AP en el firmware y la especificacion del portal.
@@ -50,7 +53,7 @@ Si el AP queda con password vacio y en la UI se desmarca “AP abierto” sin in
 ## Pruebas sugeridas para aislar el problema
 
 1. Conectarse al AP y dejar el telefono en reposo 5-6 min sin trafico. Ver si el AP se apaga. Esto valida el timeout y el conteo de clientes.
-2. Probar en movimiento con GPS fix estable. Confirmar si el AP desaparece tras 5 min sin clientes.
+2. Probar en movimiento con GPS fix estable. Confirmar si el AP desaparece tras el hold inicial y 10 min sin clientes.
 3. Forzar GPS sin fix (interior). Verificar si el AP queda establemente encendido (politica “AP force on”).
 4. Configurar SSID/pass incorrecto y observar logs: verificar si el AP se vuelve inestable por reintentos STA.
 5. Cambiar SSID/pass desde `/config` y verificar que el reinicio del AP sea el motivo de la desconexion.
@@ -62,4 +65,3 @@ Si el AP queda con password vacio y en la UI se desmarca “AP abierto” sin in
 - Si habia un cliente conectado y activo.
 - Si hay credenciales STA configuradas.
 - Logs seriales alrededor del evento (los prints de Wi-Fi/LED ya existen en `loop()`).
-
