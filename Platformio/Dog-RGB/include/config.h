@@ -108,6 +108,13 @@ static const uint8_t SINGLE_R_DEFAULT = 0;
 static const uint8_t SINGLE_G_DEFAULT = 60;
 static const uint8_t SINGLE_B_DEFAULT = 60;
 
+// Wi-Fi boot robustness (boot-time only, not hot-path).
+static const uint32_t WIFI_BOOT_STABILIZE_MS    = 200;  // Delay after WiFi.mode(OFF) hard-reset in begin().
+static const uint32_t WIFI_MODE_SETTLE_MS        = 150;  // Delay after WiFi.mode() before softAPConfig/softAP.
+static const uint32_t WIFI_BLE_COEX_MS           = 150;  // Margin between BLE init and WiFi init.
+static const int      WIFI_BOOT_AP_MAX_ATTEMPTS  = 3;    // Boot retry attempts if softAP returns false.
+static const uint32_t WIFI_BOOT_AP_RETRY_DELAY_MS = 500; // Delay between boot retry attempts.
+
 // Wi-Fi settings (less common to change).
 static const char *AP_SSID = "DogRGB"; // AP name for direct connection.
 static const char *AP_PASS = "Dog12345"; // AP password (>= 8 chars).

@@ -71,7 +71,8 @@ EffectState welcome_state_a;
 EffectState welcome_state_b;
 const uint8_t WELCOME_LAPS = 5;
 const uint8_t WELCOME_SPEED = 32;
-const uint8_t WELCOME_INTENSITY = 255;
+// fade_amt per-frame: 160 → head + ~2 dim trailing LEDs visible (short comet tail).
+const uint8_t WELCOME_FADE_AMT = 160;
 const unsigned long SHOW_TRANSITION_MS = 500;
 const Rgb WELCOME_COLORS[5] = {
   {255, 0, 0},     // rojo
@@ -506,14 +507,12 @@ static void apply_welcome_chase(Rgb *leds,
                                 int count,
                                 const Rgb &base,
                                 uint8_t speed,
-                                uint8_t intensity,
                                 EffectState &state,
                                 bool reverse) {
   if (count <= 0) {
     return;
   }
-  const uint8_t fade_amt = map(255 - intensity, 0, 255, 10, 80);
-  fade_range(leds, start, count, fade_amt);
+  fade_range(leds, start, count, WELCOME_FADE_AMT);
   state.pos = (state.pos + step_from_speed(speed, 32)) % count;
   const uint16_t write_pos = reverse ? static_cast<uint16_t>(count - 1 - state.pos) : state.pos;
   leds[start + write_pos] = base;
@@ -529,10 +528,10 @@ static void update_welcome(unsigned long now_ms) {
   const uint16_t prev_pos = welcome_state_a.pos;
 
   apply_welcome_chase(leds_a, 0, LED_STRIP_COUNT, base,
-                      WELCOME_SPEED, WELCOME_INTENSITY, welcome_state_a, false);
+                      WELCOME_SPEED, welcome_state_a, false);
   if (LED_STRIP_MODE == 2) {
     apply_welcome_chase(leds_b, 0, LED_STRIP_COUNT, base,
-                        WELCOME_SPEED, WELCOME_INTENSITY, welcome_state_b, true);
+                        WELCOME_SPEED, welcome_state_b, true);
   }
   show_leds();
 

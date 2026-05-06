@@ -417,6 +417,10 @@ void setup() {
   // beacon starvation, making the SSID invisible on phones.
   if (BLE_ENABLED) {
     summary_ble::begin();
+    // Give the BT/WiFi coexistence RF scheduler time to stabilize before the
+    // WiFi stack claims the radio. Without this margin, BLEDevice::init() and
+    // wifi_mgr::begin() can race, causing beacon starvation on boot.
+    delay(WIFI_BLE_COEX_MS);
   }
   wifi_mgr::begin();
   portal_http::begin();

@@ -76,6 +76,10 @@ bool start_ap_radio(const char *reason, bool preserve_sta) {
   const unsigned long now_ms = millis();
   const bool use_ap_sta = preserve_sta && wifi_ssid.length() > 0;
   WiFi.mode(use_ap_sta ? WIFI_AP_STA : WIFI_AP);
+  // The mode change is internally asynchronous in the ESP32 driver; without
+  // this margin softAPConfig/softAP operate on a half-initialized stack and
+  // return false or produce an invisible AP.
+  delay(WIFI_MODE_SETTLE_MS);
   WiFi.setSleep(false);
   WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY_IP, AP_SUBNET_MASK);
 
@@ -312,7 +316,9 @@ void set_wifi_off(bool off) {
   Serial.println("[WIFI_OFF] radio re-enabled");
   wifi_off_state = false;
   if (wifi_ssid.length() > 0) {
-    start_ap_radio("wifi_on", false);
+    // Bug fix: use preserve_sta=true to start in WIFI_AP_STA directly, avoiding
+    // a WIFI_AP → WIFI_AP_STA mode switch without a settle delay (same fix as boot).
+    start_ap_radio("wifi_on", true);
     start_sta_mode_internal("wifi_on");
   } else {
     start_ap_mode_internal("wifi_on");
@@ -395,6 +401,14 @@ void update_ap_policy(unsigned long now_ms) {
 } // namespace
 
 void begin() {
+  // Hard-reset the radio before anything else. This clears residual state from
+  // brownouts, WDT resets or power glitches that leave the driver half-initialized,
+  // which causes softAP() to fail silently or produce an invisible AP.
+  WiFi.persistent(false); // Never auto-write STA credentials to flash.
+  WiFi.disconnect(true, true);
+  WiFi.mode(WIFI_OFF);
+  delay(WIFI_BOOT_STABILIZE_MS);
+
   WiFi.onEvent(on_wifi_event);
   load_wifi_creds();
   ap_enabled_state = false;
@@ -404,13 +418,52 @@ void begin() {
       start_ap_mode_internal("debug_ap_only");
       return;
     }
-    // Bug fix: use preserve_sta=true so WiFi starts directly in WIFI_AP_STA mode.
-    // Previously preserve_sta=false caused WIFI_AP → WIFI_AP_STA mode switch
-    // immediately after softAP(), forcing the AP stack to reinitialize.
-    start_ap_radio("boot_with_sta", true);
+    // Boot with retry: attempt softAP up to WIFI_BOOT_AP_MAX_ATTEMPTS times.
+    // Each failed attempt resets the radio and waits before retrying.
+    bool ap_ok = false;
+    for (int attempt = 1; attempt <= WIFI_BOOT_AP_MAX_ATTEMPTS; attempt++) {
+      // Bug fix: use preserve_sta=true so WiFi starts directly in WIFI_AP_STA mode.
+      // Previously preserve_sta=false caused WIFI_AP → WIFI_AP_STA mode switch
+      // immediately after softAP(), forcing the AP stack to reinitialize.
+      ap_ok = start_ap_radio("boot_with_sta", true);
+      if (ap_ok) {
+        break;
+      }
+      Serial.print("[WIFI_AP] boot attempt ");
+      Serial.print(attempt);
+      Serial.print("/");
+      Serial.print(WIFI_BOOT_AP_MAX_ATTEMPTS);
+      Serial.println(" failed, retrying");
+      if (attempt < WIFI_BOOT_AP_MAX_ATTEMPTS) {
+        WiFi.mode(WIFI_OFF);
+        delay(WIFI_BOOT_AP_RETRY_DELAY_MS);
+      }
+    }
+    if (!ap_ok) {
+      Serial.println("[WIFI_AP] all boot attempts failed — AP unavailable, continuing STA-only");
+    }
     start_sta_mode_internal("boot");
   } else {
-    start_ap_mode_internal("boot_no_sta");
+    // No STA creds: boot with retry in AP-only mode.
+    bool ap_ok = false;
+    for (int attempt = 1; attempt <= WIFI_BOOT_AP_MAX_ATTEMPTS; attempt++) {
+      ap_ok = start_ap_radio("boot_no_sta", false);
+      if (ap_ok) {
+        break;
+      }
+      Serial.print("[WIFI_AP] boot attempt ");
+      Serial.print(attempt);
+      Serial.print("/");
+      Serial.print(WIFI_BOOT_AP_MAX_ATTEMPTS);
+      Serial.println(" failed, retrying");
+      if (attempt < WIFI_BOOT_AP_MAX_ATTEMPTS) {
+        WiFi.mode(WIFI_OFF);
+        delay(WIFI_BOOT_AP_RETRY_DELAY_MS);
+      }
+    }
+    if (!ap_ok) {
+      Serial.println("[WIFI_AP] all boot attempts failed — AP unavailable, portal unreachable");
+    }
   }
 }
 
