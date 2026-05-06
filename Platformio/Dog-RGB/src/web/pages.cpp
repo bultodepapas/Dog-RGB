@@ -91,12 +91,16 @@ input.invalid,select.invalid{border-color:var(--danger);}
 .warn{color:var(--accent-2);font-size:12px;}
 .help{color:var(--muted);font-size:12px;margin-top:6px;}
 .notice{color:var(--muted);font-size:12px;margin-top:6px;}
-.effects-row{display:grid;grid-template-columns:64px 1fr 1fr 1fr 1fr;grid-template-areas:"range a b speed intensity";gap:10px;align-items:end;margin:10px 0;padding:10px;background:#000;border:1px solid var(--border);border-radius:var(--radius);}
-.effects-row .range-label{grid-area:range;font-weight:700;color:var(--muted);align-self:center;font-size:11px;text-transform:uppercase;}
-.effects-row .field-a{grid-area:a;}
-.effects-row .field-b{grid-area:b;}
-.effects-row .field-speed{grid-area:speed;}
-.effects-row .field-intensity{grid-area:intensity;}
+.speed-lane{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:5px;background:#000;overflow:hidden;}
+.sl-main{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;}
+.sl-meta{display:flex;align-items:center;gap:8px;flex:1;min-width:180px;}.sl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}.sl-name{font-size:11px;font-weight:700;text-transform:uppercase;min-width:20px;}
+.sl-lbl{font-size:11px;color:var(--muted);min-width:64px;}.sl-range{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);}
+.sl-range input{width:52px;padding:3px 5px;font-size:12px;}.sl-ctrls{display:flex;align-items:center;flex-wrap:wrap;gap:6px;}
+.sl-ctrls select{min-width:118px;padding:4px 7px;font-size:12px;width:auto;}
+.ctl-grp{display:flex;align-items:center;gap:3px;}.ctl-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;}.sl-ctrls input[type=number]{width:50px;padding:4px 5px;font-size:12px;}
+.sl-adv{display:flex;align-items:center;gap:8px;padding:6px 12px 8px 29px;border-top:1px solid var(--border);}
+.sl-adv label{font-size:11px;color:var(--muted);}.sl-adv select{min-width:118px;padding:4px 7px;font-size:12px;width:auto;}
+.sl-adv-btn{display:block;width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--border);color:var(--muted);font-size:10px;font-family:var(--font-mono);cursor:pointer;padding:3px 12px;text-transform:uppercase;letter-spacing:0.04em;}.sl-adv-btn:hover{color:var(--accent);}
 details.section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;font-size:13px;}
 details.section > summary::-webkit-details-marker{display:none;}
 details.section > summary::after{content:'[+]';font-weight:700;color:var(--muted);font-size:11px;}
@@ -112,7 +116,7 @@ details.section[open] > summary::after{content:'[-]';}
 .is-hidden{display:none !important;}
 .back-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.06em;}
 .back-link:hover{color:var(--accent);}
-@media(max-width:760px){.grid-2,.grid-3,.dashboard-summary{grid-template-columns:1fr;}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.mode-cards{grid-template-columns:repeat(2,minmax(0,1fr));}.primary-metric{min-height:auto;width:100%;text-align:center;align-items:center;}.primary-metric .value{font-size:36px;}.dashboard-actions .btn,.dashboard-actions summary.btn{flex:1 1 130px;}.sticky-actions{margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;border-radius:0;}.effects-row{grid-template-columns:52px 1fr;grid-template-areas:"range a" "range b" "range speed" "range intensity";}.effects-row .range-label{align-self:start;padding-top:4px;}.hero-top{flex-direction:column;align-items:flex-start;}}
+@media(max-width:760px){.grid-2,.grid-3,.dashboard-summary{grid-template-columns:1fr;}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.mode-cards{grid-template-columns:repeat(2,minmax(0,1fr));}.primary-metric{min-height:auto;width:100%;text-align:center;align-items:center;}.primary-metric .value{font-size:36px;}.dashboard-actions .btn,.dashboard-actions summary.btn{flex:1 1 130px;}.sticky-actions{margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;border-radius:0;}.hero-top{flex-direction:column;align-items:flex-start;}}
 @media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
 )CSS";
 } // namespace
@@ -940,21 +944,11 @@ String web_pages::html_config_page() {
       </div>
     </details>
 
-    <details class="card section" id="speed_block">
-      <summary>Umbrales de velocidad (avanzado)</summary>
+    <details class="card section" id="speed_lanes_block" open>
+      <summary>Zonas de velocidad</summary>
       <div class="section-body">
-        <div class="grid grid-3">
-          <div class="field"><label>R1</label><input id="r1" type="number" step="0.1"></div>
-          <div class="field"><label>R2</label><input id="r2" type="number" step="0.1"></div>
-          <div class="field"><label>R3</label><input id="r3" type="number" step="0.1"></div>
-          <div class="field"><label>R4</label><input id="r4" type="number" step="0.1"></div>
-          <div class="field"><label>R5</label><input id="r5" type="number" step="0.1"></div>
-          <div class="field"><label>R6</label><input id="r6" type="number" step="0.1"></div>
-          <div class="field"><label>R7</label><input id="r7" type="number" step="0.1"></div>
-          <div class="field"><label>R8</label><input id="r8" type="number" step="0.1"></div>
-          <div class="field"><label>R9</label><input id="r9" type="number" step="0.1"></div>
-        </div>
-        <div class="help">R10 es mayor que R9.</div>
+        <div id="lanes_container"></div>
+        <div class="help">Zona 10 activa cuando velocidad supera el umbral de Zona 9. Los efectos tambien aplican en modo Geocerca.</div>
       </div>
     </details>
 
@@ -1076,13 +1070,6 @@ String web_pages::html_config_page() {
       </div>
     </details>
 
-    <details class="card section" id="effects_block">
-      <summary>Ajuste avanzado por rango (1-10)</summary>
-      <div class="section-body">
-        <div id="effects"></div>
-      </div>
-    </details>
-
     <div class="section">
       <div class="card action-bar">
         <button class="btn" type="button" onclick="saveCfg()">Guardar cambios</button>
@@ -1094,13 +1081,11 @@ String web_pages::html_config_page() {
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const effectsDiv = $('effects');
     const modeEl = $('mode');
-    const speedBlock = $('speed_block');
+    const speedLanesBlock = $('speed_lanes_block');
     const geofenceBlock = $('geofence_block');
     const simpleBlock = $('simple_block');
     const showBlock = $('show_block');
-    const effectsBlock = $('effects_block');
     const fenceMax = $('fence_max');
     const fenceRanges = $('fence_ranges');
     const homeStatus = $('home_status');
@@ -1126,8 +1111,8 @@ String web_pages::html_config_page() {
     const saveBtn = $('save_btn');
     const resetBtn = $('reset_btn');
 
-    const rangeInputs = [ $('r1'),$('r2'),$('r3'),$('r4'),$('r5'),$('r6'),$('r7'),$('r8'),$('r9') ];
-
+    const ZONE_COLORS = ['#00F0F0','#00F08C','#00F000','#64F000','#F0F000','#F0B400','#F07800','#F05000','#F02800','#F00000'];
+    const ZONE_LABELS = ['Quieto','Paseo','Caminar','Ritmo','Trote','Carrera','Galope','Sprint','Sprint+','Maximo'];
     const EFFECTS = [
       {id:0,name:'SOLID'},{id:1,name:'PULSE'},{id:2,name:'BREATH'},{id:3,name:'CHASE'},
       {id:4,name:'COMET'},{id:5,name:'SINELON'},{id:6,name:'CONFETTI'},{id:7,name:'JUGGLE'},
@@ -1159,12 +1144,12 @@ String web_pages::html_config_page() {
       brightness:{field:'brightness',msg:'Brillo fuera de rango (1..255).'},
       mode:{field:'mode',msg:'Modo invalido.'},
       fence_max:{field:'fence_max',msg:'Distancia geofence 50..5000.'},
-      ranges:{field:'speed_block',msg:'Rangos requeridos.'},
-      'ranges value':{field:'speed_block',msg:'Rangos deben ser > 0.'},
-      'ranges order':{field:'speed_block',msg:'Rangos deben ser ascendentes.'},
-      effects:{field:'effects_block',msg:'Efectos incompletos.'},
-      'effect values':{field:'effects_block',msg:'Valores de efecto invalidos.'},
-      'effect id':{field:'effects_block',msg:'ID de efecto invalido.'},
+      ranges:{field:'speed_lanes_block',msg:'Rangos requeridos.'},
+      'ranges value':{field:'speed_lanes_block',msg:'Rangos deben ser > 0.'},
+      'ranges order':{field:'speed_lanes_block',msg:'Rangos deben ser ascendentes.'},
+      effects:{field:'speed_lanes_block',msg:'Efectos incompletos.'},
+      'effect values':{field:'speed_lanes_block',msg:'Valores de efecto invalidos.'},
+      'effect id':{field:'speed_lanes_block',msg:'ID de efecto invalido.'},
       single:{field:'simple_block',msg:'Bloque simple invalido.'},
       'single values':{field:'simple_block',msg:'Valores simple invalidos.'},
       gps:{field:'gps_block',msg:'Parametros GPS invalidos.'},
@@ -1175,22 +1160,45 @@ String web_pages::html_config_page() {
       sel.innerHTML = EFFECTS.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
     }
 
-    function buildEffectsTable(){
+    function buildSpeedLanes(){
       let html = '';
       for (let i=1;i<=10;i++){
-        html += `<div class="effects-row">
-          <div class="range-label">R${i}</div>
-          <div class="field field-a"><label>A</label><select id="e${i}a"></select></div>
-          <div class="field field-b"><label>B</label><select id="e${i}b"></select></div>
-          <div class="field field-speed"><label>Velocidad</label><input id="e${i}s" type="number" min="0" max="255"></div>
-          <div class="field field-intensity"><label>Intensidad</label><input id="e${i}i" type="number" min="0" max="255"></div>
-        </div>`;
+        const color = ZONE_COLORS[i-1];
+        const lbl = ZONE_LABELS[i-1];
+        const isLast = (i===10);
+        let rangeHtml;
+        if (i===1){
+          rangeHtml = `0 &ndash; <input id="ln${i}_thr" type="number" step="0.1" min="0.1" max="40" placeholder="2.0"> km/h`;
+        } else if (!isLast){
+          rangeHtml = `<span id="ln${i}_prev" class="sl-prev">?</span> &ndash; <input id="ln${i}_thr" type="number" step="0.1" min="0.1" max="40"> km/h`;
+        } else {
+          rangeHtml = `&gt; <span id="ln${i}_prev" class="sl-prev">?</span> km/h`;
+        }
+        html += `<div class="speed-lane"><div class="sl-main"><div class="sl-meta"><span class="sl-dot" style="background:${color};box-shadow:0 0 6px ${color}88"></span><span class="sl-name" style="color:${color}">Z${i}</span><span class="sl-lbl">${lbl}</span><span class="sl-range">${rangeHtml}</span></div><div class="sl-ctrls"><select id="ln${i}_eff"></select><span class="ctl-grp"><span class="ctl-lbl">vel</span><input id="ln${i}_spd" type="number" min="0" max="255"></span><span class="ctl-grp"><span class="ctl-lbl">int</span><input id="ln${i}_int" type="number" min="0" max="255"></span></div></div><div class="sl-adv" id="ln${i}_adv" style="display:none"><label>Tira B:</label><select id="ln${i}_effb"></select></div><button class="sl-adv-btn" type="button" onclick="toggleLaneAdv(${i})" id="ln${i}_advbtn">+ tira B independiente</button></div>`;
       }
-      effectsDiv.innerHTML = html;
+      $('lanes_container').innerHTML = html;
       for (let i=1;i<=10;i++){
-        fillEffectSelect($('e'+i+'a'));
-        fillEffectSelect($('e'+i+'b'));
+        fillEffectSelect($('ln'+i+'_eff'));
+        fillEffectSelect($('ln'+i+'_effb'));
+        if (i<10){ $('ln'+i+'_thr').oninput = updateLanePrevs; }
       }
+    }
+
+    function updateLanePrevs(){
+      for (let i=2;i<=10;i++){
+        const prev = $('ln'+(i-1)+'_thr');
+        const disp = $('ln'+i+'_prev');
+        if (disp && prev) disp.textContent = prev.value || '?';
+      }
+    }
+
+    function toggleLaneAdv(i){
+      const adv = $('ln'+i+'_adv');
+      const btn = $('ln'+i+'_advbtn');
+      const vis = adv.style.display !== 'none';
+      adv.style.display = vis ? 'none' : 'flex';
+      btn.textContent = vis ? '+ tira B independiente' : '- tira B independiente';
+      if (!vis) $('ln'+i+'_effb').value = $('ln'+i+'_eff').value;
     }
 
     function applyTheme(key){
@@ -1288,11 +1296,10 @@ String web_pages::html_config_page() {
 
     function updateModeVisibility(){
       const mode = modeEl.value;
-      speedBlock.style.display = (mode === 'speed') ? 'block' : 'none';
+      speedLanesBlock.style.display = (mode === 'speed' || mode === 'geofence') ? 'block' : 'none';
       geofenceBlock.style.display = (mode === 'geofence') ? 'block' : 'none';
       simpleBlock.style.display = (mode === 'simple') ? 'block' : 'none';
       showBlock.style.display = (mode === 'show') ? 'block' : 'none';
-      effectsBlock.style.display = (mode === 'speed' || mode === 'geofence') ? 'block' : 'none';
       $('mode_help').innerText = MODE_HELP[mode] || '';
       updateModeCards();
     }
@@ -1348,11 +1355,11 @@ String web_pages::html_config_page() {
       if (!cfg.day_mode || typeof cfg.day_mode.enabled !== 'boolean') addError('day_mode_enabled','Modo DIA invalido.');
 
       const ranges = cfg.speed_ranges_kph;
-      if (ranges.length !== 9) addError('speed_block','Rangos requeridos.');
+      if (ranges.length !== 9) addError('speed_lanes_block','Rangos requeridos.');
       for (let i=0;i<ranges.length;i++){
-        if (!(ranges[i] > 0)){ addError('speed_block','Rangos deben ser > 0.'); break; }
+        if (!(ranges[i] > 0)){ addError('speed_lanes_block','Rangos deben ser > 0.'); break; }
       }
-      if (!isStrictAscending(ranges)) addError('speed_block','Rangos deben ser ascendentes.');
+      if (!isStrictAscending(ranges)) addError('speed_lanes_block','Rangos deben ser ascendentes.');
 
       if (cfg.fence_max_m < 50 || cfg.fence_max_m > 5000) addError('fence_max','Distancia geofence 50..5000.');
 
@@ -1368,9 +1375,9 @@ String web_pages::html_config_page() {
 
       for (let i=1;i<=10;i++){
         const e = cfg.effects['range'+i];
-        if (!e){ addError('effects_block','Efectos incompletos.'); break; }
-        if (e.a < 0 || e.a > 11 || e.b < 0 || e.b > 11) addError('effects_block','ID de efecto invalido.');
-        if (e.speed < 0 || e.speed > 255 || e.intensity < 0 || e.intensity > 255) addError('effects_block','Valores de efecto invalidos.');
+        if (!e){ addError('speed_lanes_block','Efectos incompletos.'); break; }
+        if (e.a < 0 || e.a > 11 || e.b < 0 || e.b > 11) addError('speed_lanes_block','ID de efecto invalido.');
+        if (e.speed < 0 || e.speed > 255 || e.intensity < 0 || e.intensity > 255) addError('speed_lanes_block','Valores de efecto invalidos.');
       }
 
       const s = cfg.single;
@@ -1412,7 +1419,7 @@ String web_pages::html_config_page() {
           hdop_factor: floatVal(gpsHdopFactor,2.0),
           max_min_segment_m: floatVal(gpsMaxMinSegment,10.0)
         },
-        speed_ranges_kph: rangeInputs.map(el=>floatVal(el,0)),
+        speed_ranges_kph: [1,2,3,4,5,6,7,8,9].map(i=>floatVal($('ln'+i+'_thr'),0)),
         effects:{},
         single:{
           effect: intVal(simpleEffect,0),
@@ -1422,11 +1429,13 @@ String web_pages::html_config_page() {
         }
       };
       for (let i=1;i<=10;i++){
+        const advVis = $('ln'+i+'_adv').style.display !== 'none';
+        const effA = intVal($('ln'+i+'_eff'),0);
         cfg.effects['range'+i] = {
-          a: intVal($('e'+i+'a'),0),
-          b: intVal($('e'+i+'b'),0),
-          speed: intVal($('e'+i+'s'),0),
-          intensity: intVal($('e'+i+'i'),0)
+          a: effA,
+          b: advVis ? intVal($('ln'+i+'_effb'),0) : effA,
+          speed: intVal($('ln'+i+'_spd'),0),
+          intensity: intVal($('ln'+i+'_int'),0)
         };
       }
       return cfg;
@@ -1484,7 +1493,7 @@ String web_pages::html_config_page() {
     brightness.oninput = () => syncBrightness(brightness);
     fenceMax.oninput = updateFenceRanges;
 
-    buildEffectsTable();
+    buildSpeedLanes();
     fillEffectSelect(simpleEffect);
     buildColorSwatches();
 
@@ -1503,14 +1512,19 @@ String web_pages::html_config_page() {
       gpsMinSegment.value = (g.min_segment_m !== undefined ? g.min_segment_m : 3.0);
       gpsHdopFactor.value = (g.hdop_factor !== undefined ? g.hdop_factor : 2.0);
       gpsMaxMinSegment.value = (g.max_min_segment_m !== undefined ? g.max_min_segment_m : 10.0);
-      for (let i=0;i<9;i++){ rangeInputs[i].value = c.speed_ranges_kph[i]; }
+      for (let i=1;i<=9;i++){ $('ln'+i+'_thr').value = c.speed_ranges_kph[i-1]; }
       for (let i=1;i<=10;i++){
         const e = c.effects['range'+i];
-        $('e'+i+'a').value = e.a;
-        $('e'+i+'b').value = e.b;
-        $('e'+i+'s').value = e.speed;
-        $('e'+i+'i').value = e.intensity;
+        $('ln'+i+'_eff').value = e.a;
+        $('ln'+i+'_effb').value = e.b;
+        $('ln'+i+'_spd').value = e.speed;
+        $('ln'+i+'_int').value = e.intensity;
+        if (e.a !== e.b){
+          $('ln'+i+'_adv').style.display = 'flex';
+          $('ln'+i+'_advbtn').textContent = '- tira B independiente';
+        }
       }
+      updateLanePrevs();
       const s = c.single || {};
       const rgb = s.rgb || {};
       simpleEffect.value = (s.effect !== undefined ? s.effect : 0);
