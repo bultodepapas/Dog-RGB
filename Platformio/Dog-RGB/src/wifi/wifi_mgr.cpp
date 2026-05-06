@@ -400,6 +400,10 @@ void begin() {
   ap_enabled_state = false;
   wifi_off_state = false;
   if (wifi_ssid.length() > 0) {
+    if (DEBUG_AP_ONLY_MINIMAL) {
+      start_ap_mode_internal("debug_ap_only");
+      return;
+    }
     // Bug fix: use preserve_sta=true so WiFi starts directly in WIFI_AP_STA mode.
     // Previously preserve_sta=false caused WIFI_AP → WIFI_AP_STA mode switch
     // immediately after softAP(), forcing the AP stack to reinitialize.
@@ -411,7 +415,7 @@ void begin() {
 }
 
 void tick(unsigned long now_ms) {
-  if (!wifi_off_state && (now_ms - last_wifi_check_ms >= WIFI_RETRY_INTERVAL_MS)) {
+  if (!DEBUG_AP_ONLY_MINIMAL && !wifi_off_state && (now_ms - last_wifi_check_ms >= WIFI_RETRY_INTERVAL_MS)) {
     last_wifi_check_ms = now_ms;
     update_ap_station_count();
     if (ap_enabled_state) {

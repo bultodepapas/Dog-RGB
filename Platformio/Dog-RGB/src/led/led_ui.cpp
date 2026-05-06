@@ -224,14 +224,19 @@ static float double_pulse_scale(unsigned long period_ms, unsigned long pulse_ms)
   }
   return 0.0f;
 }
+
+static uint8_t effective_brightness(uint8_t brightness) {
+  return LED_DEBUG_BRIGHTNESS_ENABLED ? LED_DEBUG_BRIGHTNESS : brightness;
+}
+
 static void led_begin() {
   strip_a.begin();
-  strip_a.setBrightness(LED_FORCE_ZERO_BRIGHTNESS_TEST ? 0 : config::get().brightness);
+  strip_a.setBrightness(effective_brightness(config::get().brightness));
   strip_a.clear();
   strip_a.show();
   if (LED_STRIP_MODE == 2) {
     strip_b.begin();
-    strip_b.setBrightness(LED_FORCE_ZERO_BRIGHTNESS_TEST ? 0 : config::get().brightness);
+    strip_b.setBrightness(effective_brightness(config::get().brightness));
     strip_b.clear();
     strip_b.show();
   }
@@ -484,9 +489,9 @@ void start_welcome() {
   welcome.laps_done = 0;
   welcome_state_a = {};
   welcome_state_b = {};
-  strip_a.setBrightness(LED_FORCE_ZERO_BRIGHTNESS_TEST ? 0 : 255);
+  strip_a.setBrightness(effective_brightness(255));
   if (LED_STRIP_MODE == 2) {
-    strip_b.setBrightness(LED_FORCE_ZERO_BRIGHTNESS_TEST ? 0 : 255);
+    strip_b.setBrightness(effective_brightness(255));
   }
   fill_range(leds_a, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
   if (LED_STRIP_MODE == 2) {
@@ -534,9 +539,9 @@ static void update_welcome(unsigned long now_ms) {
     welcome.laps_done++;
     if (welcome.laps_done >= WELCOME_LAPS) {
       welcome.active = false;
-      strip_a.setBrightness(LED_FORCE_ZERO_BRIGHTNESS_TEST ? 0 : config::get().brightness);
+      strip_a.setBrightness(effective_brightness(config::get().brightness));
       if (LED_STRIP_MODE == 2) {
-        strip_b.setBrightness(LED_FORCE_ZERO_BRIGHTNESS_TEST ? 0 : config::get().brightness);
+        strip_b.setBrightness(effective_brightness(config::get().brightness));
       }
       fill_range(leds_a, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
       if (LED_STRIP_MODE == 2) {
@@ -975,9 +980,9 @@ void tick() {
 }
 
 void apply_brightness(uint8_t brightness) {
-  strip_a.setBrightness(LED_FORCE_ZERO_BRIGHTNESS_TEST ? 0 : brightness);
+  strip_a.setBrightness(effective_brightness(brightness));
   if (LED_STRIP_MODE == 2) {
-    strip_b.setBrightness(LED_FORCE_ZERO_BRIGHTNESS_TEST ? 0 : brightness);
+    strip_b.setBrightness(effective_brightness(brightness));
   }
 }
 

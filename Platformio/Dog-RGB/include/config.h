@@ -81,7 +81,9 @@ static const int LED_STRIP_MODE = 2; // 1 = single strip, 2 = dual strips.
 static const int LED_STRIP_COUNT = 24; // LEDs per strip (min 10, max 50).
 static const int LED_STATUS_COUNT = 2; // First N LEDs reserved for status.
 static const uint8_t LED_BRIGHTNESS = 77; // ~30% brightness (0-255).
-static const bool LED_FORCE_ZERO_BRIGHTNESS_TEST = true; // Diagnostic: force strips off for power testing.
+static const bool LED_DEBUG_BRIGHTNESS_ENABLED = true; // Diagnostic: override runtime brightness.
+static const uint8_t LED_DEBUG_BRIGHTNESS = 30; // Low-brightness debug value.
+static const bool DEBUG_AP_ONLY_MINIMAL = true; // Diagnostic: boot only AP + portal, no GPS/LED/BLE/STA.
 
 // LED UI timing.
 static const unsigned long LED_UPDATE_MS = 50; // Refresh interval for LED UI.

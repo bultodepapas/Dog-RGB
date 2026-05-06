@@ -381,6 +381,19 @@ void setup() {
 
   storage::begin();
   config::load();
+
+  if (DEBUG_AP_ONLY_MINIMAL) {
+    wifi_mgr::begin();
+    portal_http::begin();
+    Serial.println("Dog-RGB DEBUG_AP_ONLY_MINIMAL: AP + portal only");
+    const esp_reset_reason_t rr = esp_reset_reason();
+    Serial.print("[BOOT] reset_reason=");
+    Serial.println(static_cast<int>(rr));
+    Serial.print("[BOOT] ap_only=1 led=0 gps=0 ble=0 sta=0 brightness_debug=");
+    Serial.println(LED_DEBUG_BRIGHTNESS_ENABLED ? LED_DEBUG_BRIGHTNESS : config::get().brightness);
+    return;
+  }
+
   gps::begin();
   geofence::begin();
 
@@ -433,6 +446,40 @@ void setup() {
 void loop() {
   const unsigned long loop_start_us = micros();
   const unsigned long now_ms = millis();
+
+  if (DEBUG_AP_ONLY_MINIMAL) {
+    if (now_ms - last_heartbeat_ms >= HEARTBEAT_MS) {
+      last_heartbeat_ms = now_ms;
+      led_state = !led_state;
+      digitalWrite(PIN_STATUS_LED, led_state ? HIGH : LOW);
+    }
+    if (now_ms - last_log_ms >= LOG_MS) {
+      last_log_ms = now_ms;
+      const wifi_mgr::WifiDiagnostics &wd = wifi_mgr::diagnostics();
+      Serial.print("[DEBUG_AP_ONLY] uptime_s=");
+      Serial.print(now_ms / 1000);
+      Serial.print(" mode=");
+      Serial.print(wifi_mode_name(WiFi.getMode()));
+      Serial.print(" ap=");
+      Serial.print(wifi_mgr::ap_enabled() ? "1" : "0");
+      Serial.print(" clients=");
+      Serial.print(wifi_mgr::ap_station_count());
+      Serial.print(" ap_start=");
+      Serial.print(wd.ap_start_count);
+      Serial.print(" ap_fail=");
+      Serial.print(wd.ap_start_fail_count);
+      Serial.print(" ap_stop=");
+      Serial.print(wd.ap_stop_count);
+      Serial.print(" ap_restart=");
+      Serial.print(wd.ap_restart_count);
+      Serial.print(" ip=");
+      Serial.println(WiFi.softAPIP().toString());
+    }
+    wifi_mgr::tick(now_ms);
+    portal_http::handle_client();
+    return;
+  }
+
   gps::tick();
   geofence::tick(now_ms);
   gps::save_if_due(now_ms);
