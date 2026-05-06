@@ -37,7 +37,7 @@ h2{font-size:16px;letter-spacing:0.04em;}
 .value{font-size:24px;font-weight:700;text-shadow:var(--glow-md);}
 .data{font-size:14px;font-weight:600;color:var(--text);}
 .mono{font-family:var(--font-mono);}
-.code{background:#000;color:var(--text);padding:12px;border-radius:var(--radius);overflow:auto;font-size:12px;border:1px solid var(--border);}
+.code{background:#000;color:var(--text);padding:12px;border-radius:var(--radius);overflow-x:auto;white-space:pre;font-size:12px;border:1px solid var(--border);}
 .metric .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
 .metric .value{font-size:28px;font-weight:700;line-height:1.1;text-shadow:var(--glow-md);}
 .metric .unit{font-size:12px;color:var(--muted);}
@@ -81,6 +81,7 @@ input,select{width:100%;padding:8px 10px;border:1px solid var(--border);border-r
 input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:var(--glow-sm);}
 input[type="checkbox"]{width:auto;margin-right:6px;accent-color:var(--accent);}
 input[type="range"]{accent-color:var(--accent);}
+input::placeholder{color:var(--muted);}
 .section{margin-top:14px;}
 .section.invalid{border-color:var(--danger);}
 input.invalid,select.invalid{border-color:var(--danger);}
@@ -111,7 +112,7 @@ details.section[open] > summary::after{content:'[-]';}
 .is-hidden{display:none !important;}
 .back-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.06em;}
 .back-link:hover{color:var(--accent);}
-@media(max-width:760px){.grid-2,.grid-3,.dashboard-summary,.stat-grid,.mode-cards{grid-template-columns:1fr;}.primary-metric{min-height:auto;}.primary-metric .value{font-size:36px;}.dashboard-actions .btn,.dashboard-actions summary.btn{flex:1 1 130px;}.sticky-actions{margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;border-radius:0;}.effects-row{grid-template-columns:52px 1fr;grid-template-areas:"range a" "range b" "range speed" "range intensity";}.effects-row .range-label{align-self:start;padding-top:4px;}.hero-top{flex-direction:column;align-items:flex-start;}}
+@media(max-width:760px){.grid-2,.grid-3,.dashboard-summary{grid-template-columns:1fr;}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.mode-cards{grid-template-columns:repeat(2,minmax(0,1fr));}.primary-metric{min-height:auto;width:100%;text-align:center;align-items:center;}.primary-metric .value{font-size:36px;}.dashboard-actions .btn,.dashboard-actions summary.btn{flex:1 1 130px;}.sticky-actions{margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;border-radius:0;}.effects-row{grid-template-columns:52px 1fr;grid-template-areas:"range a" "range b" "range speed" "range intensity";}.effects-row .range-label{align-self:start;padding-top:4px;}.hero-top{flex-direction:column;align-items:flex-start;}}
 @media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
 )CSS";
 } // namespace
@@ -153,7 +154,7 @@ String web_pages::html_page() {
         <a class="btn ghost" href="/config">Config LEDs</a>
         <a class="btn ghost" href="/wifi">Config Wi-Fi</a>
         <a class="btn ghost" href="/dev">Dev</a>
-        <button class="btn ghost" id="home_btn" onclick="updateHome()">Set Home</button>
+        <button class="btn ghost" id="home_btn" onclick="updateHome()" style="display:none">Set Home</button>
       </div>
       <div class="muted" id="status">Estado: --</div>
     </div>
@@ -458,6 +459,9 @@ String web_pages::html_page() {
         setPill('pill-day', active ? 'DIA activo' : (waiting ? 'DIA esperando hora' : 'DIA armado'), active ? 'ok' : 'warn');
       } else if (dayPill) {
         dayPill.style.display = 'none';
+      }
+      if (homeBtn){
+        homeBtn.style.display = (s.mode === 'geofence') ? 'inline-flex' : 'none';
       }
 
       var homeText='Home: --';
