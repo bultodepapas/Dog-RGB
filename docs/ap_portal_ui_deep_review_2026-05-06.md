@@ -750,6 +750,43 @@ Keep developer power while making the firmware UI easier to maintain.
 
 ---
 
+## Phase 5 Completion Audit
+
+Completed on 2026-05-06.
+
+### Implemented Scope
+
+- `/dev` remains available as an intentional diagnostics surface, not a normal user destination.
+- AP diagnostics are grouped in a dedicated `Diagnostico AP` section.
+- Raw device JSON is still available, but collapsed under `JSON crudo`.
+- User-facing portal labels are standardized toward Spanish while preserving technical abbreviations such as AP, STA, GPS, HDOP, RSSI, RMC, GGA, RGB, and JSON.
+- `tools/web_pages_smoke.py` now checks required page markup, inline JavaScript function availability, route-critical snippets, route preview polling safeguards, estimated page sizes, and `String::reserve()` coverage.
+
+### Page Budget Snapshot
+
+Estimated static page sizes include shared CSS and embedded page templates from `src/web/pages.cpp`.
+
+| Page builder | Estimated bytes | Reserve bytes | Budget bytes |
+| --- | ---: | ---: | ---: |
+| `html_page` | 23,972 | 25,000 | 28,000 |
+| `html_wifi_page` | 21,135 | 22,000 | 24,000 |
+| `html_config_page` | 34,539 | 36,000 | 40,000 |
+| `html_dev_page` | 23,874 | 26,000 | 28,000 |
+
+### Validation Record
+
+- Static portal smoke test: `python3 tools/web_pages_smoke.py`
+- Whitespace check: `git diff --check`
+- Firmware build: `/Users/angel/.platformio/penv/bin/platformio run` from `Platformio/Dog-RGB`
+
+### Residual Guidance
+
+- The portal is functionally complete through Phase 5.
+- Further size reduction should be treated as a separate optimization phase, likely by splitting large page fragments into additional `PROGMEM` constants or streaming larger responses.
+- Any future UI change should update `tools/web_pages_smoke.py` when it affects route-critical markup, JavaScript entry points, or page-size budgets.
+
+---
+
 ## Final Guidance
 
 The existing portal is a strong embedded prototype with real operational value. It should not be thrown away. The right path is to keep the simple embedded architecture and progressively reshape the interface around mobile user tasks.

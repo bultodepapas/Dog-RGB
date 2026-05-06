@@ -14,6 +14,13 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 PAGES = ROOT / "Platformio" / "Dog-RGB" / "src" / "web" / "pages.cpp"
 
+PAGE_BUDGETS = {
+    "html_page": 28_000,
+    "html_wifi_page": 24_000,
+    "html_config_page": 40_000,
+    "html_dev_page": 28_000,
+}
+
 REQUIRED_SNIPPETS = [
     'id="mode_btn"',
     'id="track_load"',
@@ -30,7 +37,7 @@ REQUIRED_SNIPPETS = [
     'id="color_swatches"',
     "Diagnostico AP",
     'id="diag-ap-start"',
-    "<summary>Raw JSON</summary>",
+    "<summary>JSON crudo</summary>",
 ]
 
 REQUIRED_FUNCTIONS = [
@@ -64,6 +71,30 @@ INLINE_CALLS = [
 ]
 
 
+def raw_literal_size(source: str, token: str) -> int:
+    match = re.search(rf'R"{token}\((.*?)\){token}"', source, re.S)
+    return len(match.group(1).encode("utf-8")) if match else 0
+
+
+def estimate_page_sizes(source: str) -> dict[str, tuple[int, int]]:
+    base_css = raw_literal_size(source, "CSS")
+    estimates: dict[str, tuple[int, int]] = {}
+    for name in PAGE_BUDGETS:
+        match = re.search(rf"String web_pages::{name}\(\) \{{(.*?)\n\}}", source, re.S)
+        if not match:
+            continue
+        body = match.group(1)
+        total = 0
+        for part in re.findall(r'page \+= F\(R"[A-Z]+\((.*?)\)[A-Z]+"\);', body, re.S):
+            total += len(part.encode("utf-8"))
+        if "FPSTR(BASE_CSS)" in body:
+            total += base_css
+        reserve_match = re.search(r"page\.reserve\((\d+)\)", body)
+        reserve = int(reserve_match.group(1)) if reserve_match else 0
+        estimates[name] = (total, reserve)
+    return estimates
+
+
 def main() -> int:
     src = PAGES.read_text(encoding="utf-8")
     failures: list[str] = []
@@ -86,6 +117,17 @@ def main() -> int:
 
     if "setInterval(loadTrack" in src:
         failures.append("route preview must not be auto-polled")
+
+    page_sizes = estimate_page_sizes(src)
+    for name, budget in PAGE_BUDGETS.items():
+        if name not in page_sizes:
+            failures.append(f"missing page size estimate: {name}")
+            continue
+        size, reserve = page_sizes[name]
+        if size > budget:
+            failures.append(f"{name} is {size} bytes, over budget {budget}")
+        if reserve < size:
+            failures.append(f"{name} reserve {reserve} is below estimated size {size}")
 
     if failures:
         for failure in failures:

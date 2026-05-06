@@ -105,7 +105,7 @@ details.section[open] > summary::after{content:'-';}
 
 String web_pages::html_page() {
   String page;
-  page.reserve(13000);
+  page.reserve(25000);
   page += F(R"HTML(
 <!doctype html>
 <html>
@@ -542,7 +542,7 @@ String web_pages::html_page() {
 }
 String web_pages::html_wifi_page() {
   String page;
-  page.reserve(13000);
+  page.reserve(22000);
   page += F(R"HTML(
 <!doctype html>
 <html>
@@ -889,7 +889,7 @@ String web_pages::html_wifi_page() {
 }
 String web_pages::html_config_page() {
   String page;
-  page.reserve(19000);
+  page.reserve(36000);
   page += F(R"CFG(
 <!doctype html>
 <html>
@@ -1537,7 +1537,7 @@ String web_pages::html_config_page() {
 
 String web_pages::html_dev_page() {
   String page;
-  page.reserve(14000);
+  page.reserve(26000);
   page += F(R"DEV(
 <!doctype html>
 <html>
@@ -1575,8 +1575,8 @@ String web_pages::html_dev_page() {
     <div class="card section">
       <h2>Sistema</h2>
       <div class="grid grid-2">
-        <div class="field"><label>Uptime</label><div class="data mono" id="dev-uptime">--</div></div>
-        <div class="field"><label>Build</label><div class="data mono" id="dev-build">--</div></div>
+        <div class="field"><label>Tiempo activo</label><div class="data mono" id="dev-uptime">--</div></div>
+        <div class="field"><label>Compilacion</label><div class="data mono" id="dev-build">--</div></div>
         <div class="field"><label>Heap libre</label><div class="data mono" id="dev-heap">--</div></div>
       </div>
     </div>
@@ -1587,8 +1587,8 @@ String web_pages::html_dev_page() {
         <div class="field"><label>Modo</label><div class="data mono" id="wifi-mode">--</div></div>
         <div class="field"><label>STA</label><div class="data mono" id="wifi-sta">--</div></div>
         <div class="field"><label>AP</label><div class="data mono" id="wifi-ap">--</div></div>
-        <div class="field"><label>Stations</label><div class="data mono" id="wifi-stations">--</div></div>
-        <div class="field"><label>Wi-Fi Off</label><div class="data mono" id="wifi-off">--</div></div>
+        <div class="field"><label>Clientes AP</label><div class="data mono" id="wifi-stations">--</div></div>
+        <div class="field"><label>Wi-Fi apagado</label><div class="data mono" id="wifi-off">--</div></div>
         <div class="field"><label>SSID AP</label><div class="data mono" id="wifi-ssid">--</div></div>
         <div class="field"><label>mDNS</label><div class="data mono" id="wifi-mdns">--</div></div>
         <div class="field"><label>STA IP</label><div class="data mono" id="wifi-sta-ip">--</div></div>
@@ -1600,18 +1600,18 @@ String web_pages::html_dev_page() {
     <details class="card section" open>
       <summary>Diagnostico AP</summary>
       <div class="grid grid-2 section-body">
-        <div class="field"><label>AP start</label><div class="data mono" id="diag-ap-start">--</div></div>
-        <div class="field"><label>AP fail</label><div class="data mono" id="diag-ap-fail">--</div></div>
-        <div class="field"><label>AP stop</label><div class="data mono" id="diag-ap-stop">--</div></div>
-        <div class="field"><label>AP restart</label><div class="data mono" id="diag-ap-restart">--</div></div>
-        <div class="field"><label>Station connect</label><div class="data mono" id="diag-ap-sta-connect">--</div></div>
-        <div class="field"><label>Station disconnect</label><div class="data mono" id="diag-ap-sta-disconnect">--</div></div>
-        <div class="field"><label>DNS captive</label><div class="data mono" id="diag-dns">--</div></div>
+        <div class="field"><label>Inicios AP</label><div class="data mono" id="diag-ap-start">--</div></div>
+        <div class="field"><label>Fallos AP</label><div class="data mono" id="diag-ap-fail">--</div></div>
+        <div class="field"><label>Paradas AP</label><div class="data mono" id="diag-ap-stop">--</div></div>
+        <div class="field"><label>Reinicios AP</label><div class="data mono" id="diag-ap-restart">--</div></div>
+        <div class="field"><label>Clientes conectados</label><div class="data mono" id="diag-ap-sta-connect">--</div></div>
+        <div class="field"><label>Clientes desconectados</label><div class="data mono" id="diag-ap-sta-disconnect">--</div></div>
+        <div class="field"><label>DNS cautivo</label><div class="data mono" id="diag-dns">--</div></div>
         <div class="field"><label>Canal AP</label><div class="data mono" id="diag-channel">--</div></div>
         <div class="field"><label>Hold AP</label><div class="data mono" id="diag-hold">--</div></div>
-        <div class="field"><label>Next STA retry</label><div class="data mono" id="diag-next-retry">--</div></div>
-        <div class="field"><label>Last AP reason</label><div class="data mono" id="diag-ap-reason">--</div></div>
-        <div class="field"><label>Last STA reason</label><div class="data mono" id="diag-sta-reason">--</div></div>
+        <div class="field"><label>Proximo retry STA</label><div class="data mono" id="diag-next-retry">--</div></div>
+        <div class="field"><label>Ultima razon AP</label><div class="data mono" id="diag-ap-reason">--</div></div>
+        <div class="field"><label>Ultima razon STA</label><div class="data mono" id="diag-sta-reason">--</div></div>
       </div>
     </details>
 
@@ -1620,24 +1620,24 @@ String web_pages::html_dev_page() {
       <div class="grid grid-2">
         <div class="field"><label>Fix</label><div class="data mono" id="gps-fix">--</div></div>
         <div class="field"><label>Fix actual</label><div class="data mono" id="gps-current-fix">--</div></div>
-        <div class="field"><label>Raw fix</label><div class="data mono" id="gps-raw-fix">--</div></div>
-        <div class="field"><label>Trusted fix</label><div class="data mono" id="gps-trusted-fix">--</div></div>
+        <div class="field"><label>Fix sin filtrar</label><div class="data mono" id="gps-raw-fix">--</div></div>
+        <div class="field"><label>Fix confiable</label><div class="data mono" id="gps-trusted-fix">--</div></div>
         <div class="field"><label>Sats</label><div class="data mono" id="gps-sats">--</div></div>
-        <div class="field"><label>Fix quality</label><div class="data mono" id="gps-fix-quality">--</div></div>
+        <div class="field"><label>Calidad fix</label><div class="data mono" id="gps-fix-quality">--</div></div>
         <div class="field"><label>HDOP</label><div class="data mono" id="gps-hdop">--</div></div>
-        <div class="field"><label>Quality OK</label><div class="data mono" id="gps-quality-ok">--</div></div>
-        <div class="field"><label>Speed (kph)</label><div class="data mono" id="gps-speed">--</div></div>
+        <div class="field"><label>Calidad OK</label><div class="data mono" id="gps-quality-ok">--</div></div>
+        <div class="field"><label>Velocidad (kph)</label><div class="data mono" id="gps-speed">--</div></div>
         <div class="field"><label>Lat</label><div class="data mono" id="gps-lat">--</div></div>
         <div class="field"><label>Lon</label><div class="data mono" id="gps-lon">--</div></div>
         <div class="field"><label>Fecha</label><div class="data mono" id="gps-date">--</div></div>
-        <div class="field"><label>Ult update</label><div class="data mono" id="gps-update">--</div></div>
-        <div class="field"><label>Age last byte</label><div class="data mono" id="gps-age-byte">--</div></div>
-        <div class="field"><label>Age last fix</label><div class="data mono" id="gps-age-fix">--</div></div>
+        <div class="field"><label>Ultima actualizacion</label><div class="data mono" id="gps-update">--</div></div>
+        <div class="field"><label>Edad ultimo byte</label><div class="data mono" id="gps-age-byte">--</div></div>
+        <div class="field"><label>Edad ultimo fix</label><div class="data mono" id="gps-age-fix">--</div></div>
         <div class="field"><label>Bytes RX</label><div class="data mono" id="gps-bytes">--</div></div>
-        <div class="field"><label>Sentences RX</label><div class="data mono" id="gps-sentences">--</div></div>
-        <div class="field"><label>RMC seen</label><div class="data mono" id="gps-rmc-seen">--</div></div>
-        <div class="field"><label>RMC valid</label><div class="data mono" id="gps-rmc-valid">--</div></div>
-        <div class="field"><label>GGA seen</label><div class="data mono" id="gps-gga-seen">--</div></div>
+        <div class="field"><label>Sentencias RX</label><div class="data mono" id="gps-sentences">--</div></div>
+        <div class="field"><label>RMC visto</label><div class="data mono" id="gps-rmc-seen">--</div></div>
+        <div class="field"><label>RMC valido</label><div class="data mono" id="gps-rmc-valid">--</div></div>
+        <div class="field"><label>GGA visto</label><div class="data mono" id="gps-gga-seen">--</div></div>
         <div class="field"><label>Overflow</label><div class="data mono" id="gps-overflow">--</div></div>
       </div>
     </div>
@@ -1646,35 +1646,35 @@ String web_pages::html_dev_page() {
       <h2>LED</h2>
       <div class="grid grid-2">
         <div class="field"><label>Modo</label><div class="data mono" id="led-mode">--</div></div>
-        <div class="field"><label>Brightness</label><div class="data mono" id="led-brightness">--</div></div>
+        <div class="field"><label>Brillo</label><div class="data mono" id="led-brightness">--</div></div>
         <div class="field"><label>Rango actual</label><div class="data mono" id="led-range">--</div></div>
         <div class="field"><label>Base RGB</label><div class="data mono" id="led-base">--</div></div>
-        <div class="field"><label>Effect A</label><div class="data mono" id="led-effect-a">--</div></div>
-        <div class="field"><label>Effect B</label><div class="data mono" id="led-effect-b">--</div></div>
-        <div class="field"><label>Range Speed</label><div class="data mono" id="led-range-speed">--</div></div>
-        <div class="field"><label>Range Intensity</label><div class="data mono" id="led-range-intensity">--</div></div>
-        <div class="field"><label>Simple effect</label><div class="data mono" id="led-simple-effect">--</div></div>
-        <div class="field"><label>Simple speed</label><div class="data mono" id="led-simple-speed">--</div></div>
-        <div class="field"><label>Simple intensity</label><div class="data mono" id="led-simple-intensity">--</div></div>
+        <div class="field"><label>Efecto A</label><div class="data mono" id="led-effect-a">--</div></div>
+        <div class="field"><label>Efecto B</label><div class="data mono" id="led-effect-b">--</div></div>
+        <div class="field"><label>Velocidad rango</label><div class="data mono" id="led-range-speed">--</div></div>
+        <div class="field"><label>Intensidad rango</label><div class="data mono" id="led-range-intensity">--</div></div>
+        <div class="field"><label>Efecto simple</label><div class="data mono" id="led-simple-effect">--</div></div>
+        <div class="field"><label>Velocidad simple</label><div class="data mono" id="led-simple-speed">--</div></div>
+        <div class="field"><label>Intensidad simple</label><div class="data mono" id="led-simple-intensity">--</div></div>
         <div class="field"><label>Simple RGB</label><div class="data mono" id="led-simple-rgb">--</div></div>
-        <div class="field"><label>Show effect</label><div class="data mono" id="led-show-effect">--</div></div>
+        <div class="field"><label>Efecto show</label><div class="data mono" id="led-show-effect">--</div></div>
       </div>
     </div>
 
     <div class="card section">
-      <h2>Geofence</h2>
+      <h2>Geocerca</h2>
       <div class="grid grid-2">
-        <div class="field"><label>Home set</label><div class="data mono" id="geo-set">--</div></div>
-        <div class="field"><label>Source</label><div class="data mono" id="geo-source">--</div></div>
+        <div class="field"><label>Home definido</label><div class="data mono" id="geo-set">--</div></div>
+        <div class="field"><label>Fuente</label><div class="data mono" id="geo-source">--</div></div>
         <div class="field"><label>Home lat</label><div class="data mono" id="geo-lat">--</div></div>
         <div class="field"><label>Home lon</label><div class="data mono" id="geo-lon">--</div></div>
-        <div class="field"><label>Distance (m)</label><div class="data mono" id="geo-dist">--</div></div>
-        <div class="field"><label>Range</label><div class="data mono" id="geo-range">--</div></div>
+        <div class="field"><label>Distancia (m)</label><div class="data mono" id="geo-dist">--</div></div>
+        <div class="field"><label>Rango</label><div class="data mono" id="geo-range">--</div></div>
       </div>
     </div>
 
     <details class="card section">
-      <summary>Raw JSON</summary>
+      <summary>JSON crudo</summary>
       <pre id="dev-json" class="code mono section-body"></pre>
     </details>
 
@@ -1731,12 +1731,12 @@ String web_pages::html_dev_page() {
         setText('dev-heap', d.system.free_heap);
 
         const wifi = d.wifi || {};
-        const staState = wifi.sta_connected ? 'connected' : (wifi.sta_connecting ? 'connecting' : 'disconnected');
+        const staState = wifi.sta_connected ? 'conectada' : (wifi.sta_connecting ? 'conectando' : 'desconectada');
         setText('wifi-mode', wifi.mode);
         setText('wifi-sta', staState);
-        setText('wifi-ap', wifi.ap_enabled ? 'on' : 'off');
+        setText('wifi-ap', wifi.ap_enabled ? 'activo' : 'apagado');
         setText('wifi-stations', wifi.ap_stations);
-        setText('wifi-off', wifi.wifi_off ? 'yes' : 'no');
+        setText('wifi-off', wifi.wifi_off ? 'si' : 'no');
         setText('wifi-ssid', wifi.ap_ssid);
         setText('wifi-mdns', wifi.mdns);
         setText('wifi-sta-ip', wifi.sta_ip);
@@ -1750,7 +1750,7 @@ String web_pages::html_dev_page() {
         setText('diag-ap-restart', diag.ap_restart_count);
         setText('diag-ap-sta-connect', diag.ap_station_connect_count);
         setText('diag-ap-sta-disconnect', diag.ap_station_disconnect_count);
-        setText('diag-dns', diag.dns_running ? 'on' : 'off');
+        setText('diag-dns', diag.dns_running ? 'activo' : 'apagado');
         setText('diag-channel', diag.current_ap_channel);
         setText('diag-hold', (diag.ap_hold_until_ms && diag.ap_hold_until_ms > nowMs) ? fmtMs(diag.ap_hold_until_ms - nowMs) : '--');
         setText('diag-next-retry', (diag.next_sta_retry_ms && diag.next_sta_retry_ms > nowMs) ? fmtMs(diag.next_sta_retry_ms - nowMs) : '--');
@@ -1758,14 +1758,14 @@ String web_pages::html_dev_page() {
         setText('diag-sta-reason', diag.last_sta_reason);
 
         const gps = d.gps || {};
-        setText('gps-fix', gps.fix ? 'yes' : 'no');
-        setText('gps-current-fix', gps.current_fix ? 'yes' : 'no');
-        setText('gps-raw-fix', gps.raw_fix ? 'yes' : 'no');
-        setText('gps-trusted-fix', gps.trusted_fix ? 'yes' : 'no');
+        setText('gps-fix', gps.fix ? 'si' : 'no');
+        setText('gps-current-fix', gps.current_fix ? 'si' : 'no');
+        setText('gps-raw-fix', gps.raw_fix ? 'si' : 'no');
+        setText('gps-trusted-fix', gps.trusted_fix ? 'si' : 'no');
         setText('gps-sats', gps.sats);
         setText('gps-fix-quality', gps.fix_quality);
         setText('gps-hdop', (gps.hdop !== undefined) ? gps.hdop.toFixed(2) : '--');
-        setText('gps-quality-ok', gps.quality_ok ? 'yes' : 'no');
+        setText('gps-quality-ok', gps.quality_ok ? 'si' : 'no');
         setText('gps-speed', (gps.speed_kph !== undefined) ? gps.speed_kph.toFixed(2) : '--');
         setText('gps-lat', (gps.lat !== undefined) ? gps.lat.toFixed(6) : '--');
         setText('gps-lon', (gps.lon !== undefined) ? gps.lon.toFixed(6) : '--');
@@ -1816,7 +1816,7 @@ String web_pages::html_dev_page() {
         }
 
         const geo = d.geofence || {};
-        setText('geo-set', geo.set ? 'yes' : 'no');
+        setText('geo-set', geo.set ? 'si' : 'no');
         setText('geo-source', geo.source);
         setText('geo-lat', (geo.home_lat !== undefined) ? geo.home_lat.toFixed(6) : '--');
         setText('geo-lon', (geo.home_lon !== undefined) ? geo.home_lon.toFixed(6) : '--');
