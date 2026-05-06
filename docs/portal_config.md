@@ -46,7 +46,7 @@ Esta documentacion describe el JSON, validaciones, UI y persistencia tal como es
     "rgb": {"r": 0, "g": 60, "b": 60}
   },
   "wifi": {
-    "ap_ssid": "dog",
+    "ap_ssid": "DogRGB",
     "has_ap_pass": true,
     "mdns": "dog-collar"
   }
@@ -86,8 +86,8 @@ Notas:
     "rgb": {"r": 0, "g": 60, "b": 60}
   },
   "wifi": {
-    "ap_ssid": "dog",
-    "ap_pass": "Dog123456789",
+    "ap_ssid": "DogRGB",
+    "ap_pass": "Dog12345",
     "ap_open": false,
     "mdns": "dog-collar"
   }

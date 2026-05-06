@@ -31,8 +31,8 @@ Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en N
 | LED_STRIP_COUNT | 24 | 24 | Ajustar segun largo real |
 | LED_STATUS_COUNT | 2 | 2 | Mantener corto para estados |
 | LED_BRIGHTNESS | 77 | 77 | ~30% brillo |
-| AP_SSID | dog | dog | Temporal |
-| AP_PASS | Dog123456789 | Dog123456789 | Temporal |
+| AP_SSID | DogRGB | DogRGB | Temporal |
+| AP_PASS | Dog12345 | Dog12345 | Temporal |
 | GPS_BAUD | 9600 | 9600 | GNSS E108-GN02 |
 | GPS_SAMPLE_MS | 1000 | 1000 | 1 s |
 | SPEED_ACTIVE_KPH | 0.7 | 0.7 | Umbral activo |
@@ -116,8 +116,8 @@ Mapeo de color:
 
 ## 4) Wi-Fi
 
-- AP_SSID: dog
-- AP_PASS: Dog123456789
+- AP_SSID: DogRGB
+- AP_PASS: Dog12345
 - MDNS_NAME: dog-collar
 - AP_CHANNEL: 1
 - AP_MAX_CLIENTS: 2

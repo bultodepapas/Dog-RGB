@@ -99,8 +99,8 @@ AP/Wi-Fi auto:
 
 ## 4) Conectar al portal (modo AP)
 
-1) Busca la red Wi-Fi del collar: `dog`
-2) Password por defecto: `Dog123456789`
+1) Busca la red Wi-Fi del collar: `DogRGB`
+2) Password por defecto: `Dog12345`
 3) El telefono puede mostrar automaticamente el portal cautivo. Si no aparece, abre el navegador:
    - `http://192.168.4.1`
 4) Veras el dashboard con:

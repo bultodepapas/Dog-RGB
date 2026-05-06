@@ -100,8 +100,8 @@ static const uint8_t SINGLE_G_DEFAULT = 60;
 static const uint8_t SINGLE_B_DEFAULT = 60;
 
 // Wi-Fi settings (less common to change).
-static const char *AP_SSID = "dog"; // AP name for direct connection.
-static const char *AP_PASS = "Dog123456789"; // AP password (>= 8 chars).
+static const char *AP_SSID = "DogRGB"; // AP name for direct connection.
+static const char *AP_PASS = "Dog12345"; // AP password (>= 8 chars).
 static const char *MDNS_NAME = "dog-collar"; // mDNS hostname in STA mode.
 static const uint8_t AP_CHANNEL = 1; // SoftAP channel when STA is not connected.
 static const uint8_t AP_MAX_CLIENTS = 2; // Keep setup surface small and predictable.

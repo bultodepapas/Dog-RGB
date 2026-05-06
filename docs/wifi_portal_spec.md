@@ -23,8 +23,8 @@ Este documento describe el portal web local del collar y su comportamiento en AP
 4) Ve la pagina con las metricas y boton "Actualizar".
 
 ### Defaults (runtime)
-- SSID: `dog`
-- Password: `Dog123456789`
+- SSID: `DogRGB`
+- Password: `Dog12345`
 - IP portal: `http://192.168.4.1/`
 - Canal AP por defecto: `AP_CHANNEL` (canal 1 mientras STA no esta conectado)
 - Clientes AP maximos: `AP_MAX_CLIENTS` (2)

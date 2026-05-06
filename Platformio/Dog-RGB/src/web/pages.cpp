@@ -712,7 +712,7 @@ String web_pages::html_wifi_page() {
       } else if (w.wifi_off){
         home = 'Wi-Fi off';
       }
-      const ap = w.ap_enabled ? ('Activo: ' + (w.ap_ssid || 'dog') + ' (' + (w.ap_stations || 0) + ' clientes)') : 'Apagado';
+      const ap = w.ap_enabled ? ('Activo: ' + (w.ap_ssid || 'DogRGB') + ' (' + (w.ap_stations || 0) + ' clientes)') : 'Apagado';
       const apIp = w.ap_ip || '192.168.4.1';
       const mdnsName = w.mdns || '';
       setText(wifiHomeState, home);

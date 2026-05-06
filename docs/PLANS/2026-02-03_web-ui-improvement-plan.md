@@ -71,7 +71,7 @@ Respuesta JSON (propuesta):
   "mode": "speed",
   "wifi": {
     "ap_enabled": true,
-    "ap_ssid": "dog",
+    "ap_ssid": "DogRGB",
     "ap_stations": 1,
     "sta_connected": false,
     "mdns": "dog-collar"

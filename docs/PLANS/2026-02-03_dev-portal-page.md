@@ -60,7 +60,7 @@ Estructura sugerida:
     "sta_connecting": false,
     "ap_enabled": true,
     "ap_stations": 1,
-    "ap_ssid": "dog",
+    "ap_ssid": "DogRGB",
     "mdns": "dog-collar",
     "sta_ip": "192.168.1.10",
     "ap_ip": "192.168.4.1",
