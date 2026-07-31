@@ -365,6 +365,10 @@ void handle_dev_get() {
   geo["source"] = geofence::source_name(geofence::source());
   geo["home_lat"] = geofence::home_lat();
   geo["home_lon"] = geofence::home_lon();
+  JsonObject homeStorage = geo["storage"].to<JsonObject>();
+  homeStorage["slot"] = geofence::storage_slot();
+  homeStorage["generation"] = geofence::storage_generation();
+  homeStorage["save_failures"] = geofence::storage_save_failures();
   const float dist_m = geofence::distance_to_home_m();
   geo["distance_m"] = (dist_m >= 0.0f) ? dist_m : -1.0f;
   const int geo_range = (geofence::is_set() && dist_m >= 0.0f)
@@ -958,13 +962,19 @@ void handle_home_set() {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no_gps\"}");
     return;
   }
-  geofence::set_home(gps::current_lat_deg(), gps::current_lon_deg(), 2);
+  if (!geofence::set_home(gps::current_lat_deg(), gps::current_lon_deg(), 2)) {
+    server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
+    return;
+  }
   server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
 void handle_home_clear() {
   note_activity();
-  geofence::clear_home();
+  if (!geofence::clear_home()) {
+    server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
+    return;
+  }
   server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 

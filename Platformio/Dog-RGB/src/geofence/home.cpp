@@ -6,6 +6,7 @@
 #include "config.h"
 #include "gps/gps.h"
 #include "storage/nvs_store.h"
+#include "util/crc32.h"
 #include "util/geo.h"
 
 namespace geofence {
@@ -19,28 +20,160 @@ unsigned long last_fix_check_ms = 0;
 bool last_fix_state = false;
 uint8_t last_geofence_range = 1;
 float last_geofence_distance_m = 0.0f;
+int8_t home_active_record = -1;
+uint32_t home_record_generation = 0;
+uint32_t home_save_failure_count = 0;
+
+static const uint32_t HOME_RECORD_MAGIC = 0x454D4F48UL; // "HOME" on little-endian storage.
+static const uint16_t HOME_RECORD_VERSION = 1;
+static const char *HOME_RECORD_KEYS[2] = {"home_a", "home_b"};
+static const char *HOME_BLOB_MIGRATED_KEY = "home_blob";
+
+struct __attribute__((packed)) HomeRecord {
+  uint32_t magic;
+  uint16_t record_version;
+  uint16_t record_size;
+  uint32_t generation;
+  uint8_t is_set;
+  uint8_t source;
+  uint16_t reserved;
+  float lat_deg;
+  float lon_deg;
+  uint32_t crc32;
+};
+
+static_assert(sizeof(HomeRecord) == 28, "Home record layout changed; bump its format version");
+
+bool valid_home_state(bool is_set, float lat_deg, float lon_deg, uint8_t source) {
+  if (!is_set) {
+    return source == 0 && lat_deg == 0.0f && lon_deg == 0.0f;
+  }
+  return (source == 1 || source == 2) &&
+         isfinite(lat_deg) && isfinite(lon_deg) &&
+         lat_deg >= -90.0f && lat_deg <= 90.0f &&
+         lon_deg >= -180.0f && lon_deg <= 180.0f;
+}
+
+uint32_t home_record_crc(const HomeRecord &record) {
+  return util::crc32_ieee(&record, offsetof(HomeRecord, crc32));
+}
+
+HomeRecord make_home_record(uint32_t generation) {
+  HomeRecord record = {};
+  record.magic = HOME_RECORD_MAGIC;
+  record.record_version = HOME_RECORD_VERSION;
+  record.record_size = sizeof(record);
+  record.generation = generation;
+  record.is_set = home_set_state ? 1 : 0;
+  record.source = home_source_state;
+  record.lat_deg = home_set_state ? home_lat_deg : 0.0f;
+  record.lon_deg = home_set_state ? home_lon_deg : 0.0f;
+  record.crc32 = home_record_crc(record);
+  return record;
+}
+
+bool decode_home_record(const HomeRecord &record) {
+  if (record.magic != HOME_RECORD_MAGIC ||
+      record.record_version != HOME_RECORD_VERSION ||
+      record.record_size != sizeof(record) ||
+      record.is_set > 1 ||
+      record.reserved != 0 ||
+      record.crc32 != home_record_crc(record) ||
+      !valid_home_state(record.is_set != 0, record.lat_deg, record.lon_deg, record.source)) {
+    return false;
+  }
+  return true;
+}
+
+bool load_home_record(Preferences &prefs, uint8_t slot, HomeRecord &record) {
+  const char *key = HOME_RECORD_KEYS[slot];
+  return prefs.getBytesLength(key) == sizeof(record) &&
+         prefs.getBytes(key, &record, sizeof(record)) == sizeof(record) &&
+         decode_home_record(record);
+}
+
+bool generation_is_newer(uint32_t candidate, uint32_t reference) {
+  const uint32_t delta = candidate - reference;
+  return delta != 0 && delta < 0x80000000UL;
+}
+
+void apply_home_record(const HomeRecord &record) {
+  home_set_state = record.is_set != 0;
+  home_source_state = record.source;
+  home_lat_deg = record.lat_deg;
+  home_lon_deg = record.lon_deg;
+}
+
+bool save_home() {
+  if (!valid_home_state(home_set_state, home_lat_deg, home_lon_deg, home_source_state)) {
+    home_save_failure_count++;
+    return false;
+  }
+  Preferences &prefs_cfg = storage::prefs_cfg();
+  const uint8_t target_slot = (home_active_record == 0) ? 1 : 0;
+  const uint32_t next_generation = (home_record_generation == UINT32_MAX)
+                                       ? 1U
+                                       : home_record_generation + 1U;
+  const HomeRecord record = make_home_record(next_generation);
+  const char *key = HOME_RECORD_KEYS[target_slot];
+  if (prefs_cfg.putBytes(key, &record, sizeof(record)) != sizeof(record)) {
+    home_save_failure_count++;
+    return false;
+  }
+
+  HomeRecord readback = {};
+  if (!load_home_record(prefs_cfg, target_slot, readback) ||
+      memcmp(&record, &readback, sizeof(record)) != 0) {
+    home_save_failure_count++;
+    return false;
+  }
+  home_active_record = target_slot;
+  home_record_generation = next_generation;
+  return true;
+}
 
 void load_home() {
   Preferences &prefs_cfg = storage::prefs_cfg();
-  home_set_state = (prefs_cfg.getUChar("home_set", 0) == 1);
-  home_lat_deg = prefs_cfg.getFloat("home_lat", 0.0f);
-  home_lon_deg = prefs_cfg.getFloat("home_lon", 0.0f);
-  home_source_state = prefs_cfg.getUChar("home_src", 0);
-  if (!home_set_state) {
-    home_source_state = 0;
-  }
-}
+  home_set_state = false;
+  home_lat_deg = 0.0f;
+  home_lon_deg = 0.0f;
+  home_source_state = 0;
+  home_active_record = -1;
+  home_record_generation = 0;
 
-void save_home() {
-  Preferences &prefs_cfg = storage::prefs_cfg();
-  prefs_cfg.putUChar("home_set", home_set_state ? 1 : 0);
-  prefs_cfg.putUChar("home_src", home_source_state);
-  if (home_set_state) {
-    prefs_cfg.putFloat("home_lat", home_lat_deg);
-    prefs_cfg.putFloat("home_lon", home_lon_deg);
-  } else {
-    prefs_cfg.remove("home_lat");
-    prefs_cfg.remove("home_lon");
+  HomeRecord records[2] = {};
+  const bool valid_a = load_home_record(prefs_cfg, 0, records[0]);
+  const bool valid_b = load_home_record(prefs_cfg, 1, records[1]);
+  if (valid_a || valid_b) {
+    uint8_t selected = 0;
+    if (!valid_a || (valid_b && generation_is_newer(records[1].generation, records[0].generation))) {
+      selected = 1;
+    }
+    apply_home_record(records[selected]);
+    home_active_record = selected;
+    home_record_generation = records[selected].generation;
+    if (!prefs_cfg.getBool(HOME_BLOB_MIGRATED_KEY, false)) {
+      prefs_cfg.putBool(HOME_BLOB_MIGRATED_KEY, true);
+    }
+    return;
+  }
+
+  // Do not resurrect legacy coordinates after blob migration if both records
+  // are later damaged. An unset home is the safe, visible recovery state.
+  if (!prefs_cfg.getBool(HOME_BLOB_MIGRATED_KEY, false)) {
+    const bool legacy_set = prefs_cfg.getUChar("home_set", 0) == 1;
+    const float legacy_lat = legacy_set ? prefs_cfg.getFloat("home_lat", 0.0f) : 0.0f;
+    const float legacy_lon = legacy_set ? prefs_cfg.getFloat("home_lon", 0.0f) : 0.0f;
+    const uint8_t legacy_source = legacy_set ? prefs_cfg.getUChar("home_src", 0) : 0;
+    if (valid_home_state(legacy_set, legacy_lat, legacy_lon, legacy_source)) {
+      home_set_state = legacy_set;
+      home_lat_deg = legacy_lat;
+      home_lon_deg = legacy_lon;
+      home_source_state = legacy_source;
+    }
+  }
+  if (save_home() && save_home()) {
+    prefs_cfg.putBool(HOME_BLOB_MIGRATED_KEY, true);
   }
 }
 
@@ -82,18 +215,45 @@ void tick(unsigned long now_ms) {
   maybe_auto_set_home();
 }
 
-void set_home(float lat_deg, float lon_deg, uint8_t source) {
+bool set_home(float lat_deg, float lon_deg, uint8_t source) {
+  if (!valid_home_state(true, lat_deg, lon_deg, source)) {
+    return false;
+  }
+  const bool previous_set = home_set_state;
+  const float previous_lat = home_lat_deg;
+  const float previous_lon = home_lon_deg;
+  const uint8_t previous_source = home_source_state;
   home_set_state = true;
   home_lat_deg = lat_deg;
   home_lon_deg = lon_deg;
   home_source_state = source;
-  save_home();
+  if (save_home()) {
+    return true;
+  }
+  home_set_state = previous_set;
+  home_lat_deg = previous_lat;
+  home_lon_deg = previous_lon;
+  home_source_state = previous_source;
+  return false;
 }
 
-void clear_home() {
+bool clear_home() {
+  const bool previous_set = home_set_state;
+  const float previous_lat = home_lat_deg;
+  const float previous_lon = home_lon_deg;
+  const uint8_t previous_source = home_source_state;
   home_set_state = false;
+  home_lat_deg = 0.0f;
+  home_lon_deg = 0.0f;
   home_source_state = 0;
-  save_home();
+  if (save_home()) {
+    return true;
+  }
+  home_set_state = previous_set;
+  home_lat_deg = previous_lat;
+  home_lon_deg = previous_lon;
+  home_source_state = previous_source;
+  return false;
 }
 
 bool is_set() {
@@ -110,6 +270,18 @@ float home_lat() {
 
 float home_lon() {
   return home_lon_deg;
+}
+
+int8_t storage_slot() {
+  return home_active_record;
+}
+
+uint32_t storage_generation() {
+  return home_record_generation;
+}
+
+uint32_t storage_save_failures() {
+  return home_save_failure_count;
 }
 
 float distance_to_home_m() {
