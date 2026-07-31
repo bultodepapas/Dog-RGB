@@ -224,7 +224,9 @@ void chip_init() {
       // Wokwi's UART peripheral owns the line. INPUT_PULLUP gives the UART
       // model an idle-high pin without the custom chip GPIO driver fighting it.
       .tx = pin_init("TX", INPUT_PULLUP),
-      .rx = NO_PIN,
+      // Keep an unconnected RX pin instead of NO_PIN. Wokwi's current
+      // ESP32-S3 backend fails to initialize this TX-only UART with NO_PIN.
+      .rx = pin_init("RX", INPUT),
       .baud_rate = 9600,
       .rx_data = NULL,
       .write_done = on_uart_write_done,
@@ -238,6 +240,5 @@ void chip_init() {
   };
   chip->timer = timer_init(&timer_config);
   printf("[nmea-gps] initialized baud=9600\n");
-  timer_start(chip->timer, 250000, true);
-  send_nmea(chip);
+  timer_start(chip->timer, 1000000, true);
 }
