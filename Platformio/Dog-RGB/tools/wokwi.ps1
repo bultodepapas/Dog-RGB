@@ -12,6 +12,29 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 
+function Import-DotEnv {
+  param([string]$Path)
+
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+    return
+  }
+  foreach ($rawLine in Get-Content -LiteralPath $Path) {
+    if ($rawLine -notmatch '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$') {
+      continue
+    }
+    $name = $matches[1]
+    $value = $matches[2].Trim()
+    if ($value.Length -ge 2 -and
+        (($value.StartsWith('"') -and $value.EndsWith('"')) -or
+         ($value.StartsWith("'") -and $value.EndsWith("'")))) {
+      $value = $value.Substring(1, $value.Length - 2)
+    }
+    if (-not [Environment]::GetEnvironmentVariable($name, 'Process')) {
+      Set-Item -LiteralPath "Env:$name" -Value $value
+    }
+  }
+}
+
 function Resolve-Executable {
   param(
     [string]$CommandName,
@@ -57,6 +80,8 @@ $wokwiCli = Resolve-Executable `
     (Join-Path $env:USERPROFILE '.wokwi\bin\wokwi-cli')
   ) `
   -InstallHint 'Install the official CLI: https://docs.wokwi.com/wokwi-ci/cli-usage'
+
+Import-DotEnv -Path (Join-Path $projectRoot '.env')
 
 function Invoke-Lint {
   Invoke-Native -Executable $wokwiCli -Arguments @('lint', '.') `

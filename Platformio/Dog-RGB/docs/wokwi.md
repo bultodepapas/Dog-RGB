@@ -12,10 +12,10 @@ particiones y las mismas librerias que para la XIAO fisica.
 - GNSS NMEA personalizado a 9600 baud en D7/GPIO44.
 - Wi-Fi virtual y portal HTTP del firmware.
 - Analizador logico: D0=`LED-A`, D1=`LED-B`, D2=`GNSS-TX`.
-- Consola serie mediante USB Serial/JTAG del ESP32-S3. No comparte D6/D7 con
-  el GNSS.
+- Consola serie UART0 capturada internamente por Wokwi. No se conectan cables
+  de monitor a D6/D7, que quedan dedicados al GNSS.
 
-Wokwi documenta oficialmente la [XIAO ESP32-S3 y el USB CDC](https://docs.wokwi.com/guides/esp32),
+Wokwi documenta oficialmente la [XIAO ESP32-S3 y sus interfaces serie](https://docs.wokwi.com/guides/esp32),
 las [tiras WS2812](https://docs.wokwi.com/parts/wokwi-led-strip), el
 [formato de `wokwi.toml`](https://docs.wokwi.com/vscode/project-config), los
 [chips personalizados](https://docs.wokwi.com/guides/custom-chips-to-wasm) y el
@@ -39,6 +39,9 @@ las [tiras WS2812](https://docs.wokwi.com/parts/wokwi-led-strip), el
 ```
 
 Hay que abrir una terminal nueva despues de definir una variable de usuario.
+Como alternativa local, el helper carga `WOKWI_CLI_TOKEN` desde `.env`; este
+archivo esta excluido por Git y una variable del proceso siempre tiene
+prioridad sobre el archivo.
 
 ## Preparar y abrir el simulador
 
@@ -130,3 +133,10 @@ El archivo puede abrirse con PulseView o GTKWave. Para UART usa decodificacion
 
 La simulacion es una prueba de integracion del firmware. Las verificaciones de
 alimentacion, SK6812 RGBW y sensibilidad GNSS siguen requiriendo el prototipo.
+
+### Nota sobre la consola del target Wokwi
+
+La placa fisica conserva USB Serial/JTAG CDC. Solo `[env:wokwi]` desactiva CDC
+al compilar contra Arduino-ESP32 2.0.16: en Wokwi esa version entra en watchdog
+dentro de `hw_cdc_isr_handler()` antes de ejecutar `setup()`. UART0 evita esa
+ruta del simulador y mantiene el firmware de produccion sin cambios.

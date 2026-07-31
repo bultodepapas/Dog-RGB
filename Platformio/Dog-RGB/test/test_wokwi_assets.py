@@ -15,13 +15,13 @@ class WokwiAssetTests(unittest.TestCase):
             (connection[0], connection[1]) for connection in cls.diagram["connections"]
         }
 
-    def test_esp32_s3_uses_usb_serial_jtag(self):
+    def test_esp32_s3_keeps_monitor_off_gnss_pins(self):
         xiao = self.parts["xiao"]
         self.assertEqual(xiao["type"], "board-xiao-esp32-s3")
-        self.assertEqual(xiao["attrs"]["serialInterface"], "USB_SERIAL_JTAG")
+        self.assertNotIn("serialInterface", xiao["attrs"])
         self.assertFalse(
             any("$serialMonitor" in endpoint for pair in self.connections for endpoint in pair),
-            "USB CDC must not share the GNSS UART pins",
+            "The simulator's internal UART0 capture must not share D6/D7 wires with GNSS",
         )
 
     def test_firmware_pin_mapping_is_represented(self):
@@ -49,6 +49,8 @@ class WokwiAssetTests(unittest.TestCase):
         platformio = (PROJECT_ROOT / "platformio.ini").read_text(encoding="utf-8")
         self.assertIn("[env:wokwi]", platformio)
         self.assertIn("extends = env:seeed_xiao_esp32s3", platformio)
+        self.assertIn("-DARDUINO_USB_CDC_ON_BOOT=0", platformio)
+        self.assertIn("build_unflags", platformio)
 
     def test_gnss_controls_match_custom_chip_attributes(self):
         definition = json.loads(
@@ -74,6 +76,13 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("control: profile", profiles)
         self.assertIn("reason=rmc_v", profiles)
         self.assertIn("reason=hdop", profiles)
+
+    def test_helper_loads_ignored_dotenv_without_overriding_process_environment(self):
+        helper = (PROJECT_ROOT / "tools/wokwi.ps1").read_text(encoding="utf-8")
+        ignore = (PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("Import-DotEnv -Path (Join-Path $projectRoot '.env')", helper)
+        self.assertIn("GetEnvironmentVariable($name, 'Process')", helper)
+        self.assertIn(".env\n", ignore.replace("\r\n", "\n"))
 
 
 if __name__ == "__main__":

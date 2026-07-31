@@ -11,8 +11,7 @@
       "attrs": {
         "flashSize": "8",
         "psramSize": "8",
-        "psramType": "octal",
-        "serialInterface": "USB_SERIAL_JTAG"
+        "psramType": "octal"
       }
     },
     {
