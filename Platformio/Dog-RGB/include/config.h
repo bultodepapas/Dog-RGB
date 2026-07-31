@@ -144,7 +144,6 @@ static const uint32_t GPS_BAUD = 9600; // GNSS UART baudrate.
 // The simulator uses a real timed UART for diagnostics. A faster console keeps
 // rich logs without blocking the emulated MCU for ~170 ms every report.
 static const uint32_t CONSOLE_BAUD = 460800;
-static const uint16_t CONSOLE_TX_BUFFER_SIZE = 4096;
 #else
 static const uint32_t CONSOLE_BAUD = 115200;
 #endif

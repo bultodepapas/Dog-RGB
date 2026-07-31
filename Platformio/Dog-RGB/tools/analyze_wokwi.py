@@ -25,6 +25,7 @@ FATAL_MARKERS = (
 LOOP_DIAGNOSTIC_LIMITS_US = {
     "loop_work": 120_000,
     "log_emit": 60_000,
+    "log_drain": 5_000,
     "radio": 10_000,
     "ap_poll": 5_000,
     "channel_query": 5_000,
@@ -66,6 +67,7 @@ def analyze_serial(path: Path) -> dict[str, Any]:
     max_loop_us = 0
     max_loop_work_us = 0
     max_log_emit_us = 0
+    max_log_drain_us = 0
     phase_max_us: collections.Counter[str] = collections.Counter()
     wifi_operation_max_us: collections.Counter[str] = collections.Counter()
     sim_ok = 0
@@ -116,6 +118,9 @@ def analyze_serial(path: Path) -> dict[str, Any]:
             max_log_emit_us = max(
                 max_log_emit_us, int(values.get("log_emit_max_us", 0))
             )
+            max_log_drain_us = max(
+                max_log_drain_us, int(values.get("log_drain_max_us", 0))
+            )
             for key in (
                 "gps_max_us",
                 "control_max_us",
@@ -151,6 +156,7 @@ def analyze_serial(path: Path) -> dict[str, Any]:
         observed = {
             "loop_work": max_loop_work_us,
             "log_emit": max_log_emit_us,
+            "log_drain": max_log_drain_us,
             "radio": phase_max_us["radio"],
             "ap_poll": wifi_operation_max_us["ap_poll"],
             "channel_query": wifi_operation_max_us["channel_query"],
@@ -179,6 +185,7 @@ def analyze_serial(path: Path) -> dict[str, Any]:
         "maximum_reported_loop_us": max_loop_us,
         "maximum_reported_loop_work_us": max_loop_work_us,
         "maximum_reported_log_emit_us": max_log_emit_us,
+        "maximum_reported_log_drain_us": max_log_drain_us,
         "maximum_reported_phase_us": dict(sorted(phase_max_us.items())),
         "maximum_reported_wifi_operation_us": dict(
             sorted(wifi_operation_max_us.items())

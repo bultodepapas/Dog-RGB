@@ -23,6 +23,7 @@ unsigned long wifi_sta_start_ms = 0;
 unsigned long last_wifi_check_ms = 0;
 bool ap_enabled_state = true;
 bool wifi_off_state = false;
+wifi_mode_t wifi_mode_state = WIFI_OFF;
 unsigned long last_ap_client_ms = 0;
 unsigned long last_ap_poll_ms = 0;
 uint8_t ap_station_count_state = 0;
@@ -36,7 +37,16 @@ const unsigned long AP_RESTART_DELAY_MS = 500;
 const IPAddress AP_LOCAL_IP(192, 168, 4, 1);
 const IPAddress AP_GATEWAY_IP(192, 168, 4, 1);
 const IPAddress AP_SUBNET_MASK(255, 255, 255, 0);
+IPAddress ap_ip_state(0, 0, 0, 0);
 WifiDiagnostics wifi_diag = {};
+
+bool set_wifi_mode(wifi_mode_t requested_mode) {
+  const bool ok = WiFi.mode(requested_mode);
+  if (ok) {
+    wifi_mode_state = requested_mode;
+  }
+  return ok;
+}
 
 struct PendingWifiEvent {
   uint32_t id;
@@ -109,7 +119,7 @@ bool start_ap_radio(const char *reason, bool preserve_sta) {
   const RuntimeConfig &cfg = config::get();
   const unsigned long now_ms = millis();
   const bool use_ap_sta = preserve_sta && wifi_ssid.length() > 0;
-  WiFi.mode(use_ap_sta ? WIFI_AP_STA : WIFI_AP);
+  set_wifi_mode(use_ap_sta ? WIFI_AP_STA : WIFI_AP);
   // The mode change is internally asynchronous in the ESP32 driver; without
   // this margin softAPConfig/softAP operate on a half-initialized stack and
   // return false or produce an invisible AP.
@@ -130,6 +140,9 @@ bool start_ap_radio(const char *reason, bool preserve_sta) {
   if (ok) {
     ap_enabled_state = true;
     wifi_off_state = false;
+    // Query the driver once at the state transition. Reading softAPIP() from
+    // periodic logs or HTTP status paths can synchronously block for ~95 ms.
+    ap_ip_state = WiFi.softAPIP();
     update_ap_station_count();
     last_ap_client_ms = now_ms;
     hold_ap(now_ms, AP_SETUP_HOLD_MS);
@@ -149,7 +162,7 @@ bool start_ap_radio(const char *reason, bool preserve_sta) {
   Serial.print(" reason=");
   Serial.print(reason);
   Serial.print(" ip=");
-  Serial.println(ok ? WiFi.softAPIP().toString() : String("n/a"));
+  Serial.println(ok ? ap_ip_state.toString() : String("n/a"));
   return ok;
 }
 
@@ -328,10 +341,10 @@ void start_sta_mode_internal(const char *reason) {
     return;
   }
 
-  if (ap_enabled_state && WiFi.getMode() != WIFI_AP_STA) {
-    WiFi.mode(WIFI_AP_STA);
+  if (ap_enabled_state && wifi_mode_state != WIFI_AP_STA) {
+    set_wifi_mode(WIFI_AP_STA);
   } else if (!ap_enabled_state) {
-    WiFi.mode(WIFI_STA);
+    set_wifi_mode(WIFI_STA);
   }
   wifi_off_state = false;
   WiFi.setSleep(false);
@@ -363,7 +376,7 @@ void disable_ap(const char *reason) {
   }
   stop_ap_radio(reason);
   if (wifi_ssid.length() > 0) {
-    WiFi.mode(WIFI_STA);
+    set_wifi_mode(WIFI_STA);
   }
 }
 
@@ -372,7 +385,7 @@ void set_wifi_off(bool off) {
     if (wifi_off_state) {
       return;
     }
-    WiFi.mode(WIFI_OFF);
+    set_wifi_mode(WIFI_OFF);
     wifi_off_state = true;
     ap_enabled_state = false;
     ap_station_count_state = 0;
@@ -492,7 +505,7 @@ void begin() {
   // which causes softAP() to fail silently or produce an invisible AP.
   WiFi.persistent(false); // Never auto-write STA credentials to flash.
   WiFi.disconnect(true, true);
-  WiFi.mode(WIFI_OFF);
+  set_wifi_mode(WIFI_OFF);
   delay(WIFI_BOOT_STABILIZE_MS);
 
   WiFi.onEvent(on_wifi_event);
@@ -521,7 +534,7 @@ void begin() {
       Serial.print(WIFI_BOOT_AP_MAX_ATTEMPTS);
       Serial.println(" failed, retrying");
       if (attempt < WIFI_BOOT_AP_MAX_ATTEMPTS) {
-        WiFi.mode(WIFI_OFF);
+        set_wifi_mode(WIFI_OFF);
         delay(WIFI_BOOT_AP_RETRY_DELAY_MS);
       }
     }
@@ -543,7 +556,7 @@ void begin() {
       Serial.print(WIFI_BOOT_AP_MAX_ATTEMPTS);
       Serial.println(" failed, retrying");
       if (attempt < WIFI_BOOT_AP_MAX_ATTEMPTS) {
-        WiFi.mode(WIFI_OFF);
+        set_wifi_mode(WIFI_OFF);
         delay(WIFI_BOOT_AP_RETRY_DELAY_MS);
       }
     }
@@ -652,6 +665,14 @@ bool ap_enabled() {
   return ap_enabled_state;
 }
 
+IPAddress ap_ip() {
+  return ap_enabled_state ? ap_ip_state : IPAddress(0, 0, 0, 0);
+}
+
+uint8_t mode() {
+  return static_cast<uint8_t>(wifi_mode_state);
+}
+
 bool wifi_off() {
   return wifi_off_state;
 }
@@ -661,7 +682,7 @@ uint8_t ap_station_count() {
 }
 
 bool is_ap_mode() {
-  return WiFi.getMode() == WIFI_AP;
+  return wifi_mode_state == WIFI_AP;
 }
 
 const WifiDiagnostics &diagnostics() {

@@ -108,7 +108,7 @@ bool persist_config_or_restore(const RuntimeConfig &previous) {
 }
 
 String ap_base_url() {
-  return String("http://") + WiFi.softAPIP().toString() + "/";
+  return String("http://") + wifi_mgr::ap_ip().toString() + "/";
 }
 
 void redirect_to_portal() {
@@ -130,7 +130,7 @@ void sync_dns() {
   if (wifi_mgr::ap_enabled()) {
     if (!dns_running) {
       dns_server.setErrorReplyCode(DNSReplyCode::NoError);
-      dns_running = dns_server.start(DNS_PORT, "*", WiFi.softAPIP());
+      dns_running = dns_server.start(DNS_PORT, "*", wifi_mgr::ap_ip());
       if (dns_running) {
         dns_start_count++;
       }
@@ -234,7 +234,7 @@ void handle_status_get() {
   wifi["wifi_off"] = wifi_mgr::wifi_off();
   wifi["mdns"] = cfg.mdns;
   wifi["sta_ip"] = WiFi.localIP().toString();
-  wifi["ap_ip"] = WiFi.softAPIP().toString();
+  wifi["ap_ip"] = wifi_mgr::ap_ip().toString();
 
   JsonObject gps = doc["gps"].to<JsonObject>();
   gps["fix"] = gps::has_fix();
@@ -283,7 +283,7 @@ void handle_dev_get() {
   configStorage["save_failures"] = config::storage_save_failures();
 
   JsonObject wifi = doc["wifi"].to<JsonObject>();
-  wifi["mode"] = wifi_mode_name(WiFi.getMode());
+  wifi["mode"] = wifi_mode_name(static_cast<wifi_mode_t>(wifi_mgr::mode()));
   wifi["sta_connected"] = wifi_mgr::sta_connected();
   wifi["sta_connecting"] = wifi_mgr::sta_connecting();
   wifi["ap_enabled"] = wifi_mgr::ap_enabled();
@@ -292,7 +292,7 @@ void handle_dev_get() {
   wifi["ap_ssid"] = cfg.ap_ssid;
   wifi["mdns"] = cfg.mdns;
   wifi["sta_ip"] = WiFi.localIP().toString();
-  wifi["ap_ip"] = WiFi.softAPIP().toString();
+  wifi["ap_ip"] = wifi_mgr::ap_ip().toString();
   wifi["rssi"] = WiFi.RSSI();
   wifi["ap_mac"] = WiFi.softAPmacAddress();
   wifi["sta_mac"] = WiFi.macAddress();

@@ -45,6 +45,8 @@ const String &pass();
 bool sta_connected();
 bool sta_connecting();
 bool ap_enabled();
+IPAddress ap_ip();
+uint8_t mode();
 bool wifi_off();
 uint8_t ap_station_count();
 bool is_ap_mode();

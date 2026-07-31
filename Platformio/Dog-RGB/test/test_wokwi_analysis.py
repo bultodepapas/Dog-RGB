@@ -122,7 +122,7 @@ $enddefinitions $end
                 "Dog-RGB ESP32-S3 GPS-first base firmware",
                 "[GPS_LINK] overflow=0",
                 "[SYS] loop_max_us=200000 loop_work_max_us=80000 "
-                "log_emit_max_us=40000 radio_max_us=50",
+                "log_emit_max_us=40000 log_drain_max_us=200 radio_max_us=50",
                 "[WIFI_DIAG] ap_poll_max_us=80 channel_query_max_us=0",
             ]
         )
@@ -132,6 +132,12 @@ $enddefinitions $end
             report = ANALYZER.analyze_serial(path)
             self.assertTrue(report["pass"])
             self.assertEqual(report["latency_errors"], [])
+            self.assertEqual(report["maximum_reported_log_drain_us"], 200)
+
+            path.write_text(log.replace("log_drain_max_us=200", "log_drain_max_us=6000"), encoding="utf-8")
+            report = ANALYZER.analyze_serial(path)
+            self.assertFalse(report["pass"])
+            self.assertIn("log_drain=6000us exceeds 5000us", report["latency_errors"])
 
             path.write_text(log.replace("radio_max_us=50", "radio_max_us=150000"), encoding="utf-8")
             report = ANALYZER.analyze_serial(path)

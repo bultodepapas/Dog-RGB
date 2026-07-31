@@ -608,7 +608,7 @@ static void paint_status_leds(unsigned long now_ms,
     if (wifi_mgr::wifi_off()) {
       const float pulse = double_pulse_scale(AP_OFF_PULSE_PERIOD_MS, AP_OFF_PULSE_MS);
       wifi_color = scale_rgb(ap_base, pulse);
-    } else if (!sta_ok && wifi_mgr::ssid().length() > 0 && wifi_mgr::ap_enabled() && WiFi.getMode() == WIFI_AP) {
+    } else if (!sta_ok && wifi_mgr::ssid().length() > 0 && wifi_mgr::ap_enabled() && wifi_mgr::is_ap_mode()) {
       wifi_color = err_base;
     } else if (sta_ok) {
       wifi_color = wifi_base;

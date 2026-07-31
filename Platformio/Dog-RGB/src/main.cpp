@@ -56,12 +56,13 @@
 // Heartbeat for status LED and periodic serial logs.
 static const unsigned long HEARTBEAT_MS = 1000;
 #if defined(DOG_RGB_WOKWI_SIM)
-// Faster observability in virtual time keeps automation scenarios focused and
-// does not increase serial/power load on the physical collar.
-static const unsigned long LOG_MS = 2000;
+// One detail category is formatted per tick. Five rotating slots preserve a
+// two-second/category cadence without building the whole report in one loop.
+static const unsigned long LOG_MS = 400;
 static const unsigned long SYS_LOG_MS = 10000;
 #else
-static const unsigned long LOG_MS = 3000;
+// Five rotating slots preserve the original three-second/category cadence.
+static const unsigned long LOG_MS = 600;
 static const unsigned long SYS_LOG_MS = 30000;
 #endif
 static const unsigned long GPS_NO_DATA_MS = 3000;
@@ -86,6 +87,9 @@ static unsigned long loop_max_us = 0;
 static unsigned long loop_work_sum_us = 0;
 static unsigned long loop_work_max_us = 0;
 static unsigned long log_emit_max_us = 0;
+static unsigned long log_drain_max_us = 0;
+static unsigned long log_slot_max_us[7] = {};
+static uint8_t last_log_slot = 0xFF;
 static unsigned long loop_count = 0;
 
 struct LoopPhaseMax {
@@ -99,6 +103,121 @@ struct LoopPhaseMax {
 };
 
 static LoopPhaseMax loop_phase_max;
+
+// Periodic diagnostics are useful but must never become part of the real-time
+// path. Queue them in fixed storage, then drain only bytes the UART explicitly
+// says it can accept. If a future report outgrows the queue, data is discarded
+// and counted instead of blocking GPS, LEDs, WiFi, or HTTP.
+class SerialLogQueue : public Print {
+ public:
+  size_t write(uint8_t value) override {
+    return write(&value, 1);
+  }
+
+  size_t write(const uint8_t *data, size_t length) override {
+    if (data == nullptr) {
+      return 0;
+    }
+
+    size_t accepted = 0;
+    while (accepted < length && used_ < sizeof(buffer_)) {
+      const size_t tail = (head_ + used_) % sizeof(buffer_);
+      buffer_[tail] = data[accepted++];
+      ++used_;
+    }
+    dropped_bytes_ += static_cast<unsigned long>(length - accepted);
+    return accepted;
+  }
+
+  template <typename SerialSink>
+  size_t drain(SerialSink &sink) {
+    const int available = sink.availableForWrite();
+    if (available <= 0 || used_ == 0) {
+      return 0;
+    }
+
+    size_t budget = static_cast<size_t>(available);
+    if (budget > MAX_DRAIN_BYTES_PER_TICK) {
+      budget = MAX_DRAIN_BYTES_PER_TICK;
+    }
+    if (budget > used_) {
+      budget = used_;
+    }
+
+    size_t drained = 0;
+    while (drained < budget) {
+      size_t chunk = sizeof(buffer_) - head_;
+      if (chunk > budget - drained) {
+        chunk = budget - drained;
+      }
+      const size_t written = sink.write(buffer_ + head_, chunk);
+      if (written == 0) {
+        break;
+      }
+      head_ = (head_ + written) % sizeof(buffer_);
+      used_ -= written;
+      drained += written;
+      if (written < chunk) {
+        break;
+      }
+    }
+    return drained;
+  }
+
+  size_t pending() const { return used_; }
+  unsigned long dropped_bytes() const { return dropped_bytes_; }
+
+ private:
+  static constexpr size_t MAX_DRAIN_BYTES_PER_TICK = 64;
+  uint8_t buffer_[4096] = {};
+  size_t head_ = 0;
+  size_t used_ = 0;
+  unsigned long dropped_bytes_ = 0;
+};
+
+// Coalesce the many small Print calls that build a line before copying it into
+// the queue. Oversized lines stream in bounded chunks without truncation.
+class PeriodicLogWriter : public Print {
+ public:
+  explicit PeriodicLogWriter(Print &sink) : sink_(sink) {}
+  ~PeriodicLogWriter() { flush_chunk(); }
+
+  size_t write(uint8_t value) override {
+    return write(&value, 1);
+  }
+
+  size_t write(const uint8_t *data, size_t length) override {
+    if (data == nullptr) {
+      return 0;
+    }
+
+    for (size_t i = 0; i < length; ++i) {
+      if (used_ == sizeof(buffer_)) {
+        flush_chunk();
+      }
+      buffer_[used_++] = data[i];
+      if (data[i] == '\n') {
+        flush_chunk();
+      }
+    }
+    return length;
+  }
+
+ private:
+  void flush_chunk() {
+    if (used_ == 0) {
+      return;
+    }
+    sink_.write(buffer_, used_);
+    used_ = 0;
+  }
+
+  Print &sink_;
+  uint8_t buffer_[512] = {};
+  size_t used_ = 0;
+};
+
+static SerialLogQueue serial_log_queue;
 
 static void record_phase_max(unsigned long &current_max, unsigned long elapsed_us) {
   if (elapsed_us > current_max) {
@@ -168,6 +287,29 @@ static const char *gps_fix_reason(unsigned long now_ms) {
 }
 
 static void emit_periodic_logs(unsigned long now_ms) {
+  PeriodicLogWriter periodic_log(serial_log_queue);
+#define Serial periodic_log
+  static uint8_t next_detail_slot = 0;
+  static bool wifi_diag_pending = false;
+  const bool sys_due = (now_ms - last_sys_log_ms >= SYS_LOG_MS);
+  uint8_t detail_slot = 0xFF;
+  if (wifi_diag_pending) {
+    detail_slot = 6;
+    wifi_diag_pending = false;
+  } else if (sys_due) {
+    detail_slot = 5;
+    wifi_diag_pending = true;
+  } else {
+    detail_slot = next_detail_slot;
+    next_detail_slot = static_cast<uint8_t>((next_detail_slot + 1) % 5);
+  }
+  last_log_slot = detail_slot;
+
+  const bool gps_ok = gps::has_fix();
+  const bool sta_ok = (wifi_mgr::sta_connected() && WiFi.status() == WL_CONNECTED);
+  const bool sta_try = (!sta_ok && wifi_mgr::sta_connecting());
+
+  if (detail_slot == 0) {
   const unsigned long bytes_delta = gps::bytes_rx() - gps_last_bytes_log;
   const unsigned long sentences_delta = gps::sentences_rx() - gps_last_sentences_log;
   const unsigned long rmc_delta = gps::rmc_seen() - gps_last_rmc_log;
@@ -192,12 +334,7 @@ static void emit_periodic_logs(unsigned long now_ms) {
   const long age_byte_ms = age_ms_or_neg1(now_ms, gps::last_byte_ms());
   const long age_rmc_ms = age_ms_or_neg1(now_ms, gps::last_rmc_ms());
   const long age_gga_ms = age_ms_or_neg1(now_ms, gps::last_gga_ms());
-  const long age_fix_ms = age_ms_or_neg1(now_ms, gps::last_fix_ms());
   const bool uart_active = (age_byte_ms >= 0 && age_byte_ms <= static_cast<long>(GPS_NO_DATA_MS));
-  const bool gps_ok = gps::has_fix();
-  const bool sta_ok = (wifi_mgr::sta_connected() && WiFi.status() == WL_CONNECTED);
-  const bool sta_try = (!sta_ok && wifi_mgr::sta_connecting());
-
   Serial.print("[GPS_LINK] uart=");
   Serial.print(uart_active ? "1" : "0");
   Serial.print(" bytes_delta=");
@@ -246,7 +383,10 @@ static void emit_periodic_logs(unsigned long now_ms) {
     Serial.print(" overflow=");
     Serial.println(gps::overflow());
   }
+  }
 
+  if (detail_slot == 1) {
+  const long age_fix_ms = age_ms_or_neg1(now_ms, gps::last_fix_ms());
   Serial.print("[GPS_FIX] raw=");
   Serial.print(gps::raw_fix() ? "1" : "0");
   Serial.print(" trusted=");
@@ -268,6 +408,7 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(gps::has_current_fix() ? gps::current_lat_deg() : 0.0f, 6);
   Serial.print(" lon=");
   Serial.println(gps::has_current_fix() ? gps::current_lon_deg() : 0.0f, 6);
+  }
 
   const unsigned long active_ms = gps::active_time_ms();
   const float avg_speed_kph = (active_ms > 0)
@@ -300,6 +441,7 @@ static void emit_periodic_logs(unsigned long now_ms) {
     }
   }
 
+  if (detail_slot == 2) {
   Serial.print("[MOTION] mode=");
   Serial.print(config::mode_name(config::get().mode));
   Serial.print(" speed_kph=");
@@ -328,9 +470,11 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(gps::small_segment_rejects());
   Serial.print(" large_seg_total=");
   Serial.println(gps::large_segment_rejects());
+  }
 
+  if (detail_slot == 3) {
   Serial.print("[WIFI] mode=");
-  Serial.print(wifi_mode_name(WiFi.getMode()));
+  Serial.print(wifi_mode_name(static_cast<wifi_mode_t>(wifi_mgr::mode())));
   Serial.print(" sta=");
   Serial.print(sta_ok ? "1" : "0");
   Serial.print(" sta_try=");
@@ -346,11 +490,12 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(" rssi=");
   Serial.print(sta_ok ? WiFi.RSSI() : 0);
   Serial.print(" ap_ip=");
-  Serial.print(WiFi.softAPIP().toString());
+  Serial.print(wifi_mgr::ap_ip().toString());
   Serial.print(" sta_ip=");
   Serial.print(sta_ok ? WiFi.localIP().toString() : String("0.0.0.0"));
   Serial.print(" ap_ch=");
   Serial.println(wifi_mgr::diagnostics().current_ap_channel);
+  }
 
   const bool has_range = (range >= 1 && range <= 10 && !body_idle && !home_missing);
   const bool day_active = day_mode::active_now();
@@ -380,6 +525,7 @@ static void emit_periodic_logs(unsigned long now_ms) {
   } else if (has_range) {
     led_ui::get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
   }
+  if (detail_slot == 4) {
   Serial.print("[LED] mode=");
   Serial.print(config::mode_name(config::get().mode));
   Serial.print(" body_on=");
@@ -404,8 +550,9 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(day_mode::state_name());
   Serial.print(" local_min=");
   Serial.println(day_mode::time_available() ? static_cast<int>(day_mode::local_min()) : -1);
+  }
 
-  if (now_ms - last_sys_log_ms >= SYS_LOG_MS) {
+  if (detail_slot == 5) {
     last_sys_log_ms = now_ms;
     const unsigned long avg_loop_us = (loop_count > 0) ? (loop_sum_us / loop_count) : 0;
     const unsigned long avg_work_us = (loop_count > 0) ? (loop_work_sum_us / loop_count) : 0;
@@ -425,6 +572,18 @@ static void emit_periodic_logs(unsigned long now_ms) {
     Serial.print(loop_work_max_us);
     Serial.print(" log_emit_max_us=");
     Serial.print(log_emit_max_us);
+    Serial.print(" log_drain_max_us=");
+    Serial.print(log_drain_max_us);
+    Serial.print(" log_queue_pending=");
+    Serial.print(serial_log_queue.pending());
+    Serial.print(" log_drop_bytes=");
+    Serial.print(serial_log_queue.dropped_bytes());
+    for (uint8_t slot = 0; slot < 7; ++slot) {
+      Serial.print(" log_slot");
+      Serial.print(slot);
+      Serial.print("_max_us=");
+      Serial.print(log_slot_max_us[slot]);
+    }
     Serial.print(" gps_max_us=");
     Serial.print(loop_phase_max.gps_us);
     Serial.print(" control_max_us=");
@@ -454,8 +613,15 @@ static void emit_periodic_logs(unsigned long now_ms) {
     loop_work_sum_us = 0;
     loop_work_max_us = 0;
     log_emit_max_us = 0;
+    log_drain_max_us = 0;
+    for (uint8_t slot = 0; slot < 7; ++slot) {
+      log_slot_max_us[slot] = 0;
+    }
     loop_phase_max = LoopPhaseMax{};
     loop_count = 0;
+  }
+
+  if (detail_slot == 6) {
     const wifi_mgr::WifiDiagnostics &wd = wifi_mgr::diagnostics();
     const long ap_hold_s = (wifi_mgr::ap_enabled() && wd.ap_hold_until_ms > now_ms)
                                ? static_cast<long>((wd.ap_hold_until_ms - now_ms) / 1000) : -1;
@@ -494,13 +660,11 @@ static void emit_periodic_logs(unsigned long now_ms) {
     Serial.print(" channel_query_max_us=");
     Serial.println(wd.channel_query_max_us);
   }
+#undef Serial
 }
 
 void setup() {
 #if defined(DOG_RGB_WOKWI_SIM)
-  // Arduino-ESP32 requires this before begin(). The ring lets the UART drain
-  // rich diagnostic reports asynchronously instead of stalling GNSS/effects.
-  Serial.setTxBufferSize(CONSOLE_TX_BUFFER_SIZE);
   Serial.begin(CONSOLE_BAUD, SERIAL_8N1, PIN_WOKWI_SERIAL_RX, PIN_WOKWI_SERIAL_TX);
 #else
   Serial.begin(CONSOLE_BAUD);
@@ -580,6 +744,7 @@ void setup() {
 void loop() {
   const unsigned long loop_start_us = micros();
   unsigned long log_elapsed_us = 0;
+  unsigned long log_drain_elapsed_us = 0;
   const unsigned long now_ms = millis();
 
   if (DEBUG_AP_ONLY_MINIMAL) {
@@ -594,7 +759,7 @@ void loop() {
       Serial.print("[DEBUG_AP_ONLY] uptime_s=");
       Serial.print(now_ms / 1000);
       Serial.print(" mode=");
-      Serial.print(wifi_mode_name(WiFi.getMode()));
+      Serial.print(wifi_mode_name(static_cast<wifi_mode_t>(wifi_mgr::mode())));
       Serial.print(" ap=");
       Serial.print(wifi_mgr::ap_enabled() ? "1" : "0");
       Serial.print(" clients=");
@@ -608,7 +773,7 @@ void loop() {
       Serial.print(" ap_restart=");
       Serial.print(wd.ap_restart_count);
       Serial.print(" ip=");
-      Serial.println(WiFi.softAPIP().toString());
+      Serial.println(wifi_mgr::ap_ip().toString());
     }
     wifi_mgr::tick(now_ms);
     portal_http::handle_client();
@@ -643,6 +808,9 @@ void loop() {
     const unsigned long log_start_us = micros();
     emit_periodic_logs(now_ms);
     log_elapsed_us = micros() - log_start_us;
+    if (last_log_slot < 7 && log_elapsed_us > log_slot_max_us[last_log_slot]) {
+      log_slot_max_us[last_log_slot] = log_elapsed_us;
+    }
   }
 
   if (BLE_ENABLED) {
@@ -662,11 +830,15 @@ void loop() {
   portal_http::handle_client();
   record_phase_max(loop_phase_max.http_us, micros() - phase_start_us);
 
+  const unsigned long log_drain_start_us = micros();
+  serial_log_queue.drain(Serial);
+  log_drain_elapsed_us = micros() - log_drain_start_us;
+
   const unsigned long loop_elapsed_us = micros() - loop_start_us;
   // Keep both scheduler impact (total) and application work. Serial diagnostics
   // can block while their UART buffer drains, so total latency alone cannot
   // identify a slow firmware path.
-  const unsigned long loop_work_us = loop_elapsed_us - log_elapsed_us;
+  const unsigned long loop_work_us = loop_elapsed_us - log_elapsed_us - log_drain_elapsed_us;
   loop_sum_us += loop_elapsed_us;
   loop_work_sum_us += loop_work_us;
   loop_count++;
@@ -678,5 +850,8 @@ void loop() {
   }
   if (log_elapsed_us > log_emit_max_us) {
     log_emit_max_us = log_elapsed_us;
+  }
+  if (log_drain_elapsed_us > log_drain_max_us) {
+    log_drain_max_us = log_drain_elapsed_us;
   }
 }

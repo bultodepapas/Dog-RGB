@@ -80,13 +80,8 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("#if defined(DOG_RGB_WOKWI_SIM)", source)
         self.assertIn("PIN_WOKWI_SERIAL_RX, PIN_WOKWI_SERIAL_TX", source)
         self.assertIn("Serial.begin(CONSOLE_BAUD", source)
-        self.assertLess(
-            source.index("Serial.setTxBufferSize(CONSOLE_TX_BUFFER_SIZE)"),
-            source.index("Serial.begin(CONSOLE_BAUD"),
-        )
         self.assertIn("CONSOLE_BAUD = 460800", config)
         self.assertIn("CONSOLE_BAUD = 115200", config)
-        self.assertIn("CONSOLE_TX_BUFFER_SIZE = 4096", config)
         self.assertIn("PIN_WOKWI_SERIAL_RX = 8", pins)
         self.assertIn("PIN_WOKWI_SERIAL_TX = 9", pins)
 
@@ -183,6 +178,24 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("loop_elapsed_us - log_elapsed_us", main)
         self.assertIn('Serial.print(" loop_work_max_us=");', main)
         self.assertIn('Serial.print(" log_emit_max_us=");', main)
+        self.assertIn("class PeriodicLogWriter : public Print", main)
+        self.assertIn("class SerialLogQueue : public Print", main)
+        self.assertIn("uint8_t buffer_[512]", main)
+        self.assertIn("sink_.write(buffer_, used_);", main)
+        self.assertIn("uint8_t buffer_[4096]", main)
+        self.assertIn("sink.availableForWrite()", main)
+        self.assertIn("MAX_DRAIN_BYTES_PER_TICK = 64", main)
+        self.assertIn("log_drop_bytes=", main)
+        self.assertIn("log_slot_max_us[7]", main)
+        self.assertIn("wifi_mgr::ap_ip().toString()", main)
+        portal = (PROJECT_ROOT / "src/web/portal_http.cpp").read_text(encoding="utf-8")
+        wifi_mgr = (PROJECT_ROOT / "src/wifi/wifi_mgr.cpp").read_text(encoding="utf-8")
+        self.assertNotIn("WiFi.softAPIP()", main)
+        self.assertNotIn("WiFi.softAPIP()", portal)
+        self.assertIn("ap_ip_state = WiFi.softAPIP();", wifi_mgr)
+        self.assertNotIn("WiFi.getMode()", main)
+        self.assertNotIn("WiFi.getMode()", portal)
+        self.assertIn("wifi_mode_state", wifi_mgr)
         for phase in ("gps", "control", "geofence", "storage", "radio", "led", "http"):
             self.assertIn(f'Serial.print(" {phase}_max_us=");', main)
         self.assertIn('"maximum_reported_loop_work_us"', analyzer)

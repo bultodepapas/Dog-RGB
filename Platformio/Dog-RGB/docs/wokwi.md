@@ -31,10 +31,11 @@ reemplaza las pruebas electricas del prototipo.
   seguro 1 y recupere `usable=1`, 12 km/h y rango 7. Su VCD de 17.0 s contiene
   32 sentencias validas, ninguna invalida y tick estable a 1 Hz.
 - `loop-diagnostics` atribuye latencia a GPS, control, geofence, persistencia,
-  radio, LED, HTTP y al propio logger. Detecto dos consultas Wi-Fi sincronas
-  redundantes. Tras pasar el conteo de clientes a eventos con reconciliacion de
-  respaldo y eliminar el sondeo periodico de canal, el maximo de radio bajo de
-  145,323 us a 50 us y el trabajo maximo del loop de 157,963 us a 79,867 us.
+  radio, LED, HTTP, formateo y drenaje del logger. Detecto consultas Wi-Fi
+  sincronas redundantes de clientes, canal, IP AP y modo. El conteo paso a
+  eventos, canal/IP/modo se cachean en sus transiciones y el logger usa una cola
+  fija sin heap. La corrida final midio 50 us de radio, 1,894 us de formateo,
+  83 us de drenaje, 76,519 us de trabajo maximo y cero bytes descartados.
 
 ## Circuito simulado
 
@@ -210,9 +211,10 @@ Los contadores `small_seg_total` y `large_seg_total` son acumulativos. Esto
 evita perder saltos breves entre reportes de 2 s, especialmente a 5 Hz.
 
 Para `loop-diagnostics`, el analizador tambien convierte la investigacion en
-regresion: falla si trabajo supera 120 ms, radio 10 ms, o las consultas de
-clientes/canal 5 ms. Estos limites son de simulacion y no sustituyen mediciones
-en el ESP32 fisico.
+regresion: falla si trabajo supera 120 ms, formateo 60 ms, drenaje 5 ms, radio
+10 ms, o las consultas de clientes/canal 5 ms. `[SYS]` publica ademas maximos
+por ranura, cola pendiente y bytes descartados. Estos limites son de simulacion
+y no sustituyen mediciones en el ESP32 fisico.
 
 ## Logs para analizar el chip y el firmware
 
