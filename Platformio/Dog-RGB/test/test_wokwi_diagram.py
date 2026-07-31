@@ -30,6 +30,8 @@ class WokwiDiagramTests(unittest.TestCase):
         self.assertNotIn(("xiao:D0", "logic:D0"), connections)
         self.assertNotIn(("xiao:D1", "logic:D1"), connections)
         self.assertNotIn(("xiao:D2", "logic:D4"), connections)
+        self.assertNotIn(("xiao:D0", "strip_a:DIN"), connections)
+        self.assertNotIn(("xiao:D1", "strip_b:DIN"), connections)
         logic = next(part for part in result["parts"] if part["id"] == "logic")
         self.assertEqual(logic["attrs"]["bufferSize"], "250000")
 

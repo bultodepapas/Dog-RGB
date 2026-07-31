@@ -132,6 +132,7 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("speed_spike_seen=1", faults)
         self.assertIn("control: rateHz", rates)
         self.assertIn("range=10", rates)
+        self.assertIn("large_seg_total=1", rates)
         for mode in ("simple", "show", "geofence", "speed"):
             self.assertIn(f"sim mode {mode}", modes)
         self.assertIn("sim reboot", modes)
@@ -144,6 +145,8 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn('strncmp(line, "sim ", 4)', source)
         self.assertIn("config::save()", source)
         self.assertIn("ESP.restart()", source)
+        self.assertIn("handle_leds", source)
+        self.assertIn("led_ui::set_transport_enabled(enabled)", source)
         self.assertIn("wokwi_control::tick();", main)
 
     def test_helper_exports_and_analyzes_every_scenario(self):

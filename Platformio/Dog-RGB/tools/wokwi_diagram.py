@@ -20,11 +20,17 @@ def instrument(diagram: dict[str, Any], profile: str) -> dict[str, Any]:
     attrs = logic.setdefault("attrs", {})
     attrs["bufferSize"] = "1000000" if profile == "full" else "250000"
     if profile == "gnss":
-        high_rate_led_channels = {"logic:D0", "logic:D1", "logic:D4"}
+        disconnected_destinations = {
+            "logic:D0",
+            "logic:D1",
+            "logic:D4",
+            "strip_a:DIN",
+            "strip_b:DIN",
+        }
         diagram["connections"] = [
             connection
             for connection in diagram["connections"]
-            if connection[1] not in high_rate_led_channels
+            if connection[1] not in disconnected_destinations
         ]
     return diagram
 

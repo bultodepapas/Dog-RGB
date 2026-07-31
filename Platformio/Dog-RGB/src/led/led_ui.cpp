@@ -52,6 +52,7 @@ uint8_t show_last_effect_id = 255;
 EffectState simple_state_a;
 EffectState simple_state_b;
 bool simple_first_tick = true;
+bool led_transport_enabled = true;
 uint8_t last_simple_effect = SINGLE_EFFECT_DEFAULT;
 uint8_t last_simple_speed = SINGLE_SPEED_DEFAULT;
 uint8_t last_simple_intensity = SINGLE_INTENSITY_DEFAULT;
@@ -245,6 +246,9 @@ static void led_begin() {
 }
 
 static void show_leds() {
+  if (!led_transport_enabled) {
+    return;
+  }
 #if defined(DOG_RGB_WOKWI_LED_SHOW_MS)
   static unsigned long last_transport_ms = 0;
   const unsigned long now_ms = millis();
@@ -1036,6 +1040,14 @@ void apply_brightness(uint8_t brightness) {
   if (LED_STRIP_MODE == 2) {
     strip_b.setBrightness(effective_brightness(brightness));
   }
+}
+
+void set_transport_enabled(bool enabled) {
+  led_transport_enabled = enabled;
+}
+
+bool transport_enabled() {
+  return led_transport_enabled;
 }
 
 uint8_t current_show_effect() {

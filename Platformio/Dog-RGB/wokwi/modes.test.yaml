@@ -4,6 +4,8 @@ author: "Dog-RGB"
 steps:
   - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
   - wait-serial: "[SIM_CTRL] ready"
+  - write-serial: "sim leds off\n"
+  - wait-serial: "[SIM_CTRL] ok command=leds transport=off"
   - delay: 3000ms
   - wait-serial: "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok"
 
@@ -16,6 +18,8 @@ steps:
   - wait-serial: "[SIM_CTRL] ok command=reboot"
   - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
   - wait-serial: "[SIM_CTRL] ready"
+  - write-serial: "sim leds off\n"
+  - wait-serial: "[SIM_CTRL] ok command=leds transport=off"
   - delay: 2200ms
   - wait-serial: "[MOTION] mode=simple"
 
@@ -55,4 +59,3 @@ steps:
   - wait-serial: "[SIM_CTRL] ok command=mode value=speed"
   - delay: 2200ms
   - wait-serial: "[LED] mode=speed body_on=1 render=range"
-

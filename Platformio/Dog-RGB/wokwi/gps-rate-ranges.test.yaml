@@ -3,6 +3,8 @@ version: 1
 author: "Dog-RGB"
 steps:
   - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
+  - write-serial: "sim leds off\n"
+  - wait-serial: "[SIM_CTRL] ok command=leds transport=off"
   - delay: 3000ms
   - wait-serial: "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok"
 
@@ -48,6 +50,5 @@ steps:
       control: positionM
       value: 800
   - delay: 2200ms
-  - wait-serial: "seg_reason=large_segment"
+  - wait-serial: "large_seg_total=1"
   - wait-serial: "overflow=0"
-

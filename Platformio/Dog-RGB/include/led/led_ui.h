@@ -13,6 +13,8 @@ void begin();
 void start_welcome();
 void tick();
 void apply_brightness(uint8_t brightness);
+void set_transport_enabled(bool enabled);
+bool transport_enabled();
 
 uint8_t speed_range(float kph);
 void get_range_config(uint8_t range, int &effect_a, int &effect_b, uint8_t &speed, uint8_t &intensity);

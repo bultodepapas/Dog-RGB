@@ -42,6 +42,8 @@ unsigned long gps_rmc_parse_fail = 0;
 unsigned long gps_gga_parse_fail = 0;
 unsigned long gps_speed_spike = 0;
 unsigned long gps_stale_count = 0;
+unsigned long gps_small_segment_rejects = 0;
+unsigned long gps_large_segment_rejects = 0;
 unsigned long gps_last_byte_ms = 0;
 unsigned long gps_last_sentence_ms = 0;
 unsigned long gps_last_rmc_ms = 0;
@@ -1920,7 +1922,13 @@ void handle_nmea_line(const char *line) {
             gps_last_segment_reject_reason = "ok";
           } else {
             gps_last_segment_accepted = false;
-            gps_last_segment_reject_reason = (segment_m < min_segment_m) ? "small_segment" : "large_segment";
+            if (segment_m < min_segment_m) {
+              gps_small_segment_rejects++;
+              gps_last_segment_reject_reason = "small_segment";
+            } else {
+              gps_large_segment_rejects++;
+              gps_last_segment_reject_reason = "large_segment";
+            }
           }
         } else {
           gps_last_segment_m = 0.0f;
@@ -2320,6 +2328,14 @@ unsigned long gga_parse_fail() {
 
 unsigned long speed_spike() {
   return gps_speed_spike;
+}
+
+unsigned long small_segment_rejects() {
+  return gps_small_segment_rejects;
+}
+
+unsigned long large_segment_rejects() {
+  return gps_large_segment_rejects;
 }
 
 unsigned long stale_count() {

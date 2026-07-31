@@ -247,10 +247,14 @@ def analyze_vcd(path: Path, capture_profile: str = "full") -> dict[str, Any]:
     by_name = {
         name: len(transitions.get(identifier, [])) for identifier, name in names.items()
     }
-    uart_signal = preferred_signal(names, transitions, "logic_gnss.D0", "D2")
+    uart_signal = preferred_signal(
+        names, transitions, "logic_gnss.D0", "logic.D2", "D2"
+    )
     uart_data = decode_uart_8n1(uart_signal, 9600)
     valid_nmea, invalid_nmea = nmea_checksum_counts(uart_data)
-    tick_signal = preferred_signal(names, transitions, "logic_gnss.D1", "D3")
+    tick_signal = preferred_signal(
+        names, transitions, "logic_gnss.D1", "logic.D3", "D3"
+    )
     intervals = edge_intervals(tick_signal)
     frequencies = [1_000_000_000.0 / interval for interval in intervals if interval > 0]
     led_a = preferred_signal(names, transitions, "logic.D0", "D0")

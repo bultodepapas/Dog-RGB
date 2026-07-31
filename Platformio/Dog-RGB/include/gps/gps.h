@@ -58,6 +58,8 @@ unsigned long parse_fail();
 unsigned long rmc_parse_fail();
 unsigned long gga_parse_fail();
 unsigned long speed_spike();
+unsigned long small_segment_rejects();
+unsigned long large_segment_rejects();
 unsigned long stale_count();
 unsigned long last_byte_ms();
 unsigned long last_rmc_ms();

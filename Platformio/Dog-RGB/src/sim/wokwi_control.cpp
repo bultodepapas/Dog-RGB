@@ -9,6 +9,7 @@
 #include "config/runtime_config.h"
 #include "geofence/home.h"
 #include "gps/gps.h"
+#include "led/led_ui.h"
 #include "power/day_mode.h"
 
 namespace wokwi_control {
@@ -99,6 +100,19 @@ void handle_home(const char *value) {
   Serial.println(geofence::home_lon(), 6);
 }
 
+void handle_leds(const char *value) {
+  bool enabled = false;
+  if (strcmp(value, "on") == 0) {
+    enabled = true;
+  } else if (strcmp(value, "off") != 0) {
+    Serial.println("[SIM_CTRL] error command=leds reason=value");
+    return;
+  }
+  led_ui::set_transport_enabled(enabled);
+  Serial.print("[SIM_CTRL] ok command=leds transport=");
+  Serial.println(enabled ? "on" : "off");
+}
+
 void print_status() {
   Serial.print("[SIM_STATE] mode=");
   Serial.print(config::mode_name(config::get().mode));
@@ -112,6 +126,8 @@ void print_status() {
   Serial.print(gps::has_fix() ? "1" : "0");
   Serial.print(" trusted=");
   Serial.print(gps::trusted_fix() ? "1" : "0");
+  Serial.print(" led_transport=");
+  Serial.print(led_ui::transport_enabled() ? "on" : "off");
   Serial.print(" speed_kph=");
   Serial.print(gps::last_speed_kph(), 2);
   Serial.print(" slot=");
@@ -139,6 +155,8 @@ void process_command(char *line) {
     handle_day(value);
   } else if (strcmp(command, "home") == 0 && value != nullptr) {
     handle_home(value);
+  } else if (strcmp(command, "leds") == 0 && value != nullptr) {
+    handle_leds(value);
   } else if (strcmp(command, "status") == 0 && value == nullptr) {
     print_status();
   } else if (strcmp(command, "reboot") == 0 && value == nullptr) {
@@ -147,7 +165,7 @@ void process_command(char *line) {
     delay(20);
     ESP.restart();
   } else if (strcmp(command, "help") == 0 && value == nullptr) {
-    Serial.println("[SIM_CTRL] commands=mode,day,home,status,reboot");
+    Serial.println("[SIM_CTRL] commands=mode,day,home,leds,status,reboot");
   } else {
     Serial.println("[SIM_CTRL] error command=unknown reason=syntax");
   }
@@ -157,7 +175,7 @@ void process_command(char *line) {
 void begin() {
   command_length = 0;
   command_overflow = false;
-  Serial.println("[SIM_CTRL] ready prefix=sim commands=mode,day,home,status,reboot");
+  Serial.println("[SIM_CTRL] ready prefix=sim commands=mode,day,home,leds,status,reboot");
 }
 
 void tick() {

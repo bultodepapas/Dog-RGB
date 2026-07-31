@@ -302,7 +302,11 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(" seg_ok=");
   Serial.print(gps::last_segment_accepted() ? "1" : "0");
   Serial.print(" seg_reason=");
-  Serial.println(gps::last_segment_reject_reason());
+  Serial.print(gps::last_segment_reject_reason());
+  Serial.print(" small_seg_total=");
+  Serial.print(gps::small_segment_rejects());
+  Serial.print(" large_seg_total=");
+  Serial.println(gps::large_segment_rejects());
 
   Serial.print("[WIFI] mode=");
   Serial.print(wifi_mode_name(WiFi.getMode()));
