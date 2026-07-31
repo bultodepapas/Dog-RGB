@@ -242,7 +242,7 @@ def ws2812_bursts(signal: list[tuple[int, int]]) -> int:
     return 1 + sum(1 for left, right in zip(edge_times, edge_times[1:]) if right - left > 50_000)
 
 
-def analyze_vcd(path: Path) -> dict[str, Any]:
+def analyze_vcd(path: Path, capture_profile: str = "full") -> dict[str, Any]:
     names, transitions, duration_ns = parse_vcd(path)
     by_name = {
         name: len(transitions.get(identifier, [])) for identifier, name in names.items()
@@ -258,6 +258,7 @@ def analyze_vcd(path: Path) -> dict[str, Any]:
     status = preferred_signal(names, transitions, "logic.D4", "D4")
     result = {
         "path": str(path),
+        "capture_profile": capture_profile,
         "duration_ms": round(duration_ns / 1_000_000.0, 3),
         "transitions": by_name,
         "uart_9600": {
@@ -274,14 +275,9 @@ def analyze_vcd(path: Path) -> dict[str, Any]:
         "ws2812_bursts": {"strip_a": ws2812_bursts(led_a), "strip_b": ws2812_bursts(led_b)},
         "status_led_transitions": len(status),
     }
-    result["pass"] = (
-        len(uart_signal) > 1
-        and len(tick_signal) > 1
-        and len(led_a) > 1
-        and len(led_b) > 1
-        and len(status) > 1
-        and len(uart_data) > 0
-    )
+    gnss_ok = len(uart_signal) > 1 and len(tick_signal) > 1 and len(uart_data) > 0
+    full_ok = len(led_a) > 1 and len(led_b) > 1 and len(status) > 1
+    result["pass"] = gnss_ok and (capture_profile != "full" or full_ok)
     return result
 
 
@@ -290,11 +286,12 @@ def main() -> int:
     parser.add_argument("--serial", type=Path, required=True)
     parser.add_argument("--vcd", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--capture-profile", choices=("full", "gnss"), default="full")
     args = parser.parse_args()
 
     report: dict[str, Any] = {"serial": analyze_serial(args.serial)}
     if args.vcd and args.vcd.exists():
-        report["vcd"] = analyze_vcd(args.vcd)
+        report["vcd"] = analyze_vcd(args.vcd, args.capture_profile)
     report["pass"] = report["serial"]["pass"] and report.get("vcd", {"pass": True})["pass"]
     encoded = json.dumps(report, indent=2, sort_keys=True)
     if args.output:

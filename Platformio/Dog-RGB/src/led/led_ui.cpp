@@ -245,6 +245,15 @@ static void led_begin() {
 }
 
 static void show_leds() {
+#if defined(DOG_RGB_WOKWI_LED_SHOW_MS)
+  static unsigned long last_transport_ms = 0;
+  const unsigned long now_ms = millis();
+  if (last_transport_ms != 0 &&
+      now_ms - last_transport_ms < DOG_RGB_WOKWI_LED_SHOW_MS) {
+    return;
+  }
+  last_transport_ms = now_ms;
+#endif
   for (int i = 0; i < LED_STRIP_COUNT; ++i) {
     const uint8_t r = leds_a[i].r;
     const uint8_t g = leds_a[i].g;

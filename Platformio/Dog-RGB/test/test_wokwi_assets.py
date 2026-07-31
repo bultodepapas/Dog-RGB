@@ -49,7 +49,7 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn(("gnss:DEBUG", "logic:D3"), self.connections)
         self.assertIn(("xiao:D2", "logic:D4"), self.connections)
         self.assertIn(("xiao:GND", "logic:GND"), self.connections)
-        self.assertEqual(self.parts["logic"]["attrs"]["bufferSize"], "3000000")
+        self.assertEqual(self.parts["logic"]["attrs"]["bufferSize"], "1000000")
 
     def test_wokwi_config_targets_wokwi_platformio_environment(self):
         config = (PROJECT_ROOT / "wokwi.toml").read_text(encoding="utf-8")
@@ -62,7 +62,15 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("extends = env:seeed_xiao_esp32s3", platformio)
         self.assertIn("-DARDUINO_USB_CDC_ON_BOOT=0", platformio)
         self.assertIn("-DDOG_RGB_WOKWI_SIM=1", platformio)
+        self.assertIn("-DDOG_RGB_WOKWI_LED_SHOW_MS=200", platformio)
         self.assertIn("build_unflags", platformio)
+
+    def test_wokwi_throttles_only_led_transport_not_effect_tick(self):
+        source = (PROJECT_ROOT / "src/led/led_ui.cpp").read_text(encoding="utf-8")
+        self.assertIn("#if defined(DOG_RGB_WOKWI_LED_SHOW_MS)", source)
+        self.assertIn("now_ms - last_transport_ms < DOG_RGB_WOKWI_LED_SHOW_MS", source)
+        self.assertIn("void tick()", source)
+        self.assertIn("update_led_ui();", source)
 
     def test_wokwi_console_is_compile_time_isolated_from_physical_build(self):
         source = (PROJECT_ROOT / "src/main.cpp").read_text(encoding="utf-8")
@@ -142,6 +150,9 @@ class WokwiAssetTests(unittest.TestCase):
         helper = (PROJECT_ROOT / "tools/wokwi.ps1").read_text(encoding="utf-8")
         self.assertIn("'suite'", helper)
         self.assertIn("'--vcd-file', $vcdLog", helper)
+        self.assertIn("'--diagram-file', $diagramFile", helper)
+        self.assertIn("tools/wokwi_diagram.py", helper)
+        self.assertIn("--capture-profile", helper)
         self.assertIn("tools/analyze_wokwi.py", helper)
         analyzer = (PROJECT_ROOT / "tools/analyze_wokwi.py").read_text(encoding="utf-8")
         self.assertIn("decode_uart_8n1", analyzer)

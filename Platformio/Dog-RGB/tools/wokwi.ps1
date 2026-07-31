@@ -5,6 +5,9 @@ param(
 
   [string]$Scenario = 'wokwi/boot.test.yaml',
 
+  [ValidateSet('auto', 'full', 'gnss')]
+  [string]$CaptureProfile = 'auto',
+
   [ValidateRange(5000, 300000)]
   [int]$TimeoutMs = 60000
 )
@@ -108,7 +111,8 @@ function Invoke-Prepare {
 function Invoke-Scenario {
   param(
     [string]$ScenarioPath,
-    [int]$ScenarioTimeoutMs
+    [int]$ScenarioTimeoutMs,
+    [string]$RequestedCaptureProfile
   )
 
   if (-not (Test-Path -LiteralPath $ScenarioPath -PathType Leaf)) {
@@ -118,15 +122,30 @@ function Invoke-Scenario {
   $serialLog = Join-Path 'artifacts' "$scenarioName.serial.log"
   $vcdLog = Join-Path 'artifacts' "$scenarioName.vcd"
   $analysisLog = Join-Path 'artifacts' "$scenarioName.analysis.json"
+  $diagramFile = Join-Path 'artifacts' "$scenarioName.diagram.json"
+  $effectiveCaptureProfile = $RequestedCaptureProfile
+  if ($effectiveCaptureProfile -eq 'auto') {
+    $effectiveCaptureProfile = if ($scenarioName -eq 'boot.test') { 'full' } else { 'gnss' }
+  }
+  Invoke-Native -Executable $python `
+    -Arguments @(
+      'tools/wokwi_diagram.py', '--profile', $effectiveCaptureProfile,
+      '--input', 'diagram.json', '--output', $diagramFile
+    ) `
+    -Description "Generate $effectiveCaptureProfile instrumentation diagram"
   Invoke-Native -Executable $wokwiCli `
     -Arguments @(
       '.', '--scenario', $ScenarioPath,
       '--timeout', "$ScenarioTimeoutMs", '--timeout-exit-code', '1',
-      '--serial-log-file', $serialLog, '--vcd-file', $vcdLog
+      '--serial-log-file', $serialLog, '--vcd-file', $vcdLog,
+      '--diagram-file', $diagramFile
     ) `
     -Description "Run Wokwi scenario $ScenarioPath"
   Invoke-Native -Executable $python `
-    -Arguments @('tools/analyze_wokwi.py', '--serial', $serialLog, '--vcd', $vcdLog, '--output', $analysisLog) `
+    -Arguments @(
+      'tools/analyze_wokwi.py', '--serial', $serialLog, '--vcd', $vcdLog,
+      '--output', $analysisLog, '--capture-profile', $effectiveCaptureProfile
+    ) `
     -Description "Analyze Wokwi logs for $ScenarioPath"
   Write-Host "Artifacts: $serialLog, $vcdLog, $analysisLog"
 }
@@ -148,7 +167,8 @@ try {
       if (-not (Test-Path -LiteralPath 'artifacts')) {
         New-Item -ItemType Directory -Path 'artifacts' | Out-Null
       }
-      Invoke-Scenario -ScenarioPath $Scenario -ScenarioTimeoutMs $TimeoutMs
+      Invoke-Scenario -ScenarioPath $Scenario -ScenarioTimeoutMs $TimeoutMs `
+        -RequestedCaptureProfile $CaptureProfile
     }
     'suite' {
       if (-not $env:WOKWI_CLI_TOKEN) {
@@ -160,7 +180,8 @@ try {
         throw 'No Wokwi scenarios found in wokwi/*.test.yaml.'
       }
       foreach ($scenarioFile in $scenarios) {
-        Invoke-Scenario -ScenarioPath $scenarioFile.FullName -ScenarioTimeoutMs $TimeoutMs
+        Invoke-Scenario -ScenarioPath $scenarioFile.FullName -ScenarioTimeoutMs $TimeoutMs `
+          -RequestedCaptureProfile $CaptureProfile
       }
       Write-Host "Wokwi suite passed: $($scenarios.Count)/$($scenarios.Count) scenarios"
     }
