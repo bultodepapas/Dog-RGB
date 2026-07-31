@@ -11,8 +11,7 @@
       "attrs": {
         "flashSize": "8",
         "psramSize": "8",
-        "psramType": "octal",
-        "serialInterface": "USB_SERIAL_JTAG"
+        "psramType": "octal"
       }
     },
     {
@@ -59,6 +58,8 @@
     [ "xiao:D1", "strip_b:DIN", "green", [] ],
     [ "xiao:D2", "status_led:A", "green", [] ],
     [ "status_led:C", "xiao:GND", "black", [] ],
-    [ "gnss:TX", "xiao:D7", "blue", [] ]
+    [ "gnss:TX", "xiao:D7", "blue", [] ],
+    [ "$serialMonitor:RX", "xiao:D6", "", [] ],
+    [ "$serialMonitor:TX", "xiao:D7", "", [] ]
   ]
 }

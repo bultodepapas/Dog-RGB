@@ -1,7 +1,7 @@
 [wokwi]
 version = 1
-firmware = ".pio/build/seeed_xiao_esp32s3/firmware.bin"
-elf = ".pio/build/seeed_xiao_esp32s3/firmware.elf"
+firmware = ".pio/build/wokwi/firmware.bin"
+elf = ".pio/build/wokwi/firmware.elf"
 rfc2217ServerPort = 4000
 
 # Expose the Dog-RGB HTTP portal as http://localhost:8180 when the
