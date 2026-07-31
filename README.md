@@ -53,6 +53,7 @@ The active firmware project is in [Platformio/Dog-RGB](Platformio/Dog-RGB) with:
 - Max/avg speed metrics
 - NVS persistence for metrics + runtime config
 - Wi-Fi portal (AP/STA) with `/`, `/api/summary`, `/wifi`
+- Bounded JSON/CSV/GeoJSON track streaming with GNSS servicing during exports
 - Runtime config UI at `/config` with `/api/config` + `/api/config/reset`
 - BLE read-only daily summary payload
 - LED UI with 12 effects, configurable per speed range, plus Show/Simple modes

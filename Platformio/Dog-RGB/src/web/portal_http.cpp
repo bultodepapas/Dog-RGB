@@ -6,6 +6,7 @@
 #include <WiFi.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "config/runtime_config.h"
 #include "config.h"
@@ -25,6 +26,74 @@ bool dns_running = false;
 uint32_t dns_start_count = 0;
 uint32_t dns_stop_count = 0;
 static const uint16_t DNS_PORT = 53;
+static const size_t TRACK_STREAM_CHUNK_BYTES = 768;
+
+// WebServer writes are synchronous. Coalesce the many small coordinate
+// fragments into bounded chunks and drain GNSS on both sides of every socket
+// write. The enlarged HardwareSerial RX buffer is the second line of defense
+// if one individual Wi-Fi write blocks for several seconds.
+class TrackStream {
+ public:
+  TrackStream() : used_(0), healthy_(true) {}
+
+  bool append(const char *text) {
+    return append(text, strlen(text));
+  }
+
+  bool append(const char *data, size_t length) {
+    while (healthy_ && length > 0) {
+      if (used_ == sizeof(buffer_) && !flush()) {
+        return false;
+      }
+      const size_t available = sizeof(buffer_) - used_;
+      const size_t copied = (length < available) ? length : available;
+      memcpy(buffer_ + used_, data, copied);
+      used_ += copied;
+      data += copied;
+      length -= copied;
+    }
+    return healthy_;
+  }
+
+  bool finish() {
+    return flush();
+  }
+
+  bool healthy() const {
+    return healthy_;
+  }
+
+ private:
+  bool flush() {
+    if (!healthy_ || used_ == 0) {
+      return healthy_;
+    }
+
+    gps::tick();
+    server.sendContent(buffer_, used_);
+    used_ = 0;
+    gps::tick();
+    yield();
+
+    WiFiClient client = server.client();
+    healthy_ = client && client.connected();
+    return healthy_;
+  }
+
+  char buffer_[TRACK_STREAM_CHUNK_BYTES];
+  size_t used_;
+  bool healthy_;
+};
+
+struct CoordinateStreamContext {
+  TrackStream *stream;
+  bool first;
+};
+
+struct CsvStreamContext {
+  TrackStream *stream;
+  const gps::TrackView *view;
+};
 
 void note_activity() {
   wifi_mgr::note_portal_activity();
@@ -353,42 +422,39 @@ void handle_dev_get() {
 }
 
 bool track_json_cb(const gps::TrackPoint &p, void *ctx) {
-  bool *first = reinterpret_cast<bool *>(ctx);
-  if (!*first) {
-    server.sendContent(",");
+  CoordinateStreamContext *output = reinterpret_cast<CoordinateStreamContext *>(ctx);
+  if (!output->first && !output->stream->append(",")) {
+    return false;
   }
-  *first = false;
+  output->first = false;
   char line[64];
   const float lat = p.lat_e7 * 1e-7f;
   const float lon = p.lon_e7 * 1e-7f;
   snprintf(line, sizeof(line), "[%.7f,%.7f]", lat, lon);
-  server.sendContent(line);
-  return true;
+  return output->stream->append(line);
 }
 
 bool track_csv_cb(const gps::TrackPoint &p, void *ctx) {
-  const gps::TrackView *view = reinterpret_cast<const gps::TrackView *>(ctx);
-  const uint32_t date = track_point_date(*view, p);
+  CsvStreamContext *output = reinterpret_cast<CsvStreamContext *>(ctx);
+  const uint32_t date = track_point_date(*output->view, p);
   char line[72];
   const float lat = p.lat_e7 * 1e-7f;
   const float lon = p.lon_e7 * 1e-7f;
   snprintf(line, sizeof(line), "%lu,%u,%.7f,%.7f\n", static_cast<unsigned long>(date), p.t_min, lat, lon);
-  server.sendContent(line);
-  return true;
+  return output->stream->append(line);
 }
 
 bool track_geojson_cb(const gps::TrackPoint &p, void *ctx) {
-  bool *first = reinterpret_cast<bool *>(ctx);
-  if (!*first) {
-    server.sendContent(",");
+  CoordinateStreamContext *output = reinterpret_cast<CoordinateStreamContext *>(ctx);
+  if (!output->first && !output->stream->append(",")) {
+    return false;
   }
-  *first = false;
+  output->first = false;
   char line[64];
   const float lat = p.lat_e7 * 1e-7f;
   const float lon = p.lon_e7 * 1e-7f;
   snprintf(line, sizeof(line), "[%.7f,%.7f]", lon, lat);
-  server.sendContent(line);
-  return true;
+  return output->stream->append(line);
 }
 
 void handle_track_get() {
@@ -405,8 +471,11 @@ void handle_track_get() {
     return;
   }
 
+  gps::tick();
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "application/json", "");
+  gps::tick();
+  TrackStream stream;
   char head[256];
   const float min_lat = view.min_lat_e7 * 1e-7f;
   const float max_lat = view.max_lat_e7 * 1e-7f;
@@ -427,11 +496,14 @@ void handle_track_get() {
            max_lat,
            min_lon,
            max_lon);
-  server.sendContent(head);
+  stream.append(head);
 
-  bool first = true;
-  gps::track_iter_points(view.slot, max_points, track_json_cb, &first);
-  server.sendContent("]}");
+  CoordinateStreamContext output = {&stream, true};
+  gps::track_iter_points(view.slot, max_points, track_json_cb, &output);
+  if (stream.healthy()) {
+    stream.append("]}");
+    stream.finish();
+  }
 }
 
 void handle_track_csv() {
@@ -447,10 +519,15 @@ void handle_track_csv() {
     server.send(200, "text/csv", "date,min,lat,lon\n");
     return;
   }
+  gps::tick();
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "text/csv", "");
-  server.sendContent("date,min,lat,lon\n");
-  gps::track_iter_points(view.slot, max_points, track_csv_cb, &view);
+  gps::tick();
+  TrackStream stream;
+  stream.append("date,min,lat,lon\n");
+  CsvStreamContext output = {&stream, &view};
+  gps::track_iter_points(view.slot, max_points, track_csv_cb, &output);
+  stream.finish();
 }
 
 void handle_track_geojson() {
@@ -466,12 +543,18 @@ void handle_track_geojson() {
     server.send(200, "application/geo+json", "{\"type\":\"FeatureCollection\",\"features\":[]}");
     return;
   }
+  gps::tick();
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "application/geo+json", "");
-  server.sendContent("{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"LineString\",\"coordinates\":[");
-  bool first = true;
-  gps::track_iter_points(view.slot, max_points, track_geojson_cb, &first);
-  server.sendContent("]},\"properties\":{}}]}");
+  gps::tick();
+  TrackStream stream;
+  stream.append("{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"LineString\",\"coordinates\":[");
+  CoordinateStreamContext output = {&stream, true};
+  gps::track_iter_points(view.slot, max_points, track_geojson_cb, &output);
+  if (stream.healthy()) {
+    stream.append("]},\"properties\":{}}]}");
+    stream.finish();
+  }
 }
 
 void handle_mode_post() {

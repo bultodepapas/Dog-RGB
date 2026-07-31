@@ -137,6 +137,9 @@ static const unsigned long AP_OFF_PULSE_MS = 200; // AP off pulse width.
 
 // GNSS settings (rare changes).
 static const uint32_t GPS_BAUD = 9600; // GNSS UART baudrate.
+// Covers more than 17 seconds of worst-case 8N1 input at 9600 baud while the
+// synchronous portal is sending a response to a slow Wi-Fi client.
+static const uint16_t GPS_RX_BUFFER_SIZE = 16384;
 static const unsigned long GPS_SAMPLE_MS = 1000; // Sampling interval.
 // GPS quality gating defaults and bounds.
 static const uint8_t GPS_MIN_FIX_QUALITY_DEFAULT = 1;

@@ -1229,13 +1229,17 @@ bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb 
       }
     }
   }
+  // Freeze the RAM tail for this iteration. A callback is allowed to service
+  // GNSS input, which may append new points, but an export must remain a
+  // finite and internally consistent snapshot.
+  const uint8_t unpersisted_end = current ? track_current.flush_count : 0;
   const uint8_t unpersisted_start = current
                                         ? ((newest_chunk_count <= track_current.flush_count)
                                                ? newest_chunk_count
                                                : 0)
                                         : 0;
   const uint16_t unpersisted_count = current
-                                         ? static_cast<uint16_t>(track_current.flush_count - unpersisted_start)
+                                         ? static_cast<uint16_t>(unpersisted_end - unpersisted_start)
                                          : 0;
   uint32_t total = static_cast<uint32_t>(persisted) + static_cast<uint32_t>(unpersisted_count);
   if (total == 0) {
@@ -1277,7 +1281,7 @@ bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb 
   }
 
   if (current) {
-    for (uint8_t p = unpersisted_start; p < track_current.flush_count; ++p) {
+    for (uint8_t p = unpersisted_start; p < unpersisted_end; ++p) {
       if (skip_oldest > 0) {
         skip_oldest--;
         continue;
@@ -1613,6 +1617,7 @@ String build_summary_json() {
 }
 
 void begin() {
+  GPS.setRxBufferSize(GPS_RX_BUFFER_SIZE);
   GPS.begin(GPS_BAUD, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
   load_metrics();
   history_load();
