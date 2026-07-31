@@ -19,10 +19,17 @@ class WokwiAssetTests(unittest.TestCase):
         xiao = self.parts["xiao"]
         self.assertEqual(xiao["type"], "board-xiao-esp32-s3")
         self.assertNotIn("serialInterface", xiao["attrs"])
-        self.assertFalse(
-            any("$serialMonitor" in endpoint for pair in self.connections for endpoint in pair),
-            "The simulator's internal UART0 capture must not share D6/D7 wires with GNSS",
+        monitor_connections = {
+            pair for pair in self.connections if any("$serialMonitor" in endpoint for endpoint in pair)
+        }
+        self.assertEqual(
+            monitor_connections,
+            {
+                ("$serialMonitor:RX", "xiao:D10"),
+                ("$serialMonitor:TX", "xiao:D9"),
+            },
         )
+        self.assertFalse(any("D6" in endpoint or "D7" in endpoint for pair in monitor_connections for endpoint in pair))
 
     def test_firmware_pin_mapping_is_represented(self):
         self.assertIn(("xiao:D0", "strip_a:DIN"), self.connections)
@@ -50,7 +57,16 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("[env:wokwi]", platformio)
         self.assertIn("extends = env:seeed_xiao_esp32s3", platformio)
         self.assertIn("-DARDUINO_USB_CDC_ON_BOOT=0", platformio)
+        self.assertIn("-DDOG_RGB_WOKWI_SIM=1", platformio)
         self.assertIn("build_unflags", platformio)
+
+    def test_wokwi_console_is_compile_time_isolated_from_physical_build(self):
+        source = (PROJECT_ROOT / "src/main.cpp").read_text(encoding="utf-8")
+        pins = (PROJECT_ROOT / "include/pins.h").read_text(encoding="utf-8")
+        self.assertIn("#if defined(DOG_RGB_WOKWI_SIM)", source)
+        self.assertIn("PIN_WOKWI_SERIAL_RX, PIN_WOKWI_SERIAL_TX", source)
+        self.assertIn("PIN_WOKWI_SERIAL_RX = 8", pins)
+        self.assertIn("PIN_WOKWI_SERIAL_TX = 9", pins)
 
     def test_gnss_controls_match_custom_chip_attributes(self):
         definition = json.loads(

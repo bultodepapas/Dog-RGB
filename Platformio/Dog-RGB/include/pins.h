@@ -11,4 +11,11 @@ static const int PIN_LED_B_DATA = 2;
 static const int PIN_GPS_RX = 44; // XIAO ESP32-S3 D7 / GPIO44 (GPS TX -> ESP RX)
 static const int PIN_GPS_TX = 43; // XIAO ESP32-S3 D6 / GPIO43 (ESP TX -> GPS RX)
 
+#if defined(DOG_RGB_WOKWI_SIM)
+// Wokwi-only UART0 console routing. The physical build continues to use USB
+// Serial/JTAG, while simulation keeps D6/D7 exclusively assigned to GNSS.
+static const int PIN_WOKWI_SERIAL_RX = 8; // XIAO D9 / GPIO8
+static const int PIN_WOKWI_SERIAL_TX = 9; // XIAO D10 / GPIO9
+#endif
+
 #endif

@@ -73,6 +73,8 @@
     [ "xiao:D2", "status_led:A", "green", [] ],
     [ "status_led:C", "xiao:GND", "black", [] ],
     [ "gnss:TX", "xiao:D7", "blue", [] ],
+    [ "$serialMonitor:RX", "xiao:D10", "", [] ],
+    [ "$serialMonitor:TX", "xiao:D9", "", [] ],
     [ "xiao:D0", "logic:D0", "green", [] ],
     [ "xiao:D1", "logic:D1", "green", [] ],
     [ "gnss:TX", "logic:D2", "blue", [] ],

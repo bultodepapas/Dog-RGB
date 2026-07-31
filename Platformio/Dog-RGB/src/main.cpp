@@ -384,7 +384,11 @@ static void emit_periodic_logs(unsigned long now_ms) {
 }
 
 void setup() {
+#if defined(DOG_RGB_WOKWI_SIM)
+  Serial.begin(115200, SERIAL_8N1, PIN_WOKWI_SERIAL_RX, PIN_WOKWI_SERIAL_TX);
+#else
   Serial.begin(115200);
+#endif
   pinMode(PIN_STATUS_LED, OUTPUT);
   digitalWrite(PIN_STATUS_LED, LOW);
 
