@@ -11,7 +11,7 @@ Dog-RGB is a credible, buildable ESP32-S3 DIY project with a sensibly modular fi
 
 The local portal's simple default access is intentional for this DIY project: the owner can connect immediately and can change the AP credentials afterward. This audit therefore treats it as a usability choice, not a release-blocking security defect. Commercial IoT provisioning and enterprise-style access control are explicitly outside the current objective.
 
-The largest functional defect found was the track ring: it was dimensioned for 1,440 samples but normally overwrote history after approximately **7.5 minutes**. This audit iteration fixes it with partial-chunk rewriting, one staging chunk, and a dedicated 192 KiB track NVS partition. A host simulation verifies the latest 1,440 points through multiple ring wraps. Track chunks and metadata are now protected by a versioned CRC32 format with strict decoding. Wi-Fi events now cross tasks through a bounded queue with main-loop-owned state. Track exports now coalesce output, service GNSS between bounded writes, abort on disconnect, and have over 17 seconds of worst-case UART buffering. The main remaining high-priority issue is transactional coherence of multi-key persistence.
+The largest functional defect found was the track ring: it was dimensioned for 1,440 samples but normally overwrote history after approximately **7.5 minutes**. This audit iteration fixes it with partial-chunk rewriting, one staging chunk, and a dedicated 192 KiB track NVS partition. A host simulation verifies the latest 1,440 points through multiple ring wraps. Track chunks and metadata are now protected by a versioned CRC32 format with strict decoding. Wi-Fi events now cross tasks through a bounded queue with main-loop-owned state. Track exports now coalesce output, service GNSS between bounded writes, abort on disconnect, and have over 17 seconds of worst-case UART buffering. Runtime configuration now uses read-back-verified A/B records, so an interrupted settings update or reset retains the previous complete generation. Home/geofence persistence is the next logical object needing the same treatment.
 
 **Recommendation:** keep the simple DIY interaction model and prioritize the demonstrated software defects: track retention/integrity, Wi-Fi event ownership, persistence recovery, UART servicing, and executable tests.
 
@@ -34,9 +34,9 @@ The firmware is split into GPS, Wi-Fi, web, LED, BLE, configuration, system-stat
 
 | Check | Result | What it proves / limitation |
 |---|---|---|
-| `pio run -e seeed_xiao_esp32s3` | **Pass** | Firmware compiles and links. Static RAM: 49,484/327,680 bytes (15.1%); flash: 950,509/3,342,336 bytes (28.4%). The 16,384-byte UART ring is allocated during GNSS startup and therefore is not included in the static figure. It does not prove runtime behavior. |
+| `pio run -e seeed_xiao_esp32s3` | **Pass** | Firmware compiles and links. Static RAM: 49,492/327,680 bytes (15.1%); flash: 952,941/3,342,336 bytes (28.5%). The 16,384-byte UART ring is allocated during GNSS startup and therefore is not included in the static figure. It does not prove runtime behavior. |
 | Compiler warnings | **Needs work** | ArduinoJson 7 reports deprecated `StaticJsonDocument` and `containsKey()` usage in `src/web/portal_http.cpp`. |
-| `python -m unittest discover -s test -p "test_*.py" -v` | **24/24 pass** | Includes day-mode, retention, partition, integrity, Wi-Fi event ownership, and bounded track-stream coverage. Export tests verify exact reconstruction, JSON/CSV/GeoJSON contracts, disconnect termination, GNSS service placement, UART margin, and the frozen RAM-tail snapshot. These are host-side, not HIL. |
+| `python -m unittest discover -s test -p "test_*.py" -v` | **31/31 pass** | Includes day-mode, track retention/integrity/streaming, Wi-Fi event ownership, and configuration persistence. Persistence tests simulate exact records, corruption, partial writes, interrupted update/reset, alternating generations, and generation wrap. These are host-side, not HIL. |
 | `pio check -e seeed_xiao_esp32s3 --skip-packages` | **Pass with findings** | No medium/high project-source defect was reported. Cppcheck produced low-severity project findings and one third-party ArduinoJson preprocessor false positive. The current command does not fail the build on defects and translation-unit analysis causes unused-code noise. |
 | `npm ci` | **Pass** | Three packages installed; npm reported zero known vulnerabilities in this small host-tool dependency set. |
 | Portal page extraction with `python` | **Pass** | The generated portal HTML can be extracted on this machine when invoked directly. |
@@ -103,13 +103,13 @@ No critical code-backed defect was identified. Severity meanings: **High** defea
 
 **Implemented:** JSON, CSV, and GeoJSON exports now share a fixed 768-byte `TrackStream` buffer instead of calling `sendContent()` for every delimiter and point. Every bounded socket write drains GNSS immediately before and after the write and yields to the scheduler; a disconnected client terminates iteration instead of formatting the remainder. `GPS.setRxBufferSize(16384)` is called before `GPS.begin()`, retaining over 17 seconds at the maximum 960 bytes/s possible for 9,600-baud 8N1. Track iteration freezes the current RAM-tail end before invoking callbacks, so parsing newly received GNSS data cannot make an export grow or read beyond its original snapshot. Five host tests cover exact large-output reconstruction, format contracts, disconnect behavior, GNSS-service placement, UART margin/order, and snapshot wiring. The firmware build and cppcheck pass. A throttled-client plus worst-case NMEA HIL run remains the final proof for physical zero-overflow behavior and LED jitter; other large non-track handlers remain candidates for measurement-driven optimization rather than demonstrated defects.
 
-### AUD-008 — High — Multi-key persistence is not transactionally coherent
+### AUD-008 — Resolved High — Runtime configuration was not transactionally coherent
 
-**Evidence:** `src/config/runtime_config.cpp:160-179` stores a configuration version and then writes configuration fields as separate NVS keys without checking results. Home, metrics, session, track data, and their flags/metadata are likewise separate writes. A power interruption can leave an internally mixed generation; for example, a boolean “set” marker can survive without the corresponding coordinates.
+**Evidence:** the previous `config::save()` stored its version, LED ranges/effects, Wi-Fi settings, mode, fence, and GPS filters as more than twenty independent NVS writes without checking any result. A power interruption could therefore leave a believable mixture of old and new settings.
 
-**Impact:** NVS protects individual entries against many power-loss cases, but it does not make this application-level group atomic. Brownout during an update can produce plausible but inconsistent settings, geofence state, or statistics.
+**Impact:** NVS protects individual entries against many power-loss cases, but it did not make the complete user configuration atomic. Brownout during a portal update or factory reset could produce inconsistent behavior or discard the last usable configuration.
 
-**Action:** serialize each logical object into a versioned, validated blob with CRC. Maintain A/B slots with generation counters: write and read-back-verify the inactive slot, then commit a small active marker last. Keep Wi-Fi configuration separate from metrics so either can recover independently. Validate every loaded field and fall back to the newest complete generation. Run automated power-cut tests during every persistence operation.
+**Implemented:** the complete `RuntimeConfig`, including bounded strings, is serialized into fixed-format `cfg_a`/`cfg_b` records with magic, record version/size, schema version, wrap-safe generation, and CRC32. Save validates every field, writes only the inactive slot, requires the exact byte count, reads the record back, decodes it, and requires byte-for-byte equality before advancing the active generation. Boot independently validates both slots and selects the newest complete generation. Existing version 2–5 multi-key installations migrate automatically and seed both slots; after migration, damaged blobs never resurrect stale legacy keys. Portal mode/config/Wi-Fi/reset routes restore the previous RAM configuration and return HTTP 500 on persistence failure. Factory reset no longer clears NVS before its replacement is verified. `/api/dev` exposes active slot, generation, and save-failure count. Seven host tests cover record round trip, CRC/length rejection, interrupted settings update, interrupted reset, alternating slots, generation wrap, and source integration. True write-boundary power-cut HIL remains desirable. Home/geofence and metrics/session objects are separate persistence domains and retain their own audit actions.
 
 ### AUD-009 — Informational — Simple mode intentionally uses the full strip
 
@@ -239,8 +239,8 @@ Twenty targeted investigations were performed. These sources do **not** override
 
 ### Phase 1 — Runtime and persistence robustness (1–2 weeks)
 
-1. Replace multi-key logical objects with validated A/B blobs and generation commits.
-2. Make track export non-starving; size and monitor the GNSS RX buffer.
+1. **Runtime configuration completed:** use validated, read-back-verified A/B blobs with wrap-safe generations; apply the pattern to home/metrics only in their own scoped fixes.
+2. **Completed:** make track export GNSS-aware and size the GNSS RX buffer with over 17 seconds of worst-case margin.
 3. Correct active-time accumulation, rollover comparisons, and daily-date transition validation.
 
 **Exit criteria:** no UART overflow occurs during slow maximum-track export; power cuts at every NVS write boundary recover the previous or next complete generation, never a mixture; elapsed-time, `millis()` rollover, and date-transition tests pass.
@@ -281,11 +281,11 @@ These tests can improve understanding and debugging, but the audit does not trea
 
 ## Recommended completion gate
 
-For the stated DIY objective, the informational observations require no code change. Track retention/integrity and Wi-Fi event ownership are now corrected and host-tested. The next valuable completion gate is verifying UART servicing while exporting a full track.
+For the stated DIY objective, the informational observations require no code change. Track retention/integrity/streaming, Wi-Fi event ownership, and runtime-configuration recovery are corrected and host-tested. The next valuable persistence fix is the smaller home/geofence object, followed by real power-cut and throttled-export hardware tests.
 
 ## Audit limitations
 
 - No schematic, PCB layout, bill of materials, exact strip lot/datasheet, battery/protection/boost specifications, enclosure thermal model, or populated hardware measurements were available as executable evidence in this audit.
 - No device was flashed or exercised; no RF, GNSS, current, voltage, thermal, charging, ESD, or ingress measurement was performed.
 - The external links describe platform/vendor/standards behavior and design inspiration. Where they conflict with observed hardware or active source, the active source and measurements must drive the defect record.
-- This review intentionally did not modify production code. It establishes the evidence-backed change order and acceptance tests first.
+- The implemented firmware changes were compiled and host-tested, but storage power cuts, UART load, RF behavior, and electrical behavior were not exercised on physical hardware in this environment.

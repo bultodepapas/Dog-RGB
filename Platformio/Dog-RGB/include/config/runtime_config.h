@@ -43,10 +43,13 @@ const RuntimeConfig &get();
 RuntimeConfig &get_mut();
 
 uint8_t version();
+int8_t storage_slot();
+uint32_t storage_generation();
+uint32_t storage_save_failures();
 
 void set_defaults();
 void load();
-void save();
+bool save();
 void apply(const RuntimeConfig &previous);
 
 const char *mode_name(uint8_t mode);

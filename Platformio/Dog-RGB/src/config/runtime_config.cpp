@@ -5,11 +5,48 @@
 #include "config.h"
 #include "storage/nvs_store.h"
 #include "led/led_ui.h"
+#include "util/crc32.h"
 #include "wifi/wifi_mgr.h"
 
 namespace config {
 namespace {
 RuntimeConfig g_cfg;
+int8_t g_active_record = -1;
+uint32_t g_record_generation = 0;
+uint32_t g_save_failure_count = 0;
+
+static const uint32_t CONFIG_RECORD_MAGIC = 0x43475244UL; // "DRGC" on little-endian storage.
+static const uint16_t CONFIG_RECORD_VERSION = 1;
+static const char *CONFIG_RECORD_KEYS[2] = {"cfg_a", "cfg_b"};
+static const char *CONFIG_BLOB_MIGRATED_KEY = "cfg_blob";
+
+struct __attribute__((packed)) ConfigRecord {
+  uint32_t magic;
+  uint16_t record_version;
+  uint16_t record_size;
+  uint32_t generation;
+  uint8_t schema_version;
+  uint8_t brightness;
+  float ranges[9];
+  RangeEffect effects[10];
+  SingleEffectConfig single;
+  char ap_ssid[33];
+  char ap_pass[64];
+  char mdns[33];
+  uint8_t mode;
+  uint8_t day_mode_enabled;
+  uint16_t fence_max_m;
+  uint8_t gps_min_fix_quality;
+  uint8_t gps_min_sats;
+  float gps_max_hdop;
+  uint16_t gps_max_gga_age_ms;
+  float gps_min_segment_m;
+  float gps_hdop_factor;
+  float gps_max_min_segment_m;
+  uint32_t crc32;
+};
+
+static_assert(sizeof(ConfigRecord) < 512, "Runtime config record must remain a small NVS blob");
 
 void set_default_single_config(SingleEffectConfig &cfg) {
   cfg.effect_id = SINGLE_EFFECT_DEFAULT;
@@ -101,6 +138,123 @@ bool migrate_legacy_ap_defaults(RuntimeConfig &cfg) {
   }
   return false;
 }
+
+bool validate_runtime_config(const RuntimeConfig &cfg) {
+  return cfg.brightness >= 1 &&
+         validate_ranges(cfg.ranges) &&
+         validate_effects(cfg.effects) &&
+         validate_single_config(cfg.single) &&
+         valid_ap_ssid(cfg.ap_ssid) &&
+         valid_ap_pass(cfg.ap_pass) &&
+         valid_mdns(cfg.mdns) &&
+         validate_mode(cfg.mode) &&
+         cfg.fence_max_m >= GEOFENCE_MAX_M_MIN &&
+         cfg.fence_max_m <= GEOFENCE_MAX_M_MAX &&
+         validate_gps(cfg);
+}
+
+bool copy_record_string(char *destination, size_t capacity, const String &source) {
+  const size_t length = source.length();
+  if (length >= capacity) {
+    return false;
+  }
+  memcpy(destination, source.c_str(), length);
+  destination[length] = '\0';
+  return true;
+}
+
+bool record_string_terminated(const char *value, size_t capacity) {
+  return memchr(value, '\0', capacity) != nullptr;
+}
+
+uint32_t config_record_crc(const ConfigRecord &record) {
+  return util::crc32_ieee(&record, offsetof(ConfigRecord, crc32));
+}
+
+bool encode_config_record(const RuntimeConfig &cfg, uint32_t generation, ConfigRecord &record) {
+  if (!validate_runtime_config(cfg)) {
+    return false;
+  }
+  record = ConfigRecord{};
+  record.magic = CONFIG_RECORD_MAGIC;
+  record.record_version = CONFIG_RECORD_VERSION;
+  record.record_size = sizeof(record);
+  record.generation = generation;
+  record.schema_version = version();
+  record.brightness = cfg.brightness;
+  memcpy(record.ranges, cfg.ranges, sizeof(record.ranges));
+  memcpy(record.effects, cfg.effects, sizeof(record.effects));
+  record.single = cfg.single;
+  if (!copy_record_string(record.ap_ssid, sizeof(record.ap_ssid), cfg.ap_ssid) ||
+      !copy_record_string(record.ap_pass, sizeof(record.ap_pass), cfg.ap_pass) ||
+      !copy_record_string(record.mdns, sizeof(record.mdns), cfg.mdns)) {
+    return false;
+  }
+  record.mode = cfg.mode;
+  record.day_mode_enabled = cfg.day_mode_enabled ? 1 : 0;
+  record.fence_max_m = cfg.fence_max_m;
+  record.gps_min_fix_quality = cfg.gps_min_fix_quality;
+  record.gps_min_sats = cfg.gps_min_sats;
+  record.gps_max_hdop = cfg.gps_max_hdop;
+  record.gps_max_gga_age_ms = cfg.gps_max_gga_age_ms;
+  record.gps_min_segment_m = cfg.gps_min_segment_m;
+  record.gps_hdop_factor = cfg.gps_hdop_factor;
+  record.gps_max_min_segment_m = cfg.gps_max_min_segment_m;
+  record.crc32 = config_record_crc(record);
+  return true;
+}
+
+bool decode_config_record(const ConfigRecord &record, RuntimeConfig &cfg) {
+  if (record.magic != CONFIG_RECORD_MAGIC ||
+      record.record_version != CONFIG_RECORD_VERSION ||
+      record.record_size != sizeof(record) ||
+      record.schema_version != version() ||
+      record.day_mode_enabled > 1 ||
+      record.crc32 != config_record_crc(record) ||
+      !record_string_terminated(record.ap_ssid, sizeof(record.ap_ssid)) ||
+      !record_string_terminated(record.ap_pass, sizeof(record.ap_pass)) ||
+      !record_string_terminated(record.mdns, sizeof(record.mdns))) {
+    return false;
+  }
+
+  RuntimeConfig next = cfg;
+  next.brightness = record.brightness;
+  memcpy(next.ranges, record.ranges, sizeof(next.ranges));
+  memcpy(next.effects, record.effects, sizeof(next.effects));
+  next.single = record.single;
+  next.ap_ssid = record.ap_ssid;
+  next.ap_pass = record.ap_pass;
+  next.mdns = record.mdns;
+  next.mode = record.mode;
+  next.day_mode_enabled = record.day_mode_enabled != 0;
+  next.fence_max_m = record.fence_max_m;
+  next.gps_min_fix_quality = record.gps_min_fix_quality;
+  next.gps_min_sats = record.gps_min_sats;
+  next.gps_max_hdop = record.gps_max_hdop;
+  next.gps_max_gga_age_ms = record.gps_max_gga_age_ms;
+  next.gps_min_segment_m = record.gps_min_segment_m;
+  next.gps_hdop_factor = record.gps_hdop_factor;
+  next.gps_max_min_segment_m = record.gps_max_min_segment_m;
+  if (!validate_runtime_config(next)) {
+    return false;
+  }
+  cfg = next;
+  return true;
+}
+
+bool load_config_record(Preferences &prefs, uint8_t slot, ConfigRecord &record, RuntimeConfig &cfg) {
+  const char *key = CONFIG_RECORD_KEYS[slot];
+  if (prefs.getBytesLength(key) != sizeof(record) ||
+      prefs.getBytes(key, &record, sizeof(record)) != sizeof(record)) {
+    return false;
+  }
+  return decode_config_record(record, cfg);
+}
+
+bool generation_is_newer(uint32_t candidate, uint32_t reference) {
+  const uint32_t delta = candidate - reference;
+  return delta != 0 && delta < 0x80000000UL;
+}
 } // namespace
 
 const RuntimeConfig &get() {
@@ -113,6 +267,18 @@ RuntimeConfig &get_mut() {
 
 uint8_t version() {
   return 5;
+}
+
+int8_t storage_slot() {
+  return g_active_record;
+}
+
+uint32_t storage_generation() {
+  return g_record_generation;
+}
+
+uint32_t storage_save_failures() {
+  return g_save_failure_count;
 }
 
 void set_defaults() {
@@ -159,41 +325,88 @@ void set_defaults() {
   set_default_gps_config(g_cfg);
 }
 
-void save() {
+bool save() {
   Preferences &prefs_cfg = storage::prefs_cfg();
-  prefs_cfg.putUChar("ver", version());
-  prefs_cfg.putUChar("brightness", g_cfg.brightness);
-  prefs_cfg.putBytes("ranges", g_cfg.ranges, sizeof(g_cfg.ranges));
-  prefs_cfg.putBytes("effects", g_cfg.effects, sizeof(g_cfg.effects));
-  prefs_cfg.putUChar("single_eff", g_cfg.single.effect_id);
-  prefs_cfg.putUChar("single_speed", g_cfg.single.speed);
-  prefs_cfg.putUChar("single_intensity", g_cfg.single.intensity);
-  prefs_cfg.putUChar("single_r", g_cfg.single.base_r);
-  prefs_cfg.putUChar("single_g", g_cfg.single.base_g);
-  prefs_cfg.putUChar("single_b", g_cfg.single.base_b);
-  prefs_cfg.putString("ap_ssid", g_cfg.ap_ssid);
-  prefs_cfg.putString("ap_pass", g_cfg.ap_pass);
-  prefs_cfg.putString("mdns", g_cfg.mdns);
-  prefs_cfg.putUChar("mode", g_cfg.mode);
-  prefs_cfg.putBool("day_mode", g_cfg.day_mode_enabled);
-  prefs_cfg.putUShort("fence_max", g_cfg.fence_max_m);
-  prefs_cfg.putUChar("gps_min_fix", g_cfg.gps_min_fix_quality);
-  prefs_cfg.putUChar("gps_min_sats", g_cfg.gps_min_sats);
-  prefs_cfg.putFloat("gps_max_hdop", g_cfg.gps_max_hdop);
-  prefs_cfg.putUShort("gps_gga_age", g_cfg.gps_max_gga_age_ms);
-  prefs_cfg.putFloat("gps_min_seg", g_cfg.gps_min_segment_m);
-  prefs_cfg.putFloat("gps_hdop_factor", g_cfg.gps_hdop_factor);
-  prefs_cfg.putFloat("gps_max_min_seg", g_cfg.gps_max_min_segment_m);
+  const uint8_t target_slot = (g_active_record == 0) ? 1 : 0;
+  const uint32_t next_generation = (g_record_generation == UINT32_MAX)
+                                       ? 1U
+                                       : g_record_generation + 1U;
+
+  ConfigRecord record = {};
+  if (!encode_config_record(g_cfg, next_generation, record)) {
+    g_save_failure_count++;
+    return false;
+  }
+  const char *key = CONFIG_RECORD_KEYS[target_slot];
+  if (prefs_cfg.putBytes(key, &record, sizeof(record)) != sizeof(record)) {
+    g_save_failure_count++;
+    return false;
+  }
+
+  ConfigRecord readback = {};
+  RuntimeConfig verified = g_cfg;
+  if (!load_config_record(prefs_cfg, target_slot, readback, verified) ||
+      memcmp(&record, &readback, sizeof(record)) != 0) {
+    g_save_failure_count++;
+    return false;
+  }
+
+  g_active_record = target_slot;
+  g_record_generation = next_generation;
+  return true;
 }
 
 void load() {
   Preferences &prefs_cfg = storage::prefs_cfg();
+  set_defaults();
+  g_active_record = -1;
+  g_record_generation = 0;
+
+  ConfigRecord records[2] = {};
+  RuntimeConfig candidates[2] = {g_cfg, g_cfg};
+  const bool valid_a = load_config_record(prefs_cfg, 0, records[0], candidates[0]);
+  const bool valid_b = load_config_record(prefs_cfg, 1, records[1], candidates[1]);
+  if (valid_a || valid_b) {
+    uint8_t selected = 0;
+    if (!valid_a || (valid_b && generation_is_newer(records[1].generation, records[0].generation))) {
+      selected = 1;
+    }
+    g_cfg = candidates[selected];
+    g_active_record = selected;
+    g_record_generation = records[selected].generation;
+    if (migrate_legacy_ap_defaults(g_cfg)) {
+      save();
+    }
+    if (!prefs_cfg.getBool(CONFIG_BLOB_MIGRATED_KEY, false)) {
+      prefs_cfg.putBool(CONFIG_BLOB_MIGRATED_KEY, true);
+    }
+    return;
+  }
+
+  // Once blob migration completed, never resurrect stale legacy keys if both
+  // records are later damaged. Recover defaults and recreate both generations.
+  if (prefs_cfg.getBool(CONFIG_BLOB_MIGRATED_KEY, false)) {
+    set_defaults();
+    if (save()) {
+      save();
+    }
+    return;
+  }
+
+  auto finish_legacy_migration = [&prefs_cfg]() {
+    g_active_record = -1;
+    g_record_generation = 0;
+    if (save() && save()) {
+      prefs_cfg.putBool(CONFIG_BLOB_MIGRATED_KEY, true);
+    }
+  };
+
   const uint8_t ver = prefs_cfg.getUChar("ver", 0);
   if (ver == version()) {
     RuntimeConfig next = g_cfg;
     if (!read_common_config(next)) {
       set_defaults();
-      save();
+      finish_legacy_migration();
       return;
     }
     next.mode = prefs_cfg.getUChar("mode", MODE_SPEED);
@@ -208,11 +421,9 @@ void load() {
     if (!validate_gps(next)) {
       set_default_gps_config(next);
     }
-    const bool migrated_ap_defaults = migrate_legacy_ap_defaults(next);
+    migrate_legacy_ap_defaults(next);
     g_cfg = next;
-    if (migrated_ap_defaults) {
-      save();
-    }
+    finish_legacy_migration();
     return;
   }
 
@@ -235,7 +446,7 @@ void load() {
       }
       migrate_legacy_ap_defaults(migrated);
       g_cfg = migrated;
-      save();
+      finish_legacy_migration();
       return;
     }
   }
@@ -255,7 +466,7 @@ void load() {
       set_default_single_config(migrated.single);
       set_default_gps_config(migrated);
       g_cfg = migrated;
-      save();
+      finish_legacy_migration();
       return;
     }
   }
@@ -270,13 +481,13 @@ void load() {
       migrated.fence_max_m = GEOFENCE_MAX_M_DEFAULT;
       set_default_gps_config(migrated);
       g_cfg = migrated;
-      save();
+      finish_legacy_migration();
       return;
     }
   }
 
   set_defaults();
-  save();
+  finish_legacy_migration();
 }
 
 void apply(const RuntimeConfig &previous) {
@@ -336,8 +547,11 @@ uint16_t clamp_fence_max(int value) {
 }
 
 bool validate_ranges(const float *ranges) {
+  if (!isfinite(ranges[0]) || ranges[0] <= 0.0f) {
+    return false;
+  }
   for (int i = 1; i < 9; ++i) {
-    if (!(ranges[i] > ranges[i - 1])) {
+    if (!isfinite(ranges[i]) || !(ranges[i] > ranges[i - 1])) {
       return false;
     }
   }
@@ -354,7 +568,7 @@ bool validate_effects(const RangeEffect *effects) {
 }
 
 bool validate_gps(const RuntimeConfig &cfg) {
-  if (cfg.gps_min_fix_quality < GPS_MIN_FIX_QUALITY_MIN || cfg.gps_min_fix_quality > GPS_MIN_FIX_QUALITY_MAX) {
+  if (cfg.gps_min_fix_quality > GPS_MIN_FIX_QUALITY_MAX) {
     return false;
   }
   if (cfg.gps_min_sats < GPS_MIN_SATS_MIN || cfg.gps_min_sats > GPS_MIN_SATS_MAX) {

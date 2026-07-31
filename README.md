@@ -52,6 +52,7 @@ The active firmware project is in [Platformio/Dog-RGB](Platformio/Dog-RGB) with:
 - Daily reset using GPS date
 - Max/avg speed metrics
 - NVS persistence for metrics + runtime config
+- CRC32-protected A/B runtime-configuration recovery across interrupted writes
 - Wi-Fi portal (AP/STA) with `/`, `/api/summary`, `/wifi`
 - Bounded JSON/CSV/GeoJSON track streaming with GNSS servicing during exports
 - Runtime config UI at `/config` with `/api/config` + `/api/config/reset`

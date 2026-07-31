@@ -99,6 +99,14 @@ void note_activity() {
   wifi_mgr::note_portal_activity();
 }
 
+bool persist_config_or_restore(const RuntimeConfig &previous) {
+  if (config::save()) {
+    return true;
+  }
+  config::get_mut() = previous;
+  return false;
+}
+
 String ap_base_url() {
   return String("http://") + WiFi.softAPIP().toString() + "/";
 }
@@ -267,6 +275,10 @@ void handle_dev_get() {
 
   JsonObject system = doc["system"].to<JsonObject>();
   system["free_heap"] = ESP.getFreeHeap();
+  JsonObject configStorage = system["config_storage"].to<JsonObject>();
+  configStorage["slot"] = config::storage_slot();
+  configStorage["generation"] = config::storage_generation();
+  configStorage["save_failures"] = config::storage_save_failures();
 
   JsonObject wifi = doc["wifi"].to<JsonObject>();
   wifi["mode"] = wifi_mode_name(WiFi.getMode());
@@ -578,7 +590,10 @@ void handle_mode_post() {
   if (parsed_mode != config::get().mode) {
     RuntimeConfig previous = config::get();
     config::get_mut().mode = parsed_mode;
-    config::save();
+    if (!persist_config_or_restore(previous)) {
+      server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
+      return;
+    }
     config::apply(previous);
   }
   server.send(200, "application/json", "{\"status\":\"ok\"}");
@@ -828,7 +843,10 @@ void handle_config_post() {
 
   RuntimeConfig previous = config::get();
   config::get_mut() = next;
-  config::save();
+  if (!persist_config_or_restore(previous)) {
+    server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
+    return;
+  }
   config::apply(previous);
   const bool wifi_restart = (config::get().ap_ssid != previous.ap_ssid || config::get().ap_pass != previous.ap_pass);
   if (wifi_restart) {
@@ -840,10 +858,12 @@ void handle_config_post() {
 
 void handle_config_reset() {
   note_activity();
-  storage::prefs_cfg().clear();
   RuntimeConfig previous = config::get();
   config::set_defaults();
-  config::save();
+  if (!persist_config_or_restore(previous)) {
+    server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
+    return;
+  }
   config::apply(previous);
   if (config::get().ap_ssid != previous.ap_ssid || config::get().ap_pass != previous.ap_pass) {
     wifi_mgr::schedule_ap_restart();
@@ -896,7 +916,10 @@ void handle_wifi_ap_save() {
 
   RuntimeConfig previous = config::get();
   config::get_mut() = next;
-  config::save();
+  if (!persist_config_or_restore(previous)) {
+    server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
+    return;
+  }
   config::apply(previous);
   const bool wifi_restart = (config::get().ap_ssid != previous.ap_ssid || config::get().ap_pass != previous.ap_pass);
   if (wifi_restart) {
