@@ -11,7 +11,8 @@
       "attrs": {
         "flashSize": "8",
         "psramSize": "8",
-        "psramType": "octal"
+        "psramType": "octal",
+        "serialInterface": "USB_SERIAL_JTAG"
       }
     },
     {
@@ -50,16 +51,36 @@
       "id": "gnss",
       "top": 260,
       "left": 20,
+      "attrs": {
+        "profile": "0",
+        "speedKph": "12"
+      }
+    },
+    {
+      "type": "wokwi-logic-analyzer",
+      "id": "logic",
+      "top": 390,
+      "left": 70,
       "attrs": {}
     }
   ],
   "connections": [
     [ "xiao:D0", "strip_a:DIN", "green", [] ],
     [ "xiao:D1", "strip_b:DIN", "green", [] ],
+    [ "xiao:5V", "strip_a:VDD", "red", [] ],
+    [ "xiao:GND", "strip_a:VSS", "black", [] ],
+    [ "xiao:5V", "strip_b:VDD", "red", [] ],
+    [ "xiao:GND", "strip_b:VSS", "black", [] ],
     [ "xiao:D2", "status_led:A", "green", [] ],
     [ "status_led:C", "xiao:GND", "black", [] ],
     [ "gnss:TX", "xiao:D7", "blue", [] ],
-    [ "$serialMonitor:RX", "xiao:D6", "", [] ],
-    [ "$serialMonitor:TX", "xiao:D7", "", [] ]
-  ]
+    [ "xiao:D0", "logic:D0", "green", [] ],
+    [ "xiao:D1", "logic:D1", "green", [] ],
+    [ "gnss:TX", "logic:D2", "blue", [] ],
+    [ "xiao:GND", "logic:GND", "black", [] ]
+  ],
+  "serialMonitor": {
+    "display": "always",
+    "newline": "lf"
+  }
 }

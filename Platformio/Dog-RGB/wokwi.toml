@@ -3,6 +3,7 @@ version = 1
 firmware = ".pio/build/wokwi/firmware.bin"
 elf = ".pio/build/wokwi/firmware.elf"
 rfc2217ServerPort = 4000
+vcdFile = "artifacts/wokwi.vcd"
 
 # Expose the Dog-RGB HTTP portal as http://localhost:8180 when the
 # Wokwi private gateway is enabled.

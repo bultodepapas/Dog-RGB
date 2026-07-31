@@ -70,6 +70,19 @@ python -m unittest discover -s test -p "test_*.py" -v
 
 `platformio.ini` define el entorno `seeed_xiao_esp32s3` con Arduino framework, ArduinoJson y Adafruit NeoPixel.
 
+## Simulacion Wokwi
+
+La simulacion local incluye la XIAO ESP32-S3, ambas tiras LED, el LED de estado,
+un GNSS NMEA interactivo y un analizador logico. Para preparar firmware, chip
+WASM y diagrama con un solo comando:
+
+```powershell
+.\tools\wokwi.ps1 -Action prepare
+```
+
+La instalacion, los perfiles GNSS, las pruebas automatizadas y el acceso al
+portal estan documentados en [docs/wokwi.md](docs/wokwi.md).
+
 ## Notas De Persistencia
 
 La configuracion runtime se guarda en NVS mediante `Preferences`. La version actual de configuracion es `5`; la migracion desde versiones anteriores conserva modos, rangos, efectos, Wi-Fi y GPS, y deja Modo DIA desactivado por defecto.

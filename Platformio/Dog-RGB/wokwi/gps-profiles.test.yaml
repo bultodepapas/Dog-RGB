@@ -1,0 +1,25 @@
+name: "Dog-RGB GNSS quality profile transitions"
+version: 1
+author: "Dog-RGB"
+steps:
+  - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
+  - delay: 4000ms
+  - wait-serial: "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok"
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 2
+  - delay: 4000ms
+  - wait-serial: "[GPS_FIX] raw=0 trusted=0 current=0 reason=rmc_v"
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 3
+  - delay: 4000ms
+  - wait-serial: "[GPS_FIX] raw=1 trusted=0 current=1 reason=hdop"
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 0
+  - delay: 4000ms
+  - wait-serial: "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok"

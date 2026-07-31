@@ -1,5 +1,23 @@
 {
   "name": "NMEA GPS simulator",
   "author": "Dog-RGB",
-  "pins": ["TX"]
+  "pins": ["TX"],
+  "controls": [
+    {
+      "id": "profile",
+      "label": "Profile: 0 move, 1 stop, 2 no fix, 3 poor HDOP, 4 no signal",
+      "type": "range",
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    {
+      "id": "speedKph",
+      "label": "Moving speed (km/h)",
+      "type": "range",
+      "min": 0,
+      "max": 40,
+      "step": 1
+    }
+  ]
 }

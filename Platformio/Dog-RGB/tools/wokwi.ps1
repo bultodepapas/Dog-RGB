@@ -1,0 +1,108 @@
+[CmdletBinding()]
+param(
+  [ValidateSet('prepare', 'lint', 'test')]
+  [string]$Action = 'prepare',
+
+  [string]$Scenario = 'wokwi/boot.test.yaml',
+
+  [ValidateRange(5000, 300000)]
+  [int]$TimeoutMs = 30000
+)
+
+$ErrorActionPreference = 'Stop'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+
+function Resolve-Executable {
+  param(
+    [string]$CommandName,
+    [string[]]$Candidates,
+    [string]$InstallHint
+  )
+
+  $command = Get-Command $CommandName -ErrorAction SilentlyContinue
+  if ($null -ne $command) {
+    return $command.Source
+  }
+  foreach ($candidate in $Candidates) {
+    if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+      return (Resolve-Path -LiteralPath $candidate).Path
+    }
+  }
+  throw "$CommandName was not found. $InstallHint"
+}
+
+function Invoke-Native {
+  param(
+    [string]$Executable,
+    [string[]]$Arguments,
+    [string]$Description
+  )
+
+  Write-Host "==> $Description"
+  & $Executable @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "$Description failed with exit code $LASTEXITCODE."
+  }
+}
+
+$pio = Resolve-Executable `
+  -CommandName 'pio' `
+  -Candidates @((Join-Path $env:USERPROFILE '.platformio\penv\Scripts\pio.exe')) `
+  -InstallHint 'Install PlatformIO Core: https://docs.platformio.org/en/latest/core/installation/'
+
+$wokwiCli = Resolve-Executable `
+  -CommandName 'wokwi-cli' `
+  -Candidates @(
+    (Join-Path $env:USERPROFILE '.wokwi\bin\wokwi-cli.exe'),
+    (Join-Path $env:USERPROFILE '.wokwi\bin\wokwi-cli')
+  ) `
+  -InstallHint 'Install the official CLI: https://docs.wokwi.com/wokwi-ci/cli-usage'
+
+function Invoke-Lint {
+  Invoke-Native -Executable $wokwiCli -Arguments @('lint', '.') `
+    -Description 'Lint Wokwi diagram'
+}
+
+function Invoke-Prepare {
+  if (-not (Test-Path -LiteralPath 'artifacts')) {
+    New-Item -ItemType Directory -Path 'artifacts' | Out-Null
+  }
+  Invoke-Native -Executable $wokwiCli `
+    -Arguments @('chip', 'compile', 'chips/nmea-gps.chip.c', '-o', 'chips/nmea-gps.chip.wasm') `
+    -Description 'Compile NMEA custom chip'
+  Invoke-Native -Executable $pio -Arguments @('run', '-e', 'wokwi') `
+    -Description 'Build Wokwi firmware'
+  Invoke-Lint
+}
+
+Push-Location $projectRoot
+try {
+  switch ($Action) {
+    'prepare' {
+      Invoke-Prepare
+    }
+    'lint' {
+      Invoke-Lint
+    }
+    'test' {
+      if (-not $env:WOKWI_CLI_TOKEN) {
+        throw 'WOKWI_CLI_TOKEN is not set. Create a personal token at https://wokwi.com/dashboard/ci and set it only in your environment.'
+      }
+      Invoke-Prepare
+      if (-not (Test-Path -LiteralPath $Scenario -PathType Leaf)) {
+        throw "Scenario not found: $Scenario"
+      }
+      if (-not (Test-Path -LiteralPath 'artifacts')) {
+        New-Item -ItemType Directory -Path 'artifacts' | Out-Null
+      }
+      $scenarioName = [System.IO.Path]::GetFileNameWithoutExtension($Scenario)
+      $serialLog = Join-Path 'artifacts' "$scenarioName.serial.log"
+      Invoke-Native -Executable $wokwiCli `
+        -Arguments @('.', '--scenario', $Scenario, '--timeout', "$TimeoutMs", '--timeout-exit-code', '1', '--serial-log-file', $serialLog) `
+        -Description "Run Wokwi scenario $Scenario"
+      Write-Host "Serial log: $serialLog"
+    }
+  }
+} finally {
+  Pop-Location
+}

@@ -34,9 +34,9 @@ The firmware is split into GPS, Wi-Fi, web, LED, BLE, configuration, system-stat
 
 | Check | Result | What it proves / limitation |
 |---|---|---|
-| `pio run -e seeed_xiao_esp32s3` | **Pass** | Firmware compiles and links. Static RAM: 49,612/327,680 bytes (15.1%); flash: 958,877/3,342,336 bytes (28.7%). The 16,384-byte UART ring is allocated during GNSS startup and therefore is not included in the static figure. It does not prove runtime behavior. |
-| Compiler warnings | **Needs work** | ArduinoJson 7 reports deprecated `StaticJsonDocument` and `containsKey()` usage in `src/web/portal_http.cpp`. |
-| `python -m unittest discover -s test -p "test_*.py" -v` | **58/58 pass** | Includes day-mode, track retention/integrity/streaming, Wi-Fi event ownership, configuration/home persistence, active-time accounting, and guarded daily-date transitions. Date tests cover record validation, torn A/B writes, generation wrap, single forward glitch, confirmed reacquisition, backward almanac date, calendar-boundary midnight, data loss/untrusted boundaries, journal failure/retry, and source integration. These are host-side, not HIL. |
+| `pio run -e seeed_xiao_esp32s3` | **Pass** | Firmware compiles and links with the exact pinned dependencies also used by Wokwi. Static RAM: 49,612/327,680 bytes (15.1%); flash: 955,909/3,342,336 bytes (28.6%). The 16,384-byte UART ring is allocated during GNSS startup and therefore is not included in the static figure. It does not prove runtime behavior. |
+| Compiler warnings | **Needs work** | ArduinoJson 7.2.1 reports deprecated `StaticJsonDocument` and `containsKey()` usage in `src/web/portal_http.cpp`. |
+| `python -m unittest discover -s test -p "test_*.py" -v` | **66/66 pass** | Includes day-mode, track retention/integrity/streaming, Wi-Fi event ownership, configuration/home persistence, active-time accounting, guarded daily-date transitions, and Wokwi circuit/configuration/scenario contracts. Date tests cover record validation, torn A/B writes, generation wrap, single forward glitch, confirmed reacquisition, backward almanac date, calendar-boundary midnight, data loss/untrusted boundaries, journal failure/retry, and source integration. These are host-side, not HIL. |
 | `pio check -e seeed_xiao_esp32s3 --skip-packages` | **Pass with findings** | No medium/high project-source defect was reported. Cppcheck produced low-severity project findings and one third-party ArduinoJson preprocessor false positive. The current command does not fail the build on defects and translation-unit analysis causes unused-code noise. |
 | `npm ci` | **Pass** | Three packages installed; npm reported zero known vulnerabilities in this small host-tool dependency set. |
 | Portal page extraction with `python` | **Pass** | The generated portal HTML can be extracted on this machine when invoked directly. |
@@ -159,13 +159,13 @@ No critical code-backed defect was identified. Severity meanings: **High** defea
 
 **Action:** resolve paths with Node's `fileURLToPath()`, invoke a portable extractor or implement it in Node, and set environment variables through a Node wrapper or `cross-env`. Make “server started” and page load separate diagnostics. Run the suite on Windows and one Linux CI worker.
 
-### AUD-015 — Medium — Dependency ranges and ArduinoJson API drift reduce reproducibility
+### AUD-015 — Partially resolved Medium — Dependency ranges and ArduinoJson API drift reduce reproducibility
 
-**Evidence:** `platformio.ini` declares caret ranges (`ArduinoJson@^7.2.1`, `Adafruit NeoPixel@^1.12.3`); the build resolved newer 7.4.3 and 1.15.4 versions. ArduinoJson 7 warns on all `StaticJsonDocument` and `containsKey()` calls in `portal_http.cpp`.
+**Original evidence:** `platformio.ini` declared caret ranges (`ArduinoJson@^7.2.1`, `Adafruit NeoPixel@^1.12.3`); separate physical and Wokwi environments demonstrably resolved different NeoPixel patch releases. ArduinoJson 7 also warns on all `StaticJsonDocument` and `containsKey()` calls in `portal_http.cpp`.
 
 **Impact:** identical source can compile against materially different library revisions over time, and deprecated APIs can become future build failures. ArduinoJson 7 also allocates `JsonDocument` storage on the heap, so migration affects memory behavior.
 
-**Action:** select tested exact versions or commit a reproducible dependency lock policy. Migrate to `JsonDocument` and `is<T>()`/null-aware access with explicit deserialization limits, then measure peak/minimum heap under repeated requests. Treat warnings as CI failures after cleanup.
+**Implemented:** both build environments now inherit one PlatformIO definition and pin the tested ArduinoJson 7.2.1 and Adafruit NeoPixel 1.12.3 releases exactly; clean resolution confirms both dependency graphs match. **Remaining action:** migrate to `JsonDocument` and `is<T>()`/null-aware access with explicit deserialization limits, then measure peak/minimum heap under repeated requests. Treat warnings as CI failures after cleanup.
 
 ### AUD-016 — Informational — Portal handlers use temporary heap allocations
 
