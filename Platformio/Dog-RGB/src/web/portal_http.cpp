@@ -350,6 +350,15 @@ void handle_dev_get() {
   gps["activity_observation_intervals"] = gps::activity_observation_intervals();
   gps["activity_gap_rejects"] = gps::activity_gap_rejects();
   gps["last_activity_delta_ms"] = gps::last_activity_delta_ms();
+  gps["date_transitions"] = gps::date_transition_count();
+  gps["date_rejected"] = gps::date_rejected_count();
+  gps["date_pending_candidate"] = gps::date_pending_candidate();
+  gps["date_pending_observations"] = gps::date_pending_observations();
+  JsonObject dailyStorage = gps["daily_journal"].to<JsonObject>();
+  dailyStorage["slot"] = gps::daily_journal_slot();
+  dailyStorage["generation"] = gps::daily_journal_generation();
+  dailyStorage["save_failures"] = gps::daily_journal_save_failures();
+  dailyStorage["last_completed_date"] = gps::last_completed_date();
   const long age_last_byte = (gps::last_byte_ms() > 0 && now_ms >= gps::last_byte_ms())
                                  ? static_cast<long>(now_ms - gps::last_byte_ms())
                                  : -1;

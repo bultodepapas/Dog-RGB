@@ -7,11 +7,11 @@
 
 ## Executive assessment
 
-Dog-RGB is a credible, buildable ESP32-S3 DIY project with a sensibly modular firmware structure, strict NMEA checksum parsing, bounded LED buffers, GNSS-aware streamed track output, animated LED effects, and useful compile-time headroom. The current firmware builds successfully for the Seeed XIAO ESP32-S3 at **15.1% static RAM** and **28.6% flash**; the deliberately enlarged GNSS receive ring is allocated at runtime.
+Dog-RGB is a credible, buildable ESP32-S3 DIY project with a sensibly modular firmware structure, strict NMEA checksum parsing, bounded LED buffers, GNSS-aware streamed track output, animated LED effects, and useful compile-time headroom. The current firmware builds successfully for the Seeed XIAO ESP32-S3 at **15.1% static RAM** and **28.7% flash**; the deliberately enlarged GNSS receive ring is allocated at runtime.
 
 The local portal's simple default access is intentional for this DIY project: the owner can connect immediately and can change the AP credentials afterward. This audit therefore treats it as a usability choice, not a release-blocking security defect. Commercial IoT provisioning and enterprise-style access control are explicitly outside the current objective.
 
-The largest functional defect found was the track ring: it was dimensioned for 1,440 samples but normally overwrote history after approximately **7.5 minutes**. This audit iteration fixes it with partial-chunk rewriting, one staging chunk, and a dedicated 192 KiB track NVS partition. A host simulation verifies the latest 1,440 points through multiple ring wraps. Track chunks and metadata are now protected by a versioned CRC32 format with strict decoding. Wi-Fi events now cross tasks through a bounded queue with main-loop-owned state. Track exports now coalesce output, service GNSS between bounded writes, abort on disconnect, and have over 17 seconds of worst-case UART buffering. Runtime configuration and home/geofence state now use independent read-back-verified A/B records, so interrupted settings, home, clear, or reset writes retain the previous complete generation. Active time now follows trusted GNSS observation timestamps, preserving buffered intervals after loop stalls without inventing time across data outages.
+The largest functional defect found was the track ring: it was dimensioned for 1,440 samples but normally overwrote history after approximately **7.5 minutes**. This audit iteration fixes it with partial-chunk rewriting, one staging chunk, and a dedicated 192 KiB track NVS partition. A host simulation verifies the latest 1,440 points through multiple ring wraps. Track chunks and metadata are now protected by a versioned CRC32 format with strict decoding. Wi-Fi events now cross tasks through a bounded queue with main-loop-owned state. Track exports now coalesce output, service GNSS between bounded writes, abort on disconnect, and have over 17 seconds of worst-case UART buffering. Runtime configuration and home/geofence state now use independent read-back-verified A/B records, so interrupted settings, home, clear, or reset writes retain the previous complete generation. Active time now follows trusted GNSS observation timestamps, preserving buffered intervals after loop stalls without inventing time across data outages. Daily metrics now reject backward or unconfirmed date changes and preserve the completed day in a verified A/B journal before resetting.
 
 **Recommendation:** keep the simple DIY interaction model and prioritize the demonstrated software defects: track retention/integrity, Wi-Fi event ownership, persistence recovery, UART servicing, and executable tests.
 
@@ -34,9 +34,9 @@ The firmware is split into GPS, Wi-Fi, web, LED, BLE, configuration, system-stat
 
 | Check | Result | What it proves / limitation |
 |---|---|---|
-| `pio run -e seeed_xiao_esp32s3` | **Pass** | Firmware compiles and links. Static RAM: 49,524/327,680 bytes (15.1%); flash: 955,341/3,342,336 bytes (28.6%). The 16,384-byte UART ring is allocated during GNSS startup and therefore is not included in the static figure. It does not prove runtime behavior. |
+| `pio run -e seeed_xiao_esp32s3` | **Pass** | Firmware compiles and links. Static RAM: 49,612/327,680 bytes (15.1%); flash: 958,877/3,342,336 bytes (28.7%). The 16,384-byte UART ring is allocated during GNSS startup and therefore is not included in the static figure. It does not prove runtime behavior. |
 | Compiler warnings | **Needs work** | ArduinoJson 7 reports deprecated `StaticJsonDocument` and `containsKey()` usage in `src/web/portal_http.cpp`. |
-| `python -m unittest discover -s test -p "test_*.py" -v` | **47/47 pass** | Includes day-mode, track retention/integrity/streaming, Wi-Fi event ownership, configuration/home persistence, and active-time accounting. Time tests cover fractional NMEA time, jitter, a ten-second buffered backlog, long outage, active/inactive transitions, midnight/month/year/leap transitions, saturation, duplicate/backward observations, and source integration. These are host-side, not HIL. |
+| `python -m unittest discover -s test -p "test_*.py" -v` | **58/58 pass** | Includes day-mode, track retention/integrity/streaming, Wi-Fi event ownership, configuration/home persistence, active-time accounting, and guarded daily-date transitions. Date tests cover record validation, torn A/B writes, generation wrap, single forward glitch, confirmed reacquisition, backward almanac date, calendar-boundary midnight, data loss/untrusted boundaries, journal failure/retry, and source integration. These are host-side, not HIL. |
 | `pio check -e seeed_xiao_esp32s3 --skip-packages` | **Pass with findings** | No medium/high project-source defect was reported. Cppcheck produced low-severity project findings and one third-party ArduinoJson preprocessor false positive. The current command does not fail the build on defects and translation-unit analysis causes unused-code noise. |
 | `npm ci` | **Pass** | Three packages installed; npm reported zero known vulnerabilities in this small host-tool dependency set. |
 | Portal page extraction with `python` | **Pass** | The generated portal HTML can be extracted on this machine when invoked directly. |
@@ -135,13 +135,13 @@ No critical code-backed defect was identified. Severity meanings: **High** defea
 
 **Action:** centralize wrap-safe elapsed and deadline helpers using fixed-width unsigned arithmetic, migrate every timer, and unit-test boundaries around `UINT32_MAX`.
 
-### AUD-012 — Medium — One GNSS date change can roll daily metrics
+### AUD-012 — Resolved Medium — One GNSS date change could roll daily metrics
 
-**Evidence:** `src/gps/gps.cpp:1349-1355` resets daily distance/time/max values when a nonzero parsed date differs from the stored date. There is no consecutive-fix confirmation, plausible calendar range check beyond parsing, monotonic policy, or preserved previous daily record before reset.
+**Original evidence:** the RMC path reset daily distance, active time, and maximum speed whenever one trusted parsed date differed from the stored date. It had no transition confirmation, monotonic policy, or durable completed-day record.
 
-**Impact:** one checksum-valid but erroneous/backward date can erase the live daily counters.
+**Impact:** one checksum-valid but erroneous/backward date could erase the live daily counters and contaminate date-dependent session/track metadata.
 
-**Action:** validate the full calendar date, require consecutive confirmation for non-midnight discontinuities, handle midnight as a defined transition, and journal the completed day before activating a new one. Test midnight, loss/reacquisition, old almanac time, and malformed-but-checksummed input.
+**Implemented:** all date-dependent metrics, active-time observations, session endpoints, and track samples now require an accepted date observation. The first valid date initializes an empty device. The current date continues normally, while a timestamp-contiguous next-day midnight advances immediately. Any other forward jump requires three consecutive trusted, ordered RMC observations no more than three seconds apart; a return to the current date, receiver-stale event, invalid fix, parse failure, or checksum-invalid RMC cancels the candidate. Backward dates are never accepted automatically, preventing an old receiver/almanac date from rolling counters back. Before a real transition clears RAM, the completed daily summary is written to alternating fixed 36-byte `day_a`/`day_b` records containing magic, version/size, wrap-safe generation, strict fields, and CRC32. The inactive record must be written in full, decoded, and match byte-for-byte on readback; otherwise the old day remains active and the transition retries. The latest completed day is included in summary JSON, while `/api/dev` exposes pending confirmation, rejection/transition counts, journal slot/generation, failure count, and last completed date. Eleven host tests cover the state machine and persistence fault cases. Physical recorded-NMEA and forced-write-failure testing remains useful HIL validation.
 
 ### AUD-013 — Resolved Medium — Home/geofence state needed structural validation
 
@@ -241,7 +241,7 @@ Twenty targeted investigations were performed. These sources do **not** override
 
 1. **Runtime configuration and home completed:** use independent validated, read-back-verified A/B blobs with wrap-safe generations; apply the pattern to metrics/session only in a separate scoped fix.
 2. **Completed:** make track export GNSS-aware and size the GNSS RX buffer with over 17 seconds of worst-case margin.
-3. **Active time completed:** use trusted GNSS observation deltas with bounded outage handling. Rollover comparisons and daily-date confirmation remain separate fixes.
+3. **Active time and daily date completed:** use trusted GNSS observation deltas with bounded outage handling, confirm discontinuous date changes, and journal the completed day before reset. Rollover-safe stale/deadline comparisons remain separate.
 
 **Exit criteria:** no UART overflow occurs during slow maximum-track export; power cuts at every NVS write boundary recover the previous or next complete generation, never a mixture; elapsed-time, `millis()` rollover, and date-transition tests pass.
 
@@ -281,7 +281,7 @@ These tests can improve understanding and debugging, but the audit does not trea
 
 ## Recommended completion gate
 
-For the stated DIY objective, the informational observations require no code change. Track retention/integrity/streaming, Wi-Fi event ownership, configuration/home recovery, and active-time accounting are corrected and host-tested. The next valuable correctness work is rollover-safe stale/deadline handling and daily-date confirmation, followed by real power-cut and throttled-export hardware tests.
+For the stated DIY objective, the informational observations require no code change. Track retention/integrity/streaming, Wi-Fi event ownership, configuration/home recovery, active-time accounting, and guarded daily-date rollover are corrected and host-tested. The next valuable correctness work is rollover-safe stale/deadline handling, followed by real power-cut, recorded-NMEA, and throttled-export hardware tests.
 
 ## Audit limitations
 

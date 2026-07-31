@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "author": "Dog-RGB",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-xiao-esp32-s3",
+      "id": "xiao",
+      "top": 0,
+      "left": 0,
+      "attrs": {
+        "flashSize": "8",
+        "psramSize": "8",
+        "psramType": "octal",
+        "serialInterface": "USB_SERIAL_JTAG"
+      }
+    },
+    {
+      "type": "wokwi-led-strip",
+      "id": "strip_a",
+      "top": -20,
+      "left": 280,
+      "attrs": {
+        "pixels": "24",
+        "pixelShape": "square",
+        "pixelSize": "2020"
+      }
+    },
+    {
+      "type": "wokwi-led-strip",
+      "id": "strip_b",
+      "top": 120,
+      "left": 280,
+      "attrs": {
+        "pixels": "24",
+        "pixelShape": "square",
+        "pixelSize": "2020"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "status_led",
+      "top": 280,
+      "left": 300,
+      "attrs": {
+        "color": "green"
+      }
+    },
+    {
+      "type": "chip-nmea-gps",
+      "id": "gnss",
+      "top": 260,
+      "left": 20,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [ "xiao:D0", "strip_a:DIN", "green", [] ],
+    [ "xiao:D1", "strip_b:DIN", "green", [] ],
+    [ "xiao:D2", "status_led:A", "green", [] ],
+    [ "status_led:C", "xiao:GND", "black", [] ],
+    [ "gnss:TX", "xiao:D7", "blue", [] ]
+  ]
+}

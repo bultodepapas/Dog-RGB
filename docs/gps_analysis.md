@@ -50,6 +50,8 @@ Un intervalo aislado de más de tres segundos se rechaza porque no existe eviden
 
 Si un intervalo cruza medianoche, la sesión recibe el intervalo completo y el contador diario nuevo recibe únicamente la fracción posterior a las 00:00. Ambos contadores saturan en su máximo representable en vez de desbordarse.
 
+La fecha diaria tampoco cambia por una sola sentencia anómala. Una medianoche con marcas de tiempo continuas se acepta inmediatamente; cualquier otro salto hacia adelante exige tres observaciones RMC confiables, consecutivas y ordenadas. Las fechas hacia atrás se rechazan para evitar que una fecha vieja del receptor borre las métricas actuales. Antes de activar el día nuevo, el resumen terminado se escribe en registros A/B con versión, generación, CRC y verificación de lectura. Si esa verificación falla, el día actual no se borra y la transición se reintenta.
+
 **Comportamiento actual simplificado:**
 ```cpp
 if (previous_active && current_active && delta_ms <= GPS_ACTIVE_MAX_GAP_MS) {

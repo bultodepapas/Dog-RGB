@@ -69,6 +69,42 @@ uint32_t gps_activity_observation_intervals = 0;
 uint32_t gps_activity_gap_rejects = 0;
 uint32_t gps_last_activity_delta_ms = 0;
 
+// Trusted GNSS date-transition guard. Daily metrics may only roll after an
+// immediate timestamp-contiguous midnight or repeated forward-date evidence.
+bool has_accepted_date_observation = false;
+uint32_t last_accepted_date_observation_ms = 0;
+uint32_t pending_date_candidate = 0;
+uint32_t pending_date_last_time_ms = 0;
+uint8_t pending_date_observations = 0;
+uint32_t gps_date_transition_count = 0;
+uint32_t gps_date_rejected_count = 0;
+
+static const uint32_t DAILY_JOURNAL_MAGIC = 0x31594144UL; // "DAY1"
+static const uint8_t DAILY_JOURNAL_VERSION = 1;
+
+struct DailyJournalRecord {
+  uint32_t magic;
+  uint8_t version;
+  uint8_t flags;
+  uint16_t size;
+  uint32_t generation;
+  uint32_t date;
+  float distance_m;
+  uint32_t active_ms;
+  float max_speed_kph;
+  uint16_t last_update_min;
+  uint16_t reserved;
+  uint32_t crc32;
+} __attribute__((packed));
+
+static_assert(sizeof(DailyJournalRecord) == 36, "DailyJournalRecord size");
+
+DailyJournalRecord last_completed_day = {};
+bool last_completed_day_valid = false;
+int8_t daily_journal_active_slot = -1;
+uint32_t daily_journal_active_generation = 0;
+uint32_t daily_journal_failures = 0;
+
 // Rolling metrics for the current session (boot -> shutdown).
 unsigned long session_active_time_ms = 0;
 float session_total_distance_m = 0.0f;
@@ -197,6 +233,7 @@ void track_begin();
 void track_flush_if_due(unsigned long now_ms);
 void track_try_add_point(float lat_deg, float lon_deg, uint16_t t_min, uint32_t date_yyyymmdd, unsigned long now_ms);
 bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb cb, void *ctx);
+void clear_pending_date(bool rejected);
 
 // Last position for distance calculation.
 bool has_last_point_val = false;
@@ -434,6 +471,15 @@ uint8_t days_in_month(int year, int month) {
   return days_per_month[month - 1];
 }
 
+bool calendar_date_valid(uint32_t date_yyyymmdd) {
+  const int year = static_cast<int>(date_yyyymmdd / 10000UL);
+  const int month = static_cast<int>((date_yyyymmdd / 100UL) % 100UL);
+  const int day = static_cast<int>(date_yyyymmdd % 100UL);
+  const uint8_t month_days = days_in_month(year, month);
+  return year >= 2020 && year <= 2099 && month_days != 0 &&
+         day >= 1 && day <= month_days;
+}
+
 bool parse_date_yyyymmdd(const char *value, uint32_t *out) {
   if (!is_digit_string(value, 6) || out == nullptr) {
     return false;
@@ -561,6 +607,7 @@ void expire_gps_if_stale(unsigned long now_ms) {
   has_current_fix_val = false;
   last_speed_kph_val = 0.0f;
   reset_distance_baseline();
+  clear_pending_date(true);
   gps_last_segment_reject_reason = uart_stale ? "uart_stale" : "rmc_stale";
 }
 
@@ -697,6 +744,212 @@ void load_metrics() {
   active_time_ms_val = prefs.getULong("active_ms", 0);
   max_speed_kph_val = prefs.getFloat("max_kph", 0.0f);
   last_update_min_val = prefs.getUShort("upd_min", 0);
+  if (!calendar_date_valid(current_date_yyyymmdd) ||
+      !isfinite(total_distance_m_val) || total_distance_m_val < 0.0f ||
+      !isfinite(max_speed_kph_val) || max_speed_kph_val < 0.0f ||
+      last_update_min_val >= 1440) {
+    current_date_yyyymmdd = 0;
+    total_distance_m_val = 0.0f;
+    active_time_ms_val = 0;
+    max_speed_kph_val = 0.0f;
+    last_update_min_val = 0;
+  }
+}
+
+uint32_t daily_journal_crc(const DailyJournalRecord &record) {
+  return util::crc32_ieee(&record, offsetof(DailyJournalRecord, crc32));
+}
+
+bool daily_journal_record_valid(const DailyJournalRecord &record) {
+  return record.magic == DAILY_JOURNAL_MAGIC &&
+         record.version == DAILY_JOURNAL_VERSION &&
+         record.flags == 0 && record.size == sizeof(DailyJournalRecord) &&
+         calendar_date_valid(record.date) &&
+         isfinite(record.distance_m) && record.distance_m >= 0.0f &&
+         isfinite(record.max_speed_kph) && record.max_speed_kph >= 0.0f &&
+         record.last_update_min < 1440 && record.reserved == 0 &&
+         record.crc32 == daily_journal_crc(record);
+}
+
+const char *daily_journal_key(uint8_t slot) {
+  return slot == 0 ? "day_a" : "day_b";
+}
+
+bool load_daily_journal_record(Preferences &prefs,
+                               uint8_t slot,
+                               DailyJournalRecord &record) {
+  record = DailyJournalRecord{};
+  const size_t len = prefs.getBytes(daily_journal_key(slot), &record, sizeof(record));
+  return len == sizeof(record) && daily_journal_record_valid(record);
+}
+
+bool daily_generation_is_newer(uint32_t candidate, uint32_t reference) {
+  return candidate != reference &&
+         static_cast<int32_t>(candidate - reference) > 0;
+}
+
+void daily_journal_begin() {
+  Preferences &prefs = storage::prefs();
+  DailyJournalRecord records[2] = {};
+  const bool valid_a = load_daily_journal_record(prefs, 0, records[0]);
+  const bool valid_b = load_daily_journal_record(prefs, 1, records[1]);
+  if (!valid_a && !valid_b) {
+    last_completed_day = DailyJournalRecord{};
+    last_completed_day_valid = false;
+    daily_journal_active_slot = -1;
+    daily_journal_active_generation = 0;
+    return;
+  }
+  const uint8_t selected = (!valid_a ||
+                            (valid_b && daily_generation_is_newer(records[1].generation,
+                                                                  records[0].generation)))
+                               ? 1
+                               : 0;
+  last_completed_day = records[selected];
+  last_completed_day_valid = true;
+  daily_journal_active_slot = static_cast<int8_t>(selected);
+  daily_journal_active_generation = records[selected].generation;
+}
+
+bool journal_current_day() {
+  if (!calendar_date_valid(current_date_yyyymmdd)) {
+    return false;
+  }
+  DailyJournalRecord record = {};
+  record.magic = DAILY_JOURNAL_MAGIC;
+  record.version = DAILY_JOURNAL_VERSION;
+  record.flags = 0;
+  record.size = sizeof(DailyJournalRecord);
+  record.generation = daily_journal_active_generation + 1UL;
+  record.date = current_date_yyyymmdd;
+  record.distance_m = total_distance_m_val;
+  record.active_ms = active_time_ms_val;
+  record.max_speed_kph = max_speed_kph_val;
+  record.last_update_min = last_update_min_val;
+  record.reserved = 0;
+  record.crc32 = daily_journal_crc(record);
+
+  const uint8_t target_slot = daily_journal_active_slot == 0 ? 1 : 0;
+  Preferences &prefs = storage::prefs();
+  if (prefs.putBytes(daily_journal_key(target_slot), &record, sizeof(record)) != sizeof(record)) {
+    daily_journal_failures++;
+    return false;
+  }
+  DailyJournalRecord readback = {};
+  if (!load_daily_journal_record(prefs, target_slot, readback) ||
+      memcmp(&record, &readback, sizeof(record)) != 0) {
+    daily_journal_failures++;
+    return false;
+  }
+  last_completed_day = readback;
+  last_completed_day_valid = true;
+  daily_journal_active_slot = static_cast<int8_t>(target_slot);
+  daily_journal_active_generation = readback.generation;
+  return true;
+}
+
+void clear_pending_date(bool rejected) {
+  if (rejected && pending_date_candidate != 0) {
+    gps_date_rejected_count++;
+  }
+  pending_date_candidate = 0;
+  pending_date_last_time_ms = 0;
+  pending_date_observations = 0;
+}
+
+bool activate_daily_date(uint32_t date_yyyymmdd, uint32_t time_ms_of_day) {
+  const bool had_current_day = calendar_date_valid(current_date_yyyymmdd);
+  if (had_current_day && !journal_current_day()) {
+    return false;
+  }
+  current_date_yyyymmdd = date_yyyymmdd;
+  total_distance_m_val = 0.0f;
+  active_time_ms_val = 0;
+  max_speed_kph_val = 0.0f;
+  last_update_min_val = static_cast<uint16_t>(time_ms_of_day / 60000UL);
+  reset_distance_baseline(false);
+  save_metrics();
+  if (had_current_day) {
+    gps_date_transition_count++;
+  }
+  return true;
+}
+
+bool accept_date_observation(uint32_t date_yyyymmdd, uint32_t time_ms_of_day) {
+  if (!calendar_date_valid(date_yyyymmdd) || time_ms_of_day >= 86400000UL) {
+    clear_pending_date(true);
+    gps_date_rejected_count++;
+    return false;
+  }
+  if (!calendar_date_valid(current_date_yyyymmdd)) {
+    if (!activate_daily_date(date_yyyymmdd, time_ms_of_day)) {
+      return false;
+    }
+    has_accepted_date_observation = true;
+    last_accepted_date_observation_ms = time_ms_of_day;
+    clear_pending_date(false);
+    return true;
+  }
+  if (date_yyyymmdd == current_date_yyyymmdd) {
+    clear_pending_date(true);
+    if (!has_accepted_date_observation ||
+        time_ms_of_day >= last_accepted_date_observation_ms) {
+      has_accepted_date_observation = true;
+      last_accepted_date_observation_ms = time_ms_of_day;
+    }
+    return true;
+  }
+  if (date_yyyymmdd < current_date_yyyymmdd) {
+    clear_pending_date(true);
+    gps_date_rejected_count++;
+    return false;
+  }
+
+  const bool next_day = date_is_next_day(current_date_yyyymmdd, date_yyyymmdd);
+  const uint32_t midnight_delta_ms =
+      (has_accepted_date_observation && next_day)
+          ? (86400000UL - last_accepted_date_observation_ms) + time_ms_of_day
+          : UINT32_MAX;
+  if (midnight_delta_ms <= GPS_DATE_CONFIRM_MAX_GAP_MS) {
+    if (!activate_daily_date(date_yyyymmdd, time_ms_of_day)) {
+      pending_date_candidate = date_yyyymmdd;
+      pending_date_last_time_ms = time_ms_of_day;
+      pending_date_observations = GPS_DATE_CONFIRM_OBSERVATIONS;
+      return false;
+    }
+    has_accepted_date_observation = true;
+    last_accepted_date_observation_ms = time_ms_of_day;
+    clear_pending_date(false);
+    return true;
+  }
+
+  if (pending_date_candidate != date_yyyymmdd) {
+    clear_pending_date(true);
+    pending_date_candidate = date_yyyymmdd;
+    pending_date_last_time_ms = time_ms_of_day;
+    pending_date_observations = 1;
+  } else if (time_ms_of_day > pending_date_last_time_ms &&
+             time_ms_of_day - pending_date_last_time_ms <= GPS_DATE_CONFIRM_MAX_GAP_MS) {
+    pending_date_last_time_ms = time_ms_of_day;
+    if (pending_date_observations < GPS_DATE_CONFIRM_OBSERVATIONS) {
+      pending_date_observations++;
+    }
+  } else if (time_ms_of_day != pending_date_last_time_ms) {
+    gps_date_rejected_count++;
+    pending_date_last_time_ms = time_ms_of_day;
+    pending_date_observations = 1;
+  }
+
+  if (pending_date_observations < GPS_DATE_CONFIRM_OBSERVATIONS) {
+    return false;
+  }
+  if (!activate_daily_date(date_yyyymmdd, time_ms_of_day)) {
+    return false;
+  }
+  has_accepted_date_observation = true;
+  last_accepted_date_observation_ms = time_ms_of_day;
+  clear_pending_date(false);
+  return true;
 }
 
 uint8_t session_checksum(const SessionSummary &s) {
@@ -1485,6 +1738,21 @@ void append_session_current_json(String &json) {
   append_session_json(json, snap);
 }
 
+void append_last_completed_day_json(String &json) {
+  json += ",\"last_completed_day\":";
+  if (!last_completed_day_valid) {
+    json += "null";
+    return;
+  }
+  json += "{";
+  json += "\"date\":" + String(last_completed_day.date);
+  json += ",\"distance_m\":" + String(last_completed_day.distance_m, 1);
+  json += ",\"active_ms\":" + String(last_completed_day.active_ms);
+  json += ",\"max_speed_kph\":" + String(last_completed_day.max_speed_kph, 1);
+  json += ",\"last_update_min\":" + String(last_completed_day.last_update_min);
+  json += "}";
+}
+
 String build_summary_json_internal() {
   const float avg_speed_kph = (active_time_ms_val > 0)
                                   ? (total_distance_m_val / (active_time_ms_val / 1000.0f)) * 3.6f
@@ -1504,6 +1772,7 @@ String build_summary_json_internal() {
   json += ",\"gps_raw_fix\":" + String(has_gps_fix_raw ? "true" : "false");
   json += ",\"gps_quality_ok\":" + String(gps_quality_ok ? "true" : "false");
   json += ",\"has_data\":" + String(has_data ? "true" : "false");
+  append_last_completed_day_json(json);
   append_history_json(json);
   append_session_current_json(json);
   json += "}";
@@ -1546,6 +1815,7 @@ void handle_nmea_line(const char *line) {
   if (is_rmc && !parsed_rmc) {
     gps_parse_fail++;
     gps_rmc_parse_fail++;
+    clear_pending_date(true);
   }
   if (parsed_rmc) {
     gps_last_rmc_ms = now_ms;
@@ -1567,23 +1837,29 @@ void handle_nmea_line(const char *line) {
                               isfinite(speed_kph) &&
                               speed_kph >= 0.0f &&
                               speed_kph <= SPEED_MAX_VALID_KPH;
+    const bool date_accepted = gps_trusted_fix && date_yyyymmdd != 0 &&
+                               accept_date_observation(date_yyyymmdd, time_ms_of_day);
     last_speed_kph_val = speed_usable ? speed_kph : 0.0f;
     if (gps_trusted_fix && isfinite(speed_kph) && speed_kph > SPEED_MAX_VALID_KPH) {
       gps_speed_spike++;
       gps_last_segment_reject_reason = "speed_spike";
     }
-    if (!gps_trusted_fix || !speed_usable) {
+    if (!gps_trusted_fix) {
+      clear_pending_date(true);
+    }
+    if (!gps_trusted_fix || !speed_usable || !date_accepted) {
       reset_distance_baseline();
       if (!gps_trusted_fix) {
         gps_last_segment_reject_reason = "bad_fix";
       } else if (!speed_usable) {
         gps_last_segment_reject_reason = "speed_spike";
+      } else if (!date_accepted) {
+        gps_last_segment_reject_reason = "date_pending";
       }
     }
 
     if (valid_fix) {
       if (gps_trusted_fix) {
-        last_update_min_val = time_min;
         if (date_yyyymmdd != 0) {
           gps_last_time_ms = now_ms;
         }
@@ -1595,12 +1871,12 @@ void handle_nmea_line(const char *line) {
       gps_last_fix_ms = last_gps_ms;
       if (gps_trusted_fix) {
         session_fix_seen = true;
-        if (!session_start_set && date_yyyymmdd != 0) {
+        if (!session_start_set && date_accepted) {
           session_start_set = true;
           session_start_date = date_yyyymmdd;
           session_start_min = time_min;
         }
-        if (date_yyyymmdd != 0) {
+        if (date_accepted) {
           session_end_date = date_yyyymmdd;
           session_end_min = time_min;
         }
@@ -1609,23 +1885,17 @@ void handle_nmea_line(const char *line) {
       has_current_fix_val = false;
     }
 
-    if (gps_trusted_fix) {
-      if (date_yyyymmdd != 0 && date_yyyymmdd != current_date_yyyymmdd) {
-        current_date_yyyymmdd = date_yyyymmdd;
-        total_distance_m_val = 0.0f;
-        active_time_ms_val = 0;
-        max_speed_kph_val = 0.0f;
-        reset_distance_baseline(false);
-        save_metrics();
-      }
+    if (date_accepted) {
+      last_update_min_val = time_min;
     }
 
-    const bool active_sample = speed_usable && (speed_kph > SPEED_ACTIVE_KPH);
-    if (speed_usable && date_yyyymmdd != 0) {
+    const bool metrics_usable = speed_usable && date_accepted;
+    const bool active_sample = metrics_usable && (speed_kph > SPEED_ACTIVE_KPH);
+    if (metrics_usable) {
       update_active_time_observation(date_yyyymmdd, time_ms_of_day, active_sample);
     }
 
-    if (speed_usable && now_ms - last_sample_ms >= GPS_SAMPLE_MS) {
+    if (metrics_usable && now_ms - last_sample_ms >= GPS_SAMPLE_MS) {
       last_sample_ms = now_ms;
 
       float min_segment_m = cfg.gps_min_segment_m;
@@ -1701,6 +1971,9 @@ void read_gps() {
           handle_nmea_line(nmea_line);
         } else {
           gps_checksum_fail++;
+          if (is_sentence_type(nmea_line, "RMC")) {
+            clear_pending_date(true);
+          }
         }
       }
       nmea_len = 0;
@@ -1728,6 +2001,7 @@ void begin() {
   GPS.setRxBufferSize(GPS_RX_BUFFER_SIZE);
   GPS.begin(GPS_BAUD, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
   load_metrics();
+  daily_journal_begin();
   history_load();
   session_close_previous_on_boot();
   track_begin();
@@ -1905,6 +2179,38 @@ uint32_t activity_gap_rejects() {
 
 uint32_t last_activity_delta_ms() {
   return gps_last_activity_delta_ms;
+}
+
+uint32_t date_transition_count() {
+  return gps_date_transition_count;
+}
+
+uint32_t date_rejected_count() {
+  return gps_date_rejected_count;
+}
+
+uint32_t date_pending_candidate() {
+  return pending_date_candidate;
+}
+
+uint8_t date_pending_observations() {
+  return pending_date_observations;
+}
+
+int8_t daily_journal_slot() {
+  return daily_journal_active_slot;
+}
+
+uint32_t daily_journal_generation() {
+  return daily_journal_active_generation;
+}
+
+uint32_t daily_journal_save_failures() {
+  return daily_journal_failures;
+}
+
+uint32_t last_completed_date() {
+  return last_completed_day_valid ? last_completed_day.date : 0;
 }
 
 uint32_t current_date() {

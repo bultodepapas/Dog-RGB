@@ -1,0 +1,5 @@
+{
+  "name": "NMEA GPS simulator",
+  "author": "Dog-RGB",
+  "pins": ["TX"]
+}

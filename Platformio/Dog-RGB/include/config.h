@@ -145,6 +145,11 @@ static const unsigned long GPS_SAMPLE_MS = 1000; // Sampling interval.
 // sentences remain individually countable after a loop stall; a lone fix
 // after a longer outage cannot invent activity for the unobserved gap.
 static const uint32_t GPS_ACTIVE_MAX_GAP_MS = 3000;
+// A non-contiguous forward date must be repeated by trusted RMC observations
+// before daily metrics roll. A real midnight with continuous timestamps can
+// advance immediately; backward dates are never accepted automatically.
+static const uint8_t GPS_DATE_CONFIRM_OBSERVATIONS = 3;
+static const uint32_t GPS_DATE_CONFIRM_MAX_GAP_MS = 3000;
 // GPS quality gating defaults and bounds.
 static const uint8_t GPS_MIN_FIX_QUALITY_DEFAULT = 1;
 static const uint8_t GPS_MIN_FIX_QUALITY_MIN = 0;

@@ -50,7 +50,7 @@ The active firmware project is in [Platformio/Dog-RGB](Platformio/Dog-RGB) with:
 - Distance calculation (Haversine) with spike filtering
 - Active time tracking and speed thresholds
 - GNSS-timestamp active-time accounting that survives buffered loop stalls
-- Daily reset using GPS date
+- Confirmed, monotonic GPS-date rollover with a CRC-protected completed-day journal
 - Max/avg speed metrics
 - NVS persistence for metrics + runtime config
 - CRC32-protected A/B runtime-configuration recovery across interrupted writes

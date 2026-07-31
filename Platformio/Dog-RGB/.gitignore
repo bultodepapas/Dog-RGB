@@ -5,6 +5,13 @@
 .vscode/launch.json
 .vscode/ipch
 
+# Wokwi custom-chip SDK header is downloaded automatically by the CLI.
+chips/wokwi-api.h
+artifacts/
+.env
+.env.*
+!.env.example
+
 # preview/screenshot tooling
 docs/preview.html
 docs/screenshot.mjs
