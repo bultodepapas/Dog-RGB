@@ -16,6 +16,8 @@ struct WifiDiagnostics {
   uint32_t ap_station_disconnect_count;
   uint32_t sta_got_ip_count;
   uint32_t sta_disconnect_count;
+  uint32_t event_queue_overflow_count;
+  uint8_t event_queue_high_water;
   unsigned long last_ap_start_ms;
   unsigned long last_ap_stop_ms;
   unsigned long last_sta_retry_ms;

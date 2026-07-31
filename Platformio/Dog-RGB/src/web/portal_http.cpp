@@ -227,6 +227,8 @@ void handle_dev_get() {
   wifiDiag["ap_station_disconnect_count"] = diag.ap_station_disconnect_count;
   wifiDiag["sta_got_ip_count"] = diag.sta_got_ip_count;
   wifiDiag["sta_disconnect_count"] = diag.sta_disconnect_count;
+  wifiDiag["event_queue_overflow_count"] = diag.event_queue_overflow_count;
+  wifiDiag["event_queue_high_water"] = diag.event_queue_high_water;
   wifiDiag["last_ap_start_ms"] = diag.last_ap_start_ms;
   wifiDiag["last_ap_stop_ms"] = diag.last_ap_stop_ms;
   wifiDiag["last_sta_retry_ms"] = diag.last_sta_retry_ms;

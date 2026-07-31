@@ -59,11 +59,13 @@ Endpoints principales:
 - `GET /api/summary`: resumen diario/sesiones.
 - `GET /api/track.json`, `/api/track.csv`, `/api/track.geojson`: export de ruta.
 
+Los callbacks asincronos de Wi-Fi solo publican eventos en una cola estatica de 16 posiciones. `wifi_mgr::tick()` procesa la cola en orden y es el unico propietario del estado de conexion, reintentos, clientes AP y mDNS. `/api/dev` muestra `event_queue_high_water` y `event_queue_overflow_count`; si la cola se satura, el mismo tick fuerza una reconciliacion con el estado real del driver.
+
 ## Build Y Verificacion
 
 ```powershell
 $env:USERPROFILE\.platformio\penv\Scripts\pio.exe run -e seeed_xiao_esp32s3
-python -m unittest test.test_day_mode_static -v
+python -m unittest discover -s test -p "test_*.py" -v
 ```
 
 `platformio.ini` define el entorno `seeed_xiao_esp32s3` con Arduino framework, ArduinoJson y Adafruit NeoPixel.

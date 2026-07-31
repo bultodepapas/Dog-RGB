@@ -2,6 +2,9 @@
 
 #include <ESPmDNS.h>
 #include <WiFi.h>
+#include <atomic>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -34,6 +37,17 @@ const IPAddress AP_LOCAL_IP(192, 168, 4, 1);
 const IPAddress AP_GATEWAY_IP(192, 168, 4, 1);
 const IPAddress AP_SUBNET_MASK(255, 255, 255, 0);
 WifiDiagnostics wifi_diag = {};
+
+struct PendingWifiEvent {
+  uint32_t id;
+  uint32_t captured_ms;
+};
+
+static const uint8_t WIFI_EVENT_QUEUE_LENGTH = 16;
+StaticQueue_t wifi_event_queue_control;
+uint8_t wifi_event_queue_storage[WIFI_EVENT_QUEUE_LENGTH * sizeof(PendingWifiEvent)];
+QueueHandle_t wifi_event_queue = nullptr;
+std::atomic<uint32_t> wifi_event_dropped_pending{0};
 
 void set_reason(char *dest, size_t size, const char *reason) {
   if (size == 0) {
@@ -163,9 +177,23 @@ void begin_mdns() {
 }
 
 void on_wifi_event(WiFiEvent_t event) {
-  const unsigned long now_ms = millis();
-  wifi_diag.last_wifi_event = static_cast<uint32_t>(event);
-  wifi_diag.last_wifi_event_ms = now_ms;
+  if (wifi_event_queue == nullptr) {
+    wifi_event_dropped_pending.fetch_add(1, std::memory_order_relaxed);
+    return;
+  }
+  const PendingWifiEvent pending = {
+      static_cast<uint32_t>(event),
+      static_cast<uint32_t>(millis()),
+  };
+  if (xQueueSend(wifi_event_queue, &pending, 0) != pdTRUE) {
+    wifi_event_dropped_pending.fetch_add(1, std::memory_order_relaxed);
+  }
+}
+
+void process_wifi_event(const PendingWifiEvent &pending, unsigned long now_ms) {
+  const WiFiEvent_t event = static_cast<WiFiEvent_t>(pending.id);
+  wifi_diag.last_wifi_event = pending.id;
+  wifi_diag.last_wifi_event_ms = pending.captured_ms;
 
 #if defined(ARDUINO_EVENT_WIFI_AP_STACONNECTED)
   if (event == ARDUINO_EVENT_WIFI_AP_STACONNECTED) {
@@ -233,6 +261,30 @@ void on_wifi_event(WiFiEvent_t event) {
       set_reason(wifi_diag.last_sta_reason, sizeof(wifi_diag.last_sta_reason), "sta_disconnected");
     }
     Serial.println("[WIFI_EVT] STA_DISC");
+  }
+}
+
+void drain_wifi_events(unsigned long now_ms) {
+  const uint32_t dropped = wifi_event_dropped_pending.exchange(0, std::memory_order_relaxed);
+  wifi_diag.event_queue_overflow_count += dropped;
+  if (dropped > 0) {
+    // Force the normal Wi-Fi/AP polling path below to reconcile final driver
+    // state in this same tick when a burst exceeded the diagnostic queue.
+    last_wifi_check_ms = now_ms - WIFI_RETRY_INTERVAL_MS;
+  }
+  if (wifi_event_queue == nullptr) {
+    return;
+  }
+
+  const UBaseType_t waiting = uxQueueMessagesWaiting(wifi_event_queue);
+  if (waiting > wifi_diag.event_queue_high_water) {
+    wifi_diag.event_queue_high_water = static_cast<uint8_t>(
+        (waiting > UINT8_MAX) ? UINT8_MAX : waiting);
+  }
+
+  PendingWifiEvent pending = {};
+  while (xQueueReceive(wifi_event_queue, &pending, 0) == pdTRUE) {
+    process_wifi_event(pending, now_ms);
   }
 }
 
@@ -401,6 +453,19 @@ void update_ap_policy(unsigned long now_ms) {
 } // namespace
 
 void begin() {
+  if (wifi_event_queue == nullptr) {
+    wifi_event_queue = xQueueCreateStatic(
+        WIFI_EVENT_QUEUE_LENGTH,
+        sizeof(PendingWifiEvent),
+        wifi_event_queue_storage,
+        &wifi_event_queue_control);
+  } else {
+    xQueueReset(wifi_event_queue);
+  }
+  wifi_event_dropped_pending.store(0, std::memory_order_relaxed);
+  wifi_diag.event_queue_overflow_count = 0;
+  wifi_diag.event_queue_high_water = 0;
+
   // Hard-reset the radio before anything else. This clears residual state from
   // brownouts, WDT resets or power glitches that leave the driver half-initialized,
   // which causes softAP() to fail silently or produce an invisible AP.
@@ -468,6 +533,8 @@ void begin() {
 }
 
 void tick(unsigned long now_ms) {
+  drain_wifi_events(now_ms);
+
   if (!DEBUG_AP_ONLY_MINIMAL && !wifi_off_state && (now_ms - last_wifi_check_ms >= WIFI_RETRY_INTERVAL_MS)) {
     last_wifi_check_ms = now_ms;
     update_ap_station_count();

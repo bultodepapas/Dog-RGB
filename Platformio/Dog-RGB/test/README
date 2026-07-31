@@ -28,3 +28,7 @@ contract.
 `test_track_integrity.py` exercises the versioned binary chunk contract with
 CRC-32/IEEE, exact-length checks, bit corruption, truncation, extension, and
 coordinate-range rejection.
+
+`test_wifi_event_queue.py` verifies FIFO event ordering, bounded saturation,
+overflow accounting, main-loop-before-state-machine draining, and the rule
+that the asynchronous Arduino Wi-Fi callback only enqueues events.
