@@ -42,15 +42,14 @@ class WokwiAssetTests(unittest.TestCase):
             self.assertIn(("xiao:5V", f"{strip}:VDD"), self.connections)
             self.assertIn(("xiao:GND", f"{strip}:VSS"), self.connections)
 
-    def test_logic_analyzers_isolate_high_rate_led_buses_from_gnss(self):
+    def test_logic_analyzer_captures_leds_gnss_and_has_long_run_capacity(self):
         self.assertIn(("xiao:D0", "logic:D0"), self.connections)
         self.assertIn(("xiao:D1", "logic:D1"), self.connections)
+        self.assertIn(("gnss:TX", "logic:D2"), self.connections)
+        self.assertIn(("gnss:DEBUG", "logic:D3"), self.connections)
         self.assertIn(("xiao:D2", "logic:D4"), self.connections)
         self.assertIn(("xiao:GND", "logic:GND"), self.connections)
-        self.assertIn(("gnss:TX", "logic_gnss:D0"), self.connections)
-        self.assertIn(("gnss:DEBUG", "logic_gnss:D1"), self.connections)
-        self.assertIn(("xiao:GND", "logic_gnss:GND"), self.connections)
-        self.assertNotIn(("gnss:TX", "logic:D2"), self.connections)
+        self.assertEqual(self.parts["logic"]["attrs"]["bufferSize"], "3000000")
 
     def test_wokwi_config_targets_wokwi_platformio_environment(self):
         config = (PROJECT_ROOT / "wokwi.toml").read_text(encoding="utf-8")
