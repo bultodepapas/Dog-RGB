@@ -76,12 +76,32 @@ uint8_t ap_channel() {
   return AP_CHANNEL;
 }
 
+int read_ap_station_count() {
+  const unsigned long started_us = micros();
+  const int stations = WiFi.softAPgetStationNum();
+  const unsigned long elapsed_us = micros() - started_us;
+  if (elapsed_us > wifi_diag.ap_station_poll_max_us) {
+    wifi_diag.ap_station_poll_max_us = elapsed_us;
+  }
+  return stations;
+}
+
+uint8_t read_wifi_channel() {
+  const unsigned long started_us = micros();
+  const uint8_t channel = WiFi.channel();
+  const unsigned long elapsed_us = micros() - started_us;
+  if (elapsed_us > wifi_diag.channel_query_max_us) {
+    wifi_diag.channel_query_max_us = elapsed_us;
+  }
+  return channel;
+}
+
 void update_ap_station_count() {
   if (!ap_enabled_state) {
     ap_station_count_state = 0;
     return;
   }
-  const int stations = WiFi.softAPgetStationNum();
+  const int stations = read_ap_station_count();
   ap_station_count_state = (stations > 0) ? static_cast<uint8_t>(stations) : 0;
 }
 
@@ -235,7 +255,7 @@ void process_wifi_event(const PendingWifiEvent &pending, unsigned long now_ms) {
     wifi_sta_connected = true;
     wifi_sta_connecting = false;
     wifi_diag.sta_got_ip_count++;
-    wifi_diag.current_ap_channel = WiFi.channel();
+    wifi_diag.current_ap_channel = read_wifi_channel();
     reset_sta_backoff();
     begin_mdns();
     Serial.print("[WIFI_EVT] STA_GOT_IP ip=");
@@ -264,7 +284,7 @@ void process_wifi_event(const PendingWifiEvent &pending, unsigned long now_ms) {
   }
 }
 
-void drain_wifi_events(unsigned long now_ms) {
+bool drain_wifi_events(unsigned long now_ms) {
   const uint32_t dropped = wifi_event_dropped_pending.exchange(0, std::memory_order_relaxed);
   wifi_diag.event_queue_overflow_count += dropped;
   if (dropped > 0) {
@@ -273,7 +293,7 @@ void drain_wifi_events(unsigned long now_ms) {
     last_wifi_check_ms = now_ms - WIFI_RETRY_INTERVAL_MS;
   }
   if (wifi_event_queue == nullptr) {
-    return;
+    return dropped > 0;
   }
 
   const UBaseType_t waiting = uxQueueMessagesWaiting(wifi_event_queue);
@@ -286,6 +306,7 @@ void drain_wifi_events(unsigned long now_ms) {
   while (xQueueReceive(wifi_event_queue, &pending, 0) == pdTRUE) {
     process_wifi_event(pending, now_ms);
   }
+  return dropped > 0;
 }
 
 void load_wifi_creds() {
@@ -407,7 +428,7 @@ void update_ap_policy(unsigned long now_ms) {
 
   if (ap_enabled_state && (now_ms - last_ap_poll_ms) >= AP_CLIENT_POLL_MS) {
     last_ap_poll_ms = now_ms;
-    const int stations = WiFi.softAPgetStationNum();
+    const int stations = read_ap_station_count();
     ap_station_count_state = (stations > 0) ? static_cast<uint8_t>(stations) : 0;
     if (stations > 0) {
       last_ap_client_ms = now_ms;
@@ -533,13 +554,12 @@ void begin() {
 }
 
 void tick(unsigned long now_ms) {
-  drain_wifi_events(now_ms);
+  const bool reconcile_ap_state = drain_wifi_events(now_ms);
 
   if (!DEBUG_AP_ONLY_MINIMAL && !wifi_off_state && (now_ms - last_wifi_check_ms >= WIFI_RETRY_INTERVAL_MS)) {
     last_wifi_check_ms = now_ms;
-    update_ap_station_count();
-    if (ap_enabled_state) {
-      wifi_diag.current_ap_channel = WiFi.channel();
+    if (reconcile_ap_state) {
+      update_ap_station_count();
     }
     if (wifi_sta_connected && WiFi.status() != WL_CONNECTED) {
       Serial.print("[WIFI_STA] status_lost wl_status=");

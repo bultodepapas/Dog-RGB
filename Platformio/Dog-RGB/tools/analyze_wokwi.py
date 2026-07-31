@@ -22,6 +22,13 @@ FATAL_MARKERS = (
     "warning: last reset was a crash",
     "warning: last reset was a brownout",
 )
+LOOP_DIAGNOSTIC_LIMITS_US = {
+    "loop_work": 120_000,
+    "log_emit": 60_000,
+    "radio": 10_000,
+    "ap_poll": 5_000,
+    "channel_query": 5_000,
+}
 
 
 def scalar(value: str) -> Any:
@@ -57,6 +64,10 @@ def analyze_serial(path: Path) -> dict[str, Any]:
     max_overflow = 0
     min_heap: int | None = None
     max_loop_us = 0
+    max_loop_work_us = 0
+    max_log_emit_us = 0
+    phase_max_us: collections.Counter[str] = collections.Counter()
+    wifi_operation_max_us: collections.Counter[str] = collections.Counter()
     sim_ok = 0
     sim_errors = 0
 
@@ -99,6 +110,31 @@ def analyze_serial(path: Path) -> dict[str, Any]:
             heap = int(values.get("min_heap", values.get("heap", 0)))
             min_heap = heap if min_heap is None else min(min_heap, heap)
             max_loop_us = max(max_loop_us, int(values.get("loop_max_us", 0)))
+            max_loop_work_us = max(
+                max_loop_work_us, int(values.get("loop_work_max_us", 0))
+            )
+            max_log_emit_us = max(
+                max_log_emit_us, int(values.get("log_emit_max_us", 0))
+            )
+            for key in (
+                "gps_max_us",
+                "control_max_us",
+                "geofence_max_us",
+                "storage_max_us",
+                "radio_max_us",
+                "led_max_us",
+                "http_max_us",
+            ):
+                phase_max_us[key.removesuffix("_max_us")] = max(
+                    phase_max_us[key.removesuffix("_max_us")],
+                    int(values.get(key, 0)),
+                )
+        elif tag == "WIFI_DIAG":
+            for key in ("ap_poll_max_us", "channel_query_max_us"):
+                wifi_operation_max_us[key.removesuffix("_max_us")] = max(
+                    wifi_operation_max_us[key.removesuffix("_max_us")],
+                    int(values.get(key, 0)),
+                )
         elif tag == "SIM_CTRL":
             if payload.startswith("ok "):
                 sim_ok += 1
@@ -108,6 +144,22 @@ def analyze_serial(path: Path) -> dict[str, Any]:
     lower = text.lower()
     fatals = [marker for marker in FATAL_MARKERS if marker in lower]
     booted = "Dog-RGB ESP32-S3 GPS-first base firmware" in text
+    latency_errors: list[str] = []
+    latency_limits: dict[str, int] = {}
+    if path.name == "loop-diagnostics.test.serial.log":
+        latency_limits = LOOP_DIAGNOSTIC_LIMITS_US.copy()
+        observed = {
+            "loop_work": max_loop_work_us,
+            "log_emit": max_log_emit_us,
+            "radio": phase_max_us["radio"],
+            "ap_poll": wifi_operation_max_us["ap_poll"],
+            "channel_query": wifi_operation_max_us["channel_query"],
+        }
+        for metric, limit_us in latency_limits.items():
+            if observed[metric] >= limit_us:
+                latency_errors.append(
+                    f"{metric}={observed[metric]}us exceeds {limit_us}us"
+                )
     return {
         "path": str(path),
         "bytes": len(text.encode("utf-8")),
@@ -125,10 +177,24 @@ def analyze_serial(path: Path) -> dict[str, Any]:
         "max_uart_overflow": max_overflow,
         "minimum_reported_heap": min_heap,
         "maximum_reported_loop_us": max_loop_us,
+        "maximum_reported_loop_work_us": max_loop_work_us,
+        "maximum_reported_log_emit_us": max_log_emit_us,
+        "maximum_reported_phase_us": dict(sorted(phase_max_us.items())),
+        "maximum_reported_wifi_operation_us": dict(
+            sorted(wifi_operation_max_us.items())
+        ),
+        "latency_limits_us": latency_limits,
+        "latency_errors": latency_errors,
         "sim_control_ok": sim_ok,
         "sim_control_errors": sim_errors,
         "fatal_markers": fatals,
-        "pass": booted and max_overflow == 0 and not fatals and sim_errors == 0,
+        "pass": (
+            booted
+            and max_overflow == 0
+            and not fatals
+            and sim_errors == 0
+            and not latency_errors
+        ),
     }
 
 

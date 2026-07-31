@@ -63,6 +63,7 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("-DARDUINO_USB_CDC_ON_BOOT=0", platformio)
         self.assertIn("-DDOG_RGB_WOKWI_SIM=1", platformio)
         self.assertIn("-DDOG_RGB_WOKWI_LED_SHOW_MS=200", platformio)
+        self.assertIn("monitor_speed = 460800", platformio)
         self.assertIn("build_unflags", platformio)
 
     def test_wokwi_throttles_only_led_transport_not_effect_tick(self):
@@ -75,8 +76,17 @@ class WokwiAssetTests(unittest.TestCase):
     def test_wokwi_console_is_compile_time_isolated_from_physical_build(self):
         source = (PROJECT_ROOT / "src/main.cpp").read_text(encoding="utf-8")
         pins = (PROJECT_ROOT / "include/pins.h").read_text(encoding="utf-8")
+        config = (PROJECT_ROOT / "include/config.h").read_text(encoding="utf-8")
         self.assertIn("#if defined(DOG_RGB_WOKWI_SIM)", source)
         self.assertIn("PIN_WOKWI_SERIAL_RX, PIN_WOKWI_SERIAL_TX", source)
+        self.assertIn("Serial.begin(CONSOLE_BAUD", source)
+        self.assertLess(
+            source.index("Serial.setTxBufferSize(CONSOLE_TX_BUFFER_SIZE)"),
+            source.index("Serial.begin(CONSOLE_BAUD"),
+        )
+        self.assertIn("CONSOLE_BAUD = 460800", config)
+        self.assertIn("CONSOLE_BAUD = 115200", config)
+        self.assertIn("CONSOLE_TX_BUFFER_SIZE = 4096", config)
         self.assertIn("PIN_WOKWI_SERIAL_RX = 8", pins)
         self.assertIn("PIN_WOKWI_SERIAL_TX = 9", pins)
 
@@ -151,6 +161,9 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("ESP.restart()", source)
         self.assertIn("handle_leds", source)
         self.assertIn("led_ui::set_transport_enabled(enabled)", source)
+        self.assertIn("mode != previous.mode", source)
+        self.assertIn("enabled != previous.day_mode_enabled", source)
+        self.assertGreaterEqual(source.count('Serial.print(" changed=");'), 2)
         self.assertIn("wokwi_control::tick();", main)
 
     def test_speed_validity_is_preserved_after_filtering(self):
@@ -163,6 +176,23 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("last_speed_usable_val = false;", gps)
         self.assertIn('Serial.print(gps::speed_usable() ? "1" : "0");', main)
         self.assertGreaterEqual(portal.count('gps["speed_usable"]'), 2)
+
+    def test_loop_diagnostics_separate_application_work_from_serial_logging(self):
+        main = (PROJECT_ROOT / "src/main.cpp").read_text(encoding="utf-8")
+        analyzer = (PROJECT_ROOT / "tools/analyze_wokwi.py").read_text(encoding="utf-8")
+        self.assertIn("loop_elapsed_us - log_elapsed_us", main)
+        self.assertIn('Serial.print(" loop_work_max_us=");', main)
+        self.assertIn('Serial.print(" log_emit_max_us=");', main)
+        for phase in ("gps", "control", "geofence", "storage", "radio", "led", "http"):
+            self.assertIn(f'Serial.print(" {phase}_max_us=");', main)
+        self.assertIn('"maximum_reported_loop_work_us"', analyzer)
+        self.assertIn('"maximum_reported_log_emit_us"', analyzer)
+        self.assertIn('"maximum_reported_phase_us"', analyzer)
+        wifi = (PROJECT_ROOT / "src/wifi/wifi_mgr.cpp").read_text(encoding="utf-8")
+        self.assertIn("ap_station_poll_max_us", wifi)
+        self.assertIn("channel_query_max_us", wifi)
+        self.assertIn("read_ap_station_count()", wifi)
+        self.assertIn("read_wifi_channel()", wifi)
 
     def test_helper_exports_and_analyzes_every_scenario(self):
         helper = (PROJECT_ROOT / "tools/wokwi.ps1").read_text(encoding="utf-8")

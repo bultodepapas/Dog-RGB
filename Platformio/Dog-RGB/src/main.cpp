@@ -83,7 +83,28 @@ static unsigned long gps_last_speed_spike_log = 0;
 static unsigned long gps_last_stale_log = 0;
 static unsigned long loop_sum_us = 0;
 static unsigned long loop_max_us = 0;
+static unsigned long loop_work_sum_us = 0;
+static unsigned long loop_work_max_us = 0;
+static unsigned long log_emit_max_us = 0;
 static unsigned long loop_count = 0;
+
+struct LoopPhaseMax {
+  unsigned long gps_us = 0;
+  unsigned long control_us = 0;
+  unsigned long geofence_us = 0;
+  unsigned long storage_us = 0;
+  unsigned long radio_us = 0;
+  unsigned long led_us = 0;
+  unsigned long http_us = 0;
+};
+
+static LoopPhaseMax loop_phase_max;
+
+static void record_phase_max(unsigned long &current_max, unsigned long elapsed_us) {
+  if (elapsed_us > current_max) {
+    current_max = elapsed_us;
+  }
+}
 
 static const char *wifi_mode_name(wifi_mode_t mode) {
   switch (mode) {
@@ -387,6 +408,7 @@ static void emit_periodic_logs(unsigned long now_ms) {
   if (now_ms - last_sys_log_ms >= SYS_LOG_MS) {
     last_sys_log_ms = now_ms;
     const unsigned long avg_loop_us = (loop_count > 0) ? (loop_sum_us / loop_count) : 0;
+    const unsigned long avg_work_us = (loop_count > 0) ? (loop_work_sum_us / loop_count) : 0;
     Serial.print("[SYS] uptime_s=");
     Serial.print(now_ms / 1000);
     Serial.print(" heap=");
@@ -397,6 +419,26 @@ static void emit_periodic_logs(unsigned long now_ms) {
     Serial.print(avg_loop_us);
     Serial.print(" loop_max_us=");
     Serial.print(loop_max_us);
+    Serial.print(" loop_work_avg_us=");
+    Serial.print(avg_work_us);
+    Serial.print(" loop_work_max_us=");
+    Serial.print(loop_work_max_us);
+    Serial.print(" log_emit_max_us=");
+    Serial.print(log_emit_max_us);
+    Serial.print(" gps_max_us=");
+    Serial.print(loop_phase_max.gps_us);
+    Serial.print(" control_max_us=");
+    Serial.print(loop_phase_max.control_us);
+    Serial.print(" geofence_max_us=");
+    Serial.print(loop_phase_max.geofence_us);
+    Serial.print(" storage_max_us=");
+    Serial.print(loop_phase_max.storage_us);
+    Serial.print(" radio_max_us=");
+    Serial.print(loop_phase_max.radio_us);
+    Serial.print(" led_max_us=");
+    Serial.print(loop_phase_max.led_us);
+    Serial.print(" http_max_us=");
+    Serial.print(loop_phase_max.http_us);
     Serial.print(" mode=");
     Serial.print(config::mode_name(config::get().mode));
     Serial.print(" brightness=");
@@ -409,6 +451,10 @@ static void emit_periodic_logs(unsigned long now_ms) {
     Serial.println(day_mode::time_available() ? static_cast<int>(day_mode::local_min()) : -1);
     loop_sum_us = 0;
     loop_max_us = 0;
+    loop_work_sum_us = 0;
+    loop_work_max_us = 0;
+    log_emit_max_us = 0;
+    loop_phase_max = LoopPhaseMax{};
     loop_count = 0;
     const wifi_mgr::WifiDiagnostics &wd = wifi_mgr::diagnostics();
     const long ap_hold_s = (wifi_mgr::ap_enabled() && wd.ap_hold_until_ms > now_ms)
@@ -442,15 +488,22 @@ static void emit_periodic_logs(unsigned long now_ms) {
     Serial.print(" last_ap_rsn=");
     Serial.print(wd.last_ap_reason);
     Serial.print(" last_sta_rsn=");
-    Serial.println(wd.last_sta_reason);
+    Serial.print(wd.last_sta_reason);
+    Serial.print(" ap_poll_max_us=");
+    Serial.print(wd.ap_station_poll_max_us);
+    Serial.print(" channel_query_max_us=");
+    Serial.println(wd.channel_query_max_us);
   }
 }
 
 void setup() {
 #if defined(DOG_RGB_WOKWI_SIM)
-  Serial.begin(115200, SERIAL_8N1, PIN_WOKWI_SERIAL_RX, PIN_WOKWI_SERIAL_TX);
+  // Arduino-ESP32 requires this before begin(). The ring lets the UART drain
+  // rich diagnostic reports asynchronously instead of stalling GNSS/effects.
+  Serial.setTxBufferSize(CONSOLE_TX_BUFFER_SIZE);
+  Serial.begin(CONSOLE_BAUD, SERIAL_8N1, PIN_WOKWI_SERIAL_RX, PIN_WOKWI_SERIAL_TX);
 #else
-  Serial.begin(115200);
+  Serial.begin(CONSOLE_BAUD);
 #endif
   pinMode(PIN_STATUS_LED, OUTPUT);
   digitalWrite(PIN_STATUS_LED, LOW);
@@ -526,6 +579,7 @@ void setup() {
 
 void loop() {
   const unsigned long loop_start_us = micros();
+  unsigned long log_elapsed_us = 0;
   const unsigned long now_ms = millis();
 
   if (DEBUG_AP_ONLY_MINIMAL) {
@@ -561,11 +615,22 @@ void loop() {
     return;
   }
 
+  unsigned long phase_start_us = micros();
   gps::tick();
+  record_phase_max(loop_phase_max.gps_us, micros() - phase_start_us);
+
+  phase_start_us = micros();
   wokwi_control::tick();
+  record_phase_max(loop_phase_max.control_us, micros() - phase_start_us);
+
+  phase_start_us = micros();
   geofence::tick(now_ms);
+  record_phase_max(loop_phase_max.geofence_us, micros() - phase_start_us);
+
+  phase_start_us = micros();
   gps::save_if_due(now_ms);
   gps::track_tick(now_ms);
+  record_phase_max(loop_phase_max.storage_us, micros() - phase_start_us);
 
   if (now_ms - last_heartbeat_ms >= HEARTBEAT_MS) {
     last_heartbeat_ms = now_ms;
@@ -575,20 +640,43 @@ void loop() {
 
   if (now_ms - last_log_ms >= LOG_MS) {
     last_log_ms = now_ms;
+    const unsigned long log_start_us = micros();
     emit_periodic_logs(now_ms);
+    log_elapsed_us = micros() - log_start_us;
   }
 
   if (BLE_ENABLED) {
+    phase_start_us = micros();
     summary_ble::tick();
+  } else {
+    phase_start_us = micros();
   }
   wifi_mgr::tick(now_ms);
+  record_phase_max(loop_phase_max.radio_us, micros() - phase_start_us);
+
+  phase_start_us = micros();
   led_ui::tick();
+  record_phase_max(loop_phase_max.led_us, micros() - phase_start_us);
+
+  phase_start_us = micros();
   portal_http::handle_client();
+  record_phase_max(loop_phase_max.http_us, micros() - phase_start_us);
 
   const unsigned long loop_elapsed_us = micros() - loop_start_us;
+  // Keep both scheduler impact (total) and application work. Serial diagnostics
+  // can block while their UART buffer drains, so total latency alone cannot
+  // identify a slow firmware path.
+  const unsigned long loop_work_us = loop_elapsed_us - log_elapsed_us;
   loop_sum_us += loop_elapsed_us;
+  loop_work_sum_us += loop_work_us;
   loop_count++;
   if (loop_elapsed_us > loop_max_us) {
     loop_max_us = loop_elapsed_us;
+  }
+  if (loop_work_us > loop_work_max_us) {
+    loop_work_max_us = loop_work_us;
+  }
+  if (log_elapsed_us > log_emit_max_us) {
+    log_emit_max_us = log_elapsed_us;
   }
 }

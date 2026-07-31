@@ -26,6 +26,8 @@ struct WifiDiagnostics {
   unsigned long last_wifi_event_ms;
   uint32_t last_wifi_event;
   uint8_t current_ap_channel;
+  unsigned long ap_station_poll_max_us;
+  unsigned long channel_query_max_us;
   char last_ap_reason[32];
   char last_sta_reason[32];
 };

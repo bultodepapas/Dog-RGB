@@ -49,6 +49,11 @@ class WokwiAnalysisTests(unittest.TestCase):
                 "[MOTION] mode=speed usable=0 range=1 seg_reason=speed_spike",
                 "[LED] mode=speed body_on=1 render=range day_mode=disabled",
                 "[SIM_CTRL] ok command=mode value=speed",
+                "[SYS] heap=280000 loop_max_us=225000 loop_work_max_us=4200 "
+                "log_emit_max_us=220000 gps_max_us=800 control_max_us=100 "
+                "geofence_max_us=200 storage_max_us=2500 radio_max_us=300 "
+                "led_max_us=400 http_max_us=500",
+                "[WIFI_DIAG] ap_poll_max_us=145000 channel_query_max_us=3000",
             ]
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -60,6 +65,25 @@ class WokwiAnalysisTests(unittest.TestCase):
         self.assertEqual(report["renders"], ["range"])
         self.assertEqual(report["motion_usable"], {"0": 1})
         self.assertEqual(report["segment_reasons"], {"speed_spike": 1})
+        self.assertEqual(report["maximum_reported_loop_us"], 225000)
+        self.assertEqual(report["maximum_reported_loop_work_us"], 4200)
+        self.assertEqual(report["maximum_reported_log_emit_us"], 220000)
+        self.assertEqual(
+            report["maximum_reported_phase_us"],
+            {
+                "control": 100,
+                "geofence": 200,
+                "gps": 800,
+                "http": 500,
+                "led": 400,
+                "radio": 300,
+                "storage": 2500,
+            },
+        )
+        self.assertEqual(
+            report["maximum_reported_wifi_operation_us"],
+            {"ap_poll": 145000, "channel_query": 3000},
+        )
 
         overflow = log.replace("overflow=0", "overflow=1")
         with tempfile.TemporaryDirectory() as directory:
@@ -91,6 +115,28 @@ $enddefinitions $end
         self.assertEqual(names, {"!": "logic.D0", "#": "logic_gnss.D0"})
         self.assertEqual(ANALYZER.signal_by_name(names, transitions, "logic.D0")[-1], (10, 1))
         self.assertEqual(duration_ns, 10)
+
+    def test_loop_diagnostic_limits_reject_radio_regressions(self):
+        log = "\n".join(
+            [
+                "Dog-RGB ESP32-S3 GPS-first base firmware",
+                "[GPS_LINK] overflow=0",
+                "[SYS] loop_max_us=200000 loop_work_max_us=80000 "
+                "log_emit_max_us=40000 radio_max_us=50",
+                "[WIFI_DIAG] ap_poll_max_us=80 channel_query_max_us=0",
+            ]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "loop-diagnostics.test.serial.log"
+            path.write_text(log, encoding="utf-8")
+            report = ANALYZER.analyze_serial(path)
+            self.assertTrue(report["pass"])
+            self.assertEqual(report["latency_errors"], [])
+
+            path.write_text(log.replace("radio_max_us=50", "radio_max_us=150000"), encoding="utf-8")
+            report = ANALYZER.analyze_serial(path)
+            self.assertFalse(report["pass"])
+            self.assertIn("radio=150000us exceeds 10000us", report["latency_errors"])
 
 
 if __name__ == "__main__":

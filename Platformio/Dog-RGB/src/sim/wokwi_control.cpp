@@ -44,13 +44,18 @@ void handle_mode(const char *value) {
     return;
   }
   const RuntimeConfig previous = config::get();
-  config::get_mut().mode = mode;
-  if (!save_config_transaction(previous)) {
-    Serial.println("[SIM_CTRL] error command=mode reason=storage");
-    return;
+  const bool changed = mode != previous.mode;
+  if (changed) {
+    config::get_mut().mode = mode;
+    if (!save_config_transaction(previous)) {
+      Serial.println("[SIM_CTRL] error command=mode reason=storage");
+      return;
+    }
   }
   Serial.print("[SIM_CTRL] ok command=mode value=");
   Serial.print(config::mode_name(mode));
+  Serial.print(" changed=");
+  Serial.print(changed ? "1" : "0");
   print_storage_state();
 }
 
@@ -63,13 +68,18 @@ void handle_day(const char *value) {
     return;
   }
   const RuntimeConfig previous = config::get();
-  config::get_mut().day_mode_enabled = enabled;
-  if (!save_config_transaction(previous)) {
-    Serial.println("[SIM_CTRL] error command=day reason=storage");
-    return;
+  const bool changed = enabled != previous.day_mode_enabled;
+  if (changed) {
+    config::get_mut().day_mode_enabled = enabled;
+    if (!save_config_transaction(previous)) {
+      Serial.println("[SIM_CTRL] error command=day reason=storage");
+      return;
+    }
   }
   Serial.print("[SIM_CTRL] ok command=day value=");
   Serial.print(enabled ? "on" : "off");
+  Serial.print(" changed=");
+  Serial.print(changed ? "1" : "0");
   print_storage_state();
 }
 

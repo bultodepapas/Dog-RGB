@@ -6,7 +6,7 @@ steps:
   - write-serial: "sim leds off\n"
   - wait-serial: "[SIM_CTRL] ok command=leds transport=off"
   - write-serial: "sim mode speed\n"
-  - wait-serial: "[SIM_CTRL] ok command=mode value=speed"
+  - wait-serial: "[SIM_CTRL] ok command=mode value=speed changed=0"
   - delay: 3000ms
   - wait-serial: "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok"
 

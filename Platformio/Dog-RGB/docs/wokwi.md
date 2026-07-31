@@ -11,7 +11,7 @@ reemplaza las pruebas electricas del prototipo.
 - El chip GNSS personalizado compila a WASM con Wokwi CLI 0.26.1.
 - El linter no reporta errores; solo informa que el tipo
   `board-xiao-esp32-s3` es `undocumented`, aunque el backend lo simula.
-- Hay 79 pruebas host verdes para contratos de firmware y activos Wokwi.
+- Hay 82 pruebas host verdes para contratos de firmware y activos Wokwi.
 - El escenario `boot` valida firmware, AP, fix confiable, movimiento y buses
   LED/GNSS.
 - El escenario `modes` validó speed, simple, show, geofence, modo dia y
@@ -30,6 +30,11 @@ reemplaza las pruebas electricas del prototipo.
   `usable=0` despues del filtrado, no sume actividad/distancia, use el rango
   seguro 1 y recupere `usable=1`, 12 km/h y rango 7. Su VCD de 17.0 s contiene
   32 sentencias validas, ninguna invalida y tick estable a 1 Hz.
+- `loop-diagnostics` atribuye latencia a GPS, control, geofence, persistencia,
+  radio, LED, HTTP y al propio logger. Detecto dos consultas Wi-Fi sincronas
+  redundantes. Tras pasar el conteo de clientes a eventos con reconciliacion de
+  respaldo y eliminar el sondeo periodico de canal, el maximo de radio bajo de
+  145,323 us a 50 us y el trabajo maximo del loop de 157,963 us a 79,867 us.
 
 ## Circuito simulado
 
@@ -160,6 +165,9 @@ fisico.
 # Regresion corta: pico de velocidad rechazado y recuperacion
 .\tools\wokwi.ps1 -Action test -Scenario wokwi/speed-validity.test.yaml -TimeoutMs 25000
 
+# Atribucion de latencia por subsistema
+.\tools\wokwi.ps1 -Action test -Scenario wokwi/loop-diagnostics.test.yaml -TimeoutMs 20000
+
 # 5 Hz, umbrales de velocidad y salto de posicion
 .\tools\wokwi.ps1 -Action test -Scenario wokwi/gps-rate-ranges.test.yaml -TimeoutMs 60000
 
@@ -192,13 +200,19 @@ Cada escenario produce:
 
 `tools/analyze_wokwi.py` falla si encuentra crash, error de control, overflow,
 señales necesarias ausentes o UART indecodificable. Resume heap minimo, loop
-maximo, modos/renders, validez de velocidad, razones de segmento/fix y
-anomalias. Del VCD decodifica UART
+maximo total, trabajo sin logger, costo del logger, maximos por subsistema,
+operaciones Wi-Fi, modos/renders, validez de velocidad, razones de segmento/fix
+y anomalias. Del VCD decodifica UART
 9600-8N1, verifica checksum NMEA, mide tasa GNSS, cuenta transiciones de estado
 y estima rafagas WS2812 en el perfil completo.
 
 Los contadores `small_seg_total` y `large_seg_total` son acumulativos. Esto
 evita perder saltos breves entre reportes de 2 s, especialmente a 5 Hz.
+
+Para `loop-diagnostics`, el analizador tambien convierte la investigacion en
+regresion: falla si trabajo supera 120 ms, radio 10 ms, o las consultas de
+clientes/canal 5 ms. Estos limites son de simulacion y no sustituyen mediciones
+en el ESP32 fisico.
 
 ## Logs para analizar el chip y el firmware
 
@@ -213,7 +227,8 @@ Etiquetas principales:
   distancia, segmento y contadores de
   rechazo.
 - `[LED]`: decision de render, efecto, velocidad, intensidad y modo dia.
-- `[SYS]`: uptime, heap/min-heap y latencia promedio/maxima del loop.
+- `[SYS]`: uptime, heap/min-heap, latencia total, trabajo sin logger, costo del
+  logger y maximos de GPS/control/geofence/storage/radio/LED/HTTP.
 - `[WIFI]` / `[WIFI_DIAG]`: estado de radios, clientes y transiciones.
 - `[SIM_CTRL]` / `[SIM_STATE]`: comandos y estado inducido por automatizacion.
 - `[nmea-gps]` en Chips Console: scheduler y transporte del modelo WASM.
@@ -301,5 +316,5 @@ potencia, SK6812 RGBW, RF y robustez mecanica.
 13. [Custom Chip Time API](https://docs.wokwi.com/chips-api/time)
 
 Las APIs de escenarios y chips aun pueden evolucionar. Si una version nueva
-del CLI cambia atributos o exportacion VCD, el linter y los 79 tests de activos
+del CLI cambia atributos o exportacion VCD, el linter y los 82 tests de activos
 deben detectarlo antes de aceptar la actualizacion.

@@ -1,0 +1,16 @@
+name: "Dog-RGB loop latency attribution"
+version: 1
+author: "Dog-RGB"
+steps:
+  - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
+  - write-serial: "sim leds off\n"
+  - wait-serial: "[SIM_CTRL] ok command=leds transport=off"
+  - write-serial: "sim mode speed\n"
+  - wait-serial: "[SIM_CTRL] ok command=mode value=speed changed=0"
+  - wait-serial: "[SYS]"
+  - wait-serial: " loop_work_max_us="
+  - wait-serial: " storage_max_us="
+  - wait-serial: " http_max_us="
+  - wait-serial: " ap_poll_max_us="
+  - wait-serial: " channel_query_max_us="
+  - wait-serial: "overflow=0"

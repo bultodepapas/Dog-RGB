@@ -77,6 +77,19 @@ class WifiEventQueueTests(unittest.TestCase):
         self.assertIn("xQueueCreateStatic", wifi_cpp)
         self.assertIn("WIFI_EVENT_QUEUE_LENGTH = 16", wifi_cpp)
         self.assertIn("last_wifi_check_ms = now_ms - WIFI_RETRY_INTERVAL_MS", wifi_cpp)
+        self.assertIn("const bool reconcile_ap_state = drain_wifi_events(now_ms)", tick)
+        self.assertIn("if (reconcile_ap_state)", tick)
+
+    def test_station_count_uses_events_with_slow_fallback_reconciliation(self):
+        config_h = (ROOT / "include/config.h").read_text(encoding="utf-8")
+        wifi_cpp = (ROOT / "src/wifi/wifi_mgr.cpp").read_text(encoding="utf-8")
+        self.assertIn("AP_CLIENT_POLL_MS = 60000", config_h)
+        self.assertIn("ARDUINO_EVENT_WIFI_AP_STACONNECTED", wifi_cpp)
+        self.assertIn("ARDUINO_EVENT_WIFI_AP_STADISCONNECTED", wifi_cpp)
+        self.assertIn("update_ap_station_count();", wifi_cpp)
+        self.assertEqual(
+            wifi_cpp.count("wifi_diag.current_ap_channel = read_wifi_channel();"), 1
+        )
 
     def test_queue_diagnostics_are_exposed(self):
         portal_cpp = (ROOT / "src/web/portal_http.cpp").read_text(encoding="utf-8")

@@ -320,6 +320,8 @@ void handle_dev_get() {
   wifiDiag["last_wifi_event_ms"] = diag.last_wifi_event_ms;
   wifiDiag["last_wifi_event"] = diag.last_wifi_event;
   wifiDiag["current_ap_channel"] = diag.current_ap_channel;
+  wifiDiag["ap_station_poll_max_us"] = diag.ap_station_poll_max_us;
+  wifiDiag["channel_query_max_us"] = diag.channel_query_max_us;
   wifiDiag["last_ap_reason"] = diag.last_ap_reason;
   wifiDiag["last_sta_reason"] = diag.last_sta_reason;
   wifiDiag["dns_running"] = dns_running;

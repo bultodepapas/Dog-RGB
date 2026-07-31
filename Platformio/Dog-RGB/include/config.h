@@ -128,7 +128,10 @@ static const unsigned long AP_SETUP_HOLD_MS = 900000; // Keep AP visible after A
 static const unsigned long AP_PORTAL_ACTIVITY_HOLD_MS = 300000; // Keep AP after portal traffic.
 static const unsigned long AP_IDLE_TIMEOUT_MS = 600000; // AP off if no clients for this long.
 static const unsigned long AP_STATIONARY_MS = 120000; // AP on if speed <= threshold for this long.
-static const unsigned long AP_CLIENT_POLL_MS = 1000; // Station count polling interval.
+// AP events update the count immediately. This slower poll is only a fallback
+// reconciliation for driver/backend drift and keeps synchronous radio queries
+// from stalling the application loop every second.
+static const unsigned long AP_CLIENT_POLL_MS = 60000;
 static const float AP_STATIONARY_ON_KPH = 2.0f; // Enter stationary when <= this speed.
 static const float AP_STATIONARY_OFF_KPH = 2.5f; // Exit stationary when >= this speed.
 static const unsigned long WIFI_OFF_GPS_FIX_MS = 300000; // Homogeneous LED mode after GPS fix stable.
@@ -137,6 +140,14 @@ static const unsigned long AP_OFF_PULSE_MS = 200; // AP off pulse width.
 
 // GNSS settings (rare changes).
 static const uint32_t GPS_BAUD = 9600; // GNSS UART baudrate.
+#if defined(DOG_RGB_WOKWI_SIM)
+// The simulator uses a real timed UART for diagnostics. A faster console keeps
+// rich logs without blocking the emulated MCU for ~170 ms every report.
+static const uint32_t CONSOLE_BAUD = 460800;
+static const uint16_t CONSOLE_TX_BUFFER_SIZE = 4096;
+#else
+static const uint32_t CONSOLE_BAUD = 115200;
+#endif
 // Covers more than 17 seconds of worst-case 8N1 input at 9600 baud while the
 // synchronous portal is sending a response to a slow Wi-Fi client.
 static const uint16_t GPS_RX_BUFFER_SIZE = 16384;
