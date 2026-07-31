@@ -11,7 +11,8 @@ particiones y las mismas librerias que para la XIAO fisica.
 - LED de estado en D2/GPIO3.
 - GNSS NMEA personalizado a 9600 baud en D7/GPIO44.
 - Wi-Fi virtual y portal HTTP del firmware.
-- Analizador logico: D0=`LED-A`, D1=`LED-B`, D2=`GNSS-TX`.
+- Analizador logico: D0=`LED-A`, D1=`LED-B`, D2=`GNSS-TX` y
+  D3=`GNSS-HEARTBEAT`.
 - Consola serie UART0 en D9/GPIO8 y D10/GPIO9, solo para el target Wokwi.
   D6/D7 quedan dedicados al GNSS.
 
@@ -79,6 +80,13 @@ hora/fecha monotona y mueve la posicion de forma coherente con la velocidad. La
 trayectoria invierte suavemente su direccion para poder ejecutar simulaciones
 largas sin saltos artificiales.
 
+El pin `RX` del chip queda deliberadamente sin conectar. Aunque la API UART
+documenta `NO_PIN` para desactivar RX, el backend ESP32-S3 actual no inicializa
+el UART personalizado en ese caso. Un RX de entrada flotante evita el defecto
+sin inyectar ninguna señal al circuito. `DEBUG` cambia de nivel en cada periodo
+de 1 Hz y permite distinguir rapidamente entre un chip detenido y un problema
+de datos NMEA.
+
 ## Pruebas automatizadas
 
 La sintaxis de escenarios sigue la documentacion oficial de
@@ -114,6 +122,7 @@ Al detener la simulacion, Wokwi guarda `artifacts/wokwi.vcd`. Los canales son:
 - D0: datos de tira A.
 - D1: datos de tira B.
 - D2: UART TX del GNSS.
+- D3: latido de 1 Hz del chip GNSS.
 
 El archivo puede abrirse con PulseView o GTKWave. Para UART usa decodificacion
 9600 8N1; para las tiras usa un decoder WS2812 si esta disponible.

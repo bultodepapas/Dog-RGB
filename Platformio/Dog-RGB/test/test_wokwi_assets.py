@@ -46,6 +46,7 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn(("xiao:D0", "logic:D0"), self.connections)
         self.assertIn(("xiao:D1", "logic:D1"), self.connections)
         self.assertIn(("gnss:TX", "logic:D2"), self.connections)
+        self.assertIn(("gnss:DEBUG", "logic:D3"), self.connections)
         self.assertIn(("xiao:GND", "logic:GND"), self.connections)
 
     def test_wokwi_config_targets_wokwi_platformio_environment(self):
@@ -79,6 +80,17 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn('attr_init("speedKph", 12U)', source)
         self.assertIn('"$%s*%02X\\r\\n"', source)
         self.assertIn("timer_start(chip->timer, 1000000, true)", source)
+
+    def test_gnss_uart_uses_backend_safe_unconnected_rx(self):
+        definition = json.loads(
+            (PROJECT_ROOT / "chips/nmea-gps.chip.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(definition["pins"], ["TX", "RX", "DEBUG"])
+        source = (PROJECT_ROOT / "chips/nmea-gps.chip.c").read_text(encoding="utf-8")
+        self.assertIn('.tx = pin_init("TX", INPUT_PULLUP)', source)
+        self.assertIn('.rx = pin_init("RX", INPUT)', source)
+        self.assertNotIn(".rx = NO_PIN", source)
+        self.assertFalse(any("gnss:RX" in endpoint for pair in self.connections for endpoint in pair))
 
     def test_custom_chip_wasm_is_present(self):
         wasm = (PROJECT_ROOT / "chips/nmea-gps.chip.wasm").read_bytes()

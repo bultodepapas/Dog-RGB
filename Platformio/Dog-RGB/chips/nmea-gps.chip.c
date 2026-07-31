@@ -168,6 +168,8 @@ static void on_uart_write_done(void *user_data) {
 
 static void send_nmea(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
+  // Exposed to the logic analyzer as a 1 Hz liveness signal. It is independent
+  // of the selected profile, including the intentional no-signal profile.
   chip->debug_level = !chip->debug_level;
   pin_write(chip->debug_pin, chip->debug_level);
   if (chip->uart_busy) {
