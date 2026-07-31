@@ -1,0 +1,65 @@
+name: "Dog-RGB GNSS transport, parser and quality fault matrix"
+version: 1
+author: "Dog-RGB"
+steps:
+  - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
+  - delay: 3000ms
+  - wait-serial: "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok"
+
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 5
+  - delay: 2200ms
+  - wait-serial: "[GPS_FIX] raw=1 trusted=0 current=1 reason=sats"
+
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 6
+  - delay: 3200ms
+  - wait-serial: "[GPS_FIX] raw=1 trusted=0 current=1 reason=gga_stale"
+
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 7
+  - delay: 4200ms
+  - wait-serial: "[GPS_FIX] raw=0 trusted=0 current=0 reason=rmc_stale"
+
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 8
+  - delay: 2200ms
+  - wait-serial: "[GPS_ANOMALY] checksum_seen=1"
+
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 9
+  - delay: 2200ms
+  - wait-serial: "parse_seen=1 rmc_parse_seen=1 gga_parse_seen=1"
+
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 10
+  - delay: 2200ms
+  - wait-serial: "speed_spike_seen=1"
+  - wait-serial: "seg_reason=speed_spike"
+
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 4
+  - delay: 4200ms
+  - wait-serial: "[GPS_LINK] uart=0"
+  - wait-serial: "[GPS_FIX] raw=0 trusted=0 current=0 reason=rmc_stale"
+
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 0
+  - delay: 2200ms
+  - wait-serial: "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok"

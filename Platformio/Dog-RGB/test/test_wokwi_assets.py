@@ -42,18 +42,22 @@ class WokwiAssetTests(unittest.TestCase):
             self.assertIn(("xiao:5V", f"{strip}:VDD"), self.connections)
             self.assertIn(("xiao:GND", f"{strip}:VSS"), self.connections)
 
-    def test_logic_analyzer_captures_both_led_buses_and_gnss(self):
+    def test_logic_analyzers_isolate_high_rate_led_buses_from_gnss(self):
         self.assertIn(("xiao:D0", "logic:D0"), self.connections)
         self.assertIn(("xiao:D1", "logic:D1"), self.connections)
-        self.assertIn(("gnss:TX", "logic:D2"), self.connections)
-        self.assertIn(("gnss:DEBUG", "logic:D3"), self.connections)
+        self.assertIn(("xiao:D2", "logic:D4"), self.connections)
         self.assertIn(("xiao:GND", "logic:GND"), self.connections)
+        self.assertIn(("gnss:TX", "logic_gnss:D0"), self.connections)
+        self.assertIn(("gnss:DEBUG", "logic_gnss:D1"), self.connections)
+        self.assertIn(("xiao:GND", "logic_gnss:GND"), self.connections)
+        self.assertNotIn(("gnss:TX", "logic:D2"), self.connections)
 
     def test_wokwi_config_targets_wokwi_platformio_environment(self):
         config = (PROJECT_ROOT / "wokwi.toml").read_text(encoding="utf-8")
         self.assertIn('firmware = ".pio/build/wokwi/firmware.bin"', config)
         self.assertIn('elf = ".pio/build/wokwi/firmware.elf"', config)
         self.assertIn('vcdFile = "artifacts/wokwi.vcd"', config)
+        self.assertIn("gdbServerPort = 3333", config)
         platformio = (PROJECT_ROOT / "platformio.ini").read_text(encoding="utf-8")
         self.assertIn("[env:wokwi]", platformio)
         self.assertIn("extends = env:seeed_xiao_esp32s3", platformio)
@@ -74,12 +78,20 @@ class WokwiAssetTests(unittest.TestCase):
             (PROJECT_ROOT / "chips/nmea-gps.chip.json").read_text(encoding="utf-8")
         )
         controls = {control["id"] for control in definition["controls"]}
-        self.assertEqual(controls, {"profile", "speedKph"})
+        self.assertEqual(
+            controls, {"profile", "speedKph", "rateHz", "utcHour", "positionM"}
+        )
         source = (PROJECT_ROOT / "chips/nmea-gps.chip.c").read_text(encoding="utf-8")
         self.assertIn('attr_init("profile", PROFILE_MOVING)', source)
         self.assertIn('attr_init("speedKph", 12U)', source)
+        self.assertIn('attr_init("rateHz", 1U)', source)
+        self.assertIn('attr_init("utcHour", 20U)', source)
+        self.assertIn('attr_init("positionM", 0U)', source)
         self.assertIn('"$%s*%02X\\r\\n"', source)
-        self.assertIn("timer_start(chip->timer, 1000000, true)", source)
+        self.assertIn("timer_start(chip->timer, 1000000U, false)", source)
+        self.assertIn("PROFILE_BAD_CHECKSUM", source)
+        self.assertIn("PROFILE_MALFORMED", source)
+        self.assertIn("PROFILE_SPEED_SPIKE", source)
 
     def test_gnss_uart_uses_backend_safe_unconnected_rx(self):
         definition = json.loads(
@@ -100,10 +112,53 @@ class WokwiAssetTests(unittest.TestCase):
     def test_scenarios_cover_boot_and_quality_recovery(self):
         boot = (PROJECT_ROOT / "wokwi/boot.test.yaml").read_text(encoding="utf-8")
         profiles = (PROJECT_ROOT / "wokwi/gps-profiles.test.yaml").read_text(encoding="utf-8")
+        faults = (PROJECT_ROOT / "wokwi/gps-faults.test.yaml").read_text(encoding="utf-8")
+        rates = (PROJECT_ROOT / "wokwi/gps-rate-ranges.test.yaml").read_text(encoding="utf-8")
+        modes = (PROJECT_ROOT / "wokwi/modes.test.yaml").read_text(encoding="utf-8")
         self.assertIn("trusted=1 current=1 reason=ok", boot)
         self.assertIn("control: profile", profiles)
         self.assertIn("reason=rmc_v", profiles)
         self.assertIn("reason=hdop", profiles)
+        self.assertIn("checksum_seen=1", faults)
+        self.assertIn("reason=gga_stale", faults)
+        self.assertIn("reason=rmc_stale", faults)
+        self.assertIn("speed_spike_seen=1", faults)
+        self.assertIn("control: rateHz", rates)
+        self.assertIn("range=10", rates)
+        for mode in ("simple", "show", "geofence", "speed"):
+            self.assertIn(f"sim mode {mode}", modes)
+        self.assertIn("sim reboot", modes)
+        self.assertIn("sim day on", modes)
+
+    def test_simulation_control_channel_is_wokwi_only(self):
+        source = (PROJECT_ROOT / "src/sim/wokwi_control.cpp").read_text(encoding="utf-8")
+        main = (PROJECT_ROOT / "src/main.cpp").read_text(encoding="utf-8")
+        self.assertIn("#if defined(DOG_RGB_WOKWI_SIM)", source)
+        self.assertIn('strncmp(line, "sim ", 4)', source)
+        self.assertIn("config::save()", source)
+        self.assertIn("ESP.restart()", source)
+        self.assertIn("wokwi_control::tick();", main)
+
+    def test_helper_exports_and_analyzes_every_scenario(self):
+        helper = (PROJECT_ROOT / "tools/wokwi.ps1").read_text(encoding="utf-8")
+        self.assertIn("'suite'", helper)
+        self.assertIn("'--vcd-file', $vcdLog", helper)
+        self.assertIn("tools/analyze_wokwi.py", helper)
+        analyzer = (PROJECT_ROOT / "tools/analyze_wokwi.py").read_text(encoding="utf-8")
+        self.assertIn("decode_uart_8n1", analyzer)
+        self.assertIn("nmea_checksum_counts", analyzer)
+        self.assertIn("ws2812_bursts", analyzer)
+
+    def test_gdb_example_targets_wokwi_elf_and_esp32s3_toolchain(self):
+        launch = json.loads(
+            (PROJECT_ROOT / ".vscode/wokwi-gdb.launch.example.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        config = launch["configurations"][0]
+        self.assertIn(".pio/build/wokwi/firmware.elf", config["program"])
+        self.assertIn("xtensa-esp32s3-elf-gdb", config["miDebuggerPath"])
+        self.assertEqual(config["miDebuggerServerAddress"], "localhost:3333")
 
     def test_helper_loads_ignored_dotenv_without_overriding_process_environment(self):
         helper = (PROJECT_ROOT / "tools/wokwi.ps1").read_text(encoding="utf-8")

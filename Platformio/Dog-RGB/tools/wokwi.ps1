@@ -1,12 +1,12 @@
 [CmdletBinding()]
 param(
-  [ValidateSet('prepare', 'lint', 'test')]
+  [ValidateSet('prepare', 'lint', 'test', 'suite')]
   [string]$Action = 'prepare',
 
   [string]$Scenario = 'wokwi/boot.test.yaml',
 
   [ValidateRange(5000, 300000)]
-  [int]$TimeoutMs = 30000
+  [int]$TimeoutMs = 60000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,6 +81,11 @@ $wokwiCli = Resolve-Executable `
   ) `
   -InstallHint 'Install the official CLI: https://docs.wokwi.com/wokwi-ci/cli-usage'
 
+$python = Resolve-Executable `
+  -CommandName 'python' `
+  -Candidates @() `
+  -InstallHint 'Install Python 3 and make the python command available.'
+
 Import-DotEnv -Path (Join-Path $projectRoot '.env')
 
 function Invoke-Lint {
@@ -100,6 +105,32 @@ function Invoke-Prepare {
   Invoke-Lint
 }
 
+function Invoke-Scenario {
+  param(
+    [string]$ScenarioPath,
+    [int]$ScenarioTimeoutMs
+  )
+
+  if (-not (Test-Path -LiteralPath $ScenarioPath -PathType Leaf)) {
+    throw "Scenario not found: $ScenarioPath"
+  }
+  $scenarioName = [System.IO.Path]::GetFileNameWithoutExtension($ScenarioPath)
+  $serialLog = Join-Path 'artifacts' "$scenarioName.serial.log"
+  $vcdLog = Join-Path 'artifacts' "$scenarioName.vcd"
+  $analysisLog = Join-Path 'artifacts' "$scenarioName.analysis.json"
+  Invoke-Native -Executable $wokwiCli `
+    -Arguments @(
+      '.', '--scenario', $ScenarioPath,
+      '--timeout', "$ScenarioTimeoutMs", '--timeout-exit-code', '1',
+      '--serial-log-file', $serialLog, '--vcd-file', $vcdLog
+    ) `
+    -Description "Run Wokwi scenario $ScenarioPath"
+  Invoke-Native -Executable $python `
+    -Arguments @('tools/analyze_wokwi.py', '--serial', $serialLog, '--vcd', $vcdLog, '--output', $analysisLog) `
+    -Description "Analyze Wokwi logs for $ScenarioPath"
+  Write-Host "Artifacts: $serialLog, $vcdLog, $analysisLog"
+}
+
 Push-Location $projectRoot
 try {
   switch ($Action) {
@@ -114,18 +145,24 @@ try {
         throw 'WOKWI_CLI_TOKEN is not set. Create a personal token at https://wokwi.com/dashboard/ci and set it only in your environment.'
       }
       Invoke-Prepare
-      if (-not (Test-Path -LiteralPath $Scenario -PathType Leaf)) {
-        throw "Scenario not found: $Scenario"
-      }
       if (-not (Test-Path -LiteralPath 'artifacts')) {
         New-Item -ItemType Directory -Path 'artifacts' | Out-Null
       }
-      $scenarioName = [System.IO.Path]::GetFileNameWithoutExtension($Scenario)
-      $serialLog = Join-Path 'artifacts' "$scenarioName.serial.log"
-      Invoke-Native -Executable $wokwiCli `
-        -Arguments @('.', '--scenario', $Scenario, '--timeout', "$TimeoutMs", '--timeout-exit-code', '1', '--serial-log-file', $serialLog) `
-        -Description "Run Wokwi scenario $Scenario"
-      Write-Host "Serial log: $serialLog"
+      Invoke-Scenario -ScenarioPath $Scenario -ScenarioTimeoutMs $TimeoutMs
+    }
+    'suite' {
+      if (-not $env:WOKWI_CLI_TOKEN) {
+        throw 'WOKWI_CLI_TOKEN is not set. Create a personal token at https://wokwi.com/dashboard/ci and set it only in your environment.'
+      }
+      Invoke-Prepare
+      $scenarios = @(Get-ChildItem -LiteralPath 'wokwi' -Filter '*.test.yaml' -File | Sort-Object Name)
+      if ($scenarios.Count -eq 0) {
+        throw 'No Wokwi scenarios found in wokwi/*.test.yaml.'
+      }
+      foreach ($scenarioFile in $scenarios) {
+        Invoke-Scenario -ScenarioPath $scenarioFile.FullName -ScenarioTimeoutMs $TimeoutMs
+      }
+      Write-Host "Wokwi suite passed: $($scenarios.Count)/$($scenarios.Count) scenarios"
     }
   }
 } finally {

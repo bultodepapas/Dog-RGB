@@ -1,0 +1,53 @@
+name: "Dog-RGB high-rate GNSS, speed ranges and position jump"
+version: 1
+author: "Dog-RGB"
+steps:
+  - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
+  - delay: 3000ms
+  - wait-serial: "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok"
+
+  - set-control:
+      part-id: gnss
+      control: rateHz
+      value: 5
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 1
+  - delay: 2200ms
+  - wait-serial: "[MOTION] mode=speed speed_kph=0.00 usable=1 active=0 range=1"
+  - wait-serial: "overflow=0"
+
+  - set-control:
+      part-id: gnss
+      control: profile
+      value: 0
+  - set-control:
+      part-id: gnss
+      control: speedKph
+      value: 3
+  - delay: 2200ms
+  - wait-serial: "[MOTION] mode=speed speed_kph=3.00 usable=1 active=1 range=2"
+
+  - set-control:
+      part-id: gnss
+      control: speedKph
+      value: 13
+  - delay: 2200ms
+  - wait-serial: "[MOTION] mode=speed speed_kph=13.00 usable=1 active=1 range=7"
+
+  - set-control:
+      part-id: gnss
+      control: speedKph
+      value: 19
+  - delay: 2200ms
+  - wait-serial: "[MOTION] mode=speed speed_kph=19.00 usable=1 active=1 range=10"
+
+  - set-control:
+      part-id: gnss
+      control: positionM
+      value: 800
+  - delay: 2200ms
+  - wait-serial: "seg_reason=large_segment"
+  - wait-serial: "overflow=0"
+

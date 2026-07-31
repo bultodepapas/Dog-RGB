@@ -12,6 +12,13 @@ enum {
   PROFILE_NO_FIX = 2,
   PROFILE_POOR_HDOP = 3,
   PROFILE_NO_SIGNAL = 4,
+  PROFILE_LOW_SATS = 5,
+  PROFILE_NO_GGA = 6,
+  PROFILE_NO_RMC = 7,
+  PROFILE_BAD_CHECKSUM = 8,
+  PROFILE_MALFORMED = 9,
+  PROFILE_SPEED_SPIKE = 10,
+  PROFILE_COUNT = 11,
 };
 
 typedef struct {
@@ -20,8 +27,21 @@ typedef struct {
   pin_t debug_pin;
   uint32_t profile_attr;
   uint32_t speed_kph_attr;
+  uint32_t rate_hz_attr;
+  uint32_t utc_hour_attr;
+  uint32_t position_m_attr;
   uint32_t last_profile;
+  uint32_t last_speed_kph;
+  uint32_t last_rate_hz;
+  uint32_t last_utc_hour;
+  uint32_t last_position_m;
   uint32_t seconds_of_day;
+  uint32_t subsecond_tick;
+  uint32_t cycles;
+  uint32_t frames_sent;
+  uint32_t bytes_sent;
+  uint32_t busy_drops;
+  uint32_t last_diagnostic_ms;
   int32_t latitude_offset_1e4_min;
   int8_t latitude_direction;
   bool uart_busy;
@@ -49,7 +69,12 @@ static uint8_t days_in_month(uint8_t month, uint8_t year) {
   return DAYS[month - 1U];
 }
 
-static void advance_clock(chip_state_t *chip) {
+static void advance_clock(chip_state_t *chip, uint32_t rate_hz) {
+  chip->subsecond_tick++;
+  if (chip->subsecond_tick < rate_hz) {
+    return;
+  }
+  chip->subsecond_tick = 0U;
   chip->seconds_of_day++;
   if (chip->seconds_of_day < 86400U) {
     return;
@@ -67,14 +92,18 @@ static void advance_clock(chip_state_t *chip) {
   }
 }
 
-static void advance_position(chip_state_t *chip, uint32_t speed_kph) {
+static void advance_position(chip_state_t *chip,
+                             uint32_t speed_kph,
+                             uint32_t rate_hz) {
   if (speed_kph == 0U) {
     return;
   }
 
   // One 0.0001-minute latitude unit is about 0.185 m. This keeps the
   // simulated displacement consistent with the reported speed at 1 Hz.
-  int32_t step = (int32_t)((speed_kph * 150U + 50U) / 100U);
+  int32_t step =
+      (int32_t)((speed_kph * 150U + (50U * rate_hz)) /
+                (100U * rate_hz));
   if (step < 1) {
     step = 1;
   }
@@ -91,10 +120,14 @@ static void advance_position(chip_state_t *chip, uint32_t speed_kph) {
 static bool append_sentence(char *output,
                             size_t output_size,
                             size_t *used,
-                            const char *body) {
+                            const char *body,
+                            bool corrupt_checksum) {
   uint8_t checksum = 0U;
   for (const char *p = body; *p != '\0'; ++p) {
     checksum ^= (uint8_t)*p;
+  }
+  if (corrupt_checksum) {
+    checksum ^= 0xffU;
   }
 
   if (*used >= output_size) {
@@ -120,41 +153,66 @@ static bool build_frame(chip_state_t *chip,
   const uint32_t latitude_minutes = (uint32_t)latitude_units / 10000U;
   const uint32_t latitude_fraction = (uint32_t)latitude_units % 10000U;
   const uint32_t effective_speed =
-      (profile == PROFILE_MOVING) ? speed_kph : 0U;
+      (profile == PROFILE_STOPPED || profile == PROFILE_NO_FIX ||
+       profile == PROFILE_POOR_HDOP)
+          ? 0U
+          : ((profile == PROFILE_SPEED_SPIKE) ? 80U : speed_kph);
   const uint32_t knots_hundredths =
       (effective_speed * 100000U + 926U) / 1852U;
   const bool valid_fix = profile != PROFILE_NO_FIX;
   const bool poor_hdop = profile == PROFILE_POOR_HDOP;
+  const bool low_sats = profile == PROFILE_LOW_SATS;
+  const bool bad_checksum = profile == PROFILE_BAD_CHECKSUM;
+
+  if (profile == PROFILE_MALFORMED) {
+    size_t used = 0U;
+    if (!append_sentence(chip->tx_buffer, sizeof(chip->tx_buffer), &used,
+                         "GPGGA,broken", false) ||
+        !append_sentence(chip->tx_buffer, sizeof(chip->tx_buffer), &used,
+                         "GPRMC,broken", false)) {
+      return false;
+    }
+    *frame_length = used;
+    return true;
+  }
 
   char body[144];
   size_t used = 0U;
-  int written = snprintf(
-      body, sizeof(body),
-      "GPGGA,%02u%02u%02u.00,04%02u.%04u,N,07404.3200,W,%u,%02u,%s,2600.0,M,0.0,M,,",
-      hour, minute, second, latitude_minutes, latitude_fraction,
-      valid_fix ? 1U : 0U, valid_fix ? 10U : 0U,
-      valid_fix ? (poor_hdop ? "9.9" : "0.8") : "99.9");
-  if (written < 0 || (size_t)written >= sizeof(body) ||
-      !append_sentence(chip->tx_buffer, sizeof(chip->tx_buffer), &used, body)) {
-    return false;
+  int written = 0;
+  if (profile != PROFILE_NO_GGA) {
+    written = snprintf(
+        body, sizeof(body),
+        "GPGGA,%02u%02u%02u.00,04%02u.%04u,N,07404.3200,W,%u,%02u,%s,2600.0,M,0.0,M,,",
+        hour, minute, second, latitude_minutes, latitude_fraction,
+        valid_fix ? 1U : 0U,
+        valid_fix ? (low_sats ? 3U : 10U) : 0U,
+        valid_fix ? (poor_hdop ? "9.9" : "0.8") : "99.9");
+    if (written < 0 || (size_t)written >= sizeof(body) ||
+        !append_sentence(chip->tx_buffer, sizeof(chip->tx_buffer), &used,
+                         body, bad_checksum)) {
+      return false;
+    }
   }
 
-  if (valid_fix) {
-    written = snprintf(
-        body, sizeof(body),
-        "GPRMC,%02u%02u%02u.00,A,04%02u.%04u,N,07404.3200,W,%03u.%02u,000.0,%02u%02u%02u,,,A",
-        hour, minute, second, latitude_minutes, latitude_fraction,
-        knots_hundredths / 100U, knots_hundredths % 100U,
-        chip->day, chip->month, chip->year);
-  } else {
-    written = snprintf(
-        body, sizeof(body),
-        "GPRMC,%02u%02u%02u.00,V,,,,,000.00,000.0,%02u%02u%02u,,,N",
-        hour, minute, second, chip->day, chip->month, chip->year);
-  }
-  if (written < 0 || (size_t)written >= sizeof(body) ||
-      !append_sentence(chip->tx_buffer, sizeof(chip->tx_buffer), &used, body)) {
-    return false;
+  if (profile != PROFILE_NO_RMC) {
+    if (valid_fix) {
+      written = snprintf(
+          body, sizeof(body),
+          "GPRMC,%02u%02u%02u.00,A,04%02u.%04u,N,07404.3200,W,%03u.%02u,000.0,%02u%02u%02u,,,A",
+          hour, minute, second, latitude_minutes, latitude_fraction,
+          knots_hundredths / 100U, knots_hundredths % 100U,
+          chip->day, chip->month, chip->year);
+    } else {
+      written = snprintf(
+          body, sizeof(body),
+          "GPRMC,%02u%02u%02u.00,V,,,,,000.00,000.0,%02u%02u%02u,,,N",
+          hour, minute, second, chip->day, chip->month, chip->year);
+    }
+    if (written < 0 || (size_t)written >= sizeof(body) ||
+        !append_sentence(chip->tx_buffer, sizeof(chip->tx_buffer), &used,
+                         body, bad_checksum)) {
+      return false;
+    }
   }
 
   *frame_length = used;
@@ -168,42 +226,83 @@ static void on_uart_write_done(void *user_data) {
 
 static void send_nmea(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
-  // Exposed to the logic analyzer as a 1 Hz liveness signal. It is independent
-  // of the selected profile, including the intentional no-signal profile.
+  chip->cycles++;
+  uint32_t rate_hz = attr_read(chip->rate_hz_attr);
+  if (rate_hz < 1U || rate_hz > 5U) {
+    rate_hz = 1U;
+  }
+  // Exposed to the logic analyzer as the GNSS scheduler tick. It continues in
+  // the intentional no-signal profile, so UART failure and chip failure remain
+  // distinguishable.
   chip->debug_level = !chip->debug_level;
   pin_write(chip->debug_pin, chip->debug_level);
   if (chip->uart_busy) {
+    chip->busy_drops++;
+    timer_start(chip->timer, 1000000U / rate_hz, false);
     return;
   }
 
   uint32_t profile = attr_read(chip->profile_attr);
-  if (profile > PROFILE_NO_SIGNAL) {
+  if (profile >= PROFILE_COUNT) {
     profile = PROFILE_MOVING;
   }
   uint32_t speed_kph = attr_read(chip->speed_kph_attr);
   if (speed_kph > 40U) {
     speed_kph = 40U;
   }
-  if (profile != chip->last_profile) {
-    printf("[nmea-gps] profile=%u speed_kph=%u\n", profile, speed_kph);
+  uint32_t utc_hour = attr_read(chip->utc_hour_attr);
+  if (utc_hour > 23U) {
+    utc_hour = 20U;
+  }
+  uint32_t position_m = attr_read(chip->position_m_attr);
+  if (position_m > 900U) {
+    position_m = 900U;
+  }
+  if (utc_hour != chip->last_utc_hour) {
+    chip->seconds_of_day = utc_hour * 3600U;
+    chip->subsecond_tick = 0U;
+  }
+  if (position_m != chip->last_position_m) {
+    chip->latitude_offset_1e4_min = (int32_t)((position_m * 1000U + 92U) / 185U);
+    chip->latitude_direction = 1;
+  }
+  if (profile != chip->last_profile || speed_kph != chip->last_speed_kph ||
+      rate_hz != chip->last_rate_hz || utc_hour != chip->last_utc_hour ||
+      position_m != chip->last_position_m) {
+    printf("[nmea-gps] state profile=%u speed_kph=%u rate_hz=%u utc_hour=%u position_m=%u\n",
+           profile, speed_kph, rate_hz, utc_hour, position_m);
     chip->last_profile = profile;
+    chip->last_speed_kph = speed_kph;
+    chip->last_rate_hz = rate_hz;
+    chip->last_utc_hour = utc_hour;
+    chip->last_position_m = position_m;
   }
 
   if (profile == PROFILE_NO_SIGNAL) {
-    advance_clock(chip);
-    return;
+    advance_clock(chip, rate_hz);
+  } else {
+    size_t frame_length = 0U;
+    if (build_frame(chip, profile, speed_kph, &frame_length) &&
+        uart_write(chip->uart, (uint8_t *)chip->tx_buffer,
+                   (uint32_t)frame_length)) {
+      chip->uart_busy = true;
+      chip->frames_sent++;
+      chip->bytes_sent += (uint32_t)frame_length;
+      if (profile != PROFILE_STOPPED && profile != PROFILE_NO_SIGNAL) {
+        advance_position(chip, speed_kph, rate_hz);
+      }
+      advance_clock(chip, rate_hz);
+    }
   }
 
-  size_t frame_length = 0U;
-  if (build_frame(chip, profile, speed_kph, &frame_length) &&
-      uart_write(chip->uart, (uint8_t *)chip->tx_buffer,
-                 (uint32_t)frame_length)) {
-    chip->uart_busy = true;
-    if (profile == PROFILE_MOVING) {
-      advance_position(chip, speed_kph);
-    }
-    advance_clock(chip);
+  const uint32_t sim_ms = (uint32_t)(get_sim_nanos() / 1000000ULL);
+  if (sim_ms - chip->last_diagnostic_ms >= 5000U) {
+    chip->last_diagnostic_ms = sim_ms;
+    printf("[nmea-gps] diag sim_ms=%u cycles=%u frames=%u bytes=%u busy_drops=%u\n",
+           sim_ms, chip->cycles, chip->frames_sent, chip->bytes_sent,
+           chip->busy_drops);
   }
+  timer_start(chip->timer, 1000000U / rate_hz, false);
 }
 
 void chip_init() {
@@ -214,7 +313,14 @@ void chip_init() {
 
   chip->profile_attr = attr_init("profile", PROFILE_MOVING);
   chip->speed_kph_attr = attr_init("speedKph", 12U);
+  chip->rate_hz_attr = attr_init("rateHz", 1U);
+  chip->utc_hour_attr = attr_init("utcHour", 20U);
+  chip->position_m_attr = attr_init("positionM", 0U);
   chip->last_profile = UINT32_MAX;
+  chip->last_speed_kph = UINT32_MAX;
+  chip->last_rate_hz = UINT32_MAX;
+  chip->last_utc_hour = 20U;
+  chip->last_position_m = 0U;
   chip->seconds_of_day = 20U * 3600U;
   chip->latitude_direction = 1;
   chip->day = 31U;
@@ -241,6 +347,6 @@ void chip_init() {
       .user_data = chip,
   };
   chip->timer = timer_init(&timer_config);
-  printf("[nmea-gps] initialized baud=9600\n");
-  timer_start(chip->timer, 1000000, true);
+  printf("[nmea-gps] initialized baud=9600 profiles=%u\n", PROFILE_COUNT);
+  timer_start(chip->timer, 1000000U, false);
 }

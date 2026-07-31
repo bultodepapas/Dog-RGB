@@ -48,14 +48,22 @@
 #include "led/led_ui.h"
 #include "pins.h"
 #include "power/day_mode.h"
+#include "sim/wokwi_control.h"
 #include "storage/nvs_store.h"
 #include "web/portal_http.h"
 #include "wifi/wifi_mgr.h"
 
 // Heartbeat for status LED and periodic serial logs.
 static const unsigned long HEARTBEAT_MS = 1000;
+#if defined(DOG_RGB_WOKWI_SIM)
+// Faster observability in virtual time keeps automation scenarios focused and
+// does not increase serial/power load on the physical collar.
+static const unsigned long LOG_MS = 2000;
+static const unsigned long SYS_LOG_MS = 10000;
+#else
 static const unsigned long LOG_MS = 3000;
 static const unsigned long SYS_LOG_MS = 30000;
+#endif
 static const unsigned long GPS_NO_DATA_MS = 3000;
 
 static unsigned long last_heartbeat_ms = 0;
@@ -93,8 +101,14 @@ static const char *wifi_mode_name(wifi_mode_t mode) {
 }
 
 static long age_ms_or_neg1(unsigned long now_ms, unsigned long last_ms) {
-  if (last_ms == 0 || now_ms < last_ms) {
+  if (last_ms == 0) {
     return -1;
+  }
+  // gps::tick() runs after the loop timestamp is captured, so a byte received
+  // in this same iteration can be a few milliseconds "in the future" relative
+  // to now_ms. Its real age is zero, not unavailable.
+  if (now_ms < last_ms) {
+    return 0;
   }
   return static_cast<long>(now_ms - last_ms);
 }
@@ -181,6 +195,8 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(rmc_parse_delta);
   Serial.print(" gga_parse_fail_delta=");
   Serial.print(gga_parse_delta);
+  Serial.print(" speed_spike_delta=");
+  Serial.print(speed_spike_delta);
   Serial.print(" overflow=");
   Serial.print(gps::overflow());
   Serial.print(" stale_delta=");
@@ -191,6 +207,24 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(age_rmc_ms);
   Serial.print(" age_gga_ms=");
   Serial.println(age_gga_ms);
+
+  if (checksum_delta > 0 || parse_delta > 0 || speed_spike_delta > 0 ||
+      stale_delta > 0 || gps::overflow() > 0) {
+    Serial.print("[GPS_ANOMALY] checksum_seen=");
+    Serial.print(checksum_delta > 0 ? "1" : "0");
+    Serial.print(" parse_seen=");
+    Serial.print(parse_delta > 0 ? "1" : "0");
+    Serial.print(" rmc_parse_seen=");
+    Serial.print(rmc_parse_delta > 0 ? "1" : "0");
+    Serial.print(" gga_parse_seen=");
+    Serial.print(gga_parse_delta > 0 ? "1" : "0");
+    Serial.print(" speed_spike_seen=");
+    Serial.print(speed_spike_delta > 0 ? "1" : "0");
+    Serial.print(" stale_seen=");
+    Serial.print(stale_delta > 0 ? "1" : "0");
+    Serial.print(" overflow=");
+    Serial.println(gps::overflow());
+  }
 
   Serial.print("[GPS_FIX] raw=");
   Serial.print(gps::raw_fix() ? "1" : "0");
@@ -219,11 +253,12 @@ static void emit_periodic_logs(unsigned long now_ms) {
                                   ? (gps::total_distance_m() / (active_ms / 1000.0f)) * 3.6f
                                   : 0.0f;
   const bool active_sample = gps::last_speed_kph() > SPEED_ACTIVE_KPH;
-  uint8_t range = 1;
+  const uint8_t mode = config::get().mode;
+  uint8_t range = 0;
   bool body_idle = false;
   bool home_missing = false;
   float geofence_dist_m = -1.0f;
-  if (config::get().mode == MODE_GEOFENCE) {
+  if (mode == MODE_GEOFENCE) {
     if (!gps_ok) {
       body_idle = true;
     } else if (!geofence::is_set()) {
@@ -236,10 +271,12 @@ static void emit_periodic_logs(unsigned long now_ms) {
         range = geofence::geofence_range(geofence_dist_m);
       }
     }
-  } else if (!gps_ok) {
-    body_idle = true;
-  } else {
-    range = led_ui::speed_range(gps::last_speed_kph());
+  } else if (mode == MODE_SPEED) {
+    if (!gps_ok) {
+      body_idle = true;
+    } else {
+      range = led_ui::speed_range(gps::last_speed_kph());
+    }
   }
 
   Serial.print("[MOTION] mode=");
@@ -290,18 +327,40 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(" ap_ch=");
   Serial.println(wifi_mgr::diagnostics().current_ap_channel);
 
-  const bool has_range = (!body_idle && !home_missing);
+  const bool has_range = (range >= 1 && range <= 10 && !body_idle && !home_missing);
+  const bool day_active = day_mode::active_now();
+  bool body_on = has_range;
+  const char *render = has_range ? "range" : (home_missing ? "home_missing" : "idle");
   int effect_a = RANGE_1_EFFECT_A;
   int effect_b = RANGE_1_EFFECT_B;
   uint8_t eff_speed = RANGE_1_SPEED;
   uint8_t eff_intensity = RANGE_1_INTENSITY;
-  if (has_range) {
+  if (day_active) {
+    body_on = false;
+    render = "day_status";
+  } else if (mode == MODE_SHOW) {
+    body_on = true;
+    render = "show";
+    effect_a = led_ui::current_show_effect();
+    effect_b = effect_a;
+    eff_speed = SHOW_SPEED;
+    eff_intensity = SHOW_INTENSITY;
+  } else if (mode == MODE_SIMPLE) {
+    body_on = true;
+    render = "simple";
+    effect_a = config::get().single.effect_id;
+    effect_b = effect_a;
+    eff_speed = config::get().single.speed;
+    eff_intensity = config::get().single.intensity;
+  } else if (has_range) {
     led_ui::get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
   }
   Serial.print("[LED] mode=");
   Serial.print(config::mode_name(config::get().mode));
   Serial.print(" body_on=");
-  Serial.print(has_range ? "1" : "0");
+  Serial.print(body_on ? "1" : "0");
+  Serial.print(" render=");
+  Serial.print(render);
   Serial.print(" home_missing=");
   Serial.print(home_missing ? "1" : "0");
   Serial.print(" geofence_dist_m=");
@@ -458,6 +517,7 @@ void setup() {
   Serial.print(" tx_pin=");
   Serial.println(PIN_GPS_TX);
   Serial.println("GPS status: waiting for NMEA data...");
+  wokwi_control::begin();
 }
 
 void loop() {
@@ -498,6 +558,7 @@ void loop() {
   }
 
   gps::tick();
+  wokwi_control::tick();
   geofence::tick(now_ms);
   gps::save_if_due(now_ms);
   gps::track_tick(now_ms);

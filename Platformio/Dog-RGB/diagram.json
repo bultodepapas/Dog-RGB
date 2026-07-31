@@ -52,7 +52,10 @@
       "left": 20,
       "attrs": {
         "profile": "0",
-        "speedKph": "12"
+        "speedKph": "12",
+        "rateHz": "1",
+        "utcHour": "20",
+        "positionM": "0"
       }
     },
     {
@@ -60,6 +63,13 @@
       "id": "logic",
       "top": 390,
       "left": 70,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-logic-analyzer",
+      "id": "logic_gnss",
+      "top": 390,
+      "left": 230,
       "attrs": {}
     }
   ],
@@ -77,9 +87,11 @@
     [ "$serialMonitor:TX", "xiao:D9", "", [] ],
     [ "xiao:D0", "logic:D0", "green", [] ],
     [ "xiao:D1", "logic:D1", "green", [] ],
-    [ "gnss:TX", "logic:D2", "blue", [] ],
-    [ "gnss:DEBUG", "logic:D3", "orange", [] ],
-    [ "xiao:GND", "logic:GND", "black", [] ]
+    [ "xiao:D2", "logic:D4", "green", [] ],
+    [ "xiao:GND", "logic:GND", "black", [] ],
+    [ "gnss:TX", "logic_gnss:D0", "blue", [] ],
+    [ "gnss:DEBUG", "logic_gnss:D1", "orange", [] ],
+    [ "xiao:GND", "logic_gnss:GND", "black", [] ]
   ],
   "serialMonitor": {
     "display": "always",

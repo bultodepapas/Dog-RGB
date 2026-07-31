@@ -5,10 +5,10 @@
   "controls": [
     {
       "id": "profile",
-      "label": "Profile: 0 move, 1 stop, 2 no fix, 3 poor HDOP, 4 no signal",
+      "label": "Profile: 0 good, 1 stop, 2 no fix, 3 HDOP, 4 silence, 5 sats, 6 no GGA, 7 no RMC, 8 checksum, 9 malformed, 10 spike",
       "type": "range",
       "min": 0,
-      "max": 4,
+      "max": 10,
       "step": 1
     },
     {
@@ -18,6 +18,30 @@
       "min": 0,
       "max": 40,
       "step": 1
+    },
+    {
+      "id": "rateHz",
+      "label": "NMEA update rate (Hz)",
+      "type": "range",
+      "min": 1,
+      "max": 5,
+      "step": 1
+    },
+    {
+      "id": "utcHour",
+      "label": "UTC hour (day-mode tests)",
+      "type": "range",
+      "min": 0,
+      "max": 23,
+      "step": 1
+    },
+    {
+      "id": "positionM",
+      "label": "Force route position north (m)",
+      "type": "range",
+      "min": 0,
+      "max": 900,
+      "step": 10
     }
   ]
 }
