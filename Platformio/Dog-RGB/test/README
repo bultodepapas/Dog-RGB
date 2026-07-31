@@ -24,3 +24,7 @@ tests.
 multiple ring wraps and verifies that the newest 1,440 points remain visible.
 It also guards the firmware's extra staging chunk and partial-chunk rewrite
 contract.
+
+`test_track_integrity.py` exercises the versioned binary chunk contract with
+CRC-32/IEEE, exact-length checks, bit corruption, truncation, extension, and
+coordinate-range rejection.

@@ -11,7 +11,7 @@ Dog-RGB is a credible, buildable ESP32-S3 DIY project with a sensibly modular fi
 
 The local portal's simple default access is intentional for this DIY project: the owner can connect immediately and can change the AP credentials afterward. This audit therefore treats it as a usability choice, not a release-blocking security defect. Commercial IoT provisioning and enterprise-style access control are explicitly outside the current objective.
 
-The largest functional defect found was the track ring: it was dimensioned for 1,440 samples but normally overwrote history after approximately **7.5 minutes**. This audit iteration fixes it with partial-chunk rewriting, one staging chunk, and a dedicated 192 KiB track NVS partition. A host simulation verifies the latest 1,440 points through multiple ring wraps. Other high-priority code issues remain: cross-task Wi-Fi state races, corruption-unprotected records, and synchronous HTTP work that can delay UART draining.
+The largest functional defect found was the track ring: it was dimensioned for 1,440 samples but normally overwrote history after approximately **7.5 minutes**. This audit iteration fixes it with partial-chunk rewriting, one staging chunk, and a dedicated 192 KiB track NVS partition. A host simulation verifies the latest 1,440 points through multiple ring wraps. Track chunks and metadata are now protected by a versioned CRC32 format with strict decoding. Other high-priority code issues remain: cross-task Wi-Fi state races and synchronous HTTP work that can delay UART draining.
 
 **Recommendation:** keep the simple DIY interaction model and prioritize the demonstrated software defects: track retention/integrity, Wi-Fi event ownership, persistence recovery, UART servicing, and executable tests.
 
@@ -34,9 +34,9 @@ The firmware is split into GPS, Wi-Fi, web, LED, BLE, configuration, system-stat
 
 | Check | Result | What it proves / limitation |
 |---|---|---|
-| `pio run -e seeed_xiao_esp32s3` | **Pass** | Firmware compiles and links. RAM: 49,260/327,680 bytes (15.0%); flash: 949,033/3,342,336 bytes (28.4%). It does not prove runtime behavior. |
+| `pio run -e seeed_xiao_esp32s3` | **Pass** | Firmware compiles and links. RAM: 49,260/327,680 bytes (15.0%); flash: 949,829/3,342,336 bytes (28.4%). It does not prove runtime behavior. |
 | Compiler warnings | **Needs work** | ArduinoJson 7 reports deprecated `StaticJsonDocument` and `containsKey()` usage in `src/web/portal_http.cpp`. |
-| `python -m unittest discover -s test -p "test_*.py" -v` | **7/7 pass** | Includes four day-mode source-contract tests, a continuous 2,400-point track-ring simulation, firmware contract guards, and a dedicated-partition guard. The model is host-side, not HIL. |
+| `python -m unittest discover -s test -p "test_*.py" -v` | **14/14 pass** | Includes day-mode contracts, a continuous 2,400-point track-ring simulation, partition guards, CRC-32/IEEE reference validation, round-trip format tests, isolation of a damaged chunk, and rejection of bit flips, truncation, extension, and invalid coordinates. These are host-side, not HIL. |
 | `pio check -e seeed_xiao_esp32s3 --skip-packages` | **Pass with findings** | No medium/high project-source defect was reported. Cppcheck produced low-severity project findings and one third-party ArduinoJson preprocessor false positive. The current command does not fail the build on defects and translation-unit analysis causes unused-code noise. |
 | `npm ci` | **Pass** | Three packages installed; npm reported zero known vulnerabilities in this small host-tool dependency set. |
 | Portal page extraction with `python` | **Pass** | The generated portal HTML can be extracted on this machine when invoked directly. |
@@ -69,7 +69,7 @@ No critical code-backed defect was identified. Severity meanings: **High** defea
 
 **Impact:** the implementation contradicts the represented two-hour history and can silently lose roughly 94% of the promised moving history. Metadata can temporarily overstate what remains in the ring.
 
-**Implemented:** the active partial chunk is now rewritten in place every 15 seconds instead of consuming a new ring slot. A 31st staging chunk prevents the partial write from evicting any part of the 1,440-point window; iteration trims only points older than the two-hour limit. Track storage moved from the 20 KiB general NVS area to a dedicated 192 KiB `tracknvs` partition, while configuration remains in the original NVS. A one-time migration clears obsolete track keys from general NVS without clearing configuration. Chunk writes must report their full byte count before RAM metadata advances. `test_track_retention.py` simulates 2,400 continuous samples and verifies the exact latest-point window after every insertion. Remaining work under AUD-006 covers CRC/power-cut recovery rather than retention geometry.
+**Implemented:** the active partial chunk is now rewritten in place every 15 seconds instead of consuming a new ring slot. A 31st staging chunk prevents the partial write from evicting any part of the 1,440-point window; iteration trims only points older than the two-hour limit. Track storage moved from the 20 KiB general NVS area to a dedicated 192 KiB `tracknvs` partition, while configuration remains in the original NVS. A one-time migration clears obsolete track keys from general NVS without clearing configuration. Chunk writes must report their full byte count before RAM metadata advances. `test_track_retention.py` simulates 2,400 continuous samples and verifies the exact latest-point window after every insertion. Power-cut HIL remains useful beyond the completed geometry and integrity tests.
 
 ### AUD-004 — High — Wi-Fi callback and loop share mutable state across tasks
 
@@ -87,13 +87,13 @@ No critical code-backed defect was identified. Severity meanings: **High** defea
 
 **Action:** no mandatory rate change. Document the intended one-second behavior. If the builder later wants a higher update rate or uses the TX wire for receiver configuration, then verify baud capacity and the actual circuit levels.
 
-### AUD-006 — High — Track corruption field is unused and writes are unchecked
+### AUD-006 — Resolved High — Track integrity field was unused and writes were unchecked
 
 **Evidence:** `TrackChunkHeader` has a CRC field, but `src/gps/gps.cpp:950` always writes zero. The reader at `:1095-1111` does not validate CRC or require an exact expected blob length. `Preferences::putBytes()` results at `:723`, `:758`, `:801`, `:842`, and `:959` are ignored. Track metadata uses a weak XOR-style check rather than integrity over the records.
 
 **Impact:** a short write, interrupted update, corrupt count, or stale slot can be accepted and exported as legitimate location data. Recovery has no authoritative way to distinguish the newest complete generation.
 
-**Action:** use CRC32 over a versioned header and payload; validate exact size, point count, finite/ranged coordinates, date/time, and monotonic sequence; check every write result; and recover by scanning valid generations rather than trusting one metadata record. Fault-inject short writes, erased bytes, bit flips, stale metadata, and power cuts at every write boundary.
+**Implemented:** track format v2 uses standard CRC-32/IEEE for both metadata and each complete header/payload blob. The decoder requires the exact stored length, current version, count 1–48, zero known flags, a valid first minute, matching first-point minute, latitude/longitude ranges, minute range, and a matching CRC. Iteration counts valid stored points instead of trusting metadata totals, skips a damaged chunk while retaining other valid chunks and the current RAM tail, and never exports an unvalidated stored point. Chunk writes require an exact byte count; metadata writes return status and are retried on later track ticks when necessary. Host tests cover the standard CRC vector, valid round trip, payload bit flip, truncation, appended data, and a correctly checksummed but invalid coordinate. A true power-cut/fault-injection HIL test remains desirable but is no longer required to establish the format logic.
 
 ### AUD-007 — High — Synchronous HTTP work can starve the GNSS/LED loop
 
@@ -231,11 +231,11 @@ Twenty targeted investigations were performed. These sources do **not** override
 ### Phase 0 — Restore the core behavior (0–3 engineering days)
 
 1. Freeze a reproducible build: pin tested library versions and record the PlatformIO/package versions.
-2. **Completed for retention:** correct the track geometry, partial-chunk behavior, storage capacity, and chunk write-result handling. CRC32 remains under AUD-006.
+2. **Completed:** correct the track geometry, partial-chunk behavior, storage capacity, CRC32 validation, and chunk/metadata write-result handling.
 3. Route Wi-Fi events through a bounded queue to one state owner.
 4. Preserve the easy default AP workflow and document how the user changes credentials or resets them.
 
-**Exit criteria:** the deterministic 2+ hour retention simulation now passes. Remaining Phase 0 criteria are corrupt-chunk rejection, single-owner Wi-Fi state, and straightforward AP credential change/reset.
+**Exit criteria:** the deterministic 2+ hour retention simulation and corrupt-chunk rejection tests now pass. Remaining Phase 0 criteria are single-owner Wi-Fi state and straightforward AP credential change/reset.
 
 ### Phase 1 — Runtime and persistence robustness (1–2 weeks)
 
@@ -281,7 +281,7 @@ These tests can improve understanding and debugging, but the audit does not trea
 
 ## Recommended completion gate
 
-For the stated DIY objective, the informational observations require no code change. Track-retention geometry is now corrected and host-tested. The next valuable completion gates are rejecting corrupt track records, removing cross-task Wi-Fi state mutation, and verifying UART servicing while exporting a full track.
+For the stated DIY objective, the informational observations require no code change. Track retention and integrity are now corrected and host-tested. The next valuable completion gates are removing cross-task Wi-Fi state mutation and verifying UART servicing while exporting a full track.
 
 ## Audit limitations
 

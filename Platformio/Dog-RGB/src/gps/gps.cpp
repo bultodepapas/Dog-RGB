@@ -10,6 +10,7 @@
 #include "config/runtime_config.h"
 #include "pins.h"
 #include "storage/nvs_store.h"
+#include "util/crc32.h"
 #include "util/geo.h"
 
 namespace gps {
@@ -103,7 +104,7 @@ SessionSummary session_snapshot_last;
 bool session_snapshot_valid = false;
 
 // Track storage (3-session window, 2h max).
-static const uint8_t TRACK_VER = 1;
+static const uint8_t TRACK_VER = 2;
 static const uint8_t TRACK_SLOTS = 4;
 static const uint8_t TRACK_FLAG_OPEN = 0x01;
 static const uint8_t TRACK_FLAG_BBOX_DIRTY = 0x02;
@@ -121,10 +122,11 @@ static const uint16_t TRACK_STORAGE_POINTS =
     static_cast<uint16_t>(TRACK_MAX_CHUNKS * TRACK_CHUNK_POINTS);
 
 struct TrackChunkHeader {
+  uint8_t ver;
   uint8_t count;
   uint16_t first_t_min;
   uint8_t flags;
-  uint8_t crc;
+  uint32_t crc32;
 } __attribute__((packed));
 
 struct TrackMeta {
@@ -143,11 +145,11 @@ struct TrackMeta {
   int32_t max_lat_e7;
   int32_t min_lon_e7;
   int32_t max_lon_e7;
-  uint8_t crc;
+  uint32_t crc32;
 } __attribute__((packed));
 
-static_assert(sizeof(TrackChunkHeader) == 5, "TrackChunkHeader size");
-static_assert(sizeof(TrackMeta) == 39, "TrackMeta size");
+static_assert(sizeof(TrackChunkHeader) == 9, "TrackChunkHeader size");
+static_assert(sizeof(TrackMeta) == 42, "TrackMeta size");
 
 struct TrackSession {
   TrackPoint flush_buf[TRACK_CHUNK_POINTS];
@@ -159,6 +161,7 @@ struct TrackSession {
   uint8_t chunk_head;
   uint8_t chunk_count;
   bool bbox_dirty;
+  bool meta_dirty;
   uint32_t start_date;
   uint16_t start_min;
   uint32_t end_date;
@@ -175,9 +178,9 @@ struct TrackSession {
 TrackSession track_current;
 uint8_t track_slot = 0;
 
-uint8_t track_meta_crc(const TrackMeta &m);
+uint32_t track_meta_crc(const TrackMeta &m);
 TrackMeta track_load_meta(Preferences &prefs, uint8_t slot);
-void track_save_meta(Preferences &prefs, uint8_t slot, TrackMeta &meta);
+bool track_save_meta(Preferences &prefs, uint8_t slot, TrackMeta &meta);
 void track_clear_slot(Preferences &prefs, uint8_t slot);
 void track_clear_all(Preferences &prefs);
 void track_reset_ram();
@@ -810,14 +813,9 @@ void session_begin() {
   session_snapshot_valid = true;
 }
 
-uint8_t track_meta_crc(const TrackMeta &m) {
+uint32_t track_meta_crc(const TrackMeta &m) {
   const uint8_t *p = reinterpret_cast<const uint8_t *>(&m);
-  const size_t len = offsetof(TrackMeta, crc);
-  uint8_t out = 0;
-  for (size_t i = 0; i < len; ++i) {
-    out ^= p[i];
-  }
-  return out;
+  return util::crc32_ieee(p, offsetof(TrackMeta, crc32));
 }
 
 void track_key_meta(char *out, uint8_t slot) {
@@ -828,24 +826,108 @@ void track_key_chunk(char *out, uint8_t slot, uint8_t idx) {
   snprintf(out, 6, "t%uc%02u", slot, idx);
 }
 
+bool track_meta_fields_valid(const TrackMeta &meta) {
+  if (meta.sample_ms != TRACK_SAMPLE_MS || meta.max_points != TRACK_MAX_POINTS ||
+      meta.chunk_head >= TRACK_MAX_CHUNKS || meta.chunk_count > TRACK_MAX_CHUNKS ||
+      meta.total_points > TRACK_STORAGE_POINTS ||
+      (meta.flags & ~(TRACK_FLAG_OPEN | TRACK_FLAG_BBOX_DIRTY)) != 0) {
+    return false;
+  }
+  if ((meta.chunk_count == 0) != (meta.total_points == 0)) {
+    return false;
+  }
+  if (meta.chunk_count > 0) {
+    const uint16_t min_points = static_cast<uint16_t>(
+        (static_cast<uint16_t>(meta.chunk_count - 1) * TRACK_CHUNK_POINTS) + 1);
+    const uint16_t max_points = static_cast<uint16_t>(
+        static_cast<uint16_t>(meta.chunk_count) * TRACK_CHUNK_POINTS);
+    if (meta.total_points < min_points || meta.total_points > max_points) {
+      return false;
+    }
+  }
+  if ((meta.start_date != 0 && meta.start_min >= 1440) ||
+      (meta.end_date != 0 && meta.end_min >= 1440)) {
+    return false;
+  }
+  return true;
+}
+
 TrackMeta track_load_meta(Preferences &prefs, uint8_t slot) {
   TrackMeta meta = {};
   char key[5];
   track_key_meta(key, slot);
   size_t len = prefs.getBytes(key, &meta, sizeof(meta));
-  if (len != sizeof(meta) || meta.ver != TRACK_VER || meta.crc != track_meta_crc(meta)) {
+  if (len != sizeof(meta) || meta.ver != TRACK_VER ||
+      meta.crc32 != track_meta_crc(meta) || !track_meta_fields_valid(meta)) {
     memset(&meta, 0, sizeof(meta));
     meta.ver = TRACK_VER;
   }
   return meta;
 }
 
-void track_save_meta(Preferences &prefs, uint8_t slot, TrackMeta &meta) {
+bool track_save_meta(Preferences &prefs, uint8_t slot, TrackMeta &meta) {
   meta.ver = TRACK_VER;
-  meta.crc = track_meta_crc(meta);
+  meta.crc32 = track_meta_crc(meta);
   char key[5];
   track_key_meta(key, slot);
-  prefs.putBytes(key, &meta, sizeof(meta));
+  return prefs.putBytes(key, &meta, sizeof(meta)) == sizeof(meta);
+}
+
+bool track_point_valid(const TrackPoint &point) {
+  return point.lat_e7 >= -900000000 && point.lat_e7 <= 900000000 &&
+         point.lon_e7 >= -1800000000 && point.lon_e7 <= 1800000000 &&
+         point.t_min < 1440;
+}
+
+bool track_load_chunk(Preferences &prefs,
+                      uint8_t slot,
+                      uint8_t idx,
+                      TrackPoint *points,
+                      uint8_t &count) {
+  count = 0;
+  uint8_t buffer[sizeof(TrackChunkHeader) + (TRACK_CHUNK_POINTS * sizeof(TrackPoint))];
+  char key[6];
+  track_key_chunk(key, slot, idx);
+  const size_t stored_len = prefs.getBytesLength(key);
+  if (stored_len < sizeof(TrackChunkHeader) + sizeof(TrackPoint) ||
+      stored_len > sizeof(buffer)) {
+    return false;
+  }
+  const size_t len = prefs.getBytes(key, buffer, sizeof(buffer));
+  if (len != stored_len) {
+    return false;
+  }
+
+  TrackChunkHeader hdr = {};
+  memcpy(&hdr, buffer, sizeof(hdr));
+  if (hdr.ver != TRACK_VER || hdr.count == 0 || hdr.count > TRACK_CHUNK_POINTS ||
+      hdr.flags != 0 || hdr.first_t_min >= 1440) {
+    return false;
+  }
+  const size_t expected_len = sizeof(TrackChunkHeader) +
+                              (static_cast<size_t>(hdr.count) * sizeof(TrackPoint));
+  if (len != expected_len) {
+    return false;
+  }
+
+  const uint32_t stored_crc = hdr.crc32;
+  hdr.crc32 = 0;
+  memcpy(buffer, &hdr, sizeof(hdr));
+  if (stored_crc != util::crc32_ieee(buffer, len)) {
+    return false;
+  }
+
+  memcpy(points, buffer + sizeof(TrackChunkHeader), hdr.count * sizeof(TrackPoint));
+  for (uint8_t i = 0; i < hdr.count; ++i) {
+    if (!track_point_valid(points[i])) {
+      return false;
+    }
+  }
+  if (points[0].t_min != hdr.first_t_min) {
+    return false;
+  }
+  count = hdr.count;
+  return true;
 }
 
 void track_clear_slot(Preferences &prefs, uint8_t slot) {
@@ -876,6 +958,7 @@ void track_reset_ram() {
   track_current.chunk_head = 0;
   track_current.chunk_count = 0;
   track_current.bbox_dirty = false;
+  track_current.meta_dirty = false;
   track_current.has_bbox = false;
   track_current.has_last_point = false;
 }
@@ -899,6 +982,32 @@ void track_open_new(Preferences &prefs, uint8_t slot) {
   meta.min_lon_e7 = 0;
   meta.max_lon_e7 = 0;
   track_save_meta(prefs, slot, meta);
+}
+
+bool track_save_current_meta(Preferences &prefs) {
+  TrackMeta meta = track_load_meta(prefs, track_slot);
+  meta.flags = static_cast<uint8_t>(meta.flags | TRACK_FLAG_OPEN);
+  if (track_current.bbox_dirty) {
+    meta.flags = static_cast<uint8_t>(meta.flags | TRACK_FLAG_BBOX_DIRTY);
+  } else {
+    meta.flags = static_cast<uint8_t>(meta.flags & ~TRACK_FLAG_BBOX_DIRTY);
+    if (track_current.has_bbox) {
+      meta.min_lat_e7 = track_current.min_lat_e7;
+      meta.max_lat_e7 = track_current.max_lat_e7;
+      meta.min_lon_e7 = track_current.min_lon_e7;
+      meta.max_lon_e7 = track_current.max_lon_e7;
+    }
+  }
+  meta.sample_ms = static_cast<uint16_t>(TRACK_SAMPLE_MS);
+  meta.max_points = TRACK_MAX_POINTS;
+  meta.total_points = track_current.persisted_points;
+  meta.chunk_head = track_current.chunk_head;
+  meta.chunk_count = track_current.chunk_count;
+  meta.start_date = track_current.start_date;
+  meta.start_min = track_current.start_min;
+  meta.end_date = track_current.end_date;
+  meta.end_min = track_current.end_min;
+  return track_save_meta(prefs, track_slot, meta);
 }
 
 void track_begin() {
@@ -930,6 +1039,13 @@ void track_begin() {
 }
 
 void track_flush_if_due(unsigned long now_ms) {
+  Preferences &prefs = storage::prefs_trk();
+  if (track_current.meta_dirty) {
+    if (!track_save_current_meta(prefs)) {
+      return;
+    }
+    track_current.meta_dirty = false;
+  }
   if (track_current.flush_count == 0) {
     return;
   }
@@ -942,7 +1058,6 @@ void track_flush_if_due(unsigned long now_ms) {
     return;
   }
 
-  Preferences &prefs = storage::prefs_trk();
   uint8_t write_idx = 0;
   uint8_t next_chunk_head = track_current.chunk_head;
   uint8_t next_chunk_count = track_current.chunk_count;
@@ -962,15 +1077,18 @@ void track_flush_if_due(unsigned long now_ms) {
   }
 
   TrackChunkHeader hdr = {};
+  hdr.ver = TRACK_VER;
   hdr.count = track_current.flush_count;
   hdr.first_t_min = track_current.flush_buf[0].t_min;
   hdr.flags = 0;
-  hdr.crc = 0;
+  hdr.crc32 = 0;
 
   const size_t blob_len = sizeof(hdr) + (static_cast<size_t>(track_current.flush_count) * sizeof(TrackPoint));
   uint8_t blob[sizeof(TrackChunkHeader) + (TRACK_CHUNK_POINTS * sizeof(TrackPoint))];
   memcpy(blob, &hdr, sizeof(hdr));
   memcpy(blob + sizeof(hdr), track_current.flush_buf, track_current.flush_count * sizeof(TrackPoint));
+  hdr.crc32 = util::crc32_ieee(blob, blob_len);
+  memcpy(blob, &hdr, sizeof(hdr));
 
   char key[6];
   track_key_chunk(key, track_slot, write_idx);
@@ -996,29 +1114,7 @@ void track_flush_if_due(unsigned long now_ms) {
     track_current.bbox_dirty = true;
   }
 
-  TrackMeta meta = track_load_meta(prefs, track_slot);
-  meta.flags = static_cast<uint8_t>(meta.flags | TRACK_FLAG_OPEN);
-  if (track_current.bbox_dirty) {
-    meta.flags = static_cast<uint8_t>(meta.flags | TRACK_FLAG_BBOX_DIRTY);
-  } else {
-    meta.flags = static_cast<uint8_t>(meta.flags & ~TRACK_FLAG_BBOX_DIRTY);
-    if (track_current.has_bbox) {
-      meta.min_lat_e7 = track_current.min_lat_e7;
-      meta.max_lat_e7 = track_current.max_lat_e7;
-      meta.min_lon_e7 = track_current.min_lon_e7;
-      meta.max_lon_e7 = track_current.max_lon_e7;
-    }
-  }
-  meta.sample_ms = static_cast<uint16_t>(TRACK_SAMPLE_MS);
-  meta.max_points = TRACK_MAX_POINTS;
-  meta.total_points = track_current.persisted_points;
-  meta.chunk_head = track_current.chunk_head;
-  meta.chunk_count = track_current.chunk_count;
-  meta.start_date = track_current.start_date;
-  meta.start_min = track_current.start_min;
-  meta.end_date = track_current.end_date;
-  meta.end_min = track_current.end_min;
-  track_save_meta(prefs, track_slot, meta);
+  track_current.meta_dirty = !track_save_current_meta(prefs);
 
   if (full) {
     track_current.flush_count = 0;
@@ -1106,10 +1202,36 @@ bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb 
     return false;
   }
   const bool current = (slot == track_slot);
-  const uint16_t persisted = meta.total_points;
+  const uint8_t chunk_count = current
+                                  ? ((track_current.chunk_count <= TRACK_MAX_CHUNKS)
+                                         ? track_current.chunk_count
+                                         : TRACK_MAX_CHUNKS)
+                                  : ((meta.chunk_count <= TRACK_MAX_CHUNKS)
+                                         ? meta.chunk_count
+                                         : TRACK_MAX_CHUNKS);
+  const uint8_t chunk_head = current
+                                 ? ((track_current.chunk_head < TRACK_MAX_CHUNKS)
+                                        ? track_current.chunk_head
+                                        : 0)
+                                 : ((meta.chunk_head < TRACK_MAX_CHUNKS)
+                                        ? meta.chunk_head
+                                        : 0);
+  uint16_t persisted = 0;
+  uint8_t newest_chunk_count = 0;
+  TrackPoint chunk_points[TRACK_CHUNK_POINTS];
+  for (uint8_t i = 0; i < chunk_count; ++i) {
+    const uint8_t chunk_idx = static_cast<uint8_t>((chunk_head + i) % TRACK_MAX_CHUNKS);
+    uint8_t valid_count = 0;
+    if (track_load_chunk(prefs, slot, chunk_idx, chunk_points, valid_count)) {
+      persisted = static_cast<uint16_t>(persisted + valid_count);
+      if (i == chunk_count - 1) {
+        newest_chunk_count = valid_count;
+      }
+    }
+  }
   const uint8_t unpersisted_start = current
-                                        ? ((track_current.persisted_flush_count <= track_current.flush_count)
-                                               ? track_current.persisted_flush_count
+                                        ? ((newest_chunk_count <= track_current.flush_count)
+                                               ? newest_chunk_count
                                                : 0)
                                         : 0;
   const uint16_t unpersisted_count = current
@@ -1135,30 +1257,19 @@ bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb 
   }
 
   uint16_t idx = 0;
-  uint8_t buffer[sizeof(TrackChunkHeader) + (TRACK_CHUNK_POINTS * sizeof(TrackPoint))];
-  const uint8_t chunk_count = (meta.chunk_count <= TRACK_MAX_CHUNKS) ? meta.chunk_count : TRACK_MAX_CHUNKS;
-  const uint8_t chunk_head = (meta.chunk_head < TRACK_MAX_CHUNKS) ? meta.chunk_head : 0;
   for (uint8_t i = 0; i < chunk_count; ++i) {
     const uint8_t chunk_idx = static_cast<uint8_t>((chunk_head + i) % TRACK_MAX_CHUNKS);
-    char key[6];
-    track_key_chunk(key, slot, chunk_idx);
-    size_t len = prefs.getBytes(key, buffer, sizeof(buffer));
-    if (len <= sizeof(TrackChunkHeader)) {
+    uint8_t valid_count = 0;
+    if (!track_load_chunk(prefs, slot, chunk_idx, chunk_points, valid_count)) {
       continue;
     }
-    TrackChunkHeader hdr = {};
-    memcpy(&hdr, buffer, sizeof(hdr));
-    const size_t points_bytes = len - sizeof(TrackChunkHeader);
-    const uint8_t points_count = static_cast<uint8_t>(points_bytes / sizeof(TrackPoint));
-    const TrackPoint *pts = reinterpret_cast<const TrackPoint *>(buffer + sizeof(TrackChunkHeader));
-    const uint8_t count = (hdr.count > 0 && hdr.count <= points_count) ? hdr.count : points_count;
-    for (uint8_t p = 0; p < count; ++p) {
+    for (uint8_t p = 0; p < valid_count; ++p) {
       if (skip_oldest > 0) {
         skip_oldest--;
         continue;
       }
       if ((idx++ % stride) == 0) {
-        if (!cb(pts[p], ctx)) {
+        if (!cb(chunk_points[p], ctx)) {
           return true;
         }
       }
