@@ -17,6 +17,7 @@ enum {
 typedef struct {
   uart_dev_t uart;
   timer_t timer;
+  pin_t debug_pin;
   uint32_t profile_attr;
   uint32_t speed_kph_attr;
   uint32_t last_profile;
@@ -27,6 +28,7 @@ typedef struct {
   uint8_t day;
   uint8_t month;
   uint8_t year;
+  bool debug_level;
   char tx_buffer[320];
 } chip_state_t;
 
@@ -166,6 +168,8 @@ static void on_uart_write_done(void *user_data) {
 
 static void send_nmea(void *user_data) {
   chip_state_t *chip = (chip_state_t *)user_data;
+  chip->debug_level = !chip->debug_level;
+  pin_write(chip->debug_pin, chip->debug_level);
   if (chip->uart_busy) {
     return;
   }
@@ -214,6 +218,7 @@ void chip_init() {
   chip->day = 31U;
   chip->month = 7U;
   chip->year = 26U;
+  chip->debug_pin = pin_init("DEBUG", OUTPUT_LOW);
 
   const uart_config_t uart_config = {
       // Wokwi's UART peripheral owns the line. INPUT_PULLUP gives the UART
@@ -232,5 +237,7 @@ void chip_init() {
       .user_data = chip,
   };
   chip->timer = timer_init(&timer_config);
-  timer_start(chip->timer, 1000000, true);
+  printf("[nmea-gps] initialized baud=9600\n");
+  timer_start(chip->timer, 250000, true);
+  send_nmea(chip);
 }

@@ -78,6 +78,7 @@
     [ "xiao:D0", "logic:D0", "green", [] ],
     [ "xiao:D1", "logic:D1", "green", [] ],
     [ "gnss:TX", "logic:D2", "blue", [] ],
+    [ "gnss:DEBUG", "logic:D3", "orange", [] ],
     [ "xiao:GND", "logic:GND", "black", [] ]
   ],
   "serialMonitor": {

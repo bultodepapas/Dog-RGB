@@ -1,7 +1,7 @@
 {
   "name": "NMEA GPS simulator",
   "author": "Dog-RGB",
-  "pins": ["TX"],
+  "pins": ["TX", "DEBUG"],
   "controls": [
     {
       "id": "profile",
