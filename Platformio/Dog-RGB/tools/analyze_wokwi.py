@@ -48,6 +48,8 @@ def analyze_serial(path: Path) -> dict[str, Any]:
     tags: collections.Counter[str] = collections.Counter()
     fix_reasons: collections.Counter[str] = collections.Counter()
     motion_modes: set[str] = set()
+    motion_usable: collections.Counter[str] = collections.Counter()
+    segment_reasons: collections.Counter[str] = collections.Counter()
     led_modes: set[str] = set()
     renders: set[str] = set()
     day_states: set[str] = set()
@@ -82,6 +84,10 @@ def analyze_serial(path: Path) -> dict[str, Any]:
             fix_reasons[str(values["reason"])] += 1
         elif tag == "MOTION" and "mode" in values:
             motion_modes.add(str(values["mode"]))
+            if "usable" in values:
+                motion_usable[str(values["usable"])] += 1
+            if "seg_reason" in values:
+                segment_reasons[str(values["seg_reason"])] += 1
         elif tag == "LED":
             if "mode" in values:
                 led_modes.add(str(values["mode"]))
@@ -111,6 +117,8 @@ def analyze_serial(path: Path) -> dict[str, Any]:
         "gps_totals": dict(sorted(totals.items())),
         "fix_reasons": dict(sorted(fix_reasons.items())),
         "motion_modes": sorted(motion_modes),
+        "motion_usable": dict(sorted(motion_usable.items())),
+        "segment_reasons": dict(sorted(segment_reasons.items())),
         "led_modes": sorted(led_modes),
         "renders": sorted(renders),
         "day_states": sorted(day_states),

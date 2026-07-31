@@ -28,6 +28,7 @@ bool has_gps_fix = false;
 bool has_gps_fix_raw = false;
 bool gps_quality_ok = false;
 bool gps_trusted_fix = false;
+bool last_speed_usable_val = false;
 float last_speed_kph_val = 0.0f;
 unsigned long last_gps_ms = 0;
 unsigned long gps_bytes_rx = 0;
@@ -607,6 +608,7 @@ void expire_gps_if_stale(unsigned long now_ms) {
   gps_quality_ok = false;
   gps_trusted_fix = false;
   has_current_fix_val = false;
+  last_speed_usable_val = false;
   last_speed_kph_val = 0.0f;
   reset_distance_baseline();
   clear_pending_date(true);
@@ -1841,6 +1843,7 @@ void handle_nmea_line(const char *line) {
                               speed_kph <= SPEED_MAX_VALID_KPH;
     const bool date_accepted = gps_trusted_fix && date_yyyymmdd != 0 &&
                                accept_date_observation(date_yyyymmdd, time_ms_of_day);
+    last_speed_usable_val = speed_usable;
     last_speed_kph_val = speed_usable ? speed_kph : 0.0f;
     if (gps_trusted_fix && isfinite(speed_kph) && speed_kph > SPEED_MAX_VALID_KPH) {
       gps_speed_spike++;
@@ -2159,6 +2162,10 @@ bool trusted_fix() {
 
 bool has_current_fix() {
   return has_current_fix_val;
+}
+
+bool speed_usable() {
+  return last_speed_usable_val;
 }
 
 float last_speed_kph() {

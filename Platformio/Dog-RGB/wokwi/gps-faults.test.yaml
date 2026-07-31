@@ -50,6 +50,7 @@ steps:
   - delay: 2200ms
   - wait-serial: "speed_spike_seen=1"
   - wait-serial: "seg_reason=speed_spike"
+  - wait-serial: "[MOTION] mode=speed speed_kph=0.00 usable=0 active=0 range=1"
 
   - set-control:
       part-id: gnss

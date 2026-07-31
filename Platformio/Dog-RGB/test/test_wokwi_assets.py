@@ -121,6 +121,7 @@ class WokwiAssetTests(unittest.TestCase):
         profiles = (PROJECT_ROOT / "wokwi/gps-profiles.test.yaml").read_text(encoding="utf-8")
         faults = (PROJECT_ROOT / "wokwi/gps-faults.test.yaml").read_text(encoding="utf-8")
         rates = (PROJECT_ROOT / "wokwi/gps-rate-ranges.test.yaml").read_text(encoding="utf-8")
+        validity = (PROJECT_ROOT / "wokwi/speed-validity.test.yaml").read_text(encoding="utf-8")
         modes = (PROJECT_ROOT / "wokwi/modes.test.yaml").read_text(encoding="utf-8")
         self.assertIn("trusted=1 current=1 reason=ok", boot)
         self.assertIn("control: profile", profiles)
@@ -130,9 +131,12 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("reason=gga_stale", faults)
         self.assertIn("reason=rmc_stale", faults)
         self.assertIn("speed_spike_seen=1", faults)
+        self.assertIn("usable=0 active=0 range=1", faults)
         self.assertIn("control: rateHz", rates)
         self.assertIn("range=10", rates)
         self.assertIn("large_seg_total=1", rates)
+        self.assertIn("usable=0 active=0 range=1", validity)
+        self.assertIn("speed_kph=12.00 usable=1 active=1 range=7", validity)
         for mode in ("simple", "show", "geofence", "speed"):
             self.assertIn(f"sim mode {mode}", modes)
         self.assertIn("sim reboot", modes)
@@ -148,6 +152,17 @@ class WokwiAssetTests(unittest.TestCase):
         self.assertIn("handle_leds", source)
         self.assertIn("led_ui::set_transport_enabled(enabled)", source)
         self.assertIn("wokwi_control::tick();", main)
+
+    def test_speed_validity_is_preserved_after_filtering(self):
+        header = (PROJECT_ROOT / "include/gps/gps.h").read_text(encoding="utf-8")
+        gps = (PROJECT_ROOT / "src/gps/gps.cpp").read_text(encoding="utf-8")
+        main = (PROJECT_ROOT / "src/main.cpp").read_text(encoding="utf-8")
+        portal = (PROJECT_ROOT / "src/web/portal_http.cpp").read_text(encoding="utf-8")
+        self.assertIn("bool speed_usable();", header)
+        self.assertIn("last_speed_usable_val = speed_usable;", gps)
+        self.assertIn("last_speed_usable_val = false;", gps)
+        self.assertIn('Serial.print(gps::speed_usable() ? "1" : "0");', main)
+        self.assertGreaterEqual(portal.count('gps["speed_usable"]'), 2)
 
     def test_helper_exports_and_analyzes_every_scenario(self):
         helper = (PROJECT_ROOT / "tools/wokwi.ps1").read_text(encoding="utf-8")

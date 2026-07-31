@@ -11,7 +11,7 @@ reemplaza las pruebas electricas del prototipo.
 - El chip GNSS personalizado compila a WASM con Wokwi CLI 0.26.1.
 - El linter no reporta errores; solo informa que el tipo
   `board-xiao-esp32-s3` es `undocumented`, aunque el backend lo simula.
-- Hay 78 pruebas host verdes para contratos de firmware y activos Wokwi.
+- Hay 79 pruebas host verdes para contratos de firmware y activos Wokwi.
 - El escenario `boot` valida firmware, AP, fix confiable, movimiento y buses
   LED/GNSS.
 - El escenario `modes` validó speed, simple, show, geofence, modo dia y
@@ -23,10 +23,13 @@ reemplaza las pruebas electricas del prototipo.
   cero overflow, rangos 1/2/7/10 correctos y un salto de 743.9 m rechazado. El
   VCD independiente decodifico 17,595 bytes, 244 sentencias NMEA validas y
   frecuencia maxima de 5 Hz.
-- La repeticion final de la matriz de fallos quedo pendiente porque la cuenta
-  alcanzo la cuota mensual gratuita de minutos CI. La ejecucion anterior del
-  escenario si paso; al renovarse la cuota debe repetirse para producir el VCD
-  GNSS completo con la instrumentacion nueva.
+- La matriz final de fallos produjo un VCD completo de 43.0 s: 54 sentencias
+  validas, 8 invalidas esperadas, tick GNSS estable a 1 Hz, cero overflow y
+  recuperacion final confirmada.
+- `speed-validity` valida especificamente que un pico de 80 km/h conserve
+  `usable=0` despues del filtrado, no sume actividad/distancia, use el rango
+  seguro 1 y recupere `usable=1`, 12 km/h y rango 7. Su VCD de 17.0 s contiene
+  32 sentencias validas, ninguna invalida y tick estable a 1 Hz.
 
 ## Circuito simulado
 
@@ -154,6 +157,9 @@ fisico.
 # Matriz de transporte/parser/calidad
 .\tools\wokwi.ps1 -Action test -Scenario wokwi/gps-faults.test.yaml -TimeoutMs 90000
 
+# Regresion corta: pico de velocidad rechazado y recuperacion
+.\tools\wokwi.ps1 -Action test -Scenario wokwi/speed-validity.test.yaml -TimeoutMs 25000
+
 # 5 Hz, umbrales de velocidad y salto de posicion
 .\tools\wokwi.ps1 -Action test -Scenario wokwi/gps-rate-ranges.test.yaml -TimeoutMs 60000
 
@@ -186,7 +192,8 @@ Cada escenario produce:
 
 `tools/analyze_wokwi.py` falla si encuentra crash, error de control, overflow,
 señales necesarias ausentes o UART indecodificable. Resume heap minimo, loop
-maximo, modos/renders, razones de fix y anomalias. Del VCD decodifica UART
+maximo, modos/renders, validez de velocidad, razones de segmento/fix y
+anomalias. Del VCD decodifica UART
 9600-8N1, verifica checksum NMEA, mide tasa GNSS, cuenta transiciones de estado
 y estima rafagas WS2812 en el perfil completo.
 
@@ -202,7 +209,8 @@ Etiquetas principales:
   overflow y edad de cada stream.
 - `[GPS_FIX]`: raw/trusted/current y razon exacta de rechazo.
 - `[GPS_ANOMALY]`: anomalias observadas desde el reporte anterior.
-- `[MOTION]`: modo, velocidad, rango, distancia, segmento y contadores de
+- `[MOTION]`: modo, velocidad filtrada, validez separada (`usable`), rango,
+  distancia, segmento y contadores de
   rechazo.
 - `[LED]`: decision de render, efecto, velocidad, intensidad y modo dia.
 - `[SYS]`: uptime, heap/min-heap y latencia promedio/maxima del loop.
@@ -293,5 +301,5 @@ potencia, SK6812 RGBW, RF y robustez mecanica.
 13. [Custom Chip Time API](https://docs.wokwi.com/chips-api/time)
 
 Las APIs de escenarios y chips aun pueden evolucionar. Si una version nueva
-del CLI cambia atributos o exportacion VCD, el linter y los 78 tests de activos
+del CLI cambia atributos o exportacion VCD, el linter y los 79 tests de activos
 deben detectarlo antes de aceptar la actualizacion.

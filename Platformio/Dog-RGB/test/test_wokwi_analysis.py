@@ -46,7 +46,7 @@ class WokwiAnalysisTests(unittest.TestCase):
                 "checksum_fail_delta=2 parse_fail_delta=1 speed_spike_delta=1 "
                 "stale_delta=0 overflow=0",
                 "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok",
-                "[MOTION] mode=speed range=7",
+                "[MOTION] mode=speed usable=0 range=1 seg_reason=speed_spike",
                 "[LED] mode=speed body_on=1 render=range day_mode=disabled",
                 "[SIM_CTRL] ok command=mode value=speed",
             ]
@@ -58,6 +58,8 @@ class WokwiAnalysisTests(unittest.TestCase):
         self.assertTrue(report["pass"])
         self.assertEqual(report["gps_totals"]["checksum_fail_delta"], 2)
         self.assertEqual(report["renders"], ["range"])
+        self.assertEqual(report["motion_usable"], {"0": 1})
+        self.assertEqual(report["segment_reasons"], {"speed_spike": 1})
 
         overflow = log.replace("overflow=0", "overflow=1")
         with tempfile.TemporaryDirectory() as directory:

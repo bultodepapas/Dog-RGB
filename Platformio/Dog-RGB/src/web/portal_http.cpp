@@ -240,6 +240,8 @@ void handle_status_get() {
   gps["fix"] = gps::has_fix();
   gps["raw_fix"] = gps::raw_fix();
   gps["quality_ok"] = gps::quality_ok();
+  gps["speed_usable"] = gps::speed_usable();
+  gps["speed_kph"] = gps::last_speed_kph();
   gps["sats"] = gps::sats();
   gps["fix_quality"] = gps::fix_quality();
   const float hdop_status = gps::hdop();
@@ -334,6 +336,7 @@ void handle_dev_get() {
   gps["fix_quality"] = gps::fix_quality();
   const float hdop_dev = gps::hdop();
   gps["hdop"] = isnan(hdop_dev) ? -1.0f : hdop_dev;
+  gps["speed_usable"] = gps::speed_usable();
   gps["speed_kph"] = gps::last_speed_kph();
   gps["lat"] = gps::current_lat_deg();
   gps["lon"] = gps::current_lon_deg();

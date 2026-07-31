@@ -284,7 +284,7 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.print(" speed_kph=");
   Serial.print(gps::last_speed_kph(), 2);
   Serial.print(" usable=");
-  Serial.print((gps_ok && gps::last_speed_kph() <= SPEED_MAX_VALID_KPH) ? "1" : "0");
+  Serial.print(gps::speed_usable() ? "1" : "0");
   Serial.print(" active=");
   Serial.print(active_sample ? "1" : "0");
   Serial.print(" range=");

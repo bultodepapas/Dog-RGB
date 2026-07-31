@@ -15,6 +15,7 @@ bool has_fix();
 bool raw_fix();
 bool trusted_fix();
 bool has_current_fix();
+bool speed_usable();
 float last_speed_kph();
 float total_distance_m();
 float max_speed_kph();
