@@ -49,6 +49,7 @@ The active firmware project is in [Platformio/Dog-RGB](Platformio/Dog-RGB) with:
 - NMEA RMC + GGA parsing (fix, speed, satellites)
 - Distance calculation (Haversine) with spike filtering
 - Active time tracking and speed thresholds
+- GNSS-timestamp active-time accounting that survives buffered loop stalls
 - Daily reset using GPS date
 - Max/avg speed metrics
 - NVS persistence for metrics + runtime config

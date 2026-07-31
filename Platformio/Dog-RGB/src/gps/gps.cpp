@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
+#include <limits.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -60,6 +61,13 @@ unsigned long active_time_ms_val = 0;
 float total_distance_m_val = 0.0f;
 float max_speed_kph_val = 0.0f;
 uint16_t last_update_min_val = 0;
+bool has_activity_observation = false;
+bool last_activity_observation_active = false;
+uint32_t last_activity_observation_date = 0;
+uint32_t last_activity_observation_ms = 0;
+uint32_t gps_activity_observation_intervals = 0;
+uint32_t gps_activity_gap_rejects = 0;
+uint32_t gps_last_activity_delta_ms = 0;
 
 // Rolling metrics for the current session (boot -> shutdown).
 unsigned long session_active_time_ms = 0;
@@ -365,7 +373,7 @@ bool parse_nmea_coord(const char *value, char hemi, bool latitude, float *out) {
   return true;
 }
 
-bool parse_time_min(const char *value, uint16_t *out) {
+bool parse_time_of_day_ms(const char *value, uint32_t *out) {
   if (value == nullptr || out == nullptr || strlen(value) < 6) {
     return false;
   }
@@ -377,6 +385,9 @@ bool parse_time_min(const char *value, uint16_t *out) {
   if (value[6] == '\0') {
     // Plain hhmmss is valid.
   } else if (value[6] == '.') {
+    if (value[7] == '\0') {
+      return false;
+    }
     for (size_t i = 7; value[i] != '\0'; ++i) {
       if (value[i] < '0' || value[i] > '9') {
         return false;
@@ -391,12 +402,36 @@ bool parse_time_min(const char *value, uint16_t *out) {
   if (hour > 23 || min > 59 || sec > 59) {
     return false;
   }
-  *out = static_cast<uint16_t>(hour * 60 + min);
+  uint16_t fractional_ms = 0;
+  if (value[6] == '.') {
+    uint16_t scale = 100;
+    for (size_t i = 7; value[i] != '\0' && scale > 0; ++i) {
+      fractional_ms = static_cast<uint16_t>(fractional_ms + ((value[i] - '0') * scale));
+      scale = static_cast<uint16_t>(scale / 10);
+    }
+  }
+  *out = static_cast<uint32_t>(hour) * 3600000UL +
+         static_cast<uint32_t>(min) * 60000UL +
+         static_cast<uint32_t>(sec) * 1000UL +
+         fractional_ms;
   return true;
 }
 
 bool is_leap_year(int year) {
   return ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+}
+
+uint8_t days_in_month(int year, int month) {
+  static const uint8_t days_per_month[12] = {
+    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+  };
+  if (month < 1 || month > 12) {
+    return 0;
+  }
+  if (month == 2 && is_leap_year(year)) {
+    return 29;
+  }
+  return days_per_month[month - 1];
 }
 
 bool parse_date_yyyymmdd(const char *value, uint32_t *out) {
@@ -409,13 +444,7 @@ bool parse_date_yyyymmdd(const char *value, uint32_t *out) {
   if (year < 2020 || mon < 1 || mon > 12) {
     return false;
   }
-  static const uint8_t days_per_month[12] = {
-    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
-  };
-  int max_day = days_per_month[mon - 1];
-  if (mon == 2 && is_leap_year(year)) {
-    max_day = 29;
-  }
+  const int max_day = days_in_month(year, mon);
   if (day < 1 || day > max_day) {
     return false;
   }
@@ -425,11 +454,83 @@ bool parse_date_yyyymmdd(const char *value, uint32_t *out) {
   return true;
 }
 
-void reset_distance_baseline() {
+bool date_is_next_day(uint32_t previous, uint32_t current) {
+  int year = static_cast<int>(previous / 10000UL);
+  int month = static_cast<int>((previous / 100UL) % 100UL);
+  int day = static_cast<int>(previous % 100UL);
+  const uint8_t month_days = days_in_month(year, month);
+  if (month_days == 0 || day < 1 || day > month_days) {
+    return false;
+  }
+  day++;
+  if (day > month_days) {
+    day = 1;
+    month++;
+    if (month > 12) {
+      month = 1;
+      year++;
+    }
+  }
+  const uint32_t expected = static_cast<uint32_t>(year) * 10000UL +
+                            static_cast<uint32_t>(month) * 100UL +
+                            static_cast<uint32_t>(day);
+  return current == expected;
+}
+
+void saturating_add_active_time(unsigned long &value, uint32_t delta_ms) {
+  value = (delta_ms > ULONG_MAX - value) ? ULONG_MAX : value + delta_ms;
+}
+
+void update_active_time_observation(uint32_t date_yyyymmdd,
+                                    uint32_t time_ms_of_day,
+                                    bool active) {
+  if (has_activity_observation) {
+    uint32_t delta_ms = 0;
+    bool ordered = false;
+    bool duplicate = false;
+    if (date_yyyymmdd == last_activity_observation_date) {
+      ordered = time_ms_of_day > last_activity_observation_ms;
+      duplicate = time_ms_of_day == last_activity_observation_ms;
+      if (ordered) {
+        delta_ms = time_ms_of_day - last_activity_observation_ms;
+      }
+    } else if (date_is_next_day(last_activity_observation_date, date_yyyymmdd)) {
+      ordered = true;
+      delta_ms = (86400000UL - last_activity_observation_ms) + time_ms_of_day;
+    }
+
+    if (ordered && delta_ms <= GPS_ACTIVE_MAX_GAP_MS) {
+      gps_activity_observation_intervals++;
+      gps_last_activity_delta_ms = delta_ms;
+      if (last_activity_observation_active && active) {
+        const uint32_t daily_delta_ms =
+            (date_yyyymmdd == last_activity_observation_date) ? delta_ms : time_ms_of_day;
+        saturating_add_active_time(active_time_ms_val, daily_delta_ms);
+        saturating_add_active_time(session_active_time_ms, delta_ms);
+      }
+    } else if (!duplicate) {
+      gps_activity_gap_rejects++;
+      gps_last_activity_delta_ms = 0;
+    }
+  }
+
+  has_activity_observation = true;
+  last_activity_observation_active = active;
+  last_activity_observation_date = date_yyyymmdd;
+  last_activity_observation_ms = time_ms_of_day;
+}
+
+void reset_distance_baseline(bool reset_activity = true) {
   has_last_point_val = false;
   session_has_last_point = false;
   track_current.has_last_point = false;
   last_sample_ms = 0;
+  if (reset_activity) {
+    has_activity_observation = false;
+    last_activity_observation_active = false;
+    last_activity_observation_date = 0;
+    last_activity_observation_ms = 0;
+  }
   gps_last_segment_m = 0.0f;
   gps_last_segment_accepted = false;
   gps_last_segment_reject_reason = "baseline";
@@ -481,7 +582,8 @@ bool parse_rmc(const char *line,
                float *speed_kph,
                bool *valid_fix,
                uint32_t *date_yyyymmdd,
-               uint16_t *time_min) {
+               uint16_t *time_min,
+               uint32_t *time_ms_of_day) {
   if (!is_sentence_type(line, "RMC")) {
     return false;
   }
@@ -516,13 +618,14 @@ bool parse_rmc(const char *line,
   *speed_kph = 0.0f;
   *date_yyyymmdd = 0;
   *time_min = 0;
+  *time_ms_of_day = 0;
 
   if (!*valid_fix) {
     return true;
   }
 
   float knots = 0.0f;
-  if (!parse_time_min(time_buf, time_min) ||
+  if (!parse_time_of_day_ms(time_buf, time_ms_of_day) ||
       !parse_date_yyyymmdd(date_buf, date_yyyymmdd) ||
       !parse_nmea_coord(lat_buf, ns_buf[0], true, lat_deg) ||
       !parse_nmea_coord(lon_buf, ew_buf[0], false, lon_deg) ||
@@ -530,6 +633,7 @@ bool parse_rmc(const char *line,
       knots < 0.0f) {
     return false;
   }
+  *time_min = static_cast<uint16_t>(*time_ms_of_day / 60000UL);
   *speed_kph = knots_to_kph(knots);
   return true;
 }
@@ -1414,6 +1518,7 @@ void handle_nmea_line(const char *line) {
   bool valid_fix = false;
   uint32_t date_yyyymmdd = 0;
   uint16_t time_min = 0;
+  uint32_t time_ms_of_day = 0;
   const unsigned long now_ms = millis();
 
   const bool is_rmc = is_sentence_type(line, "RMC");
@@ -1436,7 +1541,8 @@ void handle_nmea_line(const char *line) {
       gps_gga_parse_fail++;
     }
   }
-  const bool parsed_rmc = parse_rmc(line, &lat_deg, &lon_deg, &speed_kph, &valid_fix, &date_yyyymmdd, &time_min);
+  const bool parsed_rmc = parse_rmc(line, &lat_deg, &lon_deg, &speed_kph, &valid_fix,
+                                    &date_yyyymmdd, &time_min, &time_ms_of_day);
   if (is_rmc && !parsed_rmc) {
     gps_parse_fail++;
     gps_rmc_parse_fail++;
@@ -1509,9 +1615,14 @@ void handle_nmea_line(const char *line) {
         total_distance_m_val = 0.0f;
         active_time_ms_val = 0;
         max_speed_kph_val = 0.0f;
-        reset_distance_baseline();
+        reset_distance_baseline(false);
         save_metrics();
       }
+    }
+
+    const bool active_sample = speed_usable && (speed_kph > SPEED_ACTIVE_KPH);
+    if (speed_usable && date_yyyymmdd != 0) {
+      update_active_time_observation(date_yyyymmdd, time_ms_of_day, active_sample);
     }
 
     if (speed_usable && now_ms - last_sample_ms >= GPS_SAMPLE_MS) {
@@ -1528,7 +1639,6 @@ void handle_nmea_line(const char *line) {
         min_segment_m = cfg.gps_max_min_segment_m;
       }
 
-      const bool active_sample = (speed_kph > SPEED_ACTIVE_KPH);
       if (active_sample) {
         track_try_add_point(lat_deg, lon_deg, time_min, date_yyyymmdd, now_ms);
         if (has_last_point_val) {
@@ -1553,8 +1663,6 @@ void handle_nmea_line(const char *line) {
             session_total_distance_m += segment_m;
           }
         }
-        active_time_ms_val += GPS_SAMPLE_MS;
-        session_active_time_ms += GPS_SAMPLE_MS;
       } else {
         gps_last_segment_m = 0.0f;
         gps_last_segment_accepted = false;
@@ -1785,6 +1893,18 @@ float max_speed_kph() {
 
 unsigned long active_time_ms() {
   return active_time_ms_val;
+}
+
+uint32_t activity_observation_intervals() {
+  return gps_activity_observation_intervals;
+}
+
+uint32_t activity_gap_rejects() {
+  return gps_activity_gap_rejects;
+}
+
+uint32_t last_activity_delta_ms() {
+  return gps_last_activity_delta_ms;
 }
 
 uint32_t current_date() {

@@ -141,6 +141,10 @@ static const uint32_t GPS_BAUD = 9600; // GNSS UART baudrate.
 // synchronous portal is sending a response to a slow Wi-Fi client.
 static const uint16_t GPS_RX_BUFFER_SIZE = 16384;
 static const unsigned long GPS_SAMPLE_MS = 1000; // Sampling interval.
+// Only bridge active-time observations this far apart. Buffered 1 Hz RMC
+// sentences remain individually countable after a loop stall; a lone fix
+// after a longer outage cannot invent activity for the unobserved gap.
+static const uint32_t GPS_ACTIVE_MAX_GAP_MS = 3000;
 // GPS quality gating defaults and bounds.
 static const uint8_t GPS_MIN_FIX_QUALITY_DEFAULT = 1;
 static const uint8_t GPS_MIN_FIX_QUALITY_MIN = 0;

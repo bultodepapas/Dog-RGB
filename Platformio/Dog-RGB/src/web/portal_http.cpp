@@ -347,6 +347,9 @@ void handle_dev_get() {
   gps["rmc_valid"] = gps::rmc_valid();
   gps["gga_seen"] = gps::gga_seen();
   gps["overflow"] = gps::overflow();
+  gps["activity_observation_intervals"] = gps::activity_observation_intervals();
+  gps["activity_gap_rejects"] = gps::activity_gap_rejects();
+  gps["last_activity_delta_ms"] = gps::last_activity_delta_ms();
   const long age_last_byte = (gps::last_byte_ms() > 0 && now_ms >= gps::last_byte_ms())
                                  ? static_cast<long>(now_ms - gps::last_byte_ms())
                                  : -1;

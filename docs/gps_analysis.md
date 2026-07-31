@@ -40,34 +40,20 @@ Se ha realizado una auditoría técnica profunda del código firmware (`main.cpp
 
 ## 4. Hallazgo Específico: Filtro de Micromovimientos
 
-Se detectó una inconsistencia menor en cómo se aplica el filtro de "actividad" (0.7 km/h):
+El firmware actual aplica de forma consistente el filtro de "actividad" (0.7 km/h):
 
-1.  **Tiempo Activo (`active_time_ms`):** ✅ **SE FILTRA.** Solo cuenta si `speed > 0.7 km/h`.
-2.  **Distancia Total (`total_distance_m`):** ⚠️ **NO SE FILTRA.** Actualmente suma cualquier desplazamiento detectado (incluso ruido de 0.5m) aunque la velocidad sea casi nula.
+1.  **Tiempo Activo (`active_time_ms`):** solo suma un intervalo si las observaciones GNSS confiables de ambos extremos superan `SPEED_ACTIVE_KPH`.
+2.  **Distancia Total (`total_distance_m`):** solo evalúa segmentos dentro de una muestra activa y además aplica el umbral dinámico basado en HDOP.
+3.  **Bloqueos del loop:** el tiempo usa la marca UTC de cada RMC, no la hora en que el loop procesa la sentencia. Una cola de sentencias conservada durante un bloqueo mantiene sus intervalos reales.
 
-**Impacto:** Si el collar se deja quieto sobre una mesa al aire libre, la "deriva" natural del GPS (saltos de 1-2 metros alrededor del punto real) se irá sumando, creando "distancia fantasma" (e.g., 100 metros recorridos estando quieto en una hora).
+Un intervalo aislado de más de tres segundos se rechaza porque no existe evidencia suficiente para afirmar que el perro estuvo activo durante todo el hueco. La siguiente observación establece una nueva línea base.
 
-### Recomendación de Mejora (Quick Win)
-Mover la lógica de suma de distancia dentro del condicional de velocidad mínima o aplicar la misma condición.
+Si un intervalo cruza medianoche, la sesión recibe el intervalo completo y el contador diario nuevo recibe únicamente la fracción posterior a las 00:00. Ambos contadores saturan en su máximo representable en vez de desbordarse.
 
-**Código Actual:**
+**Comportamiento actual simplificado:**
 ```cpp
-// Calcula distancia siempre
-if (segment_m < 50.0f) {
-  total_distance_m += segment_m;
-}
-// Solo cuenta tiempo si se mueve rápido
-if (speed_kph > SPEED_ACTIVE_KPH) { ... }
-```
-
-**Código Sugerido:**
-```cpp
-// Solo calcula distancia SI se supera la velocidad umbral
-if (speed_kph > SPEED_ACTIVE_KPH) {
-    if (segment_m < 50.0f) {
-      total_distance_m += segment_m;
-    }
-    active_time_ms += GPS_SAMPLE_MS;
+if (previous_active && current_active && delta_ms <= GPS_ACTIVE_MAX_GAP_MS) {
+    active_time_ms += delta_ms;
 }
 ```
 
