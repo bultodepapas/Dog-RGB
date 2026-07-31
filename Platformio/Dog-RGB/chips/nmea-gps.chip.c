@@ -216,7 +216,9 @@ void chip_init() {
   chip->year = 26U;
 
   const uart_config_t uart_config = {
-      .tx = pin_init("TX", OUTPUT),
+      // Wokwi's UART peripheral owns the line. INPUT_PULLUP gives the UART
+      // model an idle-high pin without the custom chip GPIO driver fighting it.
+      .tx = pin_init("TX", INPUT_PULLUP),
       .rx = NO_PIN,
       .baud_rate = 9600,
       .rx_data = NULL,
