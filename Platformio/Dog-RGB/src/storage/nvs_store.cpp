@@ -10,7 +10,15 @@ Preferences prefs_trk_instance;
 void begin() {
   prefs_instance.begin("dogrgb", false);
   prefs_cfg_instance.begin("dogrgb_cfg", false);
-  prefs_trk_instance.begin("dogrgb_trk", false);
+  if (!prefs_instance.getBool("trk_part", false)) {
+    Preferences legacy_track;
+    if (legacy_track.begin("dogrgb_trk", false)) {
+      legacy_track.clear();
+      legacy_track.end();
+    }
+    prefs_instance.putBool("trk_part", true);
+  }
+  prefs_trk_instance.begin("dogrgb_trk", false, "tracknvs");
 }
 
 Preferences &prefs() {

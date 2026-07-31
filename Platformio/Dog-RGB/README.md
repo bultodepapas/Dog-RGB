@@ -71,3 +71,7 @@ python -m unittest test.test_day_mode_static -v
 ## Notas De Persistencia
 
 La configuracion runtime se guarda en NVS mediante `Preferences`. La version actual de configuracion es `5`; la migracion desde versiones anteriores conserva modos, rangos, efectos, Wi-Fi y GPS, y deja Modo DIA desactivado por defecto.
+
+El historial de ruta usa la particion NVS dedicada `tracknvs` (192 KiB). Conserva las ultimas 2 horas (1.440 puntos a intervalos de 5 s) y reescribe el chunk parcial cada 15 s para limitar la perdida ante un reinicio. La primera carga del esquema de particiones dedicado inicia un historial de ruta nuevo; la configuracion y las credenciales permanecen en la particion NVS principal.
+
+Para instalar esta version usa el upload completo de PlatformIO (`pio run -e seeed_xiao_esp32s3 -t upload`) para grabar tambien `partitions_dog_rgb.csv`; copiar solamente `firmware.bin` no instala la nueva particion de historial.

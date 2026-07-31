@@ -7,7 +7,7 @@ not yet have a PlatformIO C++ unit-test harness.
 Run:
 
 ```powershell
-python -m unittest test.test_day_mode_static -v
+python -m unittest discover -s test -p "test_*.py" -v
 ```
 
 `test_day_mode_static.py` protects the Modo DIA contract:
@@ -19,3 +19,8 @@ python -m unittest test.test_day_mode_static -v
 
 PlatformIO Test Runner can still be added later for MCU-level or native C++
 tests.
+
+`test_track_retention.py` simulates continuous five-second sampling through
+multiple ring wraps and verifies that the newest 1,440 points remain visible.
+It also guards the firmware's extra staging chunk and partial-chunk rewrite
+contract.

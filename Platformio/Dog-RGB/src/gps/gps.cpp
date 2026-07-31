@@ -112,8 +112,13 @@ static const uint32_t TRACK_WINDOW_MS = 2UL * 60UL * 60UL * 1000UL; // 2h
 static const uint16_t TRACK_MAX_POINTS = static_cast<uint16_t>(TRACK_WINDOW_MS / TRACK_SAMPLE_MS);
 static const uint8_t TRACK_CHUNK_POINTS = 48;
 static const uint32_t TRACK_FLUSH_MS = 15000;
-static const uint8_t TRACK_MAX_CHUNKS =
+static const uint8_t TRACK_DATA_CHUNKS =
     static_cast<uint8_t>((TRACK_MAX_POINTS + TRACK_CHUNK_POINTS - 1) / TRACK_CHUNK_POINTS);
+// One extra chunk keeps the current partial chunk durable without evicting
+// any of the two-hour data window. Iteration trims the oldest excess points.
+static const uint8_t TRACK_MAX_CHUNKS = static_cast<uint8_t>(TRACK_DATA_CHUNKS + 1);
+static const uint16_t TRACK_STORAGE_POINTS =
+    static_cast<uint16_t>(TRACK_MAX_CHUNKS * TRACK_CHUNK_POINTS);
 
 struct TrackChunkHeader {
   uint8_t count;
@@ -147,6 +152,7 @@ static_assert(sizeof(TrackMeta) == 39, "TrackMeta size");
 struct TrackSession {
   TrackPoint flush_buf[TRACK_CHUNK_POINTS];
   uint8_t flush_count;
+  uint8_t persisted_flush_count;
   unsigned long last_flush_ms;
   unsigned long last_sample_ms;
   uint16_t persisted_points;
@@ -865,6 +871,7 @@ void track_reset_ram() {
   memset(&track_current, 0, sizeof(track_current));
   track_current.last_flush_ms = 0;
   track_current.last_sample_ms = 0;
+  track_current.persisted_flush_count = 0;
   track_current.persisted_points = 0;
   track_current.chunk_head = 0;
   track_current.chunk_count = 0;
@@ -926,6 +933,9 @@ void track_flush_if_due(unsigned long now_ms) {
   if (track_current.flush_count == 0) {
     return;
   }
+  if (track_current.flush_count <= track_current.persisted_flush_count) {
+    return;
+  }
   const bool due_time = (now_ms - track_current.last_flush_ms) >= TRACK_FLUSH_MS;
   const bool full = (track_current.flush_count >= TRACK_CHUNK_POINTS);
   if (!due_time && !full) {
@@ -934,13 +944,21 @@ void track_flush_if_due(unsigned long now_ms) {
 
   Preferences &prefs = storage::prefs_trk();
   uint8_t write_idx = 0;
-  if (track_current.chunk_count < TRACK_MAX_CHUNKS) {
-    write_idx = static_cast<uint8_t>((track_current.chunk_head + track_current.chunk_count) % TRACK_MAX_CHUNKS);
-    track_current.chunk_count++;
+  uint8_t next_chunk_head = track_current.chunk_head;
+  uint8_t next_chunk_count = track_current.chunk_count;
+  bool overwrote_oldest = false;
+  const bool rewrite_active = (track_current.persisted_flush_count > 0 && track_current.chunk_count > 0);
+  if (rewrite_active) {
+    write_idx = static_cast<uint8_t>(
+        (track_current.chunk_head + track_current.chunk_count - 1) % TRACK_MAX_CHUNKS);
+  } else if (track_current.chunk_count < TRACK_MAX_CHUNKS) {
+    write_idx = static_cast<uint8_t>(
+        (track_current.chunk_head + track_current.chunk_count) % TRACK_MAX_CHUNKS);
+    next_chunk_count++;
   } else {
     write_idx = track_current.chunk_head;
-    track_current.chunk_head = static_cast<uint8_t>((track_current.chunk_head + 1) % TRACK_MAX_CHUNKS);
-    track_current.bbox_dirty = true;
+    next_chunk_head = static_cast<uint8_t>((track_current.chunk_head + 1) % TRACK_MAX_CHUNKS);
+    overwrote_oldest = true;
   }
 
   TrackChunkHeader hdr = {};
@@ -956,11 +974,26 @@ void track_flush_if_due(unsigned long now_ms) {
 
   char key[6];
   track_key_chunk(key, track_slot, write_idx);
-  prefs.putBytes(key, blob, blob_len);
+  if (prefs.putBytes(key, blob, blob_len) != blob_len) {
+    return;
+  }
 
-  if (track_current.persisted_points < TRACK_MAX_POINTS) {
-    uint16_t next_total = static_cast<uint16_t>(track_current.persisted_points + track_current.flush_count);
-    track_current.persisted_points = (next_total > TRACK_MAX_POINTS) ? TRACK_MAX_POINTS : next_total;
+  uint16_t next_persisted_points = track_current.persisted_points;
+  if (overwrote_oldest) {
+    next_persisted_points = (next_persisted_points >= TRACK_CHUNK_POINTS)
+                                ? static_cast<uint16_t>(next_persisted_points - TRACK_CHUNK_POINTS)
+                                : 0;
+  }
+  const uint8_t added_points = static_cast<uint8_t>(
+      track_current.flush_count - track_current.persisted_flush_count);
+  const uint32_t next_total = static_cast<uint32_t>(next_persisted_points) + added_points;
+  track_current.persisted_points = static_cast<uint16_t>(
+      (next_total > TRACK_STORAGE_POINTS) ? TRACK_STORAGE_POINTS : next_total);
+  track_current.chunk_head = next_chunk_head;
+  track_current.chunk_count = next_chunk_count;
+  track_current.persisted_flush_count = track_current.flush_count;
+  if (overwrote_oldest) {
+    track_current.bbox_dirty = true;
   }
 
   TrackMeta meta = track_load_meta(prefs, track_slot);
@@ -987,7 +1020,10 @@ void track_flush_if_due(unsigned long now_ms) {
   meta.end_min = track_current.end_min;
   track_save_meta(prefs, track_slot, meta);
 
-  track_current.flush_count = 0;
+  if (full) {
+    track_current.flush_count = 0;
+    track_current.persisted_flush_count = 0;
+  }
   track_current.last_flush_ms = now_ms;
 }
 
@@ -1071,8 +1107,15 @@ bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb 
   }
   const bool current = (slot == track_slot);
   const uint16_t persisted = meta.total_points;
-  const uint16_t flush_count = current ? track_current.flush_count : 0;
-  uint32_t total = static_cast<uint32_t>(persisted) + static_cast<uint32_t>(flush_count);
+  const uint8_t unpersisted_start = current
+                                        ? ((track_current.persisted_flush_count <= track_current.flush_count)
+                                               ? track_current.persisted_flush_count
+                                               : 0)
+                                        : 0;
+  const uint16_t unpersisted_count = current
+                                         ? static_cast<uint16_t>(track_current.flush_count - unpersisted_start)
+                                         : 0;
+  uint32_t total = static_cast<uint32_t>(persisted) + static_cast<uint32_t>(unpersisted_count);
   if (total == 0) {
     return false;
   }
@@ -1080,8 +1123,8 @@ bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb 
     total = TRACK_MAX_POINTS;
   }
   uint16_t skip_oldest = 0;
-  if (persisted + flush_count > TRACK_MAX_POINTS) {
-    skip_oldest = static_cast<uint16_t>((persisted + flush_count) - TRACK_MAX_POINTS);
+  if (persisted + unpersisted_count > TRACK_MAX_POINTS) {
+    skip_oldest = static_cast<uint16_t>((persisted + unpersisted_count) - TRACK_MAX_POINTS);
   }
   uint16_t stride = 1;
   if (max_points > 0 && total > max_points) {
@@ -1123,7 +1166,7 @@ bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb 
   }
 
   if (current) {
-    for (uint8_t p = 0; p < track_current.flush_count; ++p) {
+    for (uint8_t p = unpersisted_start; p < track_current.flush_count; ++p) {
       if (skip_oldest > 0) {
         skip_oldest--;
         continue;
@@ -1507,8 +1550,15 @@ bool track_get_view(int session_id, TrackView &out) {
     return false;
   }
   const uint16_t persisted = meta.total_points;
-  const uint16_t flush_count = (current ? track_current.flush_count : 0);
-  uint32_t total = static_cast<uint32_t>(persisted) + static_cast<uint32_t>(flush_count);
+  const uint8_t unpersisted_start = current
+                                        ? ((track_current.persisted_flush_count <= track_current.flush_count)
+                                               ? track_current.persisted_flush_count
+                                               : 0)
+                                        : 0;
+  const uint16_t unpersisted_count = current
+                                         ? static_cast<uint16_t>(track_current.flush_count - unpersisted_start)
+                                         : 0;
+  uint32_t total = static_cast<uint32_t>(persisted) + static_cast<uint32_t>(unpersisted_count);
   if (total == 0) {
     return false;
   }
