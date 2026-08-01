@@ -2,8 +2,11 @@ import { spawnSync } from 'node:child_process';
 import { createReadStream, existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { createServer } from 'node:http';
+import { fileURLToPath } from 'node:url';
 
-const root = resolve(new URL('../..', import.meta.url).pathname);
+// URL.pathname produces paths such as /C:/... on Windows. Convert the file
+// URL with Node's platform-aware helper before passing it to path.resolve().
+const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const outDir = join(root, '.ap-portal-preview');
 const args = process.argv.slice(2);
 const portFlag = args.indexOf('--port');

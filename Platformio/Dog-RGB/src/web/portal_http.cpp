@@ -223,7 +223,7 @@ void handle_summary() {
 
 void handle_status_get() {
   note_activity();
-  StaticJsonDocument<1536> doc;
+  JsonDocument doc;
   const RuntimeConfig &cfg = config::get();
   doc["mode"] = config::mode_name(cfg.mode);
   JsonObject wifi = doc["wifi"].to<JsonObject>();
@@ -268,7 +268,7 @@ void handle_status_get() {
 
 void handle_dev_get() {
   note_activity();
-  StaticJsonDocument<7424> doc;
+  JsonDocument doc;
   const RuntimeConfig &cfg = config::get();
   const unsigned long now_ms = millis();
 
@@ -627,7 +627,7 @@ void handle_mode_post() {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
   }
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   const DeserializationError err = deserializeJson(doc, server.arg("plain"));
   if (err) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
@@ -653,7 +653,7 @@ void handle_mode_post() {
 
 void handle_config_get() {
   note_activity();
-  StaticJsonDocument<5120> doc;
+  JsonDocument doc;
   const RuntimeConfig &cfg = config::get();
   doc["version"] = config::version();
   doc["mode"] = config::mode_name(cfg.mode);
@@ -707,7 +707,7 @@ void handle_config_post() {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
   }
-  StaticJsonDocument<5120> doc;
+  JsonDocument doc;
   const DeserializationError err = deserializeJson(doc, server.arg("plain"));
   if (err) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
@@ -722,7 +722,7 @@ void handle_config_post() {
   }
   next.brightness = static_cast<uint8_t>(brightness);
 
-  if (doc.containsKey("mode")) {
+  if (!doc["mode"].isNull()) {
     const char *mode_str = doc["mode"];
     uint8_t parsed_mode = next.mode;
     if (!config::parse_mode(mode_str, parsed_mode)) {
@@ -732,7 +732,7 @@ void handle_config_post() {
     next.mode = parsed_mode;
   }
 
-  if (doc.containsKey("fence_max_m")) {
+  if (!doc["fence_max_m"].isNull()) {
     const int fence_max = doc["fence_max_m"] | static_cast<int>(next.fence_max_m);
     if (fence_max < GEOFENCE_MAX_M_MIN || fence_max > GEOFENCE_MAX_M_MAX) {
       server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"fence_max\"}");
@@ -741,7 +741,7 @@ void handle_config_post() {
     next.fence_max_m = static_cast<uint16_t>(fence_max);
   }
 
-  if (doc.containsKey("day_mode")) {
+  if (!doc["day_mode"].isNull()) {
     JsonObject day_cfg = doc["day_mode"].as<JsonObject>();
     if (day_cfg.isNull()) {
       server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"day_mode\"}");
@@ -754,7 +754,7 @@ void handle_config_post() {
     next.day_mode_enabled = day_cfg["enabled"].as<bool>();
   }
 
-  if (doc.containsKey("gps")) {
+  if (!doc["gps"].isNull()) {
     JsonObject gps_cfg = doc["gps"].as<JsonObject>();
     if (gps_cfg.isNull()) {
       server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"gps\"}");
@@ -830,7 +830,7 @@ void handle_config_post() {
     return;
   }
 
-  if (doc.containsKey("single")) {
+  if (!doc["single"].isNull()) {
     JsonObject single = doc["single"].as<JsonObject>();
     if (single.isNull()) {
       server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"single\"}");
@@ -929,7 +929,7 @@ void handle_wifi_ap_save() {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
   }
-  StaticJsonDocument<512> doc;
+  JsonDocument doc;
   const DeserializationError err = deserializeJson(doc, server.arg("plain"));
   if (err) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
@@ -988,7 +988,7 @@ void handle_config_page() {
 
 void handle_home_get() {
   note_activity();
-  StaticJsonDocument<512> doc;
+  JsonDocument doc;
   doc["home_set"] = geofence::is_set();
   doc["home_source"] = geofence::source_name(geofence::source());
   doc["home_lat"] = geofence::is_set() ? geofence::home_lat() : 0.0f;

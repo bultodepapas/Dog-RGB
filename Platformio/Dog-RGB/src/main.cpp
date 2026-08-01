@@ -285,6 +285,11 @@ static const char *gps_fix_reason(unsigned long now_ms) {
 
 static void emit_periodic_logs(unsigned long now_ms) {
   PeriodicLogWriter periodic_log(serial_log_queue);
+// Arduino-ESP32 3.x defines Serial as a macro (HWCDCSerial on this board),
+// while 2.x exposed it as a regular object. Preserve and restore either form
+// when redirecting only this function's verbose diagnostics to the queue.
+#pragma push_macro("Serial")
+#undef Serial
 #define Serial periodic_log
   static uint8_t next_detail_slot = 0;
   static bool wifi_diag_pending = false;
@@ -669,6 +674,7 @@ static void emit_periodic_logs(unsigned long now_ms) {
     Serial.println(wd.channel_query_max_us);
   }
 #undef Serial
+#pragma pop_macro("Serial")
 }
 
 void setup() {

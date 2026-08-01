@@ -71,6 +71,38 @@ function Invoke-Native {
   }
 }
 
+function Invoke-WokwiScenario {
+  param(
+    [string]$Executable,
+    [string[]]$Arguments,
+    [string]$Description,
+    [ValidateRange(1, 3)]
+    [int]$MaxAttempts = 3
+  )
+
+  for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+    Write-Host "==> $Description (attempt $attempt/$MaxAttempts)"
+    $attemptOutput = @()
+    & $Executable @Arguments 2>&1 | Tee-Object -Variable attemptOutput
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -eq 0) {
+      return
+    }
+
+    $outputText = ($attemptOutput | Out-String)
+    $transientTransportFailure =
+      $outputText -match 'Connection to transport closed unexpectedly' -or
+      $outputText -match 'API Error:.*code 1006'
+    if (-not $transientTransportFailure -or $attempt -eq $MaxAttempts) {
+      throw "$Description failed with exit code $exitCode."
+    }
+
+    $delaySeconds = 2 * $attempt
+    Write-Warning "Wokwi transport closed transiently; retrying in $delaySeconds seconds."
+    Start-Sleep -Seconds $delaySeconds
+  }
+}
+
 $pio = Resolve-Executable `
   -CommandName 'pio' `
   -Candidates @((Join-Path $env:USERPROFILE '.platformio\penv\Scripts\pio.exe')) `
@@ -133,7 +165,7 @@ function Invoke-Scenario {
       '--input', 'diagram.json', '--output', $diagramFile
     ) `
     -Description "Generate $effectiveCaptureProfile instrumentation diagram"
-  Invoke-Native -Executable $wokwiCli `
+  Invoke-WokwiScenario -Executable $wokwiCli `
     -Arguments @(
       '.', '--scenario', $ScenarioPath,
       '--timeout', "$ScenarioTimeoutMs", '--timeout-exit-code', '1',

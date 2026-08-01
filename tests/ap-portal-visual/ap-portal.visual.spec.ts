@@ -240,8 +240,7 @@ test.describe('AP portal mobile screenshots', () => {
   test('config validation errors', async ({ page }) => {
     await mockPortalApis(page);
     await page.goto('/config');
-    await page.locator('summary').filter({ hasText: 'Umbrales de velocidad' }).click();
-    await page.locator('#r2').fill('1');
+    await page.locator('#ln2_thr').fill('1');
     await page.getByRole('button', { name: 'Guardar cambios' }).first().click();
     await expect(page.getByText('Rangos deben ser ascendentes.')).toBeVisible();
     await capture(page, 'config-validation-errors.png');
