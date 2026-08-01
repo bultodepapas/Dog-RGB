@@ -1,0 +1,37 @@
+name: "Dog-RGB transactional session recovery across reboots"
+version: 1
+author: "Dog-RGB"
+steps:
+  - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
+  - wait-serial: "[SIM_CTRL] ready"
+  - write-serial: "sim leds off\n"
+  - wait-serial: "[SIM_CTRL] ok command=leds transport=off"
+  - delay: 3000ms
+  - wait-serial: "[GPS_FIX] raw=1 trusted=1 current=1 reason=ok"
+  - write-serial: "sim status\n"
+  - wait-serial: "session_hist=0 session_slot="
+  - wait-serial: "session_save_failures=0 session_recoveries=0"
+
+  # Closing the open session and opening its successor are one A/B commit.
+  - write-serial: "sim reboot\n"
+  - wait-serial: "[SIM_CTRL] ok command=reboot"
+  - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
+  - wait-serial: "[SIM_CTRL] ready"
+  - write-serial: "sim leds off\n"
+  - wait-serial: "[SIM_CTRL] ok command=leds transport=off"
+  - write-serial: "sim status\n"
+  - wait-serial: "session_hist=1 session_slot="
+  - wait-serial: "session_save_failures=0 session_recoveries=1"
+
+  # A second reboot must append exactly one more session, not duplicate the
+  # first recovered entry or clear the ring.
+  - delay: 2500ms
+  - write-serial: "sim reboot\n"
+  - wait-serial: "[SIM_CTRL] ok command=reboot"
+  - wait-serial: "Dog-RGB ESP32-S3 GPS-first base firmware"
+  - wait-serial: "[SIM_CTRL] ready"
+  - write-serial: "sim leds off\n"
+  - wait-serial: "[SIM_CTRL] ok command=leds transport=off"
+  - write-serial: "sim status\n"
+  - wait-serial: "session_hist=2 session_slot="
+  - wait-serial: "session_save_failures=0 session_recoveries=1"

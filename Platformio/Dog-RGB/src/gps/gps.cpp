@@ -160,6 +160,10 @@ static const uint8_t SESSION_FLAG_HAS_DATA = 0x02;
 static const uint8_t SESSION_FLAG_IN_PROGRESS = 0x04;
 static const uint8_t SESSION_FLAG_NO_FIX = 0x08;
 static const uint8_t HISTORY_MAX = 3;
+static const uint32_t SESSION_STORE_MAGIC = 0x31534553UL; // "SES1"
+static const uint8_t SESSION_STORE_VERSION = 1;
+static const uint8_t SESSION_STORE_FLAG_OPEN = 0x01;
+static const uint8_t SESSION_STORE_MIGRATION_VERSION = 1;
 
 struct SessionSummary {
   uint8_t ver;
@@ -178,11 +182,37 @@ struct SessionSummary {
 
 static_assert(sizeof(SessionSummary) == 28, "SessionSummary size");
 
+struct SessionStoreRecord {
+  uint32_t magic;
+  uint8_t version;
+  uint8_t flags;
+  uint16_t size;
+  uint32_t generation;
+  uint8_t history_count;
+  uint8_t history_idx;
+  uint16_t reserved;
+  SessionSummary history[HISTORY_MAX];
+  SessionSummary current;
+  uint32_t crc32;
+} __attribute__((packed));
+
+static_assert(sizeof(SessionStoreRecord) == 132, "SessionStoreRecord size");
+
 SessionSummary history[HISTORY_MAX];
 uint8_t history_count = 0;
 uint8_t history_idx = 0;
 SessionSummary session_snapshot_last;
 bool session_snapshot_valid = false;
+SessionSummary boot_session_snapshot;
+bool boot_session_open = false;
+int8_t session_store_active_slot = -1;
+uint32_t session_store_generation = 0;
+uint32_t session_store_failures = 0;
+uint32_t session_store_recoveries = 0;
+SessionStoreRecord session_store_persisted = {};
+bool session_store_persisted_valid = false;
+bool session_store_mirror_degraded = true;
+bool session_store_migration_marked = false;
 
 // Track storage (3-session window, 2h max).
 static const uint8_t TRACK_VER = 2;
@@ -1201,10 +1231,6 @@ void session_write_crc(SessionSummary &s) {
   s.crc = session_checksum(s);
 }
 
-bool session_is_valid(const SessionSummary &s) {
-  return s.ver == SESSION_VER && s.crc == session_checksum(s);
-}
-
 void session_zero(SessionSummary &s) {
   memset(&s, 0, sizeof(s));
   s.ver = SESSION_VER;
@@ -1212,36 +1238,99 @@ void session_zero(SessionSummary &s) {
   session_write_crc(s);
 }
 
+bool session_payload_is_zero(const SessionSummary &s) {
+  return s.start_date == 0 && s.start_min == 0 && s.end_date == 0 &&
+         s.end_min == 0 && s.distance_m == 0 && s.active_s == 0 &&
+         s.avg_speed_cmps == 0 && s.max_speed_cmps == 0;
+}
+
+bool session_is_valid(const SessionSummary &s) {
+  const uint8_t known_flags = SESSION_FLAG_GPS_FIX | SESSION_FLAG_HAS_DATA |
+                              SESSION_FLAG_IN_PROGRESS | SESSION_FLAG_NO_FIX;
+  if (s.ver != SESSION_VER || (s.flags & ~known_flags) != 0 || s.pad != 0 ||
+      s.crc != session_checksum(s)) {
+    return false;
+  }
+
+  const bool has_fix = (s.flags & SESSION_FLAG_GPS_FIX) != 0;
+  const bool has_data = (s.flags & SESSION_FLAG_HAS_DATA) != 0;
+  const bool in_progress = (s.flags & SESSION_FLAG_IN_PROGRESS) != 0;
+  const bool no_fix = (s.flags & SESSION_FLAG_NO_FIX) != 0;
+  if (!has_fix) {
+    const bool blank = !has_data && !in_progress && !no_fix;
+    const bool open_empty = !has_data && in_progress && !no_fix;
+    const bool closed_no_fix = !has_data && !in_progress && no_fix;
+    return (blank || open_empty || closed_no_fix) && session_payload_is_zero(s);
+  }
+  if (!has_data || no_fix || !calendar_date_valid(s.start_date) ||
+      !calendar_date_valid(s.end_date) || s.start_min >= 1440 ||
+      s.end_min >= 1440 || s.start_date > s.end_date ||
+      (s.start_date == s.end_date && s.start_min > s.end_min)) {
+    return false;
+  }
+  const uint64_t calculated_avg =
+      s.active_s == 0
+          ? 0
+          : (static_cast<uint64_t>(s.distance_m) * 100ULL) / s.active_s;
+  const uint64_t expected_avg = calculated_avg > 65535ULL
+                                    ? 65535ULL
+                                    : calculated_avg;
+  return s.avg_speed_cmps == static_cast<uint16_t>(expected_avg);
+}
+
+bool session_is_blank(const SessionSummary &s) {
+  return session_is_valid(s) && s.flags == 0 && session_payload_is_zero(s);
+}
+
+bool session_is_history_entry(const SessionSummary &s) {
+  return session_is_valid(s) &&
+         (s.flags & SESSION_FLAG_IN_PROGRESS) == 0 &&
+         (s.flags & (SESSION_FLAG_GPS_FIX | SESSION_FLAG_NO_FIX)) != 0;
+}
+
 SessionSummary build_session_snapshot(bool finalize) {
   SessionSummary s = {};
   s.ver = SESSION_VER;
   s.flags = 0;
-  if (session_fix_seen) {
+  const bool has_data = session_fix_seen && session_start_set &&
+                        calendar_date_valid(session_start_date) &&
+                        calendar_date_valid(session_end_date);
+  if (has_data) {
     s.flags |= SESSION_FLAG_GPS_FIX;
     s.flags |= SESSION_FLAG_HAS_DATA;
   }
   if (session_open) {
     s.flags |= SESSION_FLAG_IN_PROGRESS;
   }
-  if (finalize && !session_fix_seen) {
+  if (finalize && !has_data) {
     s.flags |= SESSION_FLAG_NO_FIX;
   }
-  s.start_date = session_start_date;
-  s.start_min = session_start_min;
-  s.end_date = session_end_date;
-  s.end_min = session_end_min;
-  const uint32_t distance_m = static_cast<uint32_t>(session_total_distance_m + 0.5f);
-  s.distance_m = distance_m;
-  s.active_s = static_cast<uint32_t>(session_active_time_ms / 1000);
-  uint32_t avg_cmps = 0;
-  if (s.active_s > 0) {
-    avg_cmps = (distance_m * 100UL) / s.active_s;
-    if (avg_cmps > 65535) {
-      avg_cmps = 65535;
+  if (has_data) {
+    s.start_date = session_start_date;
+    s.start_min = session_start_min;
+    s.end_date = session_end_date;
+    s.end_min = session_end_min;
+    const uint32_t distance_m = !isfinite(session_total_distance_m) ||
+                                        session_total_distance_m <= 0.0f
+                                    ? 0
+                                    : session_total_distance_m >=
+                                              static_cast<float>(UINT32_MAX)
+                                          ? UINT32_MAX
+                                          : static_cast<uint32_t>(
+                                                session_total_distance_m + 0.5f);
+    s.distance_m = distance_m;
+    s.active_s = static_cast<uint32_t>(session_active_time_ms / 1000);
+    uint32_t avg_cmps = 0;
+    if (s.active_s > 0) {
+      const uint64_t calculated =
+          (static_cast<uint64_t>(distance_m) * 100ULL) / s.active_s;
+      avg_cmps = static_cast<uint32_t>(calculated > 65535ULL
+                                           ? 65535ULL
+                                           : calculated);
     }
+    s.avg_speed_cmps = static_cast<uint16_t>(avg_cmps);
+    s.max_speed_cmps = kph_to_cmps_u16_clamped(session_max_speed_kph);
   }
-  s.avg_speed_cmps = static_cast<uint16_t>(avg_cmps);
-  s.max_speed_cmps = kph_to_cmps_u16_clamped(session_max_speed_kph);
   s.pad = 0;
   session_write_crc(s);
   return s;
@@ -1264,127 +1353,297 @@ void finalize_snapshot(SessionSummary &s) {
   session_write_crc(s);
 }
 
-void history_clear() {
-  Preferences &prefs = storage::prefs();
+void history_clear_ram() {
   history_count = 0;
   history_idx = 0;
   for (uint8_t i = 0; i < HISTORY_MAX; ++i) {
     session_zero(history[i]);
   }
-  prefs.remove("h0");
-  prefs.remove("h1");
-  prefs.remove("h2");
-  prefs.putUChar("h_cnt", 0);
-  prefs.putUChar("h_idx", 0);
-  prefs.putUChar("h_ver", SESSION_VER);
+}
+
+bool history_shape_valid(uint8_t count, uint8_t idx) {
+  return count <= HISTORY_MAX && idx < HISTORY_MAX &&
+         (count == HISTORY_MAX || idx == count);
+}
+
+uint32_t session_store_crc(const SessionStoreRecord &record) {
+  return util::crc32_ieee(&record, offsetof(SessionStoreRecord, crc32));
+}
+
+bool session_store_record_valid(const SessionStoreRecord &record) {
+  if (record.magic != SESSION_STORE_MAGIC ||
+      record.version != SESSION_STORE_VERSION ||
+      (record.flags & ~SESSION_STORE_FLAG_OPEN) != 0 ||
+      record.size != sizeof(SessionStoreRecord) || record.reserved != 0 ||
+      !history_shape_valid(record.history_count, record.history_idx)) {
+    return false;
+  }
+  for (uint8_t i = 0; i < HISTORY_MAX; ++i) {
+    const bool used = record.history_count == HISTORY_MAX ||
+                      i < record.history_count;
+    if ((used && !session_is_history_entry(record.history[i])) ||
+        (!used && !session_is_blank(record.history[i]))) {
+      return false;
+    }
+  }
+  const bool open = (record.flags & SESSION_STORE_FLAG_OPEN) != 0;
+  if ((open && (!session_is_valid(record.current) ||
+                (record.current.flags & SESSION_FLAG_IN_PROGRESS) == 0)) ||
+      (!open && !session_is_blank(record.current))) {
+    return false;
+  }
+  return record.crc32 == session_store_crc(record);
+}
+
+bool session_store_generation_is_newer(uint32_t candidate,
+                                       uint32_t reference) {
+  return candidate != reference &&
+         static_cast<int32_t>(candidate - reference) > 0;
+}
+
+const char *session_store_key(uint8_t slot) {
+  return slot == 0 ? "ses_a" : "ses_b";
+}
+
+bool load_session_store_record(Preferences &prefs, uint8_t slot,
+                               SessionStoreRecord &record) {
+  record = SessionStoreRecord{};
+  const size_t len = prefs.getBytes(session_store_key(slot), &record,
+                                    sizeof(record));
+  return len == sizeof(record) && session_store_record_valid(record);
+}
+
+SessionStoreRecord build_session_store_record(const SessionSummary &current,
+                                               bool open,
+                                               uint32_t generation) {
+  SessionStoreRecord record = {};
+  record.magic = SESSION_STORE_MAGIC;
+  record.version = SESSION_STORE_VERSION;
+  record.flags = open ? SESSION_STORE_FLAG_OPEN : 0;
+  record.size = sizeof(SessionStoreRecord);
+  record.generation = generation;
+  record.history_count = history_count;
+  record.history_idx = history_idx;
+  record.reserved = 0;
+  memcpy(record.history, history, sizeof(history));
+  record.current = current;
+  record.crc32 = session_store_crc(record);
+  return record;
+}
+
+bool session_store_payload_matches(const SessionStoreRecord &record,
+                                   const SessionSummary &current, bool open) {
+  return record.flags == (open ? SESSION_STORE_FLAG_OPEN : 0) &&
+         record.history_count == history_count &&
+         record.history_idx == history_idx &&
+         memcmp(record.history, history, sizeof(history)) == 0 &&
+         memcmp(&record.current, &current, sizeof(current)) == 0;
+}
+
+void apply_session_store_record(const SessionStoreRecord &record,
+                                uint8_t slot) {
+  history_count = record.history_count;
+  history_idx = record.history_idx;
+  memcpy(history, record.history, sizeof(history));
+  boot_session_snapshot = record.current;
+  boot_session_open = (record.flags & SESSION_STORE_FLAG_OPEN) != 0;
+  session_store_active_slot = static_cast<int8_t>(slot);
+  session_store_generation = record.generation;
+  session_store_persisted = record;
+  session_store_persisted_valid = true;
+}
+
+bool write_session_store_record(Preferences &prefs, uint8_t slot,
+                                const SessionStoreRecord &record) {
+  if (prefs.putBytes(session_store_key(slot), &record, sizeof(record)) !=
+      sizeof(record)) {
+    session_store_failures++;
+    return false;
+  }
+  SessionStoreRecord readback = {};
+  if (!load_session_store_record(prefs, slot, readback) ||
+      memcmp(&record, &readback, sizeof(record)) != 0) {
+    session_store_failures++;
+    return false;
+  }
+  return true;
+}
+
+bool mark_session_store_migrated(Preferences &prefs) {
+  if (prefs.getUChar("ses_mig", 0) == SESSION_STORE_MIGRATION_VERSION) {
+    session_store_migration_marked = true;
+    return true;
+  }
+  if (prefs.putUChar("ses_mig", SESSION_STORE_MIGRATION_VERSION) != 1) {
+    session_store_migration_marked = false;
+    session_store_failures++;
+    return false;
+  }
+  session_store_migration_marked = true;
+  return true;
+}
+
+bool save_session_store(const SessionSummary &current, bool open) {
+  const SessionStoreRecord candidate = build_session_store_record(
+      current, open, session_store_generation + 1UL);
+  if (!session_store_record_valid(candidate)) {
+    session_store_failures++;
+    return false;
+  }
+  if (session_store_persisted_valid && !session_store_mirror_degraded &&
+      session_store_migration_marked &&
+      session_store_payload_matches(session_store_persisted, current, open)) {
+    return true;
+  }
+
+  Preferences &prefs = storage::prefs();
+  const int8_t previous_slot = session_store_active_slot;
+  const uint8_t target_slot = previous_slot == 0 ? 1 : 0;
+  if (!write_session_store_record(prefs, target_slot, candidate)) {
+    return false;
+  }
+  session_store_active_slot = static_cast<int8_t>(target_slot);
+  session_store_generation = candidate.generation;
+  session_store_persisted = candidate;
+  session_store_persisted_valid = true;
+  session_store_mirror_degraded = previous_slot < 0;
+  mark_session_store_migrated(prefs);
+  return true;
+}
+
+bool load_legacy_history(Preferences &prefs) {
+  history_clear_ram();
+  if (prefs.getUChar("h_ver", 0) != SESSION_VER) {
+    return false;
+  }
+  const uint8_t count = prefs.getUChar("h_cnt", 0);
+  const uint8_t idx = prefs.getUChar("h_idx", 0);
+  if (!history_shape_valid(count, idx)) {
+    return false;
+  }
+  SessionSummary loaded[HISTORY_MAX] = {};
+  for (uint8_t i = 0; i < HISTORY_MAX; ++i) {
+    session_zero(loaded[i]);
+    if (count != HISTORY_MAX && i >= count) {
+      continue;
+    }
+    const char key[3] = {'h', static_cast<char>('0' + i), '\0'};
+    if (prefs.getBytes(key, &loaded[i], sizeof(SessionSummary)) !=
+            sizeof(SessionSummary) ||
+        !session_is_history_entry(loaded[i])) {
+      history_clear_ram();
+      return false;
+    }
+  }
+  history_count = count;
+  history_idx = idx;
+  memcpy(history, loaded, sizeof(history));
+  return true;
 }
 
 void history_load() {
   Preferences &prefs = storage::prefs();
-  const uint8_t ver = prefs.getUChar("h_ver", 0);
-  history_count = prefs.getUChar("h_cnt", 0);
-  history_idx = prefs.getUChar("h_idx", 0);
-  if (ver != SESSION_VER) {
-    history_clear();
+  SessionStoreRecord records[2] = {};
+  const bool valid_a = load_session_store_record(prefs, 0, records[0]);
+  const bool valid_b = load_session_store_record(prefs, 1, records[1]);
+  if (valid_a || valid_b) {
+    const uint8_t selected = (!valid_a ||
+                              (valid_b && session_store_generation_is_newer(
+                                              records[1].generation,
+                                              records[0].generation)))
+                                 ? 1
+                                 : 0;
+    apply_session_store_record(records[selected], selected);
+    session_store_mirror_degraded = valid_a != valid_b;
+    mark_session_store_migrated(prefs);
     return;
   }
-  if (history_count > HISTORY_MAX) {
-    history_count = HISTORY_MAX;
-  }
-  if (history_count < HISTORY_MAX && history_idx != history_count) {
-    history_clear();
-    return;
-  }
-  if (history_idx >= HISTORY_MAX) {
-    history_clear();
-    return;
-  }
-  bool ok = true;
-  for (uint8_t i = 0; i < HISTORY_MAX; ++i) {
-    const char key[3] = {'h', static_cast<char>('0' + i), '\0'};
-    size_t len = prefs.getBytes(key, &history[i], sizeof(SessionSummary));
-    if (i < history_count) {
-      if (len != sizeof(SessionSummary) || !session_is_valid(history[i])) {
-        ok = false;
-        break;
-      }
-    } else if (len == sizeof(SessionSummary) && !session_is_valid(history[i])) {
-      ok = false;
-      break;
-    }
-  }
-  if (!ok) {
-    history_clear();
-  }
-}
 
-void history_write_slot(uint8_t idx, const SessionSummary &s) {
-  Preferences &prefs = storage::prefs();
-  const char key[3] = {'h', static_cast<char>('0' + idx), '\0'};
-  prefs.putBytes(key, &s, sizeof(SessionSummary));
+  history_clear_ram();
+  session_zero(boot_session_snapshot);
+  boot_session_open = false;
+  session_store_active_slot = -1;
+  session_store_generation = 0;
+  session_store_persisted = SessionStoreRecord{};
+  session_store_persisted_valid = false;
+  session_store_mirror_degraded = true;
+  if (prefs.getUChar("ses_mig", 0) == SESSION_STORE_MIGRATION_VERSION) {
+    session_store_migration_marked = true;
+    return;
+  }
+  session_store_migration_marked = false;
+
+  load_legacy_history(prefs);
+  if (prefs.getUChar("s_open", 0) == 1) {
+    SessionSummary legacy_current = {};
+    const size_t len = prefs.getBytes("s_cur", &legacy_current,
+                                      sizeof(legacy_current));
+    if (len == sizeof(legacy_current) && session_is_valid(legacy_current) &&
+        (legacy_current.flags & SESSION_FLAG_IN_PROGRESS) != 0) {
+      boot_session_snapshot = legacy_current;
+    } else {
+      session_zero(boot_session_snapshot);
+      boot_session_snapshot.flags |= SESSION_FLAG_IN_PROGRESS;
+      session_write_crc(boot_session_snapshot);
+    }
+    boot_session_open = true;
+  }
+
+  const SessionStoreRecord first = build_session_store_record(
+      boot_session_snapshot, boot_session_open, 0);
+  const bool wrote_a = write_session_store_record(prefs, 0, first);
+  const SessionStoreRecord second = build_session_store_record(
+      boot_session_snapshot, boot_session_open, 1);
+  const bool wrote_b = write_session_store_record(prefs, 1, second);
+  if (wrote_b) {
+    apply_session_store_record(second, 1);
+  } else if (wrote_a) {
+    apply_session_store_record(first, 0);
+  }
+  session_store_mirror_degraded = !(wrote_a && wrote_b);
+  if (wrote_a || wrote_b) {
+    mark_session_store_migrated(prefs);
+  }
 }
 
 void history_push(SessionSummary s) {
-  Preferences &prefs = storage::prefs();
-  if (!session_is_valid(s)) {
-    session_write_crc(s);
+  if (!session_is_history_entry(s)) {
+    return;
   }
   history[history_idx] = s;
-  history_write_slot(history_idx, s);
   history_idx = static_cast<uint8_t>((history_idx + 1) % HISTORY_MAX);
   if (history_count < HISTORY_MAX) {
     history_count++;
   }
-  prefs.putUChar("h_cnt", history_count);
-  prefs.putUChar("h_idx", history_idx);
-  prefs.putUChar("h_ver", SESSION_VER);
-}
-
-bool load_session_snapshot(SessionSummary &out) {
-  Preferences &prefs = storage::prefs();
-  size_t len = prefs.getBytes("s_cur", &out, sizeof(SessionSummary));
-  if (len != sizeof(SessionSummary)) {
-    return false;
-  }
-  return session_is_valid(out);
 }
 
 void save_session_snapshot_if_needed() {
   if (!session_open) {
     return;
   }
-  Preferences &prefs = storage::prefs();
   SessionSummary snap = build_session_snapshot(false);
-  if (!session_snapshot_valid || memcmp(&snap, &session_snapshot_last, sizeof(SessionSummary)) != 0) {
-    prefs.putBytes("s_cur", &snap, sizeof(SessionSummary));
-    prefs.putUChar("s_open", 1);
+  if ((!session_snapshot_valid ||
+       memcmp(&snap, &session_snapshot_last, sizeof(SessionSummary)) != 0 ||
+       session_store_mirror_degraded || !session_store_migration_marked) &&
+      save_session_store(snap, true)) {
     session_snapshot_last = snap;
     session_snapshot_valid = true;
   }
 }
 
 void session_close_previous_on_boot() {
-  Preferences &prefs = storage::prefs();
-  const uint8_t open = prefs.getUChar("s_open", 0);
-  if (open != 1) {
+  if (!boot_session_open) {
     return;
   }
-  SessionSummary prev = {};
-  if (load_session_snapshot(prev)) {
-    finalize_snapshot(prev);
-    history_push(prev);
-  } else {
-    SessionSummary empty = {};
-    session_zero(empty);
-    empty.flags |= SESSION_FLAG_NO_FIX;
-    session_write_crc(empty);
-    history_push(empty);
-  }
-  prefs.putUChar("s_open", 0);
+  SessionSummary previous = boot_session_snapshot;
+  finalize_snapshot(previous);
+  history_push(previous);
+  session_store_recoveries++;
+  session_zero(boot_session_snapshot);
+  boot_session_open = false;
 }
 
 void session_begin() {
-  Preferences &prefs = storage::prefs();
   session_open = true;
   session_fix_seen = false;
   session_start_set = false;
@@ -1399,10 +1658,11 @@ void session_begin() {
   session_last_lat_deg = 0.0f;
   session_last_lon_deg = 0.0f;
   SessionSummary snap = build_session_snapshot(false);
-  prefs.putBytes("s_cur", &snap, sizeof(SessionSummary));
-  prefs.putUChar("s_open", 1);
-  session_snapshot_last = snap;
-  session_snapshot_valid = true;
+  session_snapshot_valid = false;
+  if (save_session_store(snap, true)) {
+    session_snapshot_last = snap;
+    session_snapshot_valid = true;
+  }
 }
 
 uint32_t track_meta_crc(const TrackMeta &m) {
@@ -2463,6 +2723,26 @@ uint32_t metrics_storage_save_failures() {
 
 uint32_t metrics_storage_recoveries() {
   return metrics_recoveries;
+}
+
+int8_t session_storage_slot() {
+  return session_store_active_slot;
+}
+
+uint32_t session_storage_generation() {
+  return session_store_generation;
+}
+
+uint32_t session_storage_save_failures() {
+  return session_store_failures;
+}
+
+uint32_t session_storage_recoveries() {
+  return session_store_recoveries;
+}
+
+uint8_t session_history_count() {
+  return history_count;
 }
 
 int8_t daily_journal_slot() {

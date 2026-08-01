@@ -157,6 +157,9 @@ fisico.
 # Modos, geofence, dia y persistencia
 .\tools\wokwi.ps1 -Action test -Scenario wokwi/modes.test.yaml -TimeoutMs 90000
 
+# Sesiones transaccionales: historial exacto tras dos reinicios
+.\tools\wokwi.ps1 -Action test -Scenario wokwi/session-persistence.test.yaml -TimeoutMs 45000
+
 # Calidad basica y recuperacion
 .\tools\wokwi.ps1 -Action test -Scenario wokwi/gps-profiles.test.yaml -TimeoutMs 60000
 

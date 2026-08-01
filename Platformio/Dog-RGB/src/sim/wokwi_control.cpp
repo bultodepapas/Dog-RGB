@@ -23,7 +23,17 @@ void print_storage_state() {
   Serial.print(" slot=");
   Serial.print(config::storage_slot());
   Serial.print(" generation=");
-  Serial.println(config::storage_generation());
+  Serial.print(config::storage_generation());
+  Serial.print(" session_hist=");
+  Serial.print(gps::session_history_count());
+  Serial.print(" session_slot=");
+  Serial.print(gps::session_storage_slot());
+  Serial.print(" session_generation=");
+  Serial.print(gps::session_storage_generation());
+  Serial.print(" session_save_failures=");
+  Serial.print(gps::session_storage_save_failures());
+  Serial.print(" session_recoveries=");
+  Serial.println(gps::session_storage_recoveries());
 }
 
 bool save_config_transaction(const RuntimeConfig &previous) {
@@ -140,10 +150,7 @@ void print_status() {
   Serial.print(led_ui::transport_enabled() ? "on" : "off");
   Serial.print(" speed_kph=");
   Serial.print(gps::last_speed_kph(), 2);
-  Serial.print(" slot=");
-  Serial.print(config::storage_slot());
-  Serial.print(" generation=");
-  Serial.println(config::storage_generation());
+  print_storage_state();
 }
 
 void process_command(char *line) {
