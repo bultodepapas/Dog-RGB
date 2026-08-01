@@ -318,5 +318,7 @@ potencia, SK6812 RGBW, RF y robustez mecanica.
 13. [Custom Chip Time API](https://docs.wokwi.com/chips-api/time)
 
 Las APIs de escenarios y chips aun pueden evolucionar. Si una version nueva
-del CLI cambia atributos o exportacion VCD, el linter y los 82 tests de activos
-deben detectarlo antes de aceptar la actualizacion.
+del CLI cambia atributos o exportacion VCD, el linter y los 86 tests de activos
+deben detectarlo antes de aceptar la actualizacion. El rollover de `millis()` se
+valida deterministicamente con pruebas host y aserciones de compilacion alrededor
+de `UINT32_MAX`; no hace falta consumir 49,7 dias de simulacion para probarlo.

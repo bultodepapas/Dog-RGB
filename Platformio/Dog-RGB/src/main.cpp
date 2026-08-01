@@ -50,6 +50,7 @@
 #include "power/day_mode.h"
 #include "sim/wokwi_control.h"
 #include "storage/nvs_store.h"
+#include "util/time_utils.h"
 #include "web/portal_http.h"
 #include "wifi/wifi_mgr.h"
 
@@ -240,17 +241,12 @@ static const char *wifi_mode_name(wifi_mode_t mode) {
   }
 }
 
-static long age_ms_or_neg1(unsigned long now_ms, unsigned long last_ms) {
-  if (last_ms == 0) {
+static int64_t age_ms_or_neg1(unsigned long now_ms, unsigned long last_ms,
+                             bool observed) {
+  if (!observed) {
     return -1;
   }
-  // gps::tick() runs after the loop timestamp is captured, so a byte received
-  // in this same iteration can be a few milliseconds "in the future" relative
-  // to now_ms. Its real age is zero, not unavailable.
-  if (now_ms < last_ms) {
-    return 0;
-  }
-  return static_cast<long>(now_ms - last_ms);
+  return static_cast<int64_t>(time_utils::age_ms(now_ms, last_ms));
 }
 
 static const char *gps_fix_reason(unsigned long now_ms) {
@@ -258,19 +254,20 @@ static const char *gps_fix_reason(unsigned long now_ms) {
   if (gps::trusted_fix()) {
     return "ok";
   }
-  if (gps::last_rmc_ms() == 0) {
+  if (!gps::has_rmc_observation()) {
     return "no_rmc";
   }
-  if (now_ms >= gps::last_rmc_ms() && now_ms - gps::last_rmc_ms() > GPS_NO_DATA_MS) {
+  if (time_utils::elapsed_more_than(now_ms, gps::last_rmc_ms(), GPS_NO_DATA_MS)) {
     return "rmc_stale";
   }
   if (!gps::raw_fix()) {
     return "rmc_v";
   }
-  if (gps::last_gga_ms() == 0) {
+  if (!gps::has_gga_observation()) {
     return "no_gga";
   }
-  if (now_ms >= gps::last_gga_ms() && now_ms - gps::last_gga_ms() > cfg.gps_max_gga_age_ms) {
+  if (time_utils::elapsed_more_than(now_ms, gps::last_gga_ms(),
+                                   cfg.gps_max_gga_age_ms)) {
     return "gga_stale";
   }
   if (gps::fix_quality() < cfg.gps_min_fix_quality) {
@@ -331,10 +328,14 @@ static void emit_periodic_logs(unsigned long now_ms) {
   gps_last_speed_spike_log = gps::speed_spike();
   gps_last_stale_log = gps::stale_count();
 
-  const long age_byte_ms = age_ms_or_neg1(now_ms, gps::last_byte_ms());
-  const long age_rmc_ms = age_ms_or_neg1(now_ms, gps::last_rmc_ms());
-  const long age_gga_ms = age_ms_or_neg1(now_ms, gps::last_gga_ms());
-  const bool uart_active = (age_byte_ms >= 0 && age_byte_ms <= static_cast<long>(GPS_NO_DATA_MS));
+  const int64_t age_byte_ms = age_ms_or_neg1(
+      now_ms, gps::last_byte_ms(), gps::has_byte_observation());
+  const int64_t age_rmc_ms = age_ms_or_neg1(
+      now_ms, gps::last_rmc_ms(), gps::has_rmc_observation());
+  const int64_t age_gga_ms = age_ms_or_neg1(
+      now_ms, gps::last_gga_ms(), gps::has_gga_observation());
+  const bool uart_active =
+      age_byte_ms >= 0 && age_byte_ms <= static_cast<int64_t>(GPS_NO_DATA_MS);
   Serial.print("[GPS_LINK] uart=");
   Serial.print(uart_active ? "1" : "0");
   Serial.print(" bytes_delta=");
@@ -386,7 +387,8 @@ static void emit_periodic_logs(unsigned long now_ms) {
   }
 
   if (detail_slot == 1) {
-  const long age_fix_ms = age_ms_or_neg1(now_ms, gps::last_fix_ms());
+  const int64_t age_fix_ms = age_ms_or_neg1(
+      now_ms, gps::last_fix_ms(), gps::has_fix_observation());
   Serial.print("[GPS_FIX] raw=");
   Serial.print(gps::raw_fix() ? "1" : "0");
   Serial.print(" trusted=");
@@ -623,10 +625,16 @@ static void emit_periodic_logs(unsigned long now_ms) {
 
   if (detail_slot == 6) {
     const wifi_mgr::WifiDiagnostics &wd = wifi_mgr::diagnostics();
-    const long ap_hold_s = (wifi_mgr::ap_enabled() && wd.ap_hold_until_ms > now_ms)
-                               ? static_cast<long>((wd.ap_hold_until_ms - now_ms) / 1000) : -1;
-    const long retry_s = (!sta_ok && wd.next_sta_retry_ms > now_ms)
-                             ? static_cast<long>((wd.next_sta_retry_ms - now_ms) / 1000) : -1;
+    const long ap_hold_s =
+        wifi_mgr::ap_enabled() && wd.ap_hold_scheduled &&
+                time_utils::deadline_pending(now_ms, wd.ap_hold_until_ms)
+            ? static_cast<long>(time_utils::remaining_ms(now_ms, wd.ap_hold_until_ms) / 1000)
+            : -1;
+    const long retry_s =
+        !sta_ok && wd.sta_retry_scheduled &&
+                time_utils::deadline_pending(now_ms, wd.next_sta_retry_ms)
+            ? static_cast<long>(time_utils::remaining_ms(now_ms, wd.next_sta_retry_ms) / 1000)
+            : -1;
     Serial.print("[WIFI_DIAG] ap_start=");
     Serial.print(wd.ap_start_count);
     Serial.print(" ap_fail=");

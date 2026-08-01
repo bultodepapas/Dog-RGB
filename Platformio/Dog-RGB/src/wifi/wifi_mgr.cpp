@@ -12,6 +12,7 @@
 #include "config.h"
 #include "gps/gps.h"
 #include "storage/nvs_store.h"
+#include "util/time_utils.h"
 
 namespace wifi_mgr {
 namespace {
@@ -66,15 +67,17 @@ void set_reason(char *dest, size_t size, const char *reason) {
   snprintf(dest, size, "%s", reason != nullptr ? reason : "unknown");
 }
 
-bool timer_active(unsigned long now_ms, unsigned long until_ms) {
-  return until_ms != 0 && static_cast<long>(until_ms - now_ms) > 0;
+bool timer_active(unsigned long now_ms, unsigned long until_ms, bool scheduled) {
+  return scheduled && time_utils::deadline_pending(now_ms, until_ms);
 }
 
 void hold_ap(unsigned long now_ms, unsigned long hold_ms) {
   const unsigned long until = now_ms + hold_ms;
-  if (!timer_active(now_ms, wifi_diag.ap_hold_until_ms) ||
-      static_cast<long>(until - wifi_diag.ap_hold_until_ms) > 0) {
+  if (!timer_active(now_ms, wifi_diag.ap_hold_until_ms,
+                    wifi_diag.ap_hold_scheduled) ||
+      time_utils::deadline_later(until, wifi_diag.ap_hold_until_ms)) {
     wifi_diag.ap_hold_until_ms = until;
+    wifi_diag.ap_hold_scheduled = true;
   }
 }
 
@@ -177,6 +180,7 @@ void stop_ap_radio(const char *reason) {
   wifi_diag.ap_stop_count++;
   wifi_diag.last_ap_stop_ms = millis();
   wifi_diag.ap_hold_until_ms = 0;
+  wifi_diag.ap_hold_scheduled = false;
   set_reason(wifi_diag.last_ap_reason, sizeof(wifi_diag.last_ap_reason), reason);
   Serial.print("[WIFI_AP] stop reason=");
   Serial.println(reason);
@@ -185,12 +189,14 @@ void stop_ap_radio(const char *reason) {
 void reset_sta_backoff() {
   sta_retry_backoff_ms = WIFI_RETRY_INTERVAL_MS;
   wifi_diag.next_sta_retry_ms = 0;
+  wifi_diag.sta_retry_scheduled = false;
 }
 
 void schedule_sta_retry(unsigned long now_ms, const char *reason) {
   wifi_diag.sta_connect_fail_count++;
   set_reason(wifi_diag.last_sta_reason, sizeof(wifi_diag.last_sta_reason), reason);
   wifi_diag.next_sta_retry_ms = now_ms + sta_retry_backoff_ms;
+  wifi_diag.sta_retry_scheduled = true;
   sta_retry_backoff_ms = (sta_retry_backoff_ms >= STA_RETRY_BACKOFF_MAX_MS / 2)
                              ? STA_RETRY_BACKOFF_MAX_MS
                              : sta_retry_backoff_ms * 2;
@@ -288,7 +294,7 @@ void process_wifi_event(const PendingWifiEvent &pending, unsigned long now_ms) {
     wifi_sta_connected = false;
     wifi_sta_connecting = false;
     wifi_diag.sta_disconnect_count++;
-    if (wifi_ssid.length() > 0 && wifi_diag.next_sta_retry_ms == 0) {
+    if (wifi_ssid.length() > 0 && !wifi_diag.sta_retry_scheduled) {
       schedule_sta_retry(now_ms, "sta_disconnected");
     } else {
       set_reason(wifi_diag.last_sta_reason, sizeof(wifi_diag.last_sta_reason), "sta_disconnected");
@@ -347,6 +353,7 @@ void start_sta_mode_internal(const char *reason) {
     set_wifi_mode(WIFI_STA);
   }
   wifi_off_state = false;
+  wifi_diag.sta_retry_scheduled = false;
   WiFi.setSleep(false);
   WiFi.begin(wifi_ssid.c_str(), wifi_pass.c_str());
   wifi_sta_connected = false;
@@ -466,7 +473,12 @@ void update_ap_policy(unsigned long now_ms) {
     if (last_ap_client_ms == 0) {
       last_ap_client_ms = now_ms;
     }
-    if (timer_active(now_ms, wifi_diag.ap_hold_until_ms)) {
+    if (wifi_diag.ap_hold_scheduled &&
+        time_utils::deadline_reached(now_ms, wifi_diag.ap_hold_until_ms)) {
+      wifi_diag.ap_hold_scheduled = false;
+    }
+    if (timer_active(now_ms, wifi_diag.ap_hold_until_ms,
+                     wifi_diag.ap_hold_scheduled)) {
       return;
     }
     if ((now_ms - last_ap_client_ms) >= AP_IDLE_TIMEOUT_MS) {
@@ -606,11 +618,13 @@ void tick(unsigned long now_ms) {
         schedule_sta_retry(now_ms, "sta_timeout");
       }
     } else if (!wifi_sta_connected && wifi_ssid.length() > 0 &&
-               (wifi_diag.next_sta_retry_ms == 0 ||
-                static_cast<long>(now_ms - wifi_diag.next_sta_retry_ms) >= 0)) {
+               (!wifi_diag.sta_retry_scheduled ||
+                time_utils::deadline_reached(now_ms, wifi_diag.next_sta_retry_ms))) {
       if (ap_station_count_state > 0) {
         wifi_diag.next_sta_retry_ms = now_ms + WIFI_RETRY_INTERVAL_MS;
+        wifi_diag.sta_retry_scheduled = true;
       } else {
+        wifi_diag.sta_retry_scheduled = false;
         start_sta_mode_internal("retry");
       }
     }

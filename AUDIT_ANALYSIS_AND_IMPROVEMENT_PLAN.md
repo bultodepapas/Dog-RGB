@@ -128,13 +128,13 @@ No critical code-backed defect was identified. Severity meanings: **High** defea
 
 **Implemented:** RMC parsing now retains milliseconds-of-day instead of discarding seconds. Active-time accounting is independent of `millis()` and the one-second distance-sampling gate: each pair of ordered trusted GNSS observations contributes its actual elapsed duration only when both speeds exceed the activity threshold. This preserves every one-second observation buffered during a ten-second loop stall even when all sentences are parsed in one loop pass. A lone observation more than three seconds after the previous one is rejected and becomes a new baseline, so an outage cannot fabricate activity. Duplicate times are ignored; backward/non-consecutive dates are rejected and rebaseline; consecutive midnight, month, year, and leap-day transitions are supported. A midnight interval is split so the session receives the full duration while the reset daily total receives only the post-midnight portion. Both counters add with saturation. `/api/dev` exposes accepted observation intervals, rejected gaps, and the latest delta. Nine host tests cover fractional timestamps, jitter, buffered backlog, long gaps, motion transitions, calendar boundaries, saturation, duplicate/backward time, and firmware wiring. Recorded-NMEA replay on target remains useful HIL validation.
 
-### AUD-011 — Medium — Some stale/deadline checks are not rollover-safe
+### AUD-011 — Resolved Medium — Some stale/deadline checks were not rollover-safe
 
-**Evidence:** several GPS checks first require `now_ms >= previous_ms` before subtracting (`src/gps/gps.cpp:430`, `:432`, `:1292`, `:1636`). `millis()` wraps after roughly 49.7 days. Other modules already use a signed-deadline/subtraction idiom correctly.
+**Original evidence:** several GPS checks first required `now_ms >= previous_ms` before subtracting. `millis()` wraps after roughly 49.7 days, so those comparisons stopped representing chronological order at the boundary.
 
 **Impact:** a receiver that stops near the wrap boundary can leave stale state valid longer than intended; behavior depends on a new sentence arriving after wrap.
 
-**Action:** centralize wrap-safe elapsed and deadline helpers using fixed-width unsigned arithmetic, migrate every timer, and unit-test boundaries around `UINT32_MAX`.
+**Implemented:** `util/time_utils.h` now centralizes wrap-safe elapsed, age, deadline, remaining-time, and deadline-order operations using fixed-width unsigned arithmetic with an explicit half-range deadline contract. GPS byte/RMC/GGA/fix observations now have independent presence flags instead of treating timestamp zero as "never observed"; this makes boot-time observations and rollover unambiguous. Wi-Fi AP-hold and STA-retry deadlines likewise carry explicit scheduled flags, so a legitimate deadline of exactly zero at rollover is not mistaken for a disabled timer. GPS staleness, trusted-time freshness, diagnostics, portal ages, AP hold extension, STA retry, and Wi-Fi diagnostic deadlines all use the shared helpers. The portal receives wrap-safe remaining durations instead of comparing absolute device timestamps in JavaScript. Six compile-time assertions exercise exact `UINT32_MAX` boundaries, and four host tests cover elapsed time, deadlines, age calculation, zero-timestamp state, portal behavior, and source wiring. All 86 host tests pass. Sequential PlatformIO builds pass for both Wokwi ESP32-S3 (16.4% RAM, 28.7% flash) and the physical XIAO ESP32-S3 target (16.4% RAM, 28.8% flash). The Wokwi loop/GNSS regression also passes with 22 valid NMEA sentences, zero invalid sentences, 1 Hz GNSS ticks, zero RX overflow, and a trusted fix.
 
 ### AUD-012 — Resolved Medium — One GNSS date change could roll daily metrics
 
@@ -274,7 +274,7 @@ Twenty targeted investigations were performed. These sources do **not** override
 
 1. **Runtime configuration and home completed:** use independent validated, read-back-verified A/B blobs with wrap-safe generations; apply the pattern to metrics/session only in a separate scoped fix.
 2. **Completed:** make track export GNSS-aware and size the GNSS RX buffer with over 17 seconds of worst-case margin.
-3. **Active time and daily date completed:** use trusted GNSS observation deltas with bounded outage handling, confirm discontinuous date changes, and journal the completed day before reset. Rollover-safe stale/deadline comparisons remain separate.
+3. **Completed:** use trusted GNSS observation deltas with bounded outage handling, confirm discontinuous date changes, journal the completed day before reset, and make stale/deadline handling safe across `millis()` rollover.
 
 **Exit criteria:** no UART overflow occurs during slow maximum-track export; power cuts at every NVS write boundary recover the previous or next complete generation, never a mixture; elapsed-time, `millis()` rollover, and date-transition tests pass.
 
@@ -314,7 +314,7 @@ These tests can improve understanding and debugging, but the audit does not trea
 
 ## Recommended completion gate
 
-For the stated DIY objective, the informational observations require no code change. Track retention/integrity/streaming, Wi-Fi event ownership, configuration/home recovery, active-time accounting, and guarded daily-date rollover are corrected and host-tested. The next valuable correctness work is rollover-safe stale/deadline handling, followed by real power-cut, recorded-NMEA, and throttled-export hardware tests.
+For the stated DIY objective, the informational observations require no code change. Track retention/integrity/streaming, Wi-Fi event ownership, configuration/home recovery, active-time accounting, guarded daily-date rollover, and `millis()` rollover handling are corrected and host-tested. The next valuable correctness work is real power-cut, recorded-NMEA, and throttled-export hardware testing.
 
 ## Audit limitations
 

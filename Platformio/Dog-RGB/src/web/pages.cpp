@@ -1756,7 +1756,6 @@ String web_pages::html_dev_page() {
         setText('wifi-ap-ip', wifi.ap_ip);
         setText('wifi-rssi', wifi.rssi);
         const diag = wifi.diagnostics || {};
-        const nowMs = d.time ? d.time.uptime_ms : 0;
         setText('diag-ap-start', diag.ap_start_count);
         setText('diag-ap-fail', diag.ap_start_fail_count);
         setText('diag-ap-stop', diag.ap_stop_count);
@@ -1765,8 +1764,8 @@ String web_pages::html_dev_page() {
         setText('diag-ap-sta-disconnect', diag.ap_station_disconnect_count);
         setText('diag-dns', diag.dns_running ? 'activo' : 'apagado');
         setText('diag-channel', diag.current_ap_channel);
-        setText('diag-hold', (diag.ap_hold_until_ms && diag.ap_hold_until_ms > nowMs) ? fmtMs(diag.ap_hold_until_ms - nowMs) : '--');
-        setText('diag-next-retry', (diag.next_sta_retry_ms && diag.next_sta_retry_ms > nowMs) ? fmtMs(diag.next_sta_retry_ms - nowMs) : '--');
+        setText('diag-hold', diag.ap_hold_scheduled ? fmtMs(diag.ap_hold_remaining_ms || 0) : '--');
+        setText('diag-next-retry', diag.sta_retry_scheduled ? fmtMs(diag.sta_retry_remaining_ms || 0) : '--');
         setText('diag-ap-reason', diag.last_ap_reason);
         setText('diag-sta-reason', diag.last_sta_reason);
 

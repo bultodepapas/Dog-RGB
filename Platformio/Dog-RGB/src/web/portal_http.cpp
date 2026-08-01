@@ -15,6 +15,7 @@
 #include "led/led_ui.h"
 #include "power/day_mode.h"
 #include "storage/nvs_store.h"
+#include "util/time_utils.h"
 #include "web/pages.h"
 #include "wifi/wifi_mgr.h"
 
@@ -267,7 +268,7 @@ void handle_status_get() {
 
 void handle_dev_get() {
   note_activity();
-  StaticJsonDocument<6656> doc;
+  StaticJsonDocument<6912> doc;
   const RuntimeConfig &cfg = config::get();
   const unsigned long now_ms = millis();
 
@@ -316,7 +317,19 @@ void handle_dev_get() {
   wifiDiag["last_ap_stop_ms"] = diag.last_ap_stop_ms;
   wifiDiag["last_sta_retry_ms"] = diag.last_sta_retry_ms;
   wifiDiag["next_sta_retry_ms"] = diag.next_sta_retry_ms;
+  wifiDiag["sta_retry_scheduled"] = diag.sta_retry_scheduled;
+  wifiDiag["sta_retry_remaining_ms"] =
+      diag.sta_retry_scheduled &&
+              time_utils::deadline_pending(now_ms, diag.next_sta_retry_ms)
+          ? time_utils::remaining_ms(now_ms, diag.next_sta_retry_ms)
+          : 0;
   wifiDiag["ap_hold_until_ms"] = diag.ap_hold_until_ms;
+  wifiDiag["ap_hold_scheduled"] = diag.ap_hold_scheduled;
+  wifiDiag["ap_hold_remaining_ms"] =
+      diag.ap_hold_scheduled &&
+              time_utils::deadline_pending(now_ms, diag.ap_hold_until_ms)
+          ? time_utils::remaining_ms(now_ms, diag.ap_hold_until_ms)
+          : 0;
   wifiDiag["last_wifi_event_ms"] = diag.last_wifi_event_ms;
   wifiDiag["last_wifi_event"] = diag.last_wifi_event;
   wifiDiag["current_ap_channel"] = diag.current_ap_channel;
@@ -364,15 +377,18 @@ void handle_dev_get() {
   dailyStorage["generation"] = gps::daily_journal_generation();
   dailyStorage["save_failures"] = gps::daily_journal_save_failures();
   dailyStorage["last_completed_date"] = gps::last_completed_date();
-  const long age_last_byte = (gps::last_byte_ms() > 0 && now_ms >= gps::last_byte_ms())
-                                 ? static_cast<long>(now_ms - gps::last_byte_ms())
-                                 : -1;
-  const long age_last_fix = (gps::last_fix_ms() > 0 && now_ms >= gps::last_fix_ms())
-                                ? static_cast<long>(now_ms - gps::last_fix_ms())
-                                : -1;
-  const long age_last_gga = (gps::last_gga_ms() > 0 && now_ms >= gps::last_gga_ms())
-                                ? static_cast<long>(now_ms - gps::last_gga_ms())
-                                : -1;
+  const int64_t age_last_byte = gps::has_byte_observation()
+                                    ? static_cast<int64_t>(time_utils::age_ms(
+                                          now_ms, gps::last_byte_ms()))
+                                    : -1;
+  const int64_t age_last_fix = gps::has_fix_observation()
+                                   ? static_cast<int64_t>(time_utils::age_ms(
+                                         now_ms, gps::last_fix_ms()))
+                                   : -1;
+  const int64_t age_last_gga = gps::has_gga_observation()
+                                  ? static_cast<int64_t>(time_utils::age_ms(
+                                        now_ms, gps::last_gga_ms()))
+                                  : -1;
   gps["age_last_byte_ms"] = age_last_byte;
   gps["age_last_fix_ms"] = age_last_fix;
   gps["age_last_gga_ms"] = age_last_gga;

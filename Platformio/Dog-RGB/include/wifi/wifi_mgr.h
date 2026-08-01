@@ -22,7 +22,9 @@ struct WifiDiagnostics {
   unsigned long last_ap_stop_ms;
   unsigned long last_sta_retry_ms;
   unsigned long next_sta_retry_ms;
+  bool sta_retry_scheduled;
   unsigned long ap_hold_until_ms;
+  bool ap_hold_scheduled;
   unsigned long last_wifi_event_ms;
   uint32_t last_wifi_event;
   uint8_t current_ap_channel;

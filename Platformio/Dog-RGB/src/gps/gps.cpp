@@ -13,6 +13,7 @@
 #include "storage/nvs_store.h"
 #include "util/crc32.h"
 #include "util/geo.h"
+#include "util/time_utils.h"
 
 namespace gps {
 namespace {
@@ -50,6 +51,11 @@ unsigned long gps_last_sentence_ms = 0;
 unsigned long gps_last_rmc_ms = 0;
 unsigned long gps_last_gga_ms = 0;
 unsigned long gps_last_fix_ms = 0;
+bool gps_byte_observed = false;
+bool gps_rmc_observed = false;
+bool gps_gga_observed = false;
+bool gps_fix_observed = false;
+bool gps_time_observed = false;
 uint8_t gps_sats = 0;
 uint8_t gps_fix_quality = 0;
 float gps_hdop = NAN;
@@ -586,10 +592,12 @@ void reset_distance_baseline(bool reset_activity = true) {
 }
 
 void expire_gps_if_stale(unsigned long now_ms) {
-  const bool uart_stale = (gps_last_byte_ms > 0 && now_ms >= gps_last_byte_ms &&
-                           now_ms - gps_last_byte_ms > GPS_UART_STALE_MS);
-  const bool rmc_stale = (gps_last_rmc_ms > 0 && now_ms >= gps_last_rmc_ms &&
-                          now_ms - gps_last_rmc_ms > GPS_RMC_STALE_MS);
+  const bool uart_stale = gps_byte_observed &&
+                          time_utils::elapsed_more_than(now_ms, gps_last_byte_ms,
+                                                       GPS_UART_STALE_MS);
+  const bool rmc_stale = gps_rmc_observed &&
+                         time_utils::elapsed_more_than(now_ms, gps_last_rmc_ms,
+                                                      GPS_RMC_STALE_MS);
   if (!uart_stale && !rmc_stale) {
     return;
   }
@@ -1805,6 +1813,7 @@ void handle_nmea_line(const char *line) {
     float hdop = NAN;
     if (parse_gga(line, &fix_quality, &sats, &hdop)) {
       gps_gga_seen++;
+      gps_gga_observed = true;
       gps_last_gga_ms = now_ms;
       gps_fix_quality = fix_quality;
       gps_sats = sats;
@@ -1822,14 +1831,15 @@ void handle_nmea_line(const char *line) {
     clear_pending_date(true);
   }
   if (parsed_rmc) {
+    gps_rmc_observed = true;
     gps_last_rmc_ms = now_ms;
     has_gps_fix_raw = valid_fix;
     last_gps_ms = now_ms;
 
     const RuntimeConfig &cfg = config::get();
-    const bool gga_fresh = (gps_last_gga_ms > 0 && now_ms >= gps_last_gga_ms)
-                               ? (now_ms - gps_last_gga_ms <= cfg.gps_max_gga_age_ms)
-                               : false;
+    const bool gga_fresh = gps_gga_observed &&
+                           time_utils::elapsed_at_most(now_ms, gps_last_gga_ms,
+                                                      cfg.gps_max_gga_age_ms);
     const bool hdop_ok = (!isnan(gps_hdop) && gps_hdop > 0.0f && gps_hdop <= cfg.gps_max_hdop);
     gps_quality_ok = (gps_fix_quality >= cfg.gps_min_fix_quality) &&
                      (gps_sats >= cfg.gps_min_sats) &&
@@ -1866,6 +1876,7 @@ void handle_nmea_line(const char *line) {
     if (valid_fix) {
       if (gps_trusted_fix) {
         if (date_yyyymmdd != 0) {
+          gps_time_observed = true;
           gps_last_time_ms = now_ms;
         }
       }
@@ -1873,6 +1884,7 @@ void handle_nmea_line(const char *line) {
       current_lon_deg_val = lon_deg;
       has_current_fix_val = true;
       gps_rmc_valid++;
+      gps_fix_observed = true;
       gps_last_fix_ms = last_gps_ms;
       if (gps_trusted_fix) {
         session_fix_seen = true;
@@ -1972,6 +1984,7 @@ void read_gps() {
   while (GPS.available() > 0) {
     const char c = static_cast<char>(GPS.read());
     gps_bytes_rx++;
+    gps_byte_observed = true;
     gps_last_byte_ms = millis();
     if (c == '\n') {
       nmea_line[nmea_len] = '\0';
@@ -2239,9 +2252,9 @@ uint16_t last_update_min() {
 bool has_time() {
   const unsigned long now_ms = millis();
   return current_date_yyyymmdd != 0 &&
-         gps_last_time_ms > 0 &&
-         now_ms >= gps_last_time_ms &&
-         (now_ms - gps_last_time_ms) <= DAY_MODE_TIME_STALE_MS;
+         gps_time_observed &&
+         time_utils::elapsed_at_most(now_ms, gps_last_time_ms,
+                                    DAY_MODE_TIME_STALE_MS);
 }
 
 uint16_t local_time_min(int16_t offset_min) {
@@ -2347,6 +2360,22 @@ unsigned long large_segment_rejects() {
 
 unsigned long stale_count() {
   return gps_stale_count;
+}
+
+bool has_byte_observation() {
+  return gps_byte_observed;
+}
+
+bool has_rmc_observation() {
+  return gps_rmc_observed;
+}
+
+bool has_gga_observation() {
+  return gps_gga_observed;
+}
+
+bool has_fix_observation() {
+  return gps_fix_observed;
 }
 
 unsigned long last_byte_ms() {
