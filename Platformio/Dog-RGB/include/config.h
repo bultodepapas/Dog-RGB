@@ -124,6 +124,10 @@ static const uint8_t AP_MAX_CLIENTS = 2; // Keep setup surface small and predict
 static const unsigned long STA_CONNECT_TIMEOUT_MS = 10000; // STA connect timeout.
 static const unsigned long WIFI_RETRY_INTERVAL_MS = 10000; // Watchdog retry interval.
 static const unsigned long STA_RETRY_BACKOFF_MAX_MS = 300000; // Max STA retry backoff.
+// A failed SoftAP start must never be retried from every loop iteration: each
+// attempt includes a deliberate radio settle delay and can starve GPS/LED work.
+static const unsigned long AP_RETRY_BACKOFF_INITIAL_MS = 1000;
+static const unsigned long AP_RETRY_BACKOFF_MAX_MS = 30000;
 static const unsigned long AP_SETUP_HOLD_MS = 900000; // Keep AP visible after AP start.
 static const unsigned long AP_PORTAL_ACTIVITY_HOLD_MS = 300000; // Keep AP after portal traffic.
 static const unsigned long AP_IDLE_TIMEOUT_MS = 600000; // AP off if no clients for this long.

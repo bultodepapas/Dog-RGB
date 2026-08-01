@@ -33,6 +33,7 @@ uint8_t ap_station_count_state = 0;
 unsigned long stationary_ms = 0;
 unsigned long last_stationary_ms = 0;
 unsigned long sta_retry_backoff_ms = WIFI_RETRY_INTERVAL_MS;
+unsigned long ap_retry_backoff_ms = AP_RETRY_BACKOFF_INITIAL_MS;
 
 bool pending_ap_restart = false;
 unsigned long pending_ap_at_ms = 0;
@@ -147,21 +148,65 @@ void update_ap_station_count() {
   ap_station_count_state = (stations > 0) ? static_cast<uint8_t>(stations) : 0;
 }
 
+void reset_ap_retry() {
+  ap_retry_backoff_ms = AP_RETRY_BACKOFF_INITIAL_MS;
+  wifi_diag.next_ap_retry_ms = 0;
+  wifi_diag.ap_retry_delay_ms = 0;
+  wifi_diag.ap_retry_scheduled = false;
+}
+
+void schedule_ap_retry(unsigned long now_ms, const char *failure_stage) {
+  const unsigned long delay_ms = ap_retry_backoff_ms;
+  wifi_diag.next_ap_retry_ms = now_ms + delay_ms;
+  wifi_diag.ap_retry_delay_ms = delay_ms;
+  wifi_diag.ap_retry_scheduled = true;
+  wifi_diag.ap_retry_schedule_count++;
+  set_reason(wifi_diag.last_ap_failure_stage,
+             sizeof(wifi_diag.last_ap_failure_stage), failure_stage);
+  ap_retry_backoff_ms =
+      (ap_retry_backoff_ms >= AP_RETRY_BACKOFF_MAX_MS / 2)
+          ? AP_RETRY_BACKOFF_MAX_MS
+          : ap_retry_backoff_ms * 2;
+
+  Serial.print("[WIFI_AP] retry_sched delay_ms=");
+  Serial.print(delay_ms);
+  Serial.print(" next_backoff_ms=");
+  Serial.print(ap_retry_backoff_ms);
+  Serial.print(" stage=");
+  Serial.println(failure_stage);
+}
+
+bool ap_retry_ready(unsigned long now_ms) {
+  return !wifi_diag.ap_retry_scheduled ||
+         time_utils::deadline_reached(now_ms, wifi_diag.next_ap_retry_ms);
+}
+
 bool start_ap_radio(const char *reason, bool preserve_sta) {
   const RuntimeConfig &cfg = config::get();
   const unsigned long now_ms = millis();
   const bool use_ap_sta = preserve_sta && wifi_ssid.length() > 0;
-  set_wifi_mode(use_ap_sta ? WIFI_AP_STA : WIFI_AP);
+  const bool mode_ok = set_wifi_mode(use_ap_sta ? WIFI_AP_STA : WIFI_AP);
   // The mode change is internally asynchronous in the ESP32 driver; without
   // this margin softAPConfig/softAP operate on a half-initialized stack and
   // return false or produce an invisible AP.
-  delay(WIFI_MODE_SETTLE_MS);
-  WiFi.setSleep(false);
-  WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY_IP, AP_SUBNET_MASK);
+  if (mode_ok) {
+    delay(WIFI_MODE_SETTLE_MS);
+    // Sleep is a latency/power policy, not a prerequisite for creating the AP.
+    // Do not turn a usable recovery portal into a hard failure if this optional
+    // preference cannot be applied immediately.
+    WiFi.setSleep(false);
+  }
+  const bool config_ok = mode_ok &&
+                         WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY_IP,
+                                           AP_SUBNET_MASK);
 
   const char *pass = (cfg.ap_pass.length() == 0) ? nullptr : cfg.ap_pass.c_str();
   const uint8_t channel = use_ap_sta ? ap_channel() : AP_CHANNEL;
-  const bool ok = WiFi.softAP(cfg.ap_ssid.c_str(), pass, channel, false, AP_MAX_CLIENTS);
+  const bool ok = config_ok &&
+                  WiFi.softAP(cfg.ap_ssid.c_str(), pass, channel, false,
+                              AP_MAX_CLIENTS);
+  const char *failure_stage =
+      !mode_ok ? "mode" : (!config_ok ? "config" : "softap");
 
   wifi_diag.last_ap_start_ok = ok;
   wifi_diag.ap_start_count++;
@@ -170,6 +215,7 @@ bool start_ap_radio(const char *reason, bool preserve_sta) {
   set_reason(wifi_diag.last_ap_reason, sizeof(wifi_diag.last_ap_reason), reason);
 
   if (ok) {
+    reset_ap_retry();
     ap_enabled_state = true;
     wifi_off_state = false;
     // Query the driver once at the state transition. Reading softAPIP() from
@@ -182,6 +228,8 @@ bool start_ap_radio(const char *reason, bool preserve_sta) {
     wifi_diag.ap_start_fail_count++;
     ap_enabled_state = false;
     ap_station_count_state = 0;
+    ap_ip_state = IPAddress(0, 0, 0, 0);
+    schedule_ap_retry(millis(), failure_stage);
   }
   Serial.print("[WIFI_AP] start ");
   Serial.print(ok ? "OK" : "FAIL");
@@ -193,6 +241,10 @@ bool start_ap_radio(const char *reason, bool preserve_sta) {
   Serial.print(use_ap_sta ? "AP_STA" : "AP");
   Serial.print(" reason=");
   Serial.print(reason);
+  if (!ok) {
+    Serial.print(" stage=");
+    Serial.print(failure_stage);
+  }
   Serial.print(" ip=");
   Serial.println(ok ? ap_ip_state.toString() : String("n/a"));
   return ok;
@@ -262,6 +314,22 @@ void process_wifi_event(const PendingWifiEvent &pending, unsigned long now_ms) {
   const WiFiEvent_t event = static_cast<WiFiEvent_t>(pending.id);
   wifi_diag.last_wifi_event = pending.id;
   wifi_diag.last_wifi_event_ms = pending.captured_ms;
+
+#if defined(ARDUINO_EVENT_WIFI_AP_START)
+  if (event == ARDUINO_EVENT_WIFI_AP_START) {
+#elif defined(SYSTEM_EVENT_AP_START)
+  if (event == SYSTEM_EVENT_AP_START) {
+#else
+  if (false) {
+#endif
+    // AP_START can also be emitted while the interface is being prepared, so
+    // only use it to confirm a start already accepted by softAP(). Otherwise a
+    // failed softAPConfig/softAP could accidentally lose its recovery retry.
+    if (ap_enabled_state) {
+      reset_ap_retry();
+    }
+    return;
+  }
 
 #if defined(ARDUINO_EVENT_WIFI_AP_STACONNECTED)
   if (event == ARDUINO_EVENT_WIFI_AP_STACONNECTED) {
@@ -595,6 +663,13 @@ void enable_ap(const char *reason) {
   if (ap_enabled_state) {
     return;
   }
+  const unsigned long now_ms = millis();
+  if (!ap_retry_ready(now_ms)) {
+    return;
+  }
+  // Consume the due deadline before attempting. A failure creates the next
+  // deadline; success resets the complete retry sequence.
+  wifi_diag.ap_retry_scheduled = false;
   start_ap_radio(reason, wifi_ssid.length() > 0 && (wifi_sta_connected || wifi_sta_connecting));
 }
 
@@ -682,7 +757,9 @@ void update_ap_policy(unsigned long now_ms) {
     if (!ap_enabled_state) {
       enable_ap("gps_no_fix");
     }
-    last_ap_client_ms = now_ms;
+    if (ap_enabled_state) {
+      last_ap_client_ms = now_ms;
+    }
     return;
   }
 
@@ -732,6 +809,7 @@ void begin() {
   wifi_event_dropped_pending.store(0, std::memory_order_relaxed);
   wifi_diag.event_queue_overflow_count = 0;
   wifi_diag.event_queue_high_water = 0;
+  reset_ap_retry();
 
   // Hard-reset the radio before anything else. This clears residual state from
   // brownouts, WDT resets or power glitches that leave the driver half-initialized,

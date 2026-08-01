@@ -32,3 +32,7 @@ coordinate-range rejection.
 `test_wifi_event_queue.py` verifies FIFO event ordering, bounded saturation,
 overflow accounting, main-loop-before-state-machine draining, and the rule
 that the asynchronous Arduino Wi-Fi callback only enqueues events.
+
+`test_wifi_ap_retry.py` verifies the bounded SoftAP recovery schedule, twenty
+consecutive failures, hot-loop gating, reset after recovery, `millis()`
+rollover, mandatory start-stage checks, and portal diagnostics.

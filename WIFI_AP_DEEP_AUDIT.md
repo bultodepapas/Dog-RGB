@@ -18,8 +18,8 @@ La clave inicial `Dog12345`, la posibilidad de cambiarla y la opcion de AP abier
 Los problemas principales son de robustez y autonomia:
 
 1. **Resuelto 2026-08-01:** las credenciales Home Wi-Fi ahora forman un registro A/B unico, versionado, con CRC y readback antes de actualizar RAM.
-2. Si el SoftAP falla al arrancar, despues de agotar tres intentos el loop puede volver a ejecutar un intento bloqueante cada vuelta, sin backoff.
-3. Varias transiciones marcan el estado deseado como real aunque fallen `WiFi.mode()`, `softAPConfig()`, `softAPdisconnect()` o `WiFi.begin()`.
+2. **Resuelto 2026-08-01:** un fallo de SoftAP programa reintentos 1/2/4/8/16/30 s, sin bloquear cada vuelta del loop, y muestra la etapa fallida en diagnosticos.
+3. El arranque AP ya valida `WiFi.mode()`, `softAPConfig()` y `softAP()`; siguen pendientes las transiciones de apagado AP/radio y el resultado inmediato de `WiFi.begin()`.
 4. La politica `sin fix GPS => AP forzado` mantiene AP+STA activo incluso cuando Home Wi-Fi funciona; ademas `WiFi.setSleep(false)` nunca se revierte al quedar en STA-only. En un collar a bateria esta combinacion puede costar autonomia real.
 5. Se descarta la razon numerica de desconexion STA. Los logs no pueden distinguir password incorrecto, AP inexistente, perdida de beacons o desconexion intencional.
 
@@ -134,21 +134,23 @@ NVS protege una entrada individual frente a un corte, pero no convierte dos clav
 
 **Validacion:** ocho pruebas enfocadas modelan truncamiento, bit flip, reboot, seleccion A/B, rollover de generation, red abierta, PSK de 64 bytes y estado unconfigured. La suite completa pasa 108/108. El build fisico `seeed_xiao_esp32s3` pasa con 54,092 bytes RAM (16.5%) y 968,301 bytes flash (29.0%). Falta todavia fault injection NVS sobre hardware; no invalida la cobertura determinista del formato y la FSM de persistencia.
 
-### WFA-002 — Alta — Reintento SoftAP sin backoff despues de fallo de arranque
+### WFA-002 — Resuelto 2026-08-01 — Reintento SoftAP con backoff acotado
 
 **Evidencia:** `begin()` limita el boot a tres intentos. Si todos fallan, `ap_enabled_state` queda false. En el primer `tick`, `update_ap_policy()` calcula `ap_force_on = !gps::has_fix()` y llama `enable_ap("gps_no_fix")`. `enable_ap()` llama inmediatamente a `start_ap_radio()`, que incluye `delay(WIFI_MODE_SETTLE_MS)` de 150 ms. No existe deadline de retry AP.
 
 **Fallo real:** durante un fallo persistente del driver/radio, el firmware puede intentar arrancar AP en cada loop, introducir stalls de 150 ms repetidos, inundar Serial y degradar GPS, LEDs y watchdog. El limite de tres intentos solo protege `setup()`, no el runtime.
 
-**Mejora propuesta:** estado `ap_retry_scheduled`, backoff acotado (por ejemplo 1, 2, 5, 10, 30 s), clasificar fallo de modo/config/AP, y cancelar el backoff al recibir `AP_START` o un arranque verificado. La politica debe expresar “AP solicitado” sin ejecutar el driver repetidamente.
+**Implementacion:** `start_ap_radio()` valida por separado modo, configuracion IP y creacion SoftAP. Un fallo conserva AP como no disponible, borra la IP cacheada, registra la etapa `mode`/`config`/`softap` y programa el siguiente intento con 1, 2, 4, 8, 16 y finalmente 30 segundos. `enable_ap()` consume el deadline con `time_utils::deadline_reached()`, por lo que funciona tambien al cruzar el rollover de `millis()`. Un arranque correcto restablece el backoff a 1 segundo. El evento `AP_START` solo confirma/cancela cuando `softAP()` ya habia aceptado el arranque; asi un evento temprano de preparacion de interfaz no puede borrar un retry valido.
 
-**Pruebas:** inyectar 20 fallos consecutivos y verificar numero maximo de intentos, ausencia de loop stalls continuos y recuperacion al primer exito posterior.
+`/api/dev` y la pagina `/dev` exponen si hay retry, tiempo restante, delay aplicado, cantidad de schedules y etapa del ultimo fallo. Mientras el retry esta pendiente, GPS, LEDs y HTTP siguen ejecutandose sin el `delay(WIFI_MODE_SETTLE_MS)` repetido en hot loop.
 
-### WFA-003 — Alta — Estado interno puede divergir del driver
+**Validacion:** seis pruebas enfocadas modelan 20 fallos, secuencia y limite del backoff, bloqueo del hot loop antes del deadline, recuperacion, reset al primer exito, rollover de `millis()` y contrato de diagnosticos. Suite host 114/114, Playwright 15/15, builds fisico/Wokwi correctos y smoke Wokwi `boot.test.yaml` en primer intento con SoftAP activo, GPS valido y cero overflow UART. Wokwi valida el camino normal; la inyeccion del fallo real del driver queda para HIL/fault injection porque el simulador no ofrece un control oficial para forzar `softAP()` a retornar false.
+
+### WFA-003 — Alta — Estado interno aun puede divergir al apagar AP/radio o iniciar STA
 
 **Evidencia:**
 
-- `start_ap_radio()` ignora el resultado de `set_wifi_mode()`, `WiFi.setSleep(false)` y `WiFi.softAPConfig()`; solo usa el retorno final de `softAP()`.
+- **Corregido con WFA-002:** `start_ap_radio()` exige exito de `set_wifi_mode()`, `softAPConfig()` y `softAP()` antes de publicar AP activo. `WiFi.setSleep(false)` permanece deliberadamente no fatal porque es una preferencia de latencia/energia, no un requisito para que exista el portal.
 - `stop_ap_radio()` ignora `softAPdisconnect(true)` y declara AP apagado de todas formas (`:172-190`).
 - `set_wifi_off(true)` llama `set_wifi_mode(WIFI_OFF)` y marca todo apagado incluso si la llamada falla (`:390-405`).
 - `start_sta_mode_internal()` ignora el `wl_status_t` inmediato de `WiFi.begin()` y siempre marca `sta_connecting=true` (`:344-371`).
@@ -307,8 +309,8 @@ Espressif exige que la aplicacion diferencie una desconexion intencional de una 
 ### P1 — Maquina de estados y fallos del driver
 
 1. Separar estado solicitado, transicion en curso y estado observado.
-2. Comprobar retornos obligatorios de modo, AP config, AP start/stop y STA begin.
-3. Añadir backoff AP y reconciliacion posterior a overflow/fallo.
+2. **Parcial:** modo, AP config y AP start ya se comprueban; faltan AP stop, radio off y STA begin.
+3. **Completado:** backoff AP wrap-safe y diagnosticos de etapa; falta reconciliacion general de transiciones.
 4. Capturar disconnect reason e intenciones locales.
 
 **Criterio de salida:** 20 fallos AP consecutivos no bloquean el loop; los contadores explican cada fallo; un driver que rechaza una transicion no produce estado falso.
@@ -413,6 +415,6 @@ Se realizaron **24 investigaciones tecnicas independientes**. Se priorizaron fue
 
 ## Recomendacion final
 
-Con **WFA-001 resuelto**, la siguiente correccion de mayor valor es resolver juntos **WFA-002/WFA-003**, porque un estado del driver falso o un retry AP en hot loop puede afectar GPS y LEDs, que son funciones centrales del collar. La accion “Olvidar Home Wi-Fi” permanece como WFA-008 y ya puede reutilizar el estado unconfigured del nuevo registro.
+Con **WFA-001 y WFA-002 resueltos**, la siguiente correccion de mayor valor es completar **WFA-003**: confirmar apagado AP/radio y el resultado inmediato de STA sin publicar estados ficticios. La accion “Olvidar Home Wi-Fi” permanece como WFA-008 y ya puede reutilizar el estado unconfigured del nuevo registro.
 
 La mejora con mayor ventaja de autonomia probable es **WFA-004/WFA-005**, pero debe cerrarse con medidas fisicas: el objetivo no es apagar Wi-Fi agresivamente, sino conservar siempre un camino simple al portal usando AP cuando hace falta y STA de bajo consumo cuando ya existe una red util.

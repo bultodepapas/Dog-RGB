@@ -307,6 +307,7 @@ void handle_dev_get() {
   wifiDiag["last_ap_start_ok"] = diag.last_ap_start_ok;
   wifiDiag["ap_start_count"] = diag.ap_start_count;
   wifiDiag["ap_start_fail_count"] = diag.ap_start_fail_count;
+  wifiDiag["ap_retry_schedule_count"] = diag.ap_retry_schedule_count;
   wifiDiag["ap_stop_count"] = diag.ap_stop_count;
   wifiDiag["ap_restart_count"] = diag.ap_restart_count;
   wifiDiag["sta_retry_count"] = diag.sta_retry_count;
@@ -319,6 +320,14 @@ void handle_dev_get() {
   wifiDiag["event_queue_high_water"] = diag.event_queue_high_water;
   wifiDiag["last_ap_start_ms"] = diag.last_ap_start_ms;
   wifiDiag["last_ap_stop_ms"] = diag.last_ap_stop_ms;
+  wifiDiag["next_ap_retry_ms"] = diag.next_ap_retry_ms;
+  wifiDiag["ap_retry_delay_ms"] = diag.ap_retry_delay_ms;
+  wifiDiag["ap_retry_scheduled"] = diag.ap_retry_scheduled;
+  wifiDiag["ap_retry_remaining_ms"] =
+      diag.ap_retry_scheduled &&
+              time_utils::deadline_pending(now_ms, diag.next_ap_retry_ms)
+          ? time_utils::remaining_ms(now_ms, diag.next_ap_retry_ms)
+          : 0;
   wifiDiag["last_sta_retry_ms"] = diag.last_sta_retry_ms;
   wifiDiag["next_sta_retry_ms"] = diag.next_sta_retry_ms;
   wifiDiag["sta_retry_scheduled"] = diag.sta_retry_scheduled;
@@ -340,6 +349,7 @@ void handle_dev_get() {
   wifiDiag["ap_station_poll_max_us"] = diag.ap_station_poll_max_us;
   wifiDiag["channel_query_max_us"] = diag.channel_query_max_us;
   wifiDiag["last_ap_reason"] = diag.last_ap_reason;
+  wifiDiag["last_ap_failure_stage"] = diag.last_ap_failure_stage;
   wifiDiag["last_sta_reason"] = diag.last_sta_reason;
   wifiDiag["dns_running"] = dns_running;
   wifiDiag["dns_start_count"] = dns_start_count;

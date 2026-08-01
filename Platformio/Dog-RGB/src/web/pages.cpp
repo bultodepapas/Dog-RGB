@@ -1620,8 +1620,10 @@ String web_pages::html_dev_page() {
         <div class="field"><label>DNS cautivo</label><div class="data mono" id="diag-dns">--</div></div>
         <div class="field"><label>Canal AP</label><div class="data mono" id="diag-channel">--</div></div>
         <div class="field"><label>Hold AP</label><div class="data mono" id="diag-hold">--</div></div>
+        <div class="field"><label>Proximo retry AP</label><div class="data mono" id="diag-next-ap-retry">--</div></div>
         <div class="field"><label>Proximo retry STA</label><div class="data mono" id="diag-next-retry">--</div></div>
         <div class="field"><label>Ultima razon AP</label><div class="data mono" id="diag-ap-reason">--</div></div>
+        <div class="field"><label>Etapa fallo AP</label><div class="data mono" id="diag-ap-failure-stage">--</div></div>
         <div class="field"><label>Ultima razon STA</label><div class="data mono" id="diag-sta-reason">--</div></div>
       </div>
     </details>
@@ -1765,8 +1767,10 @@ String web_pages::html_dev_page() {
         setText('diag-dns', diag.dns_running ? 'activo' : 'apagado');
         setText('diag-channel', diag.current_ap_channel);
         setText('diag-hold', diag.ap_hold_scheduled ? fmtMs(diag.ap_hold_remaining_ms || 0) : '--');
+        setText('diag-next-ap-retry', diag.ap_retry_scheduled ? fmtMs(diag.ap_retry_remaining_ms || 0) : '--');
         setText('diag-next-retry', diag.sta_retry_scheduled ? fmtMs(diag.sta_retry_remaining_ms || 0) : '--');
         setText('diag-ap-reason', diag.last_ap_reason);
+        setText('diag-ap-failure-stage', diag.last_ap_failure_stage || '--');
         setText('diag-sta-reason', diag.last_sta_reason);
 
         const gps = d.gps || {};

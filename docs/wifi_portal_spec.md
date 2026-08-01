@@ -117,12 +117,16 @@ Mientras conecta, el firmware usa modo `AP+STA`. El AP puede apagarse despues po
 - Si AP OFF y no hay STA conectado, Wi-Fi OFF para ahorrar bateria.
 - Si Wi-Fi OFF y se cumple "sin GPS" o "estacionario", se reactiva AP.
 - Si STA falla, los reintentos usan backoff hasta `STA_RETRY_BACKOFF_MAX_MS` y se posponen mientras hay clientes AP.
+- Si el driver no puede iniciar SoftAP, no se reintenta en cada loop: usa backoff
+  wrap-safe de 1, 2, 4, 8, 16 y 30 s (maximo), y vuelve a 1 s tras recuperarse.
 
 ## Diagnostico
 
 `GET /api/dev` expone diagnostico Wi-Fi/AP:
 
 - Resultado del ultimo `WiFi.softAP()`.
+- Deadline/delay del retry AP, numero de schedules y etapa fallida
+  (`mode`, `config` o `softap`).
 - Contadores de AP start/stop/restart/fail.
 - Contadores de eventos AP station connect/disconnect y STA got IP/disconnect.
 - Timestamps de ultimo evento, proximo retry STA y hold AP.
