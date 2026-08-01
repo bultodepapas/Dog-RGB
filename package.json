@@ -15,6 +15,6 @@
     "ap-portal:ui": "playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --ui"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "1.62.1"
   }
 }

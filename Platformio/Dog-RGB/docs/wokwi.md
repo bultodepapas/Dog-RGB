@@ -5,13 +5,17 @@ codigo de produccion sigue siendo la verdad: Wokwi aporta entradas GNSS
 controlables, visualizacion, automatizacion, formas de onda y GDB, pero no
 reemplaza las pruebas electricas del prototipo.
 
-## Estado validado (2026-07-31)
+## Estado validado (2026-08-01)
 
-- Compilan tanto `seeed_xiao_esp32s3` como `wokwi` con PlatformIO.
+- Compilan tanto `seeed_xiao_esp32s3` como `wokwi` con pioarduino
+  55.03.311, Arduino-ESP32 3.3.11, ESP-IDF 5.5.5 y toolchain 14.2.0.
+- ArduinoJson 7.4.3 y Adafruit NeoPixel 1.15.5 estan fijadas exactamente.
 - El chip GNSS personalizado compila a WASM con Wokwi CLI 0.26.1.
 - El linter no reporta errores; solo informa que el tipo
   `board-xiao-esp32-s3` es `undocumented`, aunque el backend lo simula.
-- Hay 82 pruebas host verdes para contratos de firmware y activos Wokwi.
+- Hay 108 pruebas host verdes para contratos de firmware y activos Wokwi.
+- Los ocho escenarios Wokwi pasan con el core moderno; todos los analisis
+  reportan cero fatal markers y cero overflow UART.
 - El escenario `boot` valida firmware, AP, fix confiable, movimiento y buses
   LED/GNSS.
 - El escenario `modes` validó speed, simple, show, geofence, modo dia y
@@ -34,8 +38,12 @@ reemplaza las pruebas electricas del prototipo.
   radio, LED, HTTP, formateo y drenaje del logger. Detecto consultas Wi-Fi
   sincronas redundantes de clientes, canal, IP AP y modo. El conteo paso a
   eventos, canal/IP/modo se cachean en sus transiciones y el logger usa una cola
-  fija sin heap. La corrida final midio 50 us de radio, 1,894 us de formateo,
-  83 us de drenaje, 76,519 us de trabajo maximo y cero bytes descartados.
+  fija sin heap. La corrida con Arduino 3.3.11 midio 54 us de radio, 1,927 us
+  de formateo, 81 us de drenaje, 30,349 us de trabajo maximo, heap minimo de
+  234,512 bytes y cero bytes descartados.
+- El helper reintenta hasta tres veces solamente los cierres transitorios del
+  backend Wokwi (WebSocket 1006). Un fallo de assertion del firmware no se
+  reintenta ni se oculta.
 
 ## Circuito simulado
 
@@ -59,7 +67,8 @@ Wokwi es el unico que usa UART0 cableada y limita el transporte visual WS2812 a
 
 Requisitos:
 
-1. PlatformIO Core.
+1. PlatformIO/pioarduino Core 6.1.19 o posterior. El proyecto fija la
+   plataforma pioarduino 55.03.311 por URL exacta.
 2. Wokwi CLI oficial (el helper tambien busca
    `%USERPROFILE%\.wokwi\bin\wokwi-cli.exe`).
 3. Extension Wokwi para VS Code y licencia activa para uso interactivo.

@@ -6,9 +6,13 @@
 
 **Alcance:** firmware ESP32-S3, framework Arduino, librerías C++, simulación Wokwi, pruebas web y herramientas de desarrollo.
 
+> **Estado:** plan ejecutado el 2026-08-01. El resultado, versiones finales,
+> pruebas y límites de validación están registrados en
+> [dependency_update_execution_2026-08-01.md](dependency_update_execution_2026-08-01.md).
+
 ## 1. Resumen ejecutivo
 
-El proyecto compila sobre una base estable, pero su framework embebido está atrasado una generación completa:
+Al iniciar esta auditoría, el proyecto compilaba sobre una base estable, pero su framework embebido estaba atrasado una generación completa:
 
 - `espressif32@6.7.0` resuelve **Arduino-ESP32 2.0.16**, basado en **ESP-IDF 4.4.x**.
 - ESP-IDF 4.4 ya terminó su periodo de soporte. El firmware pierde correcciones acumuladas de Wi-Fi, BLE, UART, RMT y estabilidad del sistema.
@@ -38,7 +42,7 @@ Archivos y resolución real inspeccionados:
 
 No se consideró una librería activa solo porque aparezca en documentación o archivos de respaldo. Por ejemplo, FastLED aparece en `src/main.cpp.bak`, pero no participa en la compilación actual.
 
-## 3. Inventario exacto
+## 3. Inventario exacto al iniciar la auditoría
 
 | Componente | Declarado | Resuelto/instalado | Último estable comprobado | Estado | Decisión |
 |---|---:|---:|---:|---|---|

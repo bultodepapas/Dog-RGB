@@ -4,6 +4,11 @@ Fecha original: 2026-07-31; actualizada: 2026-08-01
 Proyecto auditado: Dog-RGB, rama `main`, commit `c5b77be`  
 Objetivo real: collar DIY configurable desde el telefono, con acceso local simple, GPS, LEDs y funcionamiento util con o sin router domestico.
 
+> **Actualización de plataforma (2026-08-01):** el firmware ya usa
+> Arduino-ESP32 3.3.11 / ESP-IDF 5.5.5. Las observaciones que citan 2.0.16 o
+> IDF 4.4 describen la línea base histórica; la migración y sus pruebas están
+> registradas en `docs/dependency_update_execution_2026-08-01.md`.
+
 ## Resultado ejecutivo
 
 El subsistema Wi-Fi tiene una base razonable y varias decisiones correctas para este proyecto: mantiene un SoftAP de recuperacion, permite STA opcional, usa AP+STA sin bloquear el arranque, limita clientes, aplica backoff a STA, desacopla los callbacks Wi-Fi mediante una cola estatica y protege el procesamiento GNSS durante exportaciones HTTP largas.

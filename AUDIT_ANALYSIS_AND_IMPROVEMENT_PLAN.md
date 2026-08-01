@@ -5,9 +5,14 @@
 **Role:** electronics/embedded-systems engineering review  
 **Evidence rule:** the repository code is the only source of truth for the product's implemented behavior. External material is used only to challenge assumptions and design improvements.
 
+> **Platform update (2026-08-01):** the firmware now uses Arduino-ESP32
+> 3.3.11 / ESP-IDF 5.5.5. Version references to Espressif32 6.7.0,
+> Arduino-ESP32 2.0.16, ArduinoJson 7.2.1, or NeoPixel 1.12.3 describe the
+> historical audit baseline. See `docs/dependency_update_execution_2026-08-01.md`.
+
 ## Executive assessment
 
-Dog-RGB is a credible, buildable ESP32-S3 DIY project with a sensibly modular firmware structure, strict NMEA checksum parsing, bounded LED buffers, GNSS-aware streamed track output, animated LED effects, and useful compile-time headroom. The current firmware builds successfully for the Seeed XIAO ESP32-S3 at **16.5% static RAM** and **28.9% flash**; the deliberately enlarged GNSS receive ring is allocated at runtime.
+Dog-RGB is a credible, buildable ESP32-S3 DIY project with a sensibly modular firmware structure, strict NMEA checksum parsing, bounded LED buffers, GNSS-aware streamed track output, animated LED effects, and useful compile-time headroom. At the original audit baseline, the firmware built successfully for the Seeed XIAO ESP32-S3 at **16.5% static RAM** and **28.9% flash**; the deliberately enlarged GNSS receive ring is allocated at runtime. The post-migration figures are recorded in the update execution report linked above.
 
 The local portal's simple default access is intentional for this DIY project: the owner can connect immediately and can change the AP credentials afterward. This audit therefore treats it as a usability choice, not a release-blocking security defect. Commercial IoT provisioning and enterprise-style access control are explicitly outside the current objective.
 

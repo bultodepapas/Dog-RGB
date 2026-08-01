@@ -8,7 +8,7 @@
       "program": "${workspaceFolder}/.pio/build/wokwi/firmware.elf",
       "cwd": "${workspaceFolder}",
       "MIMode": "gdb",
-      "miDebuggerPath": "${userHome}/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gdb.exe",
+      "miDebuggerPath": "${userHome}/.platformio/packages/tool-xtensa-esp-elf-gdb/bin/xtensa-esp-elf-gdb-no-python.exe",
       "miDebuggerServerAddress": "localhost:3333",
       "externalConsole": false,
       "stopAtEntry": false

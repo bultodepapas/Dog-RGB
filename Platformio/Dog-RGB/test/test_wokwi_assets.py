@@ -234,7 +234,8 @@ class WokwiAssetTests(unittest.TestCase):
         )
         config = launch["configurations"][0]
         self.assertIn(".pio/build/wokwi/firmware.elf", config["program"])
-        self.assertIn("xtensa-esp32s3-elf-gdb", config["miDebuggerPath"])
+        self.assertIn("tool-xtensa-esp-elf-gdb", config["miDebuggerPath"])
+        self.assertIn("xtensa-esp-elf-gdb-no-python", config["miDebuggerPath"])
         self.assertEqual(config["miDebuggerServerAddress"], "localhost:3333")
 
     def test_helper_loads_ignored_dotenv_without_overriding_process_environment(self):
