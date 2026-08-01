@@ -5,6 +5,7 @@
 #include <atomic>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -12,6 +13,7 @@
 #include "config.h"
 #include "gps/gps.h"
 #include "storage/nvs_store.h"
+#include "util/crc32.h"
 #include "util/time_utils.h"
 
 namespace wifi_mgr {
@@ -40,6 +42,33 @@ const IPAddress AP_GATEWAY_IP(192, 168, 4, 1);
 const IPAddress AP_SUBNET_MASK(255, 255, 255, 0);
 IPAddress ap_ip_state(0, 0, 0, 0);
 WifiDiagnostics wifi_diag = {};
+int8_t wifi_creds_active_record = -1;
+uint32_t wifi_creds_generation = 0;
+uint32_t wifi_creds_save_failure_count = 0;
+
+static const uint32_t WIFI_CREDS_RECORD_MAGIC = 0x49465744UL; // "DWFI" in storage.
+static const uint16_t WIFI_CREDS_RECORD_VERSION = 1;
+static const char *WIFI_CREDS_RECORD_KEYS[2] = {"wifi_a", "wifi_b"};
+static const char *WIFI_CREDS_MIGRATED_KEY = "wifi_blob";
+static const char *LEGACY_WIFI_SSID_KEY = "wifi_ssid";
+static const char *LEGACY_WIFI_PASS_KEY = "wifi_pass";
+
+struct __attribute__((packed)) WifiCredentialsRecord {
+  uint32_t magic;
+  uint16_t record_version;
+  uint16_t record_size;
+  uint32_t generation;
+  uint8_t configured;
+  uint8_t ssid_length;
+  uint8_t pass_length;
+  uint8_t reserved;
+  char ssid[33];
+  char pass[65];
+  uint32_t crc32;
+};
+
+static_assert(sizeof(WifiCredentialsRecord) == 118,
+              "Wi-Fi credentials record layout changed");
 
 bool set_wifi_mode(wifi_mode_t requested_mode) {
   const bool ok = WiFi.mode(requested_mode);
@@ -328,10 +357,202 @@ bool drain_wifi_events(unsigned long now_ms) {
   return dropped > 0;
 }
 
+uint32_t wifi_creds_record_crc(const WifiCredentialsRecord &record) {
+  return util::crc32_ieee(&record, offsetof(WifiCredentialsRecord, crc32));
+}
+
+bool wifi_creds_generation_is_newer(uint32_t candidate, uint32_t reference) {
+  const uint32_t delta = candidate - reference;
+  return delta != 0 && delta < 0x80000000UL;
+}
+
+bool encode_wifi_creds_record(const String &ssid,
+                              const String &pass,
+                              uint32_t generation,
+                              WifiCredentialsRecord &record) {
+  const size_t ssid_length = ssid.length();
+  const size_t pass_length = pass.length();
+  const bool configured = ssid_length > 0;
+  if (ssid_length > 32 || pass_length > 64 || (!configured && pass_length > 0)) {
+    return false;
+  }
+
+  record = WifiCredentialsRecord{};
+  record.magic = WIFI_CREDS_RECORD_MAGIC;
+  record.record_version = WIFI_CREDS_RECORD_VERSION;
+  record.record_size = sizeof(record);
+  record.generation = generation;
+  record.configured = configured ? 1 : 0;
+  record.ssid_length = static_cast<uint8_t>(ssid_length);
+  record.pass_length = static_cast<uint8_t>(pass_length);
+  if (ssid_length > 0) {
+    memcpy(record.ssid, ssid.c_str(), ssid_length);
+  }
+  if (pass_length > 0) {
+    memcpy(record.pass, pass.c_str(), pass_length);
+  }
+  record.crc32 = wifi_creds_record_crc(record);
+  return true;
+}
+
+bool decode_wifi_creds_record(const WifiCredentialsRecord &record,
+                              String &ssid,
+                              String &pass) {
+  if (record.magic != WIFI_CREDS_RECORD_MAGIC ||
+      record.record_version != WIFI_CREDS_RECORD_VERSION ||
+      record.record_size != sizeof(record) ||
+      record.configured > 1 ||
+      record.reserved != 0 ||
+      record.ssid_length > 32 ||
+      record.pass_length > 64 ||
+      record.crc32 != wifi_creds_record_crc(record) ||
+      record.ssid[record.ssid_length] != '\0' ||
+      record.pass[record.pass_length] != '\0' ||
+      memchr(record.ssid, '\0', sizeof(record.ssid)) !=
+          record.ssid + record.ssid_length ||
+      memchr(record.pass, '\0', sizeof(record.pass)) !=
+          record.pass + record.pass_length ||
+      (record.configured == 0 &&
+       (record.ssid_length != 0 || record.pass_length != 0)) ||
+      (record.configured != 0 && record.ssid_length == 0)) {
+    return false;
+  }
+
+  ssid = String(record.ssid);
+  pass = String(record.pass);
+  return ssid.length() == record.ssid_length && pass.length() == record.pass_length;
+}
+
+bool load_wifi_creds_record(Preferences &prefs,
+                            uint8_t slot,
+                            WifiCredentialsRecord &record,
+                            String &ssid,
+                            String &pass) {
+  const char *key = WIFI_CREDS_RECORD_KEYS[slot];
+  if (prefs.getBytesLength(key) != sizeof(record) ||
+      prefs.getBytes(key, &record, sizeof(record)) != sizeof(record)) {
+    return false;
+  }
+  return decode_wifi_creds_record(record, ssid, pass);
+}
+
+bool write_wifi_creds_record(Preferences &prefs,
+                             const String &ssid,
+                             const String &pass) {
+  const uint8_t target_slot = (wifi_creds_active_record == 0) ? 1 : 0;
+  const uint32_t next_generation = (wifi_creds_generation == UINT32_MAX)
+                                       ? 1U
+                                       : wifi_creds_generation + 1U;
+  WifiCredentialsRecord record = {};
+  if (!encode_wifi_creds_record(ssid, pass, next_generation, record)) {
+    wifi_creds_save_failure_count++;
+    return false;
+  }
+
+  const char *key = WIFI_CREDS_RECORD_KEYS[target_slot];
+  if (prefs.putBytes(key, &record, sizeof(record)) != sizeof(record)) {
+    wifi_creds_save_failure_count++;
+    return false;
+  }
+
+  WifiCredentialsRecord readback = {};
+  String verified_ssid;
+  String verified_pass;
+  if (!load_wifi_creds_record(prefs, target_slot, readback,
+                              verified_ssid, verified_pass) ||
+      memcmp(&record, &readback, sizeof(record)) != 0 ||
+      verified_ssid != ssid || verified_pass != pass) {
+    wifi_creds_save_failure_count++;
+    return false;
+  }
+
+  wifi_creds_active_record = target_slot;
+  wifi_creds_generation = next_generation;
+  wifi_ssid = verified_ssid;
+  wifi_pass = verified_pass;
+  return true;
+}
+
+bool mark_wifi_creds_migrated(Preferences &prefs) {
+  if (prefs.getBool(WIFI_CREDS_MIGRATED_KEY, false)) {
+    return true;
+  }
+  if (prefs.putBool(WIFI_CREDS_MIGRATED_KEY, true) != 1) {
+    wifi_creds_save_failure_count++;
+    return false;
+  }
+  return true;
+}
+
 void load_wifi_creds() {
   Preferences &prefs = storage::prefs();
-  wifi_ssid = prefs.getString("wifi_ssid", "");
-  wifi_pass = prefs.getString("wifi_pass", "");
+  wifi_ssid = "";
+  wifi_pass = "";
+  wifi_creds_active_record = -1;
+  wifi_creds_generation = 0;
+
+  WifiCredentialsRecord records[2] = {};
+  String candidate_ssids[2];
+  String candidate_passes[2];
+  const bool valid_a = load_wifi_creds_record(
+      prefs, 0, records[0], candidate_ssids[0], candidate_passes[0]);
+  const bool valid_b = load_wifi_creds_record(
+      prefs, 1, records[1], candidate_ssids[1], candidate_passes[1]);
+
+  if (valid_a || valid_b) {
+    uint8_t selected = 0;
+    if (!valid_a ||
+        (valid_b && wifi_creds_generation_is_newer(
+                        records[1].generation, records[0].generation))) {
+      selected = 1;
+    }
+    wifi_creds_active_record = selected;
+    wifi_creds_generation = records[selected].generation;
+    wifi_ssid = candidate_ssids[selected];
+    wifi_pass = candidate_passes[selected];
+
+    // Restore A/B redundancy after a damaged or interrupted inactive slot.
+    if (valid_a != valid_b) {
+      write_wifi_creds_record(prefs, wifi_ssid, wifi_pass);
+    }
+    mark_wifi_creds_migrated(prefs);
+    return;
+  }
+
+  // A completed migration makes the records authoritative. Never resurrect
+  // stale legacy credentials if both records are later damaged.
+  if (prefs.getBool(WIFI_CREDS_MIGRATED_KEY, false)) {
+    return;
+  }
+
+  const String legacy_ssid = prefs.getString(LEGACY_WIFI_SSID_KEY, "");
+  const String legacy_pass = prefs.getString(LEGACY_WIFI_PASS_KEY, "");
+  String migration_ssid = legacy_ssid;
+  String migration_pass = legacy_pass;
+  WifiCredentialsRecord migration_check = {};
+  if (!encode_wifi_creds_record(migration_ssid, migration_pass, 1,
+                                migration_check)) {
+    Serial.println("[WIFI_STORE] invalid legacy credentials; migrating as unconfigured");
+    migration_ssid = "";
+    migration_pass = "";
+  }
+
+  // Populate both slots once so the first post-upgrade boot already has a
+  // complete fallback generation. RAM changes only after each verified write.
+  if (write_wifi_creds_record(prefs, migration_ssid, migration_pass) &&
+      write_wifi_creds_record(prefs, migration_ssid, migration_pass)) {
+    mark_wifi_creds_migrated(prefs);
+    Serial.print("[WIFI_STORE] legacy migration complete generation=");
+    Serial.println(wifi_creds_generation);
+  } else {
+    // Preserve legacy runtime behavior for this boot if migration could not
+    // commit even one verified record. A later boot will retry migration.
+    if (wifi_creds_active_record < 0) {
+      wifi_ssid = migration_ssid;
+      wifi_pass = migration_pass;
+    }
+    Serial.println("[WIFI_STORE] legacy migration incomplete; will retry");
+  }
 }
 
 void start_ap_mode_internal(const char *reason) {
@@ -650,13 +871,19 @@ void start_ap_mode() {
   start_ap_mode_internal("manual");
 }
 
-void save_creds(const String &ssid, const String &pass) {
+bool save_creds(const String &ssid, const String &pass) {
   Preferences &prefs = storage::prefs();
-  prefs.putString("wifi_ssid", ssid);
-  prefs.putString("wifi_pass", pass);
-  wifi_ssid = ssid;
-  wifi_pass = pass;
+  if (!write_wifi_creds_record(prefs, ssid, pass)) {
+    Serial.println("[WIFI_STORE] credential save failed; previous generation remains active");
+    return false;
+  }
+  mark_wifi_creds_migrated(prefs);
   reset_sta_backoff();
+  Serial.print("[WIFI_STORE] credentials committed slot=");
+  Serial.print(wifi_creds_active_record);
+  Serial.print(" generation=");
+  Serial.println(wifi_creds_generation);
+  return true;
 }
 
 const String &ssid() {
@@ -665,6 +892,18 @@ const String &ssid() {
 
 const String &pass() {
   return wifi_pass;
+}
+
+int8_t storage_slot() {
+  return wifi_creds_active_record;
+}
+
+uint32_t storage_generation() {
+  return wifi_creds_generation;
+}
+
+uint32_t storage_save_failures() {
+  return wifi_creds_save_failure_count;
 }
 
 bool sta_connected() {

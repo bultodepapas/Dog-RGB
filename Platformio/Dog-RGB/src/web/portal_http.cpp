@@ -297,6 +297,10 @@ void handle_dev_get() {
   wifi["rssi"] = WiFi.RSSI();
   wifi["ap_mac"] = WiFi.softAPmacAddress();
   wifi["sta_mac"] = WiFi.macAddress();
+  JsonObject wifiStorage = wifi["storage"].to<JsonObject>();
+  wifiStorage["slot"] = wifi_mgr::storage_slot();
+  wifiStorage["generation"] = wifi_mgr::storage_generation();
+  wifiStorage["save_failures"] = wifi_mgr::storage_save_failures();
 
   const wifi_mgr::WifiDiagnostics &diag = wifi_mgr::diagnostics();
   JsonObject wifiDiag = wifi["diagnostics"].to<JsonObject>();
@@ -1038,7 +1042,10 @@ void handle_wifi_save() {
     server.send(400, "text/plain", "pass");
     return;
   }
-  wifi_mgr::save_creds(ssid, pass);
+  if (!wifi_mgr::save_creds(ssid, pass)) {
+    server.send(500, "application/json", "{\"ok\":false,\"reason\":\"storage\"}");
+    return;
+  }
   wifi_mgr::start_sta_mode();
   server.send(200, "text/plain", "saved, connecting");
 }

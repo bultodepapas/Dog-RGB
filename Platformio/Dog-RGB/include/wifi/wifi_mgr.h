@@ -39,10 +39,13 @@ void tick(unsigned long now_ms);
 
 void start_sta_mode();
 void start_ap_mode();
-void save_creds(const String &ssid, const String &pass);
+bool save_creds(const String &ssid, const String &pass);
 
 const String &ssid();
 const String &pass();
+int8_t storage_slot();
+uint32_t storage_generation();
+uint32_t storage_save_failures();
 
 bool sta_connected();
 bool sta_connecting();
