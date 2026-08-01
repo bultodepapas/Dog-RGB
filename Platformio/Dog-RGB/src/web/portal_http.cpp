@@ -268,7 +268,7 @@ void handle_status_get() {
 
 void handle_dev_get() {
   note_activity();
-  StaticJsonDocument<6912> doc;
+  StaticJsonDocument<7168> doc;
   const RuntimeConfig &cfg = config::get();
   const unsigned long now_ms = millis();
 
@@ -372,6 +372,11 @@ void handle_dev_get() {
   gps["date_rejected"] = gps::date_rejected_count();
   gps["date_pending_candidate"] = gps::date_pending_candidate();
   gps["date_pending_observations"] = gps::date_pending_observations();
+  JsonObject metricsStorage = gps["metrics_storage"].to<JsonObject>();
+  metricsStorage["slot"] = gps::metrics_storage_slot();
+  metricsStorage["generation"] = gps::metrics_storage_generation();
+  metricsStorage["save_failures"] = gps::metrics_storage_save_failures();
+  metricsStorage["recoveries"] = gps::metrics_storage_recoveries();
   JsonObject dailyStorage = gps["daily_journal"].to<JsonObject>();
   dailyStorage["slot"] = gps::daily_journal_slot();
   dailyStorage["generation"] = gps::daily_journal_generation();

@@ -90,6 +90,26 @@ uint32_t gps_date_rejected_count = 0;
 
 static const uint32_t DAILY_JOURNAL_MAGIC = 0x31594144UL; // "DAY1"
 static const uint8_t DAILY_JOURNAL_VERSION = 1;
+static const uint32_t METRICS_RECORD_MAGIC = 0x3154454DUL; // "MET1"
+static const uint8_t METRICS_RECORD_VERSION = 1;
+static const uint8_t METRICS_MIGRATION_VERSION = 1;
+
+struct MetricsRecord {
+  uint32_t magic;
+  uint8_t version;
+  uint8_t flags;
+  uint16_t size;
+  uint32_t generation;
+  uint32_t date;
+  float distance_m;
+  uint32_t active_ms;
+  float max_speed_kph;
+  uint16_t last_update_min;
+  uint16_t reserved;
+  uint32_t crc32;
+} __attribute__((packed));
+
+static_assert(sizeof(MetricsRecord) == 36, "MetricsRecord size");
 
 struct DailyJournalRecord {
   uint32_t magic;
@@ -113,6 +133,14 @@ bool last_completed_day_valid = false;
 int8_t daily_journal_active_slot = -1;
 uint32_t daily_journal_active_generation = 0;
 uint32_t daily_journal_failures = 0;
+int8_t metrics_active_slot = -1;
+uint32_t metrics_generation = 0;
+uint32_t metrics_failures = 0;
+uint32_t metrics_recoveries = 0;
+MetricsRecord metrics_persisted = {};
+bool metrics_persisted_valid = false;
+bool metrics_mirror_degraded = true;
+bool metrics_migration_marked = false;
 
 // Rolling metrics for the current session (boot -> shutdown).
 unsigned long session_active_time_ms = 0;
@@ -738,33 +766,215 @@ bool parse_gga(const char *line, uint8_t *fix_quality, uint8_t *sats, float *hdo
   return true;
 }
 
-// Persist daily metrics to NVS (throttled by SAVE_INTERVAL_MS).
-void save_metrics() {
-  Preferences &prefs = storage::prefs();
-  prefs.putUInt("date", current_date_yyyymmdd);
-  prefs.putFloat("dist_m", total_distance_m_val);
-  prefs.putULong("active_ms", active_time_ms_val);
-  prefs.putFloat("max_kph", max_speed_kph_val);
-  prefs.putUShort("upd_min", last_update_min_val);
+void reset_metrics_values() {
+  current_date_yyyymmdd = 0;
+  total_distance_m_val = 0.0f;
+  active_time_ms_val = 0;
+  max_speed_kph_val = 0.0f;
+  last_update_min_val = 0;
 }
 
-// Restore persisted metrics from NVS on boot.
+bool metrics_values_valid(uint32_t date, float distance_m, uint32_t active_ms,
+                          float max_speed_kph, uint16_t update_min) {
+  if (!isfinite(distance_m) || distance_m < 0.0f ||
+      !isfinite(max_speed_kph) || max_speed_kph < 0.0f ||
+      update_min >= 1440) {
+    return false;
+  }
+  if (date == 0) {
+    return distance_m == 0.0f && active_ms == 0 &&
+           max_speed_kph == 0.0f && update_min == 0;
+  }
+  return calendar_date_valid(date);
+}
+
+uint32_t metrics_record_crc(const MetricsRecord &record) {
+  return util::crc32_ieee(&record, offsetof(MetricsRecord, crc32));
+}
+
+bool metrics_record_valid(const MetricsRecord &record) {
+  return record.magic == METRICS_RECORD_MAGIC &&
+         record.version == METRICS_RECORD_VERSION && record.flags == 0 &&
+         record.size == sizeof(MetricsRecord) && record.reserved == 0 &&
+         metrics_values_valid(record.date, record.distance_m, record.active_ms,
+                              record.max_speed_kph, record.last_update_min) &&
+         record.crc32 == metrics_record_crc(record);
+}
+
+bool metrics_generation_is_newer(uint32_t candidate, uint32_t reference) {
+  return candidate != reference &&
+         static_cast<int32_t>(candidate - reference) > 0;
+}
+
+const char *metrics_record_key(uint8_t slot) {
+  return slot == 0 ? "met_a" : "met_b";
+}
+
+bool load_metrics_record(Preferences &prefs, uint8_t slot,
+                         MetricsRecord &record) {
+  record = MetricsRecord{};
+  const size_t len = prefs.getBytes(metrics_record_key(slot), &record,
+                                    sizeof(record));
+  return len == sizeof(record) && metrics_record_valid(record);
+}
+
+MetricsRecord build_metrics_record(uint32_t generation) {
+  MetricsRecord record = {};
+  record.magic = METRICS_RECORD_MAGIC;
+  record.version = METRICS_RECORD_VERSION;
+  record.flags = 0;
+  record.size = sizeof(MetricsRecord);
+  record.generation = generation;
+  record.date = current_date_yyyymmdd;
+  record.distance_m = total_distance_m_val;
+  record.active_ms = active_time_ms_val;
+  record.max_speed_kph = max_speed_kph_val;
+  record.last_update_min = last_update_min_val;
+  record.reserved = 0;
+  record.crc32 = metrics_record_crc(record);
+  return record;
+}
+
+bool metrics_payload_matches_ram(const MetricsRecord &record) {
+  return record.date == current_date_yyyymmdd &&
+         record.distance_m == total_distance_m_val &&
+         record.active_ms == active_time_ms_val &&
+         record.max_speed_kph == max_speed_kph_val &&
+         record.last_update_min == last_update_min_val;
+}
+
+void apply_metrics_record(const MetricsRecord &record, uint8_t slot) {
+  current_date_yyyymmdd = record.date;
+  total_distance_m_val = record.distance_m;
+  active_time_ms_val = record.active_ms;
+  max_speed_kph_val = record.max_speed_kph;
+  last_update_min_val = record.last_update_min;
+  metrics_active_slot = static_cast<int8_t>(slot);
+  metrics_generation = record.generation;
+  metrics_persisted = record;
+  metrics_persisted_valid = true;
+}
+
+bool write_metrics_record(Preferences &prefs, uint8_t slot,
+                          const MetricsRecord &record) {
+  if (prefs.putBytes(metrics_record_key(slot), &record, sizeof(record)) !=
+      sizeof(record)) {
+    metrics_failures++;
+    return false;
+  }
+  MetricsRecord readback = {};
+  if (!load_metrics_record(prefs, slot, readback) ||
+      memcmp(&record, &readback, sizeof(record)) != 0) {
+    metrics_failures++;
+    return false;
+  }
+  return true;
+}
+
+bool mark_metrics_migrated(Preferences &prefs) {
+  if (prefs.getUChar("met_mig", 0) == METRICS_MIGRATION_VERSION) {
+    metrics_migration_marked = true;
+    return true;
+  }
+  if (prefs.putUChar("met_mig", METRICS_MIGRATION_VERSION) != 1) {
+    metrics_migration_marked = false;
+    metrics_failures++;
+    return false;
+  }
+  metrics_migration_marked = true;
+  return true;
+}
+
+// Persist one coherent metrics snapshot. The inactive slot is not selected
+// until its complete record has passed CRC validation and byte-for-byte readback.
+bool save_metrics() {
+  if (!metrics_values_valid(current_date_yyyymmdd, total_distance_m_val,
+                            active_time_ms_val, max_speed_kph_val,
+                            last_update_min_val)) {
+    metrics_failures++;
+    return false;
+  }
+  if (metrics_persisted_valid && !metrics_mirror_degraded &&
+      metrics_migration_marked &&
+      metrics_payload_matches_ram(metrics_persisted)) {
+    return true;
+  }
+
+  Preferences &prefs = storage::prefs();
+  const int8_t previous_slot = metrics_active_slot;
+  const uint8_t target_slot = previous_slot == 0 ? 1 : 0;
+  const MetricsRecord record = build_metrics_record(metrics_generation + 1UL);
+  if (!write_metrics_record(prefs, target_slot, record)) {
+    return false;
+  }
+  apply_metrics_record(record, target_slot);
+  // With no previous valid slot this first write establishes only one copy;
+  // the next save repairs the mirror even if the payload has not changed.
+  metrics_mirror_degraded = previous_slot < 0;
+  mark_metrics_migrated(prefs);
+  return true;
+}
+
+// Restore the newest complete snapshot. Legacy independent keys are consumed
+// once and immediately converted, but never resurrected after migration.
 void load_metrics() {
   Preferences &prefs = storage::prefs();
-  current_date_yyyymmdd = prefs.getUInt("date", 0);
-  total_distance_m_val = prefs.getFloat("dist_m", 0.0f);
-  active_time_ms_val = prefs.getULong("active_ms", 0);
-  max_speed_kph_val = prefs.getFloat("max_kph", 0.0f);
-  last_update_min_val = prefs.getUShort("upd_min", 0);
-  if (!calendar_date_valid(current_date_yyyymmdd) ||
-      !isfinite(total_distance_m_val) || total_distance_m_val < 0.0f ||
-      !isfinite(max_speed_kph_val) || max_speed_kph_val < 0.0f ||
-      last_update_min_val >= 1440) {
-    current_date_yyyymmdd = 0;
-    total_distance_m_val = 0.0f;
-    active_time_ms_val = 0;
-    max_speed_kph_val = 0.0f;
-    last_update_min_val = 0;
+  MetricsRecord records[2] = {};
+  const bool valid_a = load_metrics_record(prefs, 0, records[0]);
+  const bool valid_b = load_metrics_record(prefs, 1, records[1]);
+  if (valid_a || valid_b) {
+    const uint8_t selected = (!valid_a ||
+                              (valid_b && metrics_generation_is_newer(
+                                              records[1].generation,
+                                              records[0].generation)))
+                                 ? 1
+                                 : 0;
+    apply_metrics_record(records[selected], selected);
+    metrics_mirror_degraded = valid_a != valid_b;
+    mark_metrics_migrated(prefs);
+    return;
+  }
+
+  metrics_active_slot = -1;
+  metrics_generation = 0;
+  metrics_persisted = MetricsRecord{};
+  metrics_persisted_valid = false;
+  metrics_mirror_degraded = true;
+  if (prefs.getUChar("met_mig", 0) == METRICS_MIGRATION_VERSION) {
+    metrics_migration_marked = true;
+    reset_metrics_values();
+    return;
+  }
+  metrics_migration_marked = false;
+
+  const uint32_t legacy_date = prefs.getUInt("date", 0);
+  const float legacy_distance = prefs.getFloat("dist_m", 0.0f);
+  const uint32_t legacy_active = prefs.getULong("active_ms", 0);
+  const float legacy_max_speed = prefs.getFloat("max_kph", 0.0f);
+  const uint16_t legacy_update = prefs.getUShort("upd_min", 0);
+  if (metrics_values_valid(legacy_date, legacy_distance, legacy_active,
+                           legacy_max_speed, legacy_update)) {
+    current_date_yyyymmdd = legacy_date;
+    total_distance_m_val = legacy_distance;
+    active_time_ms_val = legacy_active;
+    max_speed_kph_val = legacy_max_speed;
+    last_update_min_val = legacy_update;
+  } else {
+    reset_metrics_values();
+  }
+
+  const MetricsRecord first = build_metrics_record(0);
+  const bool wrote_a = write_metrics_record(prefs, 0, first);
+  const MetricsRecord second = build_metrics_record(1);
+  const bool wrote_b = write_metrics_record(prefs, 1, second);
+  if (wrote_b) {
+    apply_metrics_record(second, 1);
+  } else if (wrote_a) {
+    apply_metrics_record(first, 0);
+  }
+  metrics_mirror_degraded = !(wrote_a && wrote_b);
+  if (wrote_a || wrote_b) {
+    mark_metrics_migrated(prefs);
   }
 }
 
@@ -821,6 +1031,19 @@ void daily_journal_begin() {
   last_completed_day_valid = true;
   daily_journal_active_slot = static_cast<int8_t>(selected);
   daily_journal_active_generation = records[selected].generation;
+}
+
+void reconcile_metrics_with_daily_journal() {
+  if (!last_completed_day_valid || current_date_yyyymmdd == 0 ||
+      current_date_yyyymmdd > last_completed_day.date) {
+    return;
+  }
+  // The completed-day journal is committed before the live counters reset.
+  // If power disappears in that narrow window, an older live snapshot may
+  // still describe the already completed day. Never expose it a second time.
+  reset_metrics_values();
+  metrics_recoveries++;
+  save_metrics();
 }
 
 bool journal_current_day() {
@@ -2026,6 +2249,7 @@ void begin() {
   GPS.begin(GPS_BAUD, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
   load_metrics();
   daily_journal_begin();
+  reconcile_metrics_with_daily_journal();
   history_load();
   session_close_previous_on_boot();
   track_begin();
@@ -2223,6 +2447,22 @@ uint32_t date_pending_candidate() {
 
 uint8_t date_pending_observations() {
   return pending_date_observations;
+}
+
+int8_t metrics_storage_slot() {
+  return metrics_active_slot;
+}
+
+uint32_t metrics_storage_generation() {
+  return metrics_generation;
+}
+
+uint32_t metrics_storage_save_failures() {
+  return metrics_failures;
+}
+
+uint32_t metrics_storage_recoveries() {
+  return metrics_recoveries;
 }
 
 int8_t daily_journal_slot() {
