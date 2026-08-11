@@ -633,13 +633,13 @@ String web_pages::html_wifi_page() {
       <div class="muted">Conecta DOG-RGB al router de casa. El hotspot local queda disponible durante la conexion.</div>
       <div class="field">
         <label for="ssid">Nombre de red (SSID)</label>
-        <input id="ssid" name="ssid" value=")HTML");
+        <input id="ssid" name="ssid" autocomplete="off" spellcheck="false" value=")HTML");
   page += html_escape_attr(wifi_mgr::ssid());
   page += F(R"HTML(">
       </div>
       <div class="field">
         <label for="pass">Password red de casa</label>
-        <input name="pass" id="pass" type="password" placeholder="Password">
+        <input name="pass" id="pass" type="password" autocomplete="new-password" placeholder="Password">
       </div>
       <label class="muted"><input type="checkbox" id="show_pass"> Mostrar password</label>
       <div class="actions">
@@ -652,11 +652,11 @@ String web_pages::html_wifi_page() {
       <h2>Hotspot del collar</h2>
       <div class="muted">Estos datos son para conectarte directo al collar desde el telefono.</div>
       <div class="grid grid-2 section-body">
-        <div class="field"><label for="ap_ssid">Nombre hotspot (SSID)</label><input id="ap_ssid" type="text"></div>
+        <div class="field"><label for="ap_ssid">Nombre hotspot (SSID)</label><input id="ap_ssid" type="text" autocomplete="off" spellcheck="false"></div>
         <div class="field"><label for="mdns">Portal mDNS</label><input id="mdns" type="text"></div>
       </div>
       <div class="grid grid-2">
-        <div class="field"><label for="ap_pass">Password hotspot</label><input id="ap_pass" type="password" placeholder="(sin cambio)"></div>
+        <div class="field"><label for="ap_pass">Password hotspot</label><input id="ap_pass" type="password" autocomplete="new-password" placeholder="(sin cambio)"></div>
         <div class="field">
           <span>AP abierto</span>
           <label class="muted"><input id="ap_open" type="checkbox"> Sin password</label>
@@ -705,6 +705,8 @@ String web_pages::html_wifi_page() {
     const wifiHomeState = document.getElementById('wifi_home_state');
     const wifiApState = document.getElementById('wifi_ap_state');
     const wifiPortal = document.getElementById('wifi_portal');
+    // La IP del AP es configurable: tomarla del estado en vez de fijarla.
+    let apPortalUrl = 'http://192.168.4.1/';
     const wifiMdnsState = document.getElementById('wifi_mdns_state');
     const wifiStatusMsg = document.getElementById('wifi_status_msg');
     const wifiRefreshBtn = document.getElementById('wifi_refresh_btn');
@@ -775,6 +777,7 @@ String web_pages::html_wifi_page() {
       }
       const ap = w.ap_enabled ? ('Activo: ' + (w.ap_ssid || 'DogRGB') + ' (' + (w.ap_stations || 0) + ' clientes)') : 'Apagado';
       const apIp = w.ap_ip || '192.168.4.1';
+      apPortalUrl = 'http://' + apIp + '/';
       const mdnsName = w.mdns || '';
       setText(wifiHomeState, home);
       setText(wifiApState, ap);
@@ -810,7 +813,7 @@ String web_pages::html_wifi_page() {
           return;
         }
         if (Date.now() >= deadline){
-          staStatus.textContent = 'No se confirmo conexion. Revisa SSID/password; el hotspot sigue disponible en http://192.168.4.1/.';
+          staStatus.textContent = 'No se confirmo conexion. Revisa SSID/password; el hotspot sigue disponible en ' + apPortalUrl + '.';
           clearInterval(staPollTimer);
           staPollTimer = null;
         }
@@ -907,7 +910,7 @@ String web_pages::html_wifi_page() {
         baseCfg.wifi.has_ap_pass = apHasPass;
         apPass.value = '';
         const securityText = apOpen.checked ? 'sin password' : (passVal.length >= 8 ? 'con el password nuevo' : 'con el password ya configurado');
-        apRecovery.innerText = r.wifi_restart ? ('Si el telefono se desconecta, reconectate al hotspot "' + ssid + '" ' + securityText + ' y abre http://192.168.4.1/.') : 'Hotspot actualizado.';
+        apRecovery.innerText = r.wifi_restart ? ('Si el telefono se desconecta, reconectate al hotspot "' + ssid + '" ' + securityText + ' y abre ' + apPortalUrl + '.') : 'Hotspot actualizado.';
         updateApState();
         loadWifiStatus();
       }catch(e){
@@ -924,12 +927,12 @@ String web_pages::html_wifi_page() {
       try{
         const fd = new FormData(staForm);
         const r = await dogPost('/api/wifi',{body:fd});
-        const text = await r.text();
-        if (r.ok){
-          staStatus.textContent = 'Guardado, conectando... el hotspot sigue disponible en http://192.168.4.1/.';
+        const body = await r.json().catch(()=>({}));
+        if (r.ok && body.status === 'ok'){
+          staStatus.textContent = 'Guardado, conectando... el hotspot sigue disponible en ' + apPortalUrl + '.';
           pollStaStatus();
         } else {
-          staStatus.textContent = 'Error: ' + text;
+          staStatus.textContent = 'Error: ' + (body.reason || r.status);
         }
       }catch(e){
         staStatus.textContent = 'Error';
@@ -1093,8 +1096,8 @@ String web_pages::html_config_page() {
       <summary>Simple</summary>
       <div class="section-body">
         <div class="field">
-          <span>Preajuste</span>
-          <div class="preset-row" id="simple_preset_buttons">
+          <span id="lbl_preset">Preajuste</span>
+          <div class="preset-row" id="simple_preset_buttons" role="group" aria-labelledby="lbl_preset">
             <button class="preset-btn" type="button" data-theme="calm">Calm</button>
             <button class="preset-btn" type="button" data-theme="active">Active</button>
             <button class="preset-btn" type="button" data-theme="sport">Sport</button>
@@ -1103,8 +1106,8 @@ String web_pages::html_config_page() {
           </div>
         </div>
         <div class="field">
-          <span>Color base</span>
-          <div class="swatch-row" id="color_swatches"></div>
+          <span id="lbl_color">Color base</span>
+          <div class="swatch-row" id="color_swatches" role="group" aria-labelledby="lbl_color"></div>
         </div>
         <div class="grid grid-2">
           <div class="field">
@@ -1180,6 +1183,9 @@ String web_pages::html_config_page() {
     // Every portal write goes through here. X-Dog-Portal is what the server's
     // CSRF guard requires; X-Dog-Pin is empty unless the user turned on the
     // optional lock, in which case a 401 prompts for it once per browser tab.
+    // Todo valor de cadena que acabe en innerHTML pasa por aqui. Hoy ninguno
+    // viene del dispositivo, pero el patron no debe depender de eso.
+    function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
     function dogPin(){try{return sessionStorage.getItem('dogPin')||'';}catch(e){return '';}}
     async function dogPost(url,opts){
       opts=opts||{};
@@ -1271,7 +1277,7 @@ String web_pages::html_config_page() {
     };
 
     function fillEffectSelect(sel){
-      sel.innerHTML = EFFECTS.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+      sel.innerHTML = EFFECTS.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('');
     }
 
     function buildSpeedLanes(){
@@ -1288,7 +1294,7 @@ String web_pages::html_config_page() {
         } else {
           rangeHtml = `&gt; <span id="ln${i}_prev" class="sl-prev">?</span> km/h`;
         }
-        html += `<div class="speed-lane"><div class="sl-main"><div class="sl-meta"><span class="sl-dot" style="background:${color};box-shadow:0 0 6px ${color}88"></span><span class="sl-name" style="color:${color}">Z${i}</span><span class="sl-lbl">${lbl}</span><span class="sl-range">${rangeHtml}</span></div><div class="sl-ctrls"><select id="ln${i}_eff" aria-label="Z${i} efecto tira A"></select><span class="ctl-grp"><span class="ctl-lbl">vel</span><input id="ln${i}_spd" aria-label="Z${i} velocidad" type="number" min="0" max="255"></span><span class="ctl-grp"><span class="ctl-lbl">int</span><input id="ln${i}_int" aria-label="Z${i} intensidad" type="number" min="0" max="255"></span></div></div><div class="sl-adv" id="ln${i}_adv" style="display:none"><label for="ln${i}_effb">Tira B:</label><select id="ln${i}_effb"></select></div><button class="sl-adv-btn" type="button" onclick="toggleLaneAdv(${i})" id="ln${i}_advbtn">+ tira B independiente</button></div>`;
+        html += `<div class="speed-lane"><div class="sl-main"><div class="sl-meta"><span class="sl-dot" style="background:${esc(color)};box-shadow:0 0 6px ${esc(color)}88"></span><span class="sl-name" style="color:${esc(color)}">Z${i}</span><span class="sl-lbl">${esc(lbl)}</span><span class="sl-range">${rangeHtml}</span></div><div class="sl-ctrls"><select id="ln${i}_eff" aria-label="Z${i} efecto tira A"></select><span class="ctl-grp"><span class="ctl-lbl">vel</span><input id="ln${i}_spd" aria-label="Z${i} velocidad" type="number" min="0" max="255"></span><span class="ctl-grp"><span class="ctl-lbl">int</span><input id="ln${i}_int" aria-label="Z${i} intensidad" type="number" min="0" max="255"></span></div></div><div class="sl-adv" id="ln${i}_adv" style="display:none"><label for="ln${i}_effb">Tira B:</label><select id="ln${i}_effb"></select></div><button class="sl-adv-btn" type="button" onclick="toggleLaneAdv(${i})" id="ln${i}_advbtn">+ tira B independiente</button></div>`;
       }
       $('lanes_container').innerHTML = html;
       for (let i=1;i<=10;i++){
@@ -1358,7 +1364,7 @@ String web_pages::html_config_page() {
     function buildColorSwatches(){
       const el=$('color_swatches');
       if(!el) return;
-      el.innerHTML = COLOR_PRESETS.map(c=>`<button class="swatch" type="button" title="${c.name}" data-r="${c.r}" data-g="${c.g}" data-b="${c.b}" style="background:rgb(${c.r},${c.g},${c.b})"></button>`).join('');
+      el.innerHTML = COLOR_PRESETS.map(c=>`<button class="swatch" type="button" title="${esc(c.name)}" data-r="${c.r}" data-g="${c.g}" data-b="${c.b}" style="background:rgb(${c.r},${c.g},${c.b})"></button>`).join('');
       document.querySelectorAll('.swatch').forEach(btn=>{
         btn.onclick=()=>{
           simpleR.value=btn.dataset.r;
@@ -1454,7 +1460,7 @@ String web_pages::html_config_page() {
 
     function showErrors(list){
       if (!list.length) return;
-      errorsEl.innerHTML = list.map(msg=>`<div>${msg}</div>`).join('');
+      errorsEl.innerHTML = list.map(msg=>`<div>${esc(msg)}</div>`).join('');
     }
 
     function validateConfig(cfg){

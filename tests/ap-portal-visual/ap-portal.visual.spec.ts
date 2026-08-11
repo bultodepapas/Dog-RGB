@@ -84,7 +84,7 @@ async function mockPortalApis(page: Page, state: MockState = {}) {
       return;
     }
     if (url.pathname === '/api/wifi') {
-      await route.fulfill({ contentType: 'text/plain; charset=utf-8', body: 'saved, connecting' });
+      await route.fulfill({ json: { status: 'ok' } });
       return;
     }
     if (url.pathname === '/api/wifi/ap') {

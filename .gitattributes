@@ -1,0 +1,6 @@
+# Shell scripts run inside the Linux Playwright container; CRLF would make the
+# shebang line fail with "bad interpreter".
+*.sh text eol=lf
+
+# Screenshot baselines are compared byte-wise; never let git touch them.
+*.png binary

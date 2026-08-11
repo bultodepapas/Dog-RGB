@@ -146,13 +146,41 @@ bool persist_config_or_restore(const RuntimeConfig &previous) {
   return false;
 }
 
-String ap_base_url() {
-  return String("http://") + wifi_mgr::ap_ip().toString() + "/";
+// Routes that exist but may have been called with the wrong method. Used to
+// answer 405 instead of bouncing an API client to the dashboard.
+static const char *API_ROUTES[] = {
+    "/api/summary", "/api/status",      "/api/dev",       "/api/track",
+    "/api/track.csv", "/api/track.geojson", "/api/config", "/api/config/reset",
+    "/api/home",    "/api/home/set",    "/api/home/clear", "/api/wifi",
+    "/api/wifi/ap", "/api/lock"};
+
+bool is_known_api_route(const String &uri) {
+  for (size_t i = 0; i < sizeof(API_ROUTES) / sizeof(API_ROUTES[0]); ++i) {
+    if (uri == API_ROUTES[i]) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void redirect_to_portal() {
   note_activity();
-  server.sendHeader("Location", ap_base_url(), true);
+  const String uri = server.uri();
+
+  // An API client should get an API answer. Redirecting it to the dashboard,
+  // as this used to do for every unmatched request, is never useful.
+  if (uri.startsWith("/api/")) {
+    if (is_known_api_route(uri)) {
+      server.send(405, "application/json", "{\"status\":\"error\",\"reason\":\"method\"}");
+    } else {
+      server.send(404, "application/json", "{\"status\":\"error\",\"reason\":\"not found\"}");
+    }
+    return;
+  }
+
+  // Relative on purpose: ap_ip() is 0.0.0.0 while the AP is down, so an
+  // absolute URL sent a station-mode client to a dead address.
+  server.sendHeader("Location", "/", true);
   server.send(302, "text/plain", "");
 }
 
@@ -211,17 +239,22 @@ bool parse_track_session(const String &value, int &out) {
 }
 
 uint16_t parse_max_points(const String &value) {
-  if (value.length() == 0) {
+  // Bounded before parsing: toInt() returns long and silently wrapped when the
+  // caller passed something like "99999999999", which then read as negative
+  // and quietly meant "no limit". Five digits cannot overflow.
+  if (value.length() == 0 || value.length() > 5) {
     return 0;
   }
-  const int v = value.toInt();
+  for (size_t i = 0; i < value.length(); ++i) {
+    if (!isDigit(value[i])) {
+      return 0;
+    }
+  }
+  const long v = value.toInt();
   if (v <= 0) {
     return 0;
   }
-  if (v > 2000) {
-    return 2000;
-  }
-  return static_cast<uint16_t>(v);
+  return (v > 2000) ? 2000 : static_cast<uint16_t>(v);
 }
 
 uint32_t track_point_date(const gps::TrackView &view, const gps::TrackPoint &p) {
@@ -806,16 +839,21 @@ void handle_config_post() {
     next.gps_max_min_segment_m = max_min_segment_m;
   }
 
-  JsonArray ranges = doc["speed_ranges_kph"].as<JsonArray>();
-  if (ranges.size() != 9) {
-    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ranges\"}");
-    return;
-  }
-  for (int i = 0; i < 9; ++i) {
-    next.ranges[i] = ranges[i].as<float>();
-    if (next.ranges[i] <= 0.0f) {
-      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ranges value\"}");
+  // Every other field here is optional, so these were too until now: omitting
+  // them meant a 400 rather than "leave them alone". Present but malformed is
+  // still an error.
+  if (!doc["speed_ranges_kph"].isNull()) {
+    JsonArray ranges = doc["speed_ranges_kph"].as<JsonArray>();
+    if (ranges.size() != 9) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ranges\"}");
       return;
+    }
+    for (int i = 0; i < 9; ++i) {
+      next.ranges[i] = ranges[i].as<float>();
+      if (next.ranges[i] <= 0.0f) {
+        server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ranges value\"}");
+        return;
+      }
     }
   }
   if (!config::validate_ranges(next.ranges)) {
@@ -823,26 +861,28 @@ void handle_config_post() {
     return;
   }
 
-  JsonObject effects = doc["effects"].as<JsonObject>();
-  for (int i = 0; i < 10; ++i) {
-    JsonObject r = effects[String("range") + String(i + 1)];
-    if (r.isNull()) {
-      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effects\"}");
-      return;
+  if (!doc["effects"].isNull()) {
+    JsonObject effects = doc["effects"].as<JsonObject>();
+    for (int i = 0; i < 10; ++i) {
+      JsonObject r = effects[String("range") + String(i + 1)];
+      if (r.isNull()) {
+        server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effects\"}");
+        return;
+      }
+      const int eff_a = r["a"] | next.effects[i].effect_a;
+      const int eff_b = r["b"] | next.effects[i].effect_b;
+      const int eff_speed = r["speed"] | next.effects[i].speed;
+      const int eff_intensity = r["intensity"] | next.effects[i].intensity;
+      if (eff_a < 0 || eff_a > 11 || eff_b < 0 || eff_b > 11 ||
+          eff_speed < 0 || eff_speed > 255 || eff_intensity < 0 || eff_intensity > 255) {
+        server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effect values\"}");
+        return;
+      }
+      next.effects[i].effect_a = static_cast<uint8_t>(eff_a);
+      next.effects[i].effect_b = static_cast<uint8_t>(eff_b);
+      next.effects[i].speed = static_cast<uint8_t>(eff_speed);
+      next.effects[i].intensity = static_cast<uint8_t>(eff_intensity);
     }
-    const int eff_a = r["a"] | next.effects[i].effect_a;
-    const int eff_b = r["b"] | next.effects[i].effect_b;
-    const int eff_speed = r["speed"] | next.effects[i].speed;
-    const int eff_intensity = r["intensity"] | next.effects[i].intensity;
-    if (eff_a < 0 || eff_a > 11 || eff_b < 0 || eff_b > 11 ||
-        eff_speed < 0 || eff_speed > 255 || eff_intensity < 0 || eff_intensity > 255) {
-      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effect values\"}");
-      return;
-    }
-    next.effects[i].effect_a = static_cast<uint8_t>(eff_a);
-    next.effects[i].effect_b = static_cast<uint8_t>(eff_b);
-    next.effects[i].speed = static_cast<uint8_t>(eff_speed);
-    next.effects[i].intensity = static_cast<uint8_t>(eff_intensity);
   }
   if (!config::validate_effects(next.effects)) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effect id\"}");
@@ -1099,25 +1139,26 @@ void handle_wifi_save() {
     return;
   }
   if (!server.hasArg("ssid")) {
-    server.send(400, "text/plain", "missing ssid");
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ssid\"}");
     return;
   }
   const String ssid = server.arg("ssid");
   const String pass = server.arg("pass");
-  if (!config::valid_ap_ssid(ssid)) {
-    server.send(400, "text/plain", "ssid");
+  // Home-network credentials, not our own AP's: validated accordingly.
+  if (!config::valid_sta_ssid(ssid)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"ssid\"}");
     return;
   }
-  if (pass.length() > 0 && !config::valid_ap_pass(pass)) {
-    server.send(400, "text/plain", "pass");
+  if (!config::valid_sta_pass(pass)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"pass\"}");
     return;
   }
   if (!wifi_mgr::save_creds(ssid, pass)) {
-    server.send(500, "application/json", "{\"ok\":false,\"reason\":\"storage\"}");
+    server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
     return;
   }
   wifi_mgr::start_sta_mode();
-  server.send(200, "text/plain", "saved, connecting");
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 } // namespace
 

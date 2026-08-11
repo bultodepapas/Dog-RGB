@@ -628,6 +628,27 @@ bool valid_ap_pass(const String &value) {
   return true;
 }
 
+bool valid_sta_ssid(const String &value) {
+  return valid_ap_ssid(value);
+}
+
+// Accepts an empty string (open network), a 5- or 13-character WEP key, and
+// any WPA passphrase up to the 63-character maximum. valid_ap_pass() rejects
+// everything under 8 characters, which is right for an AP we create and wrong
+// for a network we are trying to join.
+bool valid_sta_pass(const String &value) {
+  if (value.length() > 63) {
+    return false;
+  }
+  for (size_t i = 0; i < value.length(); ++i) {
+    const char c = value[i];
+    if (c < 32 || c == 127) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool valid_mdns(const String &value) {
   if (value.length() < 1 || value.length() > 32) {
     return false;

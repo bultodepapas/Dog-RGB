@@ -62,6 +62,10 @@ bool validate_effects(const RangeEffect *effects);
 bool validate_gps(const RuntimeConfig &cfg);
 
 bool valid_ap_ssid(const String &value);
+// The rules for an AP you create are not the rules for a network you join:
+// foreign networks may use WEP keys shorter than a WPA passphrase.
+bool valid_sta_ssid(const String &value);
+bool valid_sta_pass(const String &value);
 bool valid_ap_pass(const String &value);
 bool valid_mdns(const String &value);
 }

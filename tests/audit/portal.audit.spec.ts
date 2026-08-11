@@ -239,6 +239,22 @@ test.describe('AP portal audit', () => {
     });
   }
 
+  // /api/wifi used to answer text/plain on success and JSON only on a storage
+  // failure. The page now parses one shape for both.
+  test('wifi save reports failure from a JSON error body', async ({ page }) => {
+    await mockApis(page);
+    await page.route('**/api/wifi', (route) =>
+      route.request().method() === 'POST'
+        ? route.fulfill({ status: 400, json: { status: 'error', reason: 'pass' } })
+        : route.fallback());
+    await page.goto('/wifi', { waitUntil: 'networkidle' });
+    await page.locator('input[name=ssid]').fill('Casa');
+    await page.locator('#pass').fill('x');
+    await page.locator('button:has-text("Guardar y conectar")').click();
+    await page.waitForTimeout(500);
+    await expect(page.locator('#sta_status')).toContainText('pass');
+  });
+
   test('portal lock is off by default and adds no steps', async ({ page }) => {
     await mockApis(page);
     await page.goto('/config', { waitUntil: 'networkidle' });

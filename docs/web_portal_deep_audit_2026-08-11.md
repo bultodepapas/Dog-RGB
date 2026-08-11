@@ -152,6 +152,59 @@ A 24 px la casilla nativa es un cuadro blanco que rompía el tema CRT, así que 
 
 **Corrección al harness.** La medición de objetivos táctiles evaluaba el `<input>`, no el `<label>` que lo envuelve y que es lo que el usuario realmente pulsa. Se corrigió para medir el área efectiva; sin ese arreglo el harness habría reportado 6 falsos positivos.
 
+### Fase 4 implementada el 2026-08-11
+
+Compila: `pio run` → SUCCESS, RAM 17.3 %, Flash 34.4 %. Suite 34/34.
+
+**R4.1 (M9) — actualizaciones parciales.** `speed_ranges_kph` y `effects` pasan a comprobarse con `isNull()` como el resto de campos. Omitirlos ahora significa «déjalos como están» en vez de `400`. Presentes pero malformados siguen siendo error, y `validate_ranges`/`validate_effects` se mantienen fuera del condicional para que ninguna ruta pueda persistir una configuración inválida.
+
+**R4.2 (M10) — validadores STA propios.** `valid_sta_ssid` y `valid_sta_pass` en `config`. La diferencia que importa está en la contraseña: `valid_ap_pass` rechaza todo lo que baje de 8 caracteres, lo correcto para un AP que uno crea y equivocado para una red ajena a la que uno se une. El nuevo validador acepta cadena vacía (red abierta), claves WEP de 5 o 13 caracteres y cualquier passphrase WPA hasta 63.
+
+**R4.3 (L9, L10) — consistencia de respuestas y métodos.**
+
+- `handle_wifi_save` devolvía `text/plain` en éxito, `text/plain` en error de validación y `application/json` en error de almacenamiento. Ahora es JSON en los tres casos, y el cliente parsea una sola forma.
+- El handler de no encontrado distingue tres situaciones en lugar de redirigir siempre: ruta de API conocida con método incorrecto → `405`; cualquier otra bajo `/api/` → `404` JSON; el resto → redirección al portal. Antes, un cliente de API que se equivocaba de método recibía un `302` hacia el dashboard.
+
+**R4.4 (M1, L5) — direcciones.**
+
+- `Location` pasa a ser `/` relativo. `ap_ip()` devuelve `0.0.0.0` con el AP apagado, así que toda URL no reconocida en modo STA mandaba al usuario a un destino muerto. `ap_base_url()` quedó sin uso y se eliminó.
+- Los tres mensajes que traían `http://192.168.4.1/` escrito a mano ahora derivan la dirección de `ap_ip` recibido en `/api/status`. Queda una única aparición de la constante, como valor de reserva si el estado aún no ha llegado.
+
+**Cobertura.** Dos tests nuevos: el mensaje de error de `/api/wifi` leído desde el cuerpo JSON, y el mock del contrato antiguo actualizado. Ese mock fue precisamente lo que hizo fallar la suite al cambiar el contrato, que es el comportamiento deseado.
+
+### Cierre de los hallazgos restantes, 2026-08-11
+
+**L4.** `autocomplete="off"` en los campos de SSID y `autocomplete="new-password"` en las tres contraseñas. Un gestor de contraseñas guardaría la clave del router doméstico asociada a la IP del collar, que no es una cuenta.
+
+**L6.** `parse_max_points` acotaba después de convertir. `String::toInt()` devuelve `long`, y asignarlo a `int` hacía que `?max_points=99999999999` envolviera a negativo y acabara significando «sin límite» en silencio. Ahora se validan longitud (≤5 dígitos, imposible desbordar) y dígitos antes de convertir.
+
+**L8.** Se añadió un helper `esc()` y se aplicó a las seis interpolaciones de cadena que llegan a `innerHTML`. Ninguna era explotable —todos los valores son numéricos o literales— pero eso era una propiedad de los datos, no del código. La regla `check_client_escaping` del smoke lo convierte en propiedad del código: cualquier `innerHTML` con `${...}` sin `esc(` falla. Verificado reintroduciendo el patrón antiguo.
+
+**Agrupación semántica (pendiente de la Fase 3).** `role="group"` + `aria-labelledby` en los dos grupos que son realmente conjuntos de controles (`Preajuste` y `Color base`, filas de botones). `AP abierto` rotula una casilla que ya tiene su propio nombre accesible, y `Rangos` encabeza un bloque de texto estático: en ninguno de los dos `role="group"` sería correcto, así que se quedan como `<span>`.
+
+**M6 cerrado.** Las 15 líneas base se generaron en el contenedor `mcr.microsoft.com/playwright:v1.62.1-noble` con el código final, llevan sufijo `-linux` y están commiteadas (2,8 MB). Verificado que el gate pasa en modo comparación —no sólo en modo generación— ejecutando la suite con `AP_PORTAL_VISUAL=1 CI=1` en la misma imagen: 15/15. El workflow ya no describe un bootstrap y sube los diffs sólo cuando falla.
+
+*Fallo encontrado y corregido en el propio script:* bajo Git Bash, `mktemp -d` devuelve una ruta MSYS que Docker Desktop no puede montar, así que la copia de vuelta producía cero ficheros sin dar error. `gen_baselines.sh` usa ahora un directorio dentro del repo y **aborta si el contenedor no produjo capturas**, en vez de borrar las existentes y dejar el directorio vacío.
+
+---
+
+## 9. Estado final
+
+Las cuatro fases están implementadas y **los 25 hallazgos están cerrados**.
+
+| | Cerrados | Abiertos |
+|---|---|---|
+| Crítico (2) | C1, C2 | — |
+| Alto (4) | H1, H2, H3, H4 | — |
+| Medio (10) | M1–M10 | — |
+| Bajo (9) | L1–L10 | — |
+
+**Verificación de cierre:** `pio run -e seeed_xiao_esp32s3` SUCCESS (RAM 17.3 %, Flash 34.4 %), `web_pages_smoke.py` verde, Playwright 34/34 en local y 15/15 de comparación visual en el contenedor de CI.
+
+**Lo que sigue sin estar verificado, y es lo único que importa antes de dar esto por bueno:** nada se ha probado en hardware. El firmware compila y la suite pasa contra el harness de preview, pero no se ha flasheado un ESP32-S3. La primera comprobación en el dispositivo debe ser que un guardado funciona: si `WebServer::collectHeaders` no se comporta en ejecución como se asume, `csrf_ok()` no vería la cabecera y **toda escritura devolvería 403**. Es el fallo más probable y el más visible. Las demás rutas que sólo se han razonado sobre código, no ejecutado, son el bloqueo por PIN sobre NVS real y la consistencia del export bajo tráfico GNSS continuo.
+
+**Guardarraíles que quedan vivos** para que esto no se degrade: tres reglas estáticas en el smoke (escapado servidor, cabecera CSRF, escapado cliente), presupuestos de tamaño por página, y tres jobs de CI (portal, visual, firmware) que bloquean el merge.
+
 ---
 
 ## 2. Hallazgos críticos

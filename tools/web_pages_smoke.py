@@ -144,12 +144,33 @@ def check_csrf_header(source: str) -> list[str]:
     return failures
 
 
+def check_client_escaping(source: str) -> list[str]:
+    """Markup built in the browser must escape interpolated values too.
+
+    Today every value reaching innerHTML is a number or a literal, so nothing
+    is exploitable -- but that is a property of the current data, not of the
+    code. This keeps it a property of the code.
+    """
+    failures: list[str] = []
+    for index, line in enumerate(source.splitlines(), start=1):
+        if "innerHTML" not in line or "${" not in line:
+            continue
+        if "esc(" not in line:
+            failures.append(
+                f"pages.cpp:{index}: innerHTML interpolates without esc(): {line.strip()[:90]}"
+            )
+    if "innerHTML" in source and "function esc(" not in source:
+        failures.append("esc() helper is missing from pages.cpp")
+    return failures
+
+
 def main() -> int:
     src = PAGES.read_text(encoding="utf-8")
     failures: list[str] = []
 
     failures.extend(check_interpolation_escaping(src))
     failures.extend(check_csrf_header(src))
+    failures.extend(check_client_escaping(src))
 
     for snippet in REQUIRED_SNIPPETS:
         if snippet not in src:

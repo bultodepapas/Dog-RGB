@@ -19,7 +19,13 @@ set -euo pipefail
 IMAGE="mcr.microsoft.com/playwright:v1.62.1-noble"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SNAPS="tests/ap-portal-visual/ap-portal.visual.spec.ts-snapshots"
-OUT="$(mktemp -d)"
+# Inside the repo on purpose: under Git Bash `mktemp -d` returns an MSYS path
+# that Docker Desktop cannot bind-mount, and the copy back silently yields
+# nothing. A repo-relative directory is mountable everywhere.
+OUT="$REPO/.baseline-tmp"
+rm -rf "$OUT"
+mkdir -p "$OUT"
+trap 'rm -rf "$OUT"' EXIT
 
 echo "Generating baselines in $IMAGE ..."
 
@@ -43,10 +49,15 @@ AP_PORTAL_VISUAL=1 npx playwright test tests/ap-portal-visual/ \
 cp -r "tests/ap-portal-visual/ap-portal.visual.spec.ts-snapshots/." /out/
 '
 
+count="$(find "$OUT" -name '*.png' | wc -l)"
+if [ "$count" -eq 0 ]; then
+  echo "ERROR: the container produced no baselines; nothing was replaced." >&2
+  exit 1
+fi
+
 rm -rf "${REPO:?}/$SNAPS"
 mkdir -p "$REPO/$SNAPS"
 cp -r "$OUT/." "$REPO/$SNAPS/"
-rm -rf "$OUT"
 
-echo "Wrote $(find "$REPO/$SNAPS" -name '*.png' | wc -l) baselines to $SNAPS"
+echo "Wrote $count baselines to $SNAPS"
 echo "Review the diff, then commit them."

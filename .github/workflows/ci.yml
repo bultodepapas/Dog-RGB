@@ -51,15 +51,13 @@ jobs:
     name: Portal (visual regression)
     runs-on: ubuntu-latest
     # Screenshot baselines are pixel comparisons, so they only mean anything
-    # against the renderer that produced them. This image is what makes them
-    # reproducible; keep the tag and the @playwright/test version in
-    # package.json in step.
+    # against the renderer that produced them. The committed baselines carry a
+    # -linux suffix and were generated in this exact image; keep the tag and
+    # the @playwright/test version in package.json in step, or every comparison
+    # starts failing for reasons that have nothing to do with the UI.
     #
-    # ONE-TIME BOOTSTRAP: no baselines are committed yet, so the first run of
-    # this job fails with "A snapshot doesn't exist". Download the
-    # `visual-baselines` artifact it uploads, commit its contents to
-    # tests/ap-portal-visual/ap-portal.visual.spec.ts-snapshots/, and this
-    # becomes a real gate. Regenerate the same way after an intended UI change.
+    # After an intended UI change, regenerate with:
+    #   npm run ap-portal:visual:baseline
     container: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
       - uses: actions/checkout@v4
@@ -77,16 +75,15 @@ jobs:
           AP_PORTAL_VISUAL: '1'
         run: npx playwright test tests/ap-portal-visual/ --project=iphone-13-pro-max-chromium
 
-      - name: Upload baselines and diffs
-        if: always()
+      # On failure these hold the actual/expected/diff triplets, which is the
+      # only practical way to judge whether a pixel change was intended.
+      - name: Upload visual diffs
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: visual-baselines
-          path: |
-            tests/ap-portal-visual/ap-portal.visual.spec.ts-snapshots/
-            test-results/
+          name: visual-diffs
+          path: test-results/
           retention-days: 7
-          if-no-files-found: warn
 
   firmware:
     name: Firmware (PlatformIO)
