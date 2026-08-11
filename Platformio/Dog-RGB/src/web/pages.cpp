@@ -119,11 +119,43 @@ details.section[open] > summary::after{content:'[-]';}
 @media(max-width:760px){.grid-2,.grid-3,.dashboard-summary{grid-template-columns:1fr;}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.mode-cards{grid-template-columns:repeat(2,minmax(0,1fr));}.primary-metric{min-height:auto;width:100%;text-align:center;align-items:center;}.primary-metric .value{font-size:36px;}.dashboard-actions .btn,.dashboard-actions summary.btn{flex:1 1 130px;}.sticky-actions{margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;border-radius:0;}.hero-top{flex-direction:column;align-items:flex-start;}}
 @media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
 )CSS";
+
+// Any runtime value interpolated into markup must pass through here. The SSID
+// is operator-controlled and reaches the page from NVS, so an unescaped quote
+// would break out of the attribute it sits in.
+String html_escape_attr(const String &value) {
+  String out;
+  out.reserve(value.length() + 16);
+  for (size_t i = 0; i < value.length(); ++i) {
+    const char c = value[i];
+    switch (c) {
+      case '&':
+        out += F("&amp;");
+        break;
+      case '<':
+        out += F("&lt;");
+        break;
+      case '>':
+        out += F("&gt;");
+        break;
+      case '"':
+        out += F("&quot;");
+        break;
+      case '\'':
+        out += F("&#39;");
+        break;
+      default:
+        out += c;
+        break;
+    }
+  }
+  return out;
+}
 } // namespace
 
 String web_pages::html_page() {
   String page;
-  page.reserve(25000);
+  page.reserve(30500);
   page += F(R"HTML(
 <!doctype html>
 <html>
@@ -529,7 +561,7 @@ String web_pages::html_page() {
 }
 String web_pages::html_wifi_page() {
   String page;
-  page.reserve(22000);
+  page.reserve(28500);
   page += F(R"HTML(
 <!doctype html>
 <html>
@@ -577,7 +609,7 @@ String web_pages::html_wifi_page() {
       <div class="field">
         <label>Nombre de red (SSID)</label>
         <input name="ssid" value=")HTML");
-  page += wifi_mgr::ssid();
+  page += html_escape_attr(wifi_mgr::ssid());
   page += F(R"HTML(">
       </div>
       <div class="field">
@@ -878,7 +910,7 @@ String web_pages::html_wifi_page() {
 }
 String web_pages::html_config_page() {
   String page;
-  page.reserve(36000);
+  page.reserve(46000);
   page += F(R"CFG(
 <!doctype html>
 <html>
@@ -1548,7 +1580,7 @@ String web_pages::html_config_page() {
 
 String web_pages::html_dev_page() {
   String page;
-  page.reserve(26000);
+  page.reserve(32500);
   page += F(R"DEV(
 <!doctype html>
 <html>

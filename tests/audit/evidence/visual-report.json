@@ -1,0 +1,138 @@
+[
+  {
+    "route": "/",
+    "contrastFailures": [
+      {
+        "text": "Collar inteligente de seguridad",
+        "cls": "tagline",
+        "color": "rgb(0, 136, 42)",
+        "bg": "rgb(10,10,10)",
+        "size": 12,
+        "ratio": 4.29,
+        "need": 4.5
+      },
+      {
+        "text": "Modo: --",
+        "cls": "pill",
+        "color": "rgb(0, 136, 42)",
+        "bg": "rgb(10,10,10)",
+        "size": 11,
+        "ratio": 4.29,
+        "need": 4.5
+      }
+    ],
+    "focusRules": 1,
+    "darkModeRules": 0,
+    "reducedMotionRules": 0
+  },
+  {
+    "route": "/wifi",
+    "contrastFailures": [
+      {
+        "text": "Configurar Wi-Fi",
+        "cls": "tagline",
+        "color": "rgb(0, 136, 42)",
+        "bg": "rgb(10,10,10)",
+        "size": 12,
+        "ratio": 4.29,
+        "need": 4.5
+      },
+      {
+        "text": "Home Wi-Fi",
+        "cls": "",
+        "color": "rgb(0, 136, 42)",
+        "bg": "rgb(10,10,10)",
+        "size": 11,
+        "ratio": 4.29,
+        "need": 4.5
+      }
+    ],
+    "focusRules": 1,
+    "darkModeRules": 0,
+    "reducedMotionRules": 0
+  },
+  {
+    "route": "/config",
+    "contrastFailures": [
+      {
+        "text": "Modos y LEDs",
+        "cls": "tagline",
+        "color": "rgb(0, 136, 42)",
+        "bg": "rgb(10,10,10)",
+        "size": 12,
+        "ratio": 4.29,
+        "need": 4.5
+      },
+      {
+        "text": "LEDs reaccionan al movimiento. R",
+        "cls": "",
+        "color": "rgb(0, 136, 42)",
+        "bg": "rgb(10,10,10)",
+        "size": 11,
+        "ratio": 4.29,
+        "need": 4.5
+      }
+    ],
+    "focusRules": 1,
+    "darkModeRules": 0,
+    "reducedMotionRules": 0
+  },
+  {
+    "route": "/dev",
+    "contrastFailures": [
+      {
+        "text": "Diagnostico tecnico",
+        "cls": "tagline",
+        "color": "rgb(0, 136, 42)",
+        "bg": "rgb(10,10,10)",
+        "size": 12,
+        "ratio": 4.29,
+        "need": 4.5
+      },
+      {
+        "text": "GPS: --",
+        "cls": "pill",
+        "color": "rgb(0, 136, 42)",
+        "bg": "rgb(10,10,10)",
+        "size": 11,
+        "ratio": 4.29,
+        "need": 4.5
+      }
+    ],
+    "focusRules": 1,
+    "darkModeRules": 0,
+    "reducedMotionRules": 0
+  },
+  {
+    "route": "/",
+    "noJs": {
+      "placeholders": 10,
+      "hasNoscript": false,
+      "bodyChars": 227
+    }
+  },
+  {
+    "route": "/wifi",
+    "noJs": {
+      "placeholders": 4,
+      "hasNoscript": false,
+      "bodyChars": 547
+    }
+  },
+  {
+    "route": "/config",
+    "noJs": {
+      "placeholders": 0,
+      "hasNoscript": false,
+      "bodyChars": 993
+    }
+  },
+  {
+    "route": "/dev",
+    "noJs": {
+      "placeholders": 72,
+      "hasNoscript": false,
+      "bodyChars": 1212
+    }
+  }
+]

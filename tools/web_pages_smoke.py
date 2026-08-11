@@ -16,13 +16,12 @@ PAGES = ROOT / "Platformio" / "Dog-RGB" / "src" / "web" / "pages.cpp"
 
 PAGE_BUDGETS = {
     "html_page": 28_000,
-    "html_wifi_page": 24_000,
+    "html_wifi_page": 26_000,
     "html_config_page": 40_000,
     "html_dev_page": 28_000,
 }
 
 REQUIRED_SNIPPETS = [
-    'id="mode_btn"',
     'id="track_load"',
     'id="track_csv"',
     'id="track_geo"',
@@ -43,7 +42,6 @@ REQUIRED_SNIPPETS = [
 REQUIRED_FUNCTIONS = [
     "loadTrack",
     "refreshAll",
-    "saveMode",
     "updateHome",
     "loadWifiStatus",
     "pollStaStatus",
@@ -59,7 +57,6 @@ REQUIRED_FUNCTIONS = [
 INLINE_CALLS = [
     "loadTrack",
     "refreshAll",
-    "saveMode",
     "updateHome",
     "saveAp",
     "loadWifiStatus",

@@ -631,36 +631,6 @@ void handle_track_geojson() {
   }
 }
 
-void handle_mode_post() {
-  note_activity();
-  if (!server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
-    return;
-  }
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, server.arg("plain"));
-  if (err) {
-    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
-    return;
-  }
-  const char *mode_str = doc["mode"];
-  uint8_t parsed_mode = config::get().mode;
-  if (!config::parse_mode(mode_str, parsed_mode)) {
-    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"mode\"}");
-    return;
-  }
-  if (parsed_mode != config::get().mode) {
-    RuntimeConfig previous = config::get();
-    config::get_mut().mode = parsed_mode;
-    if (!persist_config_or_restore(previous)) {
-      server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
-      return;
-    }
-    config::apply(previous);
-  }
-  server.send(200, "application/json", "{\"status\":\"ok\"}");
-}
-
 void handle_config_get() {
   note_activity();
   JsonDocument doc;
@@ -1069,7 +1039,6 @@ void begin() {
   server.on("/api/track", HTTP_GET, handle_track_get);
   server.on("/api/track.csv", HTTP_GET, handle_track_csv);
   server.on("/api/track.geojson", HTTP_GET, handle_track_geojson);
-  server.on("/api/mode", HTTP_POST, handle_mode_post);
   server.on("/api/config", HTTP_GET, handle_config_get);
   server.on("/api/config", HTTP_POST, handle_config_post);
   server.on("/api/config/reset", HTTP_POST, handle_config_reset);

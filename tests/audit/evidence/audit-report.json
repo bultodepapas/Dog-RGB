@@ -1,0 +1,669 @@
+[
+  {
+    "page": "index",
+    "lang": null,
+    "title": "DOG-RGB",
+    "viewport": "width=device-width,initial-scale=1",
+    "charset": "UTF-8",
+    "hasCsp": false,
+    "h1Count": 0,
+    "headings": [
+      "H2: Sesiones",
+      "H2: Ruta GPS"
+    ],
+    "landmarks": {
+      "main": 0,
+      "nav": 0,
+      "header": 0
+    },
+    "unlabeled": [
+      "select#track_session[name=-]"
+    ],
+    "orphanLabels": [],
+    "smallTargets": [
+      {
+        "tag": "button",
+        "cls": "btn",
+        "w": 168,
+        "h": 32,
+        "text": "Refresh"
+      },
+      {
+        "tag": "a",
+        "cls": "btn ghost",
+        "w": 168,
+        "h": 36,
+        "text": "Config LEDs"
+      },
+      {
+        "tag": "a",
+        "cls": "btn ghost",
+        "w": 168,
+        "h": 36,
+        "text": "Config Wi-Fi"
+      },
+      {
+        "tag": "a",
+        "cls": "btn ghost",
+        "w": 168,
+        "h": 36,
+        "text": "Dev"
+      },
+      {
+        "tag": "button",
+        "cls": "btn ghost",
+        "w": 101,
+        "h": 32,
+        "text": "Ver trazo"
+      }
+    ],
+    "smallTargetCount": 5,
+    "inlineHandlers": 3,
+    "imagesNoAlt": 0,
+    "docBytes": 26167,
+    "overflow": {
+      "iphone-se": {
+        "scrollW": 320,
+        "clientW": 320,
+        "overflows": false,
+        "offenders": []
+      },
+      "iphone-13-pro-max": {
+        "scrollW": 428,
+        "clientW": 428,
+        "overflows": false,
+        "offenders": []
+      },
+      "tablet": {
+        "scrollW": 768,
+        "clientW": 768,
+        "overflows": false,
+        "offenders": []
+      },
+      "desktop": {
+        "scrollW": 1280,
+        "clientW": 1280,
+        "overflows": false,
+        "offenders": []
+      }
+    },
+    "console": {
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "page": "wifi",
+    "lang": null,
+    "title": "Wi-Fi",
+    "viewport": "width=device-width,initial-scale=1",
+    "charset": "UTF-8",
+    "hasCsp": false,
+    "h1Count": 0,
+    "headings": [
+      "H2: Estado Wi-Fi",
+      "H2: Home Wi-Fi",
+      "H2: Hotspot del collar"
+    ],
+    "landmarks": {
+      "main": 0,
+      "nav": 0,
+      "header": 0
+    },
+    "unlabeled": [
+      "input#(no id)[name=ssid]",
+      "input#pass[name=pass]",
+      "input#ap_ssid[name=-]",
+      "input#mdns[name=-]",
+      "input#ap_pass[name=-]"
+    ],
+    "orphanLabels": [
+      "Home Wi-Fi",
+      "Hotspot collar",
+      "Portal local",
+      "mDNS",
+      "Nombre de red (SSID)",
+      "Password red de casa",
+      "Nombre hotspot (SSID)",
+      "Portal mDNS",
+      "Password hotspot",
+      "AP abierto"
+    ],
+    "smallTargets": [
+      {
+        "tag": "a",
+        "cls": "back-link",
+        "w": 63,
+        "h": 18,
+        "text": "← Inicio"
+      },
+      {
+        "tag": "button",
+        "cls": "btn ghost",
+        "w": 165,
+        "h": 32,
+        "text": "Actualizar estado"
+      },
+      {
+        "tag": "input",
+        "cls": "",
+        "w": 13,
+        "h": 13,
+        "text": ""
+      },
+      {
+        "tag": "button",
+        "cls": "btn",
+        "w": 173,
+        "h": 32,
+        "text": "Guardar y conectar"
+      },
+      {
+        "tag": "input",
+        "cls": "",
+        "w": 13,
+        "h": 13,
+        "text": ""
+      },
+      {
+        "tag": "input",
+        "cls": "",
+        "w": 13,
+        "h": 13,
+        "text": ""
+      },
+      {
+        "tag": "button",
+        "cls": "btn",
+        "w": 109,
+        "h": 32,
+        "text": "Guardar AP"
+      },
+      {
+        "tag": "a",
+        "cls": "btn ghost",
+        "w": 78,
+        "h": 36,
+        "text": "Volver"
+      }
+    ],
+    "smallTargetCount": 8,
+    "inlineHandlers": 2,
+    "imagesNoAlt": 0,
+    "docBytes": 24264,
+    "overflow": {
+      "iphone-se": {
+        "scrollW": 320,
+        "clientW": 320,
+        "overflows": false,
+        "offenders": []
+      },
+      "iphone-13-pro-max": {
+        "scrollW": 428,
+        "clientW": 428,
+        "overflows": false,
+        "offenders": []
+      },
+      "tablet": {
+        "scrollW": 768,
+        "clientW": 768,
+        "overflows": false,
+        "offenders": []
+      },
+      "desktop": {
+        "scrollW": 1280,
+        "clientW": 1280,
+        "overflows": false,
+        "offenders": []
+      }
+    },
+    "console": {
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "page": "config",
+    "lang": null,
+    "title": "Config",
+    "viewport": "width=device-width,initial-scale=1",
+    "charset": "UTF-8",
+    "hasCsp": false,
+    "h1Count": 0,
+    "headings": [],
+    "landmarks": {
+      "main": 0,
+      "nav": 0,
+      "header": 0
+    },
+    "unlabeled": [
+      "input#brightness_slider[name=-]",
+      "input#brightness[name=-]",
+      "select#mode[name=-]",
+      "input#ln1_thr[name=-]",
+      "select#ln1_eff[name=-]",
+      "input#ln1_spd[name=-]",
+      "input#ln1_int[name=-]",
+      "select#ln1_effb[name=-]",
+      "input#ln2_thr[name=-]",
+      "select#ln2_eff[name=-]",
+      "input#ln2_spd[name=-]",
+      "input#ln2_int[name=-]",
+      "select#ln2_effb[name=-]",
+      "input#ln3_thr[name=-]",
+      "select#ln3_eff[name=-]",
+      "input#ln3_spd[name=-]",
+      "input#ln3_int[name=-]",
+      "select#ln3_effb[name=-]",
+      "input#ln4_thr[name=-]",
+      "select#ln4_eff[name=-]",
+      "input#ln4_spd[name=-]",
+      "input#ln4_int[name=-]",
+      "select#ln4_effb[name=-]",
+      "input#ln5_thr[name=-]",
+      "select#ln5_eff[name=-]",
+      "input#ln5_spd[name=-]",
+      "input#ln5_int[name=-]",
+      "select#ln5_effb[name=-]",
+      "input#ln6_thr[name=-]",
+      "select#ln6_eff[name=-]",
+      "input#ln6_spd[name=-]",
+      "input#ln6_int[name=-]",
+      "select#ln6_effb[name=-]",
+      "input#ln7_thr[name=-]",
+      "select#ln7_eff[name=-]",
+      "input#ln7_spd[name=-]",
+      "input#ln7_int[name=-]",
+      "select#ln7_effb[name=-]",
+      "input#ln8_thr[name=-]",
+      "select#ln8_eff[name=-]",
+      "input#ln8_spd[name=-]",
+      "input#ln8_int[name=-]",
+      "select#ln8_effb[name=-]",
+      "input#ln9_thr[name=-]",
+      "select#ln9_eff[name=-]",
+      "input#ln9_spd[name=-]",
+      "input#ln9_int[name=-]",
+      "select#ln9_effb[name=-]",
+      "select#ln10_eff[name=-]",
+      "input#ln10_spd[name=-]",
+      "input#ln10_int[name=-]",
+      "select#ln10_effb[name=-]",
+      "input#fence_max[name=-]",
+      "input#gps_min_fix[name=-]",
+      "input#gps_min_sats[name=-]",
+      "input#gps_max_hdop[name=-]",
+      "input#gps_max_gga_age[name=-]",
+      "input#gps_min_segment[name=-]",
+      "input#gps_hdop_factor[name=-]",
+      "input#gps_max_min_segment[name=-]",
+      "select#simple_theme[name=-]",
+      "select#simple_effect[name=-]",
+      "input#simple_speed[name=-]",
+      "input#simple_intensity[name=-]",
+      "input#simple_r[name=-]",
+      "input#simple_g[name=-]",
+      "input#simple_b[name=-]"
+    ],
+    "orphanLabels": [
+      "Brillo",
+      "Valor brillo",
+      "Modo",
+      "Tira B:",
+      "Tira B:",
+      "Tira B:",
+      "Tira B:",
+      "Tira B:",
+      "Tira B:",
+      "Tira B:",
+      "Tira B:",
+      "Tira B:",
+      "Tira B:",
+      "Distancia maxima (m)",
+      "Rangos",
+      "Fix quality min (0..8)",
+      "Satellites min (3..12)",
+      "HDOP max (0.5..20)",
+      "Max age GGA (ms)",
+      "Min segment (m)",
+      "HDOP factor",
+      "Max min segment (m)",
+      "Preajuste",
+      "Color base",
+      "Tema",
+      "Efecto",
+      "Velocidad (0..255)",
+      "Intensidad (0..255)",
+      "R",
+      "G",
+      "B"
+    ],
+    "smallTargets": [
+      {
+        "tag": "a",
+        "cls": "back-link",
+        "w": 63,
+        "h": 18,
+        "text": "← Inicio"
+      },
+      {
+        "tag": "button",
+        "cls": "btn",
+        "w": 149,
+        "h": 32,
+        "text": "Guardar cambios"
+      },
+      {
+        "tag": "button",
+        "cls": "btn danger",
+        "w": 173,
+        "h": 32,
+        "text": "Restaurar defaults"
+      },
+      {
+        "tag": "input",
+        "cls": "",
+        "w": 13,
+        "h": 13,
+        "text": ""
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "sl-adv-btn",
+        "w": 344,
+        "h": 18,
+        "text": "- tira B independiente"
+      },
+      {
+        "tag": "button",
+        "cls": "btn",
+        "w": 149,
+        "h": 32,
+        "text": "Guardar cambios"
+      },
+      {
+        "tag": "button",
+        "cls": "btn danger",
+        "w": 173,
+        "h": 32,
+        "text": "Restaurar defaults"
+      },
+      {
+        "tag": "a",
+        "cls": "btn ghost",
+        "w": 78,
+        "h": 36,
+        "text": "Volver"
+      }
+    ],
+    "smallTargetCount": 17,
+    "inlineHandlers": 16,
+    "imagesNoAlt": 0,
+    "docBytes": 57819,
+    "overflow": {
+      "iphone-se": {
+        "scrollW": 320,
+        "clientW": 320,
+        "overflows": false,
+        "offenders": []
+      },
+      "iphone-13-pro-max": {
+        "scrollW": 428,
+        "clientW": 428,
+        "overflows": false,
+        "offenders": []
+      },
+      "tablet": {
+        "scrollW": 768,
+        "clientW": 768,
+        "overflows": false,
+        "offenders": []
+      },
+      "desktop": {
+        "scrollW": 1280,
+        "clientW": 1280,
+        "overflows": false,
+        "offenders": []
+      }
+    },
+    "console": {
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "page": "dev",
+    "lang": null,
+    "title": "Dev",
+    "viewport": "width=device-width,initial-scale=1",
+    "charset": "UTF-8",
+    "hasCsp": false,
+    "h1Count": 0,
+    "headings": [
+      "H2: Sistema",
+      "H2: Wi-Fi",
+      "H2: GPS",
+      "H2: LED",
+      "H2: Geocerca"
+    ],
+    "landmarks": {
+      "main": 0,
+      "nav": 0,
+      "header": 0
+    },
+    "unlabeled": [],
+    "orphanLabels": [
+      "Tiempo activo",
+      "Compilacion",
+      "Heap libre",
+      "Modo",
+      "STA",
+      "AP",
+      "Clientes AP",
+      "Wi-Fi apagado",
+      "SSID AP",
+      "mDNS",
+      "STA IP",
+      "AP IP",
+      "RSSI",
+      "Inicios AP",
+      "Fallos AP",
+      "Paradas AP",
+      "Reinicios AP",
+      "Clientes conectados",
+      "Clientes desconectados",
+      "DNS cautivo",
+      "Canal AP",
+      "Hold AP",
+      "Proximo retry AP",
+      "Proximo retry STA",
+      "Ultima razon AP",
+      "Etapa fallo AP",
+      "Ultima razon STA",
+      "Fix",
+      "Fix actual",
+      "Fix sin filtrar",
+      "Fix confiable",
+      "Sats",
+      "Calidad fix",
+      "HDOP",
+      "Calidad OK",
+      "Velocidad (kph)",
+      "Lat",
+      "Lon",
+      "Fecha",
+      "Ultima actualizacion",
+      "Edad ultimo byte",
+      "Edad ultimo fix",
+      "Bytes RX",
+      "Sentencias RX",
+      "RMC visto",
+      "RMC valido",
+      "GGA visto",
+      "Overflow",
+      "Modo",
+      "Brillo",
+      "Rango actual",
+      "Base RGB",
+      "Efecto A",
+      "Efecto B",
+      "Velocidad rango",
+      "Intensidad rango",
+      "Efecto simple",
+      "Velocidad simple",
+      "Intensidad simple",
+      "Simple RGB",
+      "Efecto show",
+      "Modo DIA",
+      "DIA hora local",
+      "Home definido",
+      "Fuente",
+      "Home lat",
+      "Home lon",
+      "Distancia (m)",
+      "Rango"
+    ],
+    "smallTargets": [
+      {
+        "tag": "button",
+        "cls": "btn",
+        "w": 109,
+        "h": 32,
+        "text": "Actualizar"
+      },
+      {
+        "tag": "input",
+        "cls": "",
+        "w": 13,
+        "h": 13,
+        "text": ""
+      },
+      {
+        "tag": "a",
+        "cls": "btn ghost",
+        "w": 78,
+        "h": 36,
+        "text": "Volver"
+      }
+    ],
+    "smallTargetCount": 3,
+    "inlineHandlers": 1,
+    "imagesNoAlt": 0,
+    "docBytes": 28975,
+    "overflow": {
+      "iphone-se": {
+        "scrollW": 320,
+        "clientW": 320,
+        "overflows": false,
+        "offenders": []
+      },
+      "iphone-13-pro-max": {
+        "scrollW": 428,
+        "clientW": 428,
+        "overflows": false,
+        "offenders": []
+      },
+      "tablet": {
+        "scrollW": 768,
+        "clientW": 768,
+        "overflows": false,
+        "offenders": []
+      },
+      "desktop": {
+        "scrollW": 1280,
+        "clientW": 1280,
+        "overflows": false,
+        "offenders": []
+      }
+    },
+    "console": {
+      "errors": [],
+      "warnings": []
+    }
+  },
+  {
+    "page": "config-post",
+    "postedKeys": [
+      "version",
+      "mode",
+      "fence_max_m",
+      "led",
+      "day_mode",
+      "gps",
+      "speed_ranges_kph",
+      "effects",
+      "single"
+    ],
+    "hasRanges": true,
+    "effectKeys": 10
+  },
+  {
+    "page": "xss-poc",
+    "hostileSsid": "\" autofocus onfocus=\"window.__xss=1",
+    "scriptExecuted": true,
+    "ssidInputValue": ""
+  }
+]
