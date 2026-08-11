@@ -258,3 +258,158 @@ test.describe('W1 · scanning for networks', () => {
     await expect(page.locator('#scan_btn')).toBeEnabled();
   });
 });
+
+/* ---------- fase 2: the portal explaining itself ---------- */
+
+test.describe('CC4/CC5 · messages are human and do not linger', () => {
+  test('no page renders the protocol status as its confirmation', async ({ page }) => {
+    for (const route of ['/config', '/wifi']) {
+      await mockPortal(page);
+      await page.goto(route);
+      await page.waitForTimeout(400);
+      const text = await page.evaluate(() => document.body.innerText);
+      expect(text.split('\n').map((l) => l.trim())).not.toContain('ok');
+    }
+  });
+
+  test('a confirmation clears itself instead of standing forever', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/config');
+    await expect(page.locator('#brightness')).not.toHaveValue('');
+    await page.locator('.action-bar button', { hasText: 'Guardar cambios' }).first().click();
+    await expect(page.locator('#status')).toContainText('Guardado');
+    // Otherwise the card keeps claiming "Guardado" over edits made a minute later.
+    await expect(page.locator('#status')).toHaveText('', { timeout: 8000 });
+  });
+
+  test('an error stays put until it is dealt with', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/config');
+    await expect(page.locator('#brightness')).not.toHaveValue('');
+    await page.locator('#ln2_thr').fill('0.1');
+    await page.locator('.action-bar button', { hasText: 'Guardar cambios' }).first().click();
+    await expect(page.locator('#status')).toContainText('Revisa los campos marcados');
+    await page.waitForTimeout(5000);
+    await expect(page.locator('#status')).toContainText('Revisa los campos marcados');
+  });
+});
+
+test.describe('CC8 · a disabled control looks disabled', () => {
+  test('the hotspot password field changes appearance when it is inert', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/wifi');
+    await page.waitForTimeout(400);
+    const look = (sel: string) =>
+      page.locator(sel).evaluate((el) => {
+        const c = getComputedStyle(el);
+        return `${c.opacity}|${c.borderStyle}|${c.color}`;
+      });
+
+    const enabled = await look('#ap_pass');
+    await page.locator('#ap_open').check();
+    await expect(page.locator('#ap_pass')).toBeDisabled();
+    const disabled = await look('#ap_pass');
+    expect(disabled).not.toBe(enabled);
+  });
+});
+
+test.describe('W2 · advisories are ranked, not stacked', () => {
+  test('the security warning is separated and carries the danger colour', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/wifi');
+    await page.waitForTimeout(400);
+    await page.locator('#ap_open').check();
+    await page.locator('#ap_ssid').fill('OTRO-NOMBRE');
+    await page.locator('#ap_ssid').dispatchEvent('input');
+
+    const warn = page.locator('#ap_open_warn');
+    const note = page.locator('#ap_warn');
+    await expect(warn).toBeVisible();
+    await expect(note).toBeVisible();
+
+    const styles = await page.evaluate(() => {
+      const g = (id: string) => {
+        const el = document.getElementById(id)!;
+        const c = getComputedStyle(el);
+        return { color: c.color, top: el.getBoundingClientRect().top, bottom: el.getBoundingClientRect().bottom };
+      };
+      return { warn: g('ap_open_warn'), note: g('ap_warn') };
+    });
+    // Before, both were the same yellow with no gap and read as one block.
+    expect(styles.warn.color).not.toBe(styles.note.color);
+    expect(styles.note.top - styles.warn.bottom).toBeGreaterThanOrEqual(6);
+  });
+});
+
+test.describe('W4 · the stored home password is not a mystery', () => {
+  test('says a password is already saved', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/wifi');
+    await expect(page.locator('#sta_pass_hint')).toContainText('Ya hay una password guardada');
+  });
+
+  test('says when there is none', async ({ page }) => {
+    await page.route('**/api/**', async (route) => {
+      const p = new URL(route.request().url()).pathname;
+      if (p === '/api/config' && route.request().method() === 'GET') {
+        const cfg = fx('config.speed.json');
+        cfg.wifi.has_sta_pass = false;
+        return route.fulfill({ json: cfg });
+      }
+      if (p === '/api/status') return route.fulfill({ json: fx('status.connected.json') });
+      return route.fulfill({ json: { status: 'ok' } });
+    });
+    await page.goto('/wifi');
+    await expect(page.locator('#sta_pass_hint')).toContainText('No hay ninguna password guardada');
+  });
+});
+
+test.describe('W6 · mDNS is explained in terms of what you type', () => {
+  test('the preview follows the field and stays inline', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/wifi');
+    await expect(page.locator('#mdns_preview')).toHaveText('dog-rgb');
+    await page.locator('#mdns').fill('collar-luna');
+    await page.locator('#mdns').dispatchEvent('input');
+    await expect(page.locator('#mdns_preview')).toHaveText('collar-luna');
+
+    // `.field span` used to force block layout and uppercase on this preview.
+    const style = await page.locator('#mdns_preview').evaluate((el) => {
+      const c = getComputedStyle(el);
+      return { display: c.display, transform: c.textTransform };
+    });
+    expect(style.display).not.toBe('block');
+    expect(style.transform).toBe('none');
+  });
+});
+
+test.describe('CC9 · one vocabulary across the portal', () => {
+  test('the dashboard names the mode the way /config does', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/');
+    await expect(page.locator('#pill-mode')).toHaveText('Modo: Velocidad');
+    await expect(page.locator('#pill-mode')).not.toContainText('speed');
+  });
+
+  test('every page uses the same word for going home', async ({ page }) => {
+    for (const route of ['/wifi', '/config', '/dev']) {
+      await mockPortal(page);
+      await page.goto(route);
+      const labels = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('a[href="/"]')).map((a) => (a.textContent ?? '').trim()),
+      );
+      expect(labels.length).toBeGreaterThan(0);
+      for (const l of labels) expect(l).toContain('Inicio');
+      expect(labels).not.toContain('Volver');
+    }
+  });
+
+  test('the geofence section is called Geocerca', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/config');
+    await expect(page.locator('#brightness')).not.toHaveValue('');
+    await page.locator('[data-mode-card="geofence"]').click();
+    await expect(page.locator('#geofence_block summary')).toHaveText('Geocerca');
+    expect(await page.evaluate(() => document.body.innerText)).not.toContain('Geofence');
+  });
+});

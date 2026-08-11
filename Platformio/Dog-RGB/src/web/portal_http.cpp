@@ -743,6 +743,11 @@ void handle_config_get() {
   rgb["b"] = cfg.single.base_b;
   doc["wifi"]["ap_ssid"] = cfg.ap_ssid;
   doc["wifi"]["has_ap_pass"] = (cfg.ap_pass.length() >= 8);
+  // Whether a home password is stored, never the password itself. Without this
+  // the portal cannot tell "no password saved" from "saved, not shown", and the
+  // user has no way to know if leaving the field blank wipes it.
+  doc["wifi"]["has_sta_pass"] = (wifi_mgr::pass().length() > 0);
+  doc["wifi"]["sta_ssid"] = wifi_mgr::ssid();
   doc["wifi"]["mdns"] = cfg.mdns;
 
   String out;

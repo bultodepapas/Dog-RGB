@@ -308,7 +308,7 @@ tamaño no.
 ## 6. Tabla de hallazgos
 
 | # | Severidad | Pantalla | Hallazgo | Evidencia |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | D1 | **Alto** | `/` | Rotar el móvil borra el trazo GPS | P1 · `pages.cpp:570,286` |
 | W1 | **Alto** | `/wifi` | Sin escaneo de redes; SSID a mano | P5 · sin ruta en `portal_http.cpp` |
 | F1 | **Alto** | `/config` | "Borrar Home" sin confirmación | P12 · `pages.cpp:1592` |
@@ -488,6 +488,45 @@ todos fallaban antes del cambio.
 
 **Sigue sin probarse en hardware.** Los dos puntos a comprobar al flashear: que el escaneo
 devuelve redes sin tirar el AP, y que el trazo aguanta una rotación real en el móvil.
+
+---
+
+## 7.ter Estado de implementación — Fase 2 (completada)
+
+| # | Cambio | Antes | Ahora |
+| --- | --- | --- | --- |
+| CC4 | Mensajes en castellano en `/config`, `/wifi`, Home y bloqueo | `"ok"`, `"Error"`, `"Error: " + reason` | "Guardado", "Sin respuesta del collar. No se guardo." |
+| CC5 | Confirmaciones con autoborrado a 4 s; los errores permanecen | el "ok" se quedaba para siempre | desaparece solo; el error no |
+| CC8 | `input:disabled,select:disabled` con opacidad, borde discontinuo y cursor | idéntico a un campo activo | claramente inerte |
+| W2 | Contenedor `.advisories` con prioridad: seguridad en `--danger`, nota operativa apagada | tres divs pegados, dos del mismo amarillo | jerarquía y separación reales |
+| W4 | `has_sta_pass` en `/api/config` + pista bajo el campo | imposible distinguir "no hay" de "hay y no se muestra" | "Ya hay una password guardada. Dejalo vacio para conservarla." |
+| W6 | "Nombre corto del portal" + vista previa `dog-rgb.local` en vivo | campo "Portal mDNS" sin explicar | dice qué escribir en el navegador |
+| F9 | Leyenda de `vel`/`int` al principio de las zonas | abreviaturas sin clave | explicadas donde se usan |
+| F11 | La nota de RAINBOW/FIRE se movió junto a "Color base" | al final de la sección | pegada a su control |
+| CC9 | `MODE_NAMES` en el dashboard, "Geocerca" en todas partes, un solo "← Inicio" | `Modo: speed` vs "Velocidad"; "Volver" vs "Inicio" | vocabulario único |
+
+**Dos cosas que salieron mal por el camino y conviene registrar:**
+
+1. **El primer `48/48` de esta fase no valía.** El servidor de vista previa extrae
+   `pages.cpp` **una sola vez al arrancar**, y `reuseExistingServer` reutilizó el proceso
+   que llevaba horas en marcha: la suite pasó contra páginas obsoletas. Se detectó porque
+   las capturas seguían mostrando la UI vieja. Hay que matar el proceso del puerto 4173
+   tras tocar `pages.cpp`, o la verificación es una ilusión.
+2. **`.field span` era demasiado amplio.** Al meter la vista previa de mDNS dentro de un
+   `.help`, heredó `display:block` y `text-transform:uppercase` de la regla pensada para
+   las etiquetas de campo, y el texto salió partido y en mayúsculas. Corregido acotándola
+   a hijos directos (`.field > label, .field > span`), que es lo que siempre quiso decir.
+
+**Guarda nueva en el smoke:** `FORBIDDEN_PATTERNS` falla la compilación estática si alguien
+vuelve a renderizar `r.status` como texto de usuario. Su primera versión daba falsos
+positivos con `r.status === 'ok' ? …`; lleva un *lookahead* negativo para distinguir una
+comparación de un valor mostrado.
+
+**Verificación:** firmware SUCCESS (RAM 17,3 % · 56 644 B; Flash 35,0 % · 1 168 247 B),
+smoke en verde y **59/59 ejecutados dentro del contenedor de CI con la comparación visual
+activada** (`AP_PORTAL_VISUAL=1`), no sólo en local. De ellos, **24 son tests de regresión**
+en [tests/audit/portal.ux.spec.ts](../tests/audit/portal.ux.spec.ts), 11 nuevos de esta
+fase. Presupuesto de `/wifi` recalibrado 32 500 → 36 000.
 
 ---
 

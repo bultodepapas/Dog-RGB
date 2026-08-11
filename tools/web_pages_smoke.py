@@ -16,7 +16,7 @@ PAGES = ROOT / "Platformio" / "Dog-RGB" / "src" / "web" / "pages.cpp"
 
 PAGE_BUDGETS = {
     "html_page": 30_000,
-    "html_wifi_page": 32_500,
+    "html_wifi_page": 36_000,
     "html_config_page": 53_500,
     "html_dev_page": 29_500,
 }
@@ -42,6 +42,20 @@ REQUIRED_SNIPPETS = [
     "Diagnostico AP",
     'id="diag-ap-start"',
     "<summary>JSON crudo</summary>",
+    'id="sta_pass_hint"',
+    'id="mdns_preview"',
+    'id="ap_advisories"',
+    "has_sta_pass",
+]
+
+# Raw protocol values must never reach the user as their confirmation. "ok" is
+# what the API says; it is not what a person needs to read after saving.
+FORBIDDEN_PATTERNS = [
+    # The negative lookahead keeps `r.status === 'ok' ? ... : ...` out of it:
+    # that is a comparison, not a value being rendered.
+    (r"innerText\s*=\s*r\.status(?!\s*[=!])", "raw r.status rendered as user-facing text"),
+    (r"textContent\s*=\s*r\.status(?!\s*[=!])", "raw r.status rendered as user-facing text"),
+    (r"setApStatus\(\s*r\.status", "raw r.status rendered as user-facing text"),
 ]
 
 REQUIRED_FUNCTIONS = [
@@ -67,6 +81,9 @@ REQUIRED_FUNCTIONS = [
     "handleTrackResize",
     "startScan",
     "renderNetworks",
+    # Fase 2: the portal explaining itself.
+    "updateStaPassHint",
+    "updateMdnsPreview",
 ]
 
 INLINE_CALLS = [
@@ -187,6 +204,11 @@ def main() -> int:
     for snippet in REQUIRED_SNIPPETS:
         if snippet not in src:
             failures.append(f"missing required snippet: {snippet}")
+
+    for pattern, why in FORBIDDEN_PATTERNS:
+        for match in re.finditer(pattern, src):
+            line = src.count("\n", 0, match.start()) + 1
+            failures.append(f"pages.cpp:{line}: {why}: {match.group(0)}")
 
     for fn in REQUIRED_FUNCTIONS:
         pattern = rf"\bfunction\s+{re.escape(fn)}\s*\("

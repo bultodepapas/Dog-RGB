@@ -77,9 +77,12 @@ h2{font-size:16px;letter-spacing:0.04em;}
 .preset-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow-sm);}
 .swatch{width:32px;height:32px;border-radius:2px;border:2px solid var(--border);cursor:pointer;}
 .swatch.active{border-color:var(--accent);box-shadow:var(--glow-sm);}
-.field label,.field span{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;}
+/* Direct children only: this styles a field's own label, and must not reach
+   spans nested inside help text, where it would force block layout and caps. */
+.field > label,.field > span{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;}
 input,select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:#000;font-family:var(--font-mono);font-size:13px;color:var(--text);}
 input:focus,select:focus{border-color:var(--accent);box-shadow:var(--glow-sm);}
+input:disabled,select:disabled{opacity:0.45;color:var(--muted);border-style:dashed;cursor:not-allowed;}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 input[type="checkbox"]{flex:none;appearance:none;width:24px;height:24px;margin-right:6px;border:1px solid var(--accent);border-radius:var(--radius);background:#000;cursor:pointer;}
 input[type="checkbox"]:checked{background:var(--accent);box-shadow:var(--glow-sm);}
@@ -93,6 +96,13 @@ input.invalid,select.invalid{border-color:var(--danger);}
 .error-box:empty{display:none;}
 .warn{color:var(--accent-2);font-size:12px;}
 .help{color:var(--muted);font-size:12px;margin-top:6px;}
+.field-check{display:flex;align-items:center;}
+.advisories{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
+.advisories:empty{display:none;}
+.advisory{font-size:12px;line-height:1.45;padding:8px 10px;border-left:2px solid var(--border);}
+.advisory:empty{display:none;}
+.advisory.danger{color:var(--danger);border-left-color:var(--danger);background:rgba(255,0,85,0.06);}
+.advisory.note{color:var(--muted);border-left-color:var(--border);}
 .notice{color:var(--muted);font-size:12px;margin-top:6px;}
 .speed-lane{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:5px;background:#000;overflow:hidden;}
 .sl-main{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;}
@@ -294,6 +304,7 @@ String web_pages::html_page() {
     function formatDuration(s){var h=Math.floor(s/3600);var m=Math.floor((s%3600)/60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
     function hasFlag(flags,bit){return (flags&(1<<bit))!==0;}
     function setPill(id,text,tone){var el=$(id);el.textContent=text;el.className='pill'+(tone?(' '+tone):'');}
+    const MODE_NAMES={speed:'Velocidad',geofence:'Geocerca',simple:'Simple',show:'Show'};
 
     function resizeTrackCanvas(){
       if(!trackCanvas){return;}
@@ -520,7 +531,9 @@ String web_pages::html_page() {
       }
       setPill('pill-wifi',wifiText,wifiTone);
 
-      var modeText='Modo: '+(s.mode||'--');
+      // Same names the config page uses. Showing the internal identifier here
+      // ("speed") while /config calls it "Velocidad" made them look unrelated.
+      var modeText='Modo: '+(MODE_NAMES[s.mode]||s.mode||'--');
       setPill('pill-mode',modeText,'');
       const dayPill = $('pill-day');
       if (dayPill && s.day_mode && s.day_mode.enabled){
@@ -606,7 +619,7 @@ String web_pages::html_page() {
 }
 String web_pages::html_wifi_page() {
   String page;
-  page.reserve(35300);
+  page.reserve(39000);
   page += F(R"HTML(
 <!doctype html>
 <html lang="es">
@@ -669,6 +682,7 @@ String web_pages::html_wifi_page() {
       <div class="field">
         <label for="pass">Password red de casa</label>
         <input name="pass" id="pass" type="password" autocomplete="new-password" placeholder="Password">
+        <div id="sta_pass_hint" class="help"></div>
       </div>
       <label class="muted"><input type="checkbox" id="show_pass"> Mostrar password</label>
       <div class="actions">
@@ -682,20 +696,31 @@ String web_pages::html_wifi_page() {
       <div class="muted">Estos datos son para conectarte directo al collar desde el telefono.</div>
       <div class="grid grid-2 section-body">
         <div class="field"><label for="ap_ssid">Nombre hotspot (SSID)</label><input id="ap_ssid" type="text" autocomplete="off" spellcheck="false"></div>
-        <div class="field"><label for="mdns">Portal mDNS</label><input id="mdns" type="text"></div>
+        <div class="field">
+          <label for="mdns">Nombre corto del portal</label>
+          <input id="mdns" type="text">
+          <div class="help">Podras abrir el portal escribiendo <span id="mdns_preview" class="mono">dog-rgb</span>.local en el navegador.</div>
+        </div>
       </div>
       <div class="grid grid-2">
-        <div class="field"><label for="ap_pass">Password hotspot</label><input id="ap_pass" type="password" autocomplete="new-password" placeholder="(sin cambio)"></div>
         <div class="field">
-          <span>AP abierto</span>
-          <label class="muted"><input id="ap_open" type="checkbox"> Sin password</label>
+          <label for="ap_pass">Password hotspot</label>
+          <input id="ap_pass" type="password" autocomplete="new-password" placeholder="(sin cambio)">
+          <div id="ap_hint" class="help"></div>
+        </div>
+        <div class="field-check">
+          <label class="muted" for="ap_open"><input id="ap_open" type="checkbox"> Hotspot sin password</label>
         </div>
       </div>
       <label class="muted"><input type="checkbox" id="show_ap_pass"> Mostrar password hotspot</label>
-      <div id="ap_hint" class="muted"></div>
-      <div id="ap_warn" class="warn"></div>
-      <div id="ap_open_warn" class="warn"></div>
-      <div id="ap_recovery" class="notice"></div>
+      <!-- One advisory area, ordered by weight: the security consequence first
+           and in the danger colour, the operational note after it and muted.
+           Three same-coloured divs with no spacing read as one wall of text. -->
+      <div class="advisories" id="ap_advisories">
+        <div id="ap_open_warn" class="advisory danger"></div>
+        <div id="ap_warn" class="advisory note"></div>
+        <div id="ap_recovery" class="advisory note"></div>
+      </div>
       <div class="actions">
         <button class="btn" id="ap_save_btn" type="button" onclick="saveAp()">Guardar AP</button>
       </div>
@@ -703,7 +728,7 @@ String web_pages::html_wifi_page() {
     </div>
 
     <div class="actions">
-      <a class="btn ghost" href="/">Volver</a>
+      <a class="btn ghost" href="/">&#8592; Inicio</a>
     </div>
   </main>
 
@@ -755,17 +780,27 @@ String web_pages::html_wifi_page() {
     const apStatus = document.getElementById('ap_status');
     const staSubmitBtn = document.getElementById('sta_submit_btn');
     const apSaveBtn = document.getElementById('ap_save_btn');
+    const mdnsPreview = document.getElementById('mdns_preview');
+    const staPassHint = document.getElementById('sta_pass_hint');
     let apHasPass = false;
+    let staHasPass = false;
     let initialAp = null;
     let baseCfg = null;
     let staPollTimer = null;
     showApPass.onchange = () => { apPass.type = showApPass.checked ? 'text' : 'password'; };
 
+    const STA_ERROR_MAP = {
+      ssid:'El nombre de la red no es valido (1 a 32 caracteres).',
+      pass:'La password no es valida (hasta 63 caracteres).',
+      locked:'El portal esta bloqueado: hace falta el PIN.',
+      storage:'El collar no pudo guardar la red. Reintenta.'
+    };
+
     const AP_ERROR_MAP = {
-      ssid:{field:apSsid,msg:'SSID 1..32, sin espacios al inicio o final.'},
-      pass:{field:apPass,msg:'Password 8..63.'},
-      'pass required':{field:apPass,msg:'Password requerida o marca AP abierto.'},
-      mdns:{field:mdns,msg:'mDNS invalido (1..32 letras, numeros o guiones).'}
+      ssid:{field:apSsid,msg:'El nombre del hotspot debe tener entre 1 y 32 caracteres, sin espacios al principio ni al final.'},
+      pass:{field:apPass,msg:'La password del hotspot debe tener entre 8 y 63 caracteres.'},
+      'pass required':{field:apPass,msg:'Escribe una password o marca "Hotspot sin password".'},
+      mdns:{field:mdns,msg:'El nombre corto solo admite letras, numeros y guiones (1 a 32).'}
     };
 
     const scanBtn = document.getElementById('scan_btn');
@@ -853,11 +888,18 @@ String web_pages::html_wifi_page() {
       }, 1200);
     }
 
+    // Confirmations clear themselves so the card stops claiming "Guardado" over
+    // edits made a minute later. Errors stay until the user acts on them.
+    let apStatusTimer = null;
     function setApStatus(msg, tone){
       apStatus.textContent = msg || '';
       if (tone === 'error') apStatus.className = 'error';
       else if (tone === 'warn') apStatus.className = 'warn';
       else apStatus.className = 'muted';
+      if (apStatusTimer){ clearTimeout(apStatusTimer); apStatusTimer = null; }
+      if (msg && tone !== 'error'){
+        apStatusTimer = setTimeout(()=>{ apStatus.textContent=''; apStatusTimer=null; }, 4000);
+      }
     }
 
     function clearApInvalid(){
@@ -949,18 +991,35 @@ String web_pages::html_wifi_page() {
              apPass.value !== '';
     }
 
+    function updateMdnsPreview(){
+      if (mdnsPreview) mdnsPreview.textContent = mdns.value.trim() || 'dog-rgb';
+    }
+
     function updateApState(){
       if (apOpen.checked){
         apPass.value = '';
         apPass.disabled = true;
-        apHint.innerText = 'AP abierto';
+        apHint.innerText = 'Sin password mientras la casilla este marcada.';
       } else {
         apPass.disabled = false;
-        apHint.innerText = apHasPass ? 'Password configurada' : 'Sin password';
+        apHint.innerText = apHasPass
+          ? 'Ya hay una password guardada. Dejalo vacio para conservarla.'
+          : 'No hay password. Escribe una de 8 caracteres o mas.';
       }
-      apWarn.innerText = apChanged() ? 'Nota: cambiar AP puede desconectar la sesion.' : '';
-      apOpenWarn.innerText = apOpen.checked ? 'Advertencia: sin password, cualquiera que este cerca podra abrir este portal y cambiar la configuracion del collar, incluido el password del hotspot.' : '';
+      apWarn.innerText = apChanged() ? 'Al guardar, el hotspot se reinicia y el telefono puede desconectarse un momento.' : '';
+      apOpenWarn.innerText = apOpen.checked ? 'Sin password, cualquiera que este cerca podra abrir este portal y cambiar la configuracion del collar, incluido el password del hotspot.' : '';
       if (apChanged()) apRecovery.innerText = '';
+      updateMdnsPreview();
+    }
+
+    // W4: the SSID comes back prefilled but the password never does, so without
+    // this the user cannot tell "no password stored" from "stored, not shown"
+    // -- and therefore cannot tell whether saving blank wipes it.
+    function updateStaPassHint(){
+      if (!staPassHint) return;
+      staPassHint.innerText = staHasPass
+        ? 'Ya hay una password guardada para esta red. Dejalo vacio para conservarla.'
+        : 'No hay ninguna password guardada todavia.';
     }
 
     async function loadConfig(){
@@ -969,11 +1028,13 @@ String web_pages::html_wifi_page() {
         apSsid.value = baseCfg.wifi.ap_ssid || '';
         mdns.value = baseCfg.wifi.mdns || '';
         apHasPass = !!baseCfg.wifi.has_ap_pass;
+        staHasPass = !!baseCfg.wifi.has_sta_pass;
         apOpen.checked = !apHasPass;
         initialAp = { ap_ssid: apSsid.value.trim(), mdns: mdns.value.trim(), ap_open: apOpen.checked };
         updateApState();
+        updateStaPassHint();
       }catch(e){
-        setApStatus('Error cargando config.', 'error');
+        setApStatus('No se pudo leer la configuracion del collar.', 'error');
       }
     }
 
@@ -988,26 +1049,26 @@ String web_pages::html_wifi_page() {
       const passVal = apPass.value;
       if (ssid.length < 1 || ssid.length > 32){
         apSsid.classList.add('invalid');
-        setApStatus('SSID 1..32.', 'error');
+        setApStatus('El nombre del hotspot debe tener entre 1 y 32 caracteres.', 'error');
         return;
       }
       if (!apOpen.checked && passVal.length > 0 && passVal.length < 8){
         apPass.classList.add('invalid');
-        setApStatus('Password >= 8.', 'error');
+        setApStatus('La password del hotspot necesita 8 caracteres como minimo.', 'error');
         return;
       }
       if (!apOpen.checked && passVal.length === 0 && !apHasPass){
         apPass.classList.add('invalid');
-        setApStatus('Password requerida o marca AP abierto.', 'error');
+        setApStatus('Escribe una password o marca "Hotspot sin password".', 'error');
         return;
       }
       if (!validMdns(mdnsVal)){
         mdns.classList.add('invalid');
-        setApStatus('mDNS invalido (1..32 a-z0-9-).', 'error');
+        setApStatus('El nombre corto solo admite letras, numeros y guiones (1 a 32).', 'error');
         return;
       }
       if (apChanged()){
-        if (!confirm('Guardar cambios? El AP puede reiniciarse.')) return;
+        if (!confirm('Guardar los cambios del hotspot? Se reinicia y puede que tengas que reconectar el telefono.')) return;
       }
       setApStatus('Guardando...', 'muted');
       const payload = {ap_ssid:ssid, ap_open:apOpen.checked, ap_pass:passVal, mdns:mdnsVal};
@@ -1019,7 +1080,7 @@ String web_pages::html_wifi_page() {
           handleApBackendError(r.reason);
           return;
         }
-        setApStatus(r.status + (r.wifi_restart ? ' (reiniciando AP)' : ''), 'muted');
+        setApStatus(r.wifi_restart ? 'Guardado — reiniciando el hotspot' : 'Guardado', 'muted');
         baseCfg.wifi = baseCfg.wifi || {};
         baseCfg.wifi.ap_ssid = ssid;
         baseCfg.wifi.mdns = mdnsVal;
@@ -1033,7 +1094,7 @@ String web_pages::html_wifi_page() {
         updateApState();
         loadWifiStatus();
       }catch(e){
-        setApStatus('Error', 'error');
+        setApStatus('Sin respuesta del collar. No se guardo.', 'error');
       }finally{
         if (apSaveBtn) apSaveBtn.disabled = false;
       }
@@ -1051,10 +1112,10 @@ String web_pages::html_wifi_page() {
           staStatus.textContent = 'Guardado, conectando... el hotspot sigue disponible en ' + apPortalUrl + '.';
           pollStaStatus();
         } else {
-          staStatus.textContent = 'Error: ' + (body.reason || r.status);
+          staStatus.textContent = STA_ERROR_MAP[body.reason] || 'No se pudo guardar la red de casa.';
         }
       }catch(e){
-        staStatus.textContent = 'Error';
+        staStatus.textContent = 'Sin respuesta del collar. No se guardo.';
       }finally{
         if (staSubmitBtn) staSubmitBtn.disabled = false;
       }
@@ -1144,13 +1205,16 @@ String web_pages::html_config_page() {
     <details class="card section" id="speed_lanes_block" open>
       <summary>Zonas de velocidad</summary>
       <div class="section-body">
+        <div class="help">Cada zona es un tramo de velocidad con su propio efecto.
+        <strong>vel</strong> es la velocidad de la animacion y <strong>int</strong> su
+        intensidad, ambas de 0 a 255.</div>
         <div id="lanes_container"></div>
         <div class="help">Zona 10 activa cuando velocidad supera el umbral de Zona 9. Los efectos tambien aplican en modo Geocerca.</div>
       </div>
     </details>
 
     <details class="card section" id="geofence_block" open>
-      <summary>Geofence</summary>
+      <summary>Geocerca</summary>
       <div class="section-body">
         <div class="grid grid-2">
           <div class="field">
@@ -1227,6 +1291,7 @@ String web_pages::html_config_page() {
         <div class="field">
           <span id="lbl_color">Color base</span>
           <div class="swatch-row" id="color_swatches" role="group" aria-labelledby="lbl_color"></div>
+          <div class="help">RAINBOW, GRADIENT_WAVE y FIRE generan sus propios colores e ignoran esta eleccion.</div>
         </div>
         <div class="grid grid-2">
           <div class="field">
@@ -1256,7 +1321,6 @@ String web_pages::html_config_page() {
             <div class="field"><label for="simple_b">B</label><input id="simple_b" type="number" min="0" max="255"></div>
           </div>
         </details>
-        <div class="help">RAINBOW, GRADIENT_WAVE y FIRE ignoran el color base.</div>
       </div>
     </details>
 
@@ -1294,7 +1358,7 @@ String web_pages::html_config_page() {
         <button class="btn" type="button" onclick="saveCfg()">Guardar cambios</button>
         <button class="btn danger" type="button" onclick="resetCfg()">Restaurar defaults</button>
       </div>
-      <a class="btn ghost" href="/">Volver</a>
+      <a class="btn ghost" href="/">&#8592; Inicio</a>
     </div>
   </main>
 
@@ -1406,7 +1470,7 @@ String web_pages::html_config_page() {
     const ERROR_MAP = {
       brightness:{field:'brightness',msg:'Brillo fuera de rango (1..255).'},
       mode:{field:'mode',msg:'Modo invalido.'},
-      fence_max:{field:'fence_max',msg:'Distancia geofence 50..5000.'},
+      fence_max:{field:'fence_max',msg:'Distancia de geocerca fuera de rango (50..5000 m).'},
       ranges:{field:'speed_lanes_block',msg:'Rangos requeridos.'},
       'ranges value':{field:'speed_lanes_block',msg:'Rangos deben ser > 0.'},
       'ranges order':{field:'speed_lanes_block',msg:'Rangos deben ser ascendentes.'},
@@ -1773,9 +1837,9 @@ String web_pages::html_config_page() {
 
     function setHome(){
       dogPost('/api/home/set').then(r=>r.json()).then(r=>{
-        homeStatus.innerText = r.status==='ok' ? 'Home actualizado' : 'Home error';
+        homeStatus.innerText = r.status==='ok' ? 'Home actualizado con la posicion actual.' : 'No se pudo fijar el Home: hace falta senal GPS.';
         loadHome();
-      }).catch(()=>{homeStatus.innerText='Home error';});
+      }).catch(()=>{homeStatus.innerText='Sin respuesta del collar.';});
     }
 
     function clearHome(){
@@ -1783,9 +1847,9 @@ String web_pages::html_config_page() {
       // user to be physically back at the spot with a GPS fix.
       if (!confirm('Borrar el Home? El modo Geocerca dejara de funcionar hasta que definas uno nuevo, y para eso hay que estar en el sitio con senal GPS.')) return;
       dogPost('/api/home/clear').then(r=>r.json()).then(r=>{
-        homeStatus.innerText = r.status==='ok' ? 'Home borrado' : '';
+        homeStatus.innerText = r.status==='ok' ? 'Home borrado.' : 'No se pudo borrar el Home.';
         loadHome();
-      }).catch(()=>{homeStatus.innerText='Home error';});
+      }).catch(()=>{homeStatus.innerText='Sin respuesta del collar.';});
     }
 
     function resetCfg(){
@@ -1847,7 +1911,11 @@ String web_pages::html_config_page() {
         const res = await dogPost('/api/lock',{headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enable,pin:pin})});
         const r = await res.json();
         if (!res.ok || r.status !== 'ok'){
-          lockStatus.innerText = 'Error: ' + (r.reason || res.status);
+          lockStatus.innerText = r.reason === 'pin'
+            ? 'El PIN debe tener entre 4 y 8 digitos.'
+            : (r.reason === 'locked'
+                ? 'Hace falta el PIN actual para cambiar el bloqueo.'
+                : 'No se pudo guardar el bloqueo.');
           return;
         }
         // The new PIN becomes this tab's credential so the next save works.
@@ -1855,7 +1923,7 @@ String web_pages::html_config_page() {
         lockPin.value = '';
         await loadLock();
       }catch(e){
-        lockStatus.innerText = 'Error';
+        lockStatus.innerText = 'Sin respuesta del collar. No se guardo.';
       }
     }
 
@@ -2094,7 +2162,7 @@ String web_pages::html_dev_page() {
     </details>
 
     <div class="actions">
-      <a class="btn ghost" href="/">Volver</a>
+      <a class="btn ghost" href="/">&#8592; Inicio</a>
     </div>
   </main>
 
