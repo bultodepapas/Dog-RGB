@@ -87,6 +87,25 @@ async function mockPortalApis(page: Page, state: MockState = {}) {
       await route.fulfill({ json: { status: 'ok' } });
       return;
     }
+    if (url.pathname === '/api/wifi/scan') {
+      if (method === 'POST') {
+        await route.fulfill({ json: { status: 'scanning' } });
+        return;
+      }
+      await route.fulfill({
+        json: {
+          state: 'ready',
+          total: 4,
+          networks: [
+            { ssid: 'Casa-Principal', rssi: -47, open: false },
+            { ssid: 'Casa-Principal-5G', rssi: -58, open: false },
+            { ssid: 'CafeLibre', rssi: -66, open: true },
+            { ssid: 'Vecino-2G', rssi: -84, open: false },
+          ],
+        },
+      });
+      return;
+    }
     if (url.pathname === '/api/wifi/ap') {
       await route.fulfill({ json: { status: 'ok', wifi_restart: true } });
       return;
@@ -200,6 +219,15 @@ test.describe('AP portal mobile screenshots', () => {
     await capture(page, 'wifi-open-ap-warning.png');
   });
 
+  test('wifi scan results', async ({ page }) => {
+    await mockPortalApis(page);
+    await page.goto('/wifi');
+    await page.getByRole('button', { name: 'Buscar redes' }).click();
+    await expect(page.locator('.scan-item')).toHaveCount(4);
+    await expect(page.getByText('4 redes encontradas.')).toBeVisible();
+    await capture(page, 'wifi-scan-results.png');
+  });
+
   test('config speed default', async ({ page }) => {
     await mockPortalApis(page);
     await page.goto('/config');
@@ -242,7 +270,11 @@ test.describe('AP portal mobile screenshots', () => {
     await page.goto('/config');
     await page.locator('#ln2_thr').fill('1');
     await page.getByRole('button', { name: 'Guardar cambios' }).first().click();
-    await expect(page.getByText('Rangos deben ser ascendentes.')).toBeVisible();
+    // The message names the zone that is wrong and what it must beat, and the
+    // offending input itself is marked -- not the whole card, which holds nine
+    // of them.
+    await expect(page.getByText('Z2 debe ser mayor que Z1')).toBeVisible();
+    await expect(page.locator('#ln2_thr')).toHaveClass(/invalid/);
     await capture(page, 'config-validation-errors.png');
   });
 

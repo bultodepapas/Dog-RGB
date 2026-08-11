@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 PAGES = ROOT / "Platformio" / "Dog-RGB" / "src" / "web" / "pages.cpp"
 
 PAGE_BUDGETS = {
-    "html_page": 29_000,
-    "html_wifi_page": 27_500,
-    "html_config_page": 46_500,
+    "html_page": 30_000,
+    "html_wifi_page": 32_500,
+    "html_config_page": 53_500,
     "html_dev_page": 29_500,
 }
 
@@ -32,6 +32,9 @@ REQUIRED_SNIPPETS = [
     "Configurar Wi-Fi",
     "Estado Wi-Fi",
     "/api/wifi/ap",
+    "/api/wifi/scan",
+    'id="scan_btn"',
+    'id="scan_results"',
     'id="brightness_slider"',
     'data-mode-card="speed"',
     'data-theme="calm"',
@@ -55,6 +58,15 @@ REQUIRED_FUNCTIONS = [
     "buildColorSwatches",
     "updateModeCards",
     "syncBrightness",
+    # Fase 1 of the UX review: each of these backs a fix that regressed silently
+    # before, so the static check pins them in place.
+    "applyConfig",
+    "loadConfig",
+    "revealFirstError",
+    "confirmLeave",
+    "handleTrackResize",
+    "startScan",
+    "renderNetworks",
 ]
 
 INLINE_CALLS = [

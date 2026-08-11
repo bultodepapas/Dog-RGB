@@ -65,4 +65,30 @@ const WifiDiagnostics &diagnostics();
 void note_portal_activity();
 void schedule_ap_restart();
 void apply_mdns(const String &previous, const String &current);
+
+// Async scan of nearby networks, so the portal can offer a list instead of
+// asking the user to type an SSID by hand.
+//
+// A scan hops channels, which briefly disturbs the AP the user is sitting on.
+// That is why this is request-driven: scan_begin() only ever runs because
+// somebody pressed a button. Never call it on a timer.
+enum class ScanState : uint8_t {
+  Idle,     // nothing requested yet, or results were released
+  Running,  // radio is scanning; poll again
+  Ready,    // results available via scan_count()/scan_entry()
+  Failed,   // the driver refused or the scan timed out
+};
+
+// Starts a scan if one is not already in flight. Returns false when the radio
+// could not be put into a state where scanning is possible.
+bool scan_begin();
+ScanState scan_state();
+int16_t scan_count();
+// Reads one result. Returns false when index is out of range. `open_out` is
+// true for networks with no password, which is what the portal shows as a
+// warning rather than a lock.
+bool scan_entry(int16_t index, String &ssid_out, int32_t &rssi_out, bool &open_out);
+// Frees the driver's result buffer. Results are a few KB of heap on a device
+// that has little, so the portal releases them as soon as it has serialised.
+void scan_release();
 }

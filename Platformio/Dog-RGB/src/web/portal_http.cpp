@@ -152,7 +152,7 @@ static const char *API_ROUTES[] = {
     "/api/summary", "/api/status",      "/api/dev",       "/api/track",
     "/api/track.csv", "/api/track.geojson", "/api/config", "/api/config/reset",
     "/api/home",    "/api/home/set",    "/api/home/clear", "/api/wifi",
-    "/api/wifi/ap", "/api/lock"};
+    "/api/wifi/ap", "/api/wifi/scan", "/api/lock"};
 
 bool is_known_api_route(const String &uri) {
   for (size_t i = 0; i < sizeof(API_ROUTES) / sizeof(API_ROUTES[0]); ++i) {
@@ -1097,6 +1097,87 @@ void handle_home_clear() {
   server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
+// Scanning is split into start (POST) and poll (GET) because the radio needs a
+// few seconds and this server is single-threaded: a blocking scan would stall
+// every other request, including the page the user is looking at.
+void handle_wifi_scan_start() {
+  note_activity();
+  if (!write_allowed()) {
+    return;
+  }
+  if (!wifi_mgr::scan_begin()) {
+    server.send(503, "application/json", "{\"status\":\"error\",\"reason\":\"radio\"}");
+    return;
+  }
+  server.send(200, "application/json", "{\"status\":\"scanning\"}");
+}
+
+void handle_wifi_scan_get() {
+  note_activity();
+  // At most this many networks are reported. A busy neighbourhood can return
+  // far more, and every extra entry is heap on a device that has little of it.
+  const int16_t MAX_REPORTED = 20;
+
+  JsonDocument doc;
+  const wifi_mgr::ScanState state = wifi_mgr::scan_state();
+  switch (state) {
+    case wifi_mgr::ScanState::Idle:
+      doc["state"] = "idle";
+      break;
+    case wifi_mgr::ScanState::Running:
+      doc["state"] = "scanning";
+      break;
+    case wifi_mgr::ScanState::Failed:
+      doc["state"] = "failed";
+      break;
+    case wifi_mgr::ScanState::Ready:
+      doc["state"] = "ready";
+      break;
+  }
+
+  if (state == wifi_mgr::ScanState::Ready) {
+    JsonArray nets = doc["networks"].to<JsonArray>();
+    const int16_t found = wifi_mgr::scan_count();
+    int16_t reported = 0;
+    for (int16_t i = 0; i < found && reported < MAX_REPORTED; ++i) {
+      String ssid;
+      int32_t rssi = 0;
+      bool open = false;
+      if (!wifi_mgr::scan_entry(i, ssid, rssi, open)) {
+        continue;
+      }
+      if (ssid.length() == 0) {
+        continue;  // hidden network: nothing useful to show or tap
+      }
+      bool duplicate = false;
+      for (JsonObject seen : nets) {
+        if (ssid == seen["ssid"].as<const char *>()) {
+          duplicate = true;
+          break;
+        }
+      }
+      if (duplicate) {
+        continue;  // mesh/repeater advertising the same name on several radios
+      }
+      JsonObject net = nets.add<JsonObject>();
+      net["ssid"] = ssid;
+      net["rssi"] = rssi;
+      net["open"] = open;
+      ++reported;
+    }
+    doc["total"] = found;
+  }
+
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
+
+  // The client has the list now; hand the driver's buffer back.
+  if (state == wifi_mgr::ScanState::Ready) {
+    wifi_mgr::scan_release();
+  }
+}
+
 void handle_lock_get() {
   note_activity();
   server.send(200, "application/json",
@@ -1188,6 +1269,8 @@ void begin() {
   server.on("/wifi", HTTP_GET, handle_wifi_page);
   server.on("/api/wifi", HTTP_POST, handle_wifi_save);
   server.on("/api/wifi/ap", HTTP_POST, handle_wifi_ap_save);
+  server.on("/api/wifi/scan", HTTP_POST, handle_wifi_scan_start);
+  server.on("/api/wifi/scan", HTTP_GET, handle_wifi_scan_get);
   server.on("/generate_204", HTTP_GET, handle_captive_probe);
   server.on("/gen_204", HTTP_GET, handle_captive_probe);
   server.on("/hotspot-detect.html", HTTP_GET, handle_captive_probe);

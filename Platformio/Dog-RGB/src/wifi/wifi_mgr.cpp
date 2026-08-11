@@ -47,6 +47,13 @@ int8_t wifi_creds_active_record = -1;
 uint32_t wifi_creds_generation = 0;
 uint32_t wifi_creds_save_failure_count = 0;
 
+bool scan_in_flight = false;
+unsigned long scan_started_ms = 0;
+// A scan across all channels takes a few seconds. Past this the driver is
+// assumed wedged, so the portal gets a failure it can report instead of
+// polling forever.
+const unsigned long SCAN_TIMEOUT_MS = 15000;
+
 static const uint32_t WIFI_CREDS_RECORD_MAGIC = 0x49465744UL; // "DWFI" in storage.
 static const uint16_t WIFI_CREDS_RECORD_VERSION = 1;
 static const char *WIFI_CREDS_RECORD_KEYS[2] = {"wifi_a", "wifi_b"};
@@ -1032,6 +1039,80 @@ void note_portal_activity() {
 void schedule_ap_restart() {
   pending_ap_restart = true;
   pending_ap_at_ms = millis();
+}
+
+bool scan_begin() {
+  if (scan_in_flight) {
+    return true;
+  }
+  if (wifi_off_state) {
+    return false;
+  }
+  // Scanning needs the station interface up. When the collar is serving the
+  // portal on AP only, add STA for the duration -- dropping the AP here would
+  // disconnect the very phone that asked for the scan.
+  if (wifi_mode_state == WIFI_AP) {
+    if (!set_wifi_mode(WIFI_AP_STA)) {
+      return false;
+    }
+  } else if (wifi_mode_state == WIFI_OFF) {
+    return false;
+  }
+
+  // Keep the AP from being torn down by the idle logic while the user waits.
+  note_portal_activity();
+
+  WiFi.scanDelete();
+  const int16_t started = WiFi.scanNetworks(true /*async*/, false /*show_hidden*/);
+  if (started == WIFI_SCAN_FAILED) {
+    Serial.println("[WIFI_SCAN] start failed");
+    return false;
+  }
+  scan_in_flight = true;
+  scan_started_ms = millis();
+  Serial.println("[WIFI_SCAN] started");
+  return true;
+}
+
+ScanState scan_state() {
+  if (!scan_in_flight) {
+    return ScanState::Idle;
+  }
+  const int16_t status = WiFi.scanComplete();
+  if (status == WIFI_SCAN_RUNNING) {
+    if ((millis() - scan_started_ms) >= SCAN_TIMEOUT_MS) {
+      Serial.println("[WIFI_SCAN] timeout");
+      scan_in_flight = false;
+      WiFi.scanDelete();
+      return ScanState::Failed;
+    }
+    return ScanState::Running;
+  }
+  if (status == WIFI_SCAN_FAILED) {
+    scan_in_flight = false;
+    return ScanState::Failed;
+  }
+  return ScanState::Ready;
+}
+
+int16_t scan_count() {
+  const int16_t status = WiFi.scanComplete();
+  return status < 0 ? 0 : status;
+}
+
+bool scan_entry(int16_t index, String &ssid_out, int32_t &rssi_out, bool &open_out) {
+  if (index < 0 || index >= scan_count()) {
+    return false;
+  }
+  ssid_out = WiFi.SSID(index);
+  rssi_out = WiFi.RSSI(index);
+  open_out = WiFi.encryptionType(index) == WIFI_AUTH_OPEN;
+  return true;
+}
+
+void scan_release() {
+  scan_in_flight = false;
+  WiFi.scanDelete();
 }
 
 void apply_mdns(const String &previous, const String &current) {

@@ -112,6 +112,13 @@ details.section[open] > summary::after{content:'[-]';}
 .action-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
 .mode-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;}
 .field-inline{min-width:180px;}
+.scan-list{display:flex;flex-direction:column;gap:6px;margin:8px 0 14px;}
+.scan-list:empty{display:none;}
+.scan-item{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px;text-align:left;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:#000;color:var(--text);font-family:var(--font-mono);font-size:12px;cursor:pointer;}
+.scan-item:hover{border-color:var(--accent);box-shadow:var(--glow-sm);}
+.scan-item.active{border-color:var(--accent);box-shadow:var(--glow-sm);}
+.scan-ssid{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.scan-meta{flex:none;color:var(--muted);font-size:11px;letter-spacing:0.06em;}
 .session-card{margin:8px 0;padding:10px;background:#000;border:1px solid var(--border);border-radius:var(--radius);}
 .track-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px;}
 .track-canvas{width:100%;height:220px;border:1px solid var(--border);border-radius:var(--radius);background:#000;}
@@ -158,7 +165,7 @@ String html_escape_attr(const String &value) {
 
 String web_pages::html_page() {
   String page;
-  page.reserve(31500);
+  page.reserve(32500);
   page += F(R"HTML(
 <!doctype html>
 <html lang="es">
@@ -275,6 +282,11 @@ String web_pages::html_page() {
     const trackGeo = $('track_geo');
     const trackLoad = $('track_load');
     let trackLoaded = false;
+    // Assigning canvas.width wipes the bitmap, and resizeTrackCanvas does exactly
+    // that. Keep the last drawing so a rotation or an address-bar collapse can
+    // repaint instead of leaving the user with an empty box.
+    let trackDrawn = null;
+    let trackResizeTimer = null;
     function minToTime(m){var h=Math.floor(m/60);var mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
     function cmpsToKph(v){return (v*0.036).toFixed(1);}
     function fmtDate(d){if(!d){return '--';}var s=String(d);if(s.length!==8){return s;}return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);}
@@ -315,6 +327,7 @@ String web_pages::html_page() {
       }
       setTrackCanvasVisible(false);
       setTrackExportsVisible(false);
+      trackDrawn=null;
       if(trackStatus){
         trackStatus.textContent=msg||'Ruta: --';
         trackStatus.className='empty-state';
@@ -323,6 +336,7 @@ String web_pages::html_page() {
 
     function drawTrack(points,bbox){
       if(!trackCanvas){return;}
+      trackDrawn={points:points,bbox:bbox};
       setTrackCanvasVisible(true);
       resizeTrackCanvas();
       const ctx=trackCanvas.getContext('2d');
@@ -567,7 +581,17 @@ String web_pages::html_page() {
     if (trackSession){
       trackSession.addEventListener('change',()=>{ if(trackLoaded) loadTrack(); else setTrackLinks(trackSession.value||'current'); });
     }
-    window.addEventListener('resize',resizeTrackCanvas);
+    // Repaint rather than just resize: without this the track vanishes on every
+    // rotation. Debounced because a rotation fires a burst of resize events.
+    function handleTrackResize(){
+      if(trackResizeTimer){clearTimeout(trackResizeTimer);}
+      trackResizeTimer=setTimeout(()=>{
+        trackResizeTimer=null;
+        if(trackDrawn){drawTrack(trackDrawn.points,trackDrawn.bbox);}
+        else{resizeTrackCanvas();}
+      },150);
+    }
+    window.addEventListener('resize',handleTrackResize);
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshAll(); });
     resizeTrackCanvas();
     setTrackLinks(trackSession ? (trackSession.value||'current') : 'current');
@@ -582,7 +606,7 @@ String web_pages::html_page() {
 }
 String web_pages::html_wifi_page() {
   String page;
-  page.reserve(29700);
+  page.reserve(35300);
   page += F(R"HTML(
 <!doctype html>
 <html lang="es">
@@ -637,6 +661,11 @@ String web_pages::html_wifi_page() {
   page += html_escape_attr(wifi_mgr::ssid());
   page += F(R"HTML(">
       </div>
+      <div class="actions">
+        <button class="btn ghost" id="scan_btn" type="button" onclick="startScan()">Buscar redes</button>
+      </div>
+      <div id="scan_status" class="muted"></div>
+      <div id="scan_results" class="scan-list"></div>
       <div class="field">
         <label for="pass">Password red de casa</label>
         <input name="pass" id="pass" type="password" autocomplete="new-password" placeholder="Password">
@@ -696,6 +725,11 @@ String web_pages::html_wifi_page() {
       }
       return r;
     }
+    // SSIDs come off the air, so they are attacker-controlled text: a neighbour
+    // can name their access point anything at all. Everything scanned goes
+    // through here before it touches innerHTML.
+    function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    const ssidInput = document.getElementById('ssid');
     const pass = document.getElementById('pass');
     const show = document.getElementById('show_pass');
     show.onchange = () => { pass.type = show.checked ? 'text' : 'password'; };
@@ -733,6 +767,91 @@ String web_pages::html_wifi_page() {
       'pass required':{field:apPass,msg:'Password requerida o marca AP abierto.'},
       mdns:{field:mdns,msg:'mDNS invalido (1..32 letras, numeros o guiones).'}
     };
+
+    const scanBtn = document.getElementById('scan_btn');
+    const scanStatus = document.getElementById('scan_status');
+    const scanResults = document.getElementById('scan_results');
+    let scanTimer = null;
+
+    function signalBars(rssi){
+      const n = rssi >= -55 ? 4 : rssi >= -65 ? 3 : rssi >= -75 ? 2 : rssi >= -85 ? 1 : 0;
+      return '[' + '#'.repeat(n) + '.'.repeat(4 - n) + ']';
+    }
+
+    function stopScanPoll(){
+      if (scanTimer){ clearInterval(scanTimer); scanTimer = null; }
+    }
+
+    function renderNetworks(list){
+      if (!list || !list.length){
+        scanResults.innerHTML = '';
+        scanStatus.textContent = 'No se encontro ninguna red. Acerca el collar al router y reintenta.';
+        return;
+      }
+      list.sort((a,b)=>b.rssi-a.rssi);
+      scanResults.innerHTML = list.map(n=>
+        `<button class="scan-item" type="button" data-ssid="${esc(n.ssid)}"><span class="scan-ssid">${esc(n.ssid)}</span><span class="scan-meta">${signalBars(n.rssi)} ${n.open?'ABIERTA':'CLAVE'}</span></button>`
+      ).join('');
+      scanResults.querySelectorAll('.scan-item').forEach(b=>{
+        b.onclick = () => {
+          ssidInput.value = b.dataset.ssid;
+          scanResults.querySelectorAll('.scan-item').forEach(o=>o.classList.remove('active'));
+          b.classList.add('active');
+          scanStatus.textContent = 'Red elegida: ' + b.dataset.ssid + '. Escribe el password.';
+          pass.focus();
+        };
+      });
+      scanStatus.textContent = list.length + (list.length === 1 ? ' red encontrada.' : ' redes encontradas.') + ' Toca la tuya.';
+    }
+
+    // Scanning hops channels, so the hotspot the user is sitting on goes quiet
+    // for a moment. Say so, and only ever scan because a button was pressed.
+    async function startScan(){
+      scanBtn.disabled = true;
+      scanResults.innerHTML = '';
+      scanStatus.textContent = 'Buscando redes... el hotspot puede ir lento unos segundos.';
+      try{
+        const res = await dogPost('/api/wifi/scan');
+        if (!res.ok){
+          scanStatus.textContent = 'No se pudo iniciar la busqueda.';
+          scanBtn.disabled = false;
+          return;
+        }
+        pollScan();
+      }catch(e){
+        scanStatus.textContent = 'No se pudo iniciar la busqueda.';
+        scanBtn.disabled = false;
+      }
+    }
+
+    function pollScan(){
+      stopScanPoll();
+      const deadline = Date.now() + 25000;
+      scanTimer = setInterval(async () => {
+        try{
+          const d = await fetch('/api/wifi/scan').then(r=>r.json());
+          if (d.state === 'scanning'){
+            if (Date.now() >= deadline){
+              stopScanPoll();
+              scanBtn.disabled = false;
+              scanStatus.textContent = 'La busqueda tardo demasiado. Reintenta.';
+            }
+            return;
+          }
+          stopScanPoll();
+          scanBtn.disabled = false;
+          if (d.state === 'ready'){
+            renderNetworks(d.networks || []);
+          } else {
+            scanStatus.textContent = 'No se pudo completar la busqueda. Reintenta.';
+          }
+        }catch(e){
+          stopScanPoll();
+          scanBtn.disabled = false;
+          scanStatus.textContent = 'Se perdio la conexion durante la busqueda.';
+        }
+      }, 1200);
+    }
 
     function setApStatus(msg, tone){
       apStatus.textContent = msg || '';
@@ -955,7 +1074,7 @@ String web_pages::html_wifi_page() {
 }
 String web_pages::html_config_page() {
   String page;
-  page.reserve(51000);
+  page.reserve(58000);
   page += F(R"CFG(
 <!doctype html>
 <html lang="es">
@@ -1231,6 +1350,30 @@ String web_pages::html_config_page() {
     const saveBtn = $('save_btn');
     const resetBtn = $('reset_btn');
 
+    // Seventy inputs, two exit links and no autosave: without this, one stray
+    // tap on "Inicio" throws away everything the user just set up. The lock
+    // section is excluded because it has its own save button and its own state.
+    let dirty = false;
+    function markDirty(){ dirty = true; }
+    function markClean(){ dirty = false; }
+    function confirmLeave(){
+      return !dirty || confirm('Tienes cambios sin guardar. Si sales ahora se pierden.');
+    }
+    document.querySelector('main').addEventListener('input', (e)=>{
+      if (!e.target.closest('#lock_section')) markDirty();
+    });
+    document.querySelector('main').addEventListener('change', (e)=>{
+      if (!e.target.closest('#lock_section')) markDirty();
+    });
+    document.querySelectorAll('a[href="/"]').forEach(a=>{
+      a.addEventListener('click',(e)=>{ if(!confirmLeave()) e.preventDefault(); });
+    });
+    window.addEventListener('beforeunload',(e)=>{
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
     const ZONE_COLORS = ['#00F0F0','#00F08C','#00F000','#64F000','#F0F000','#F0B400','#F07800','#F05000','#F02800','#F00000'];
     const ZONE_LABELS = ['Quieto','Paseo','Caminar','Ritmo','Trote','Carrera','Galope','Sprint','Sprint+','Maximo'];
     const EFFECTS = [
@@ -1313,6 +1456,7 @@ String web_pages::html_config_page() {
     }
 
     function toggleLaneAdv(i){
+      markDirty();
       const adv = $('ln'+i+'_adv');
       const btn = $('ln'+i+'_advbtn');
       const vis = adv.style.display !== 'none';
@@ -1367,6 +1511,7 @@ String web_pages::html_config_page() {
       el.innerHTML = COLOR_PRESETS.map(c=>`<button class="swatch" type="button" title="${esc(c.name)}" data-r="${c.r}" data-g="${c.g}" data-b="${c.b}" style="background:rgb(${c.r},${c.g},${c.b})"></button>`).join('');
       document.querySelectorAll('.swatch').forEach(btn=>{
         btn.onclick=()=>{
+          markDirty();
           simpleR.value=btn.dataset.r;
           simpleG.value=btn.dataset.g;
           simpleB.value=btn.dataset.b;
@@ -1389,6 +1534,7 @@ String web_pages::html_config_page() {
     }
 
     function selectMode(mode){
+      if (modeEl.value !== mode) markDirty();
       modeEl.value=mode;
       updateModeVisibility();
     }
@@ -1446,70 +1592,91 @@ String web_pages::html_config_page() {
       return isNaN(n) ? fallback : n;
     }
 
-    function isStrictAscending(arr){
-      for (let i=1;i<arr.length;i++){
-        if (!(arr[i] > arr[i-1])) return false;
-      }
-      return true;
-    }
-
     function clearErrors(){
       errorsEl.innerHTML = '';
+      firstInvalid = null;
       document.querySelectorAll('.invalid').forEach(el=>el.classList.remove('invalid'));
     }
 
     function showErrors(list){
       if (!list.length) return;
-      errorsEl.innerHTML = list.map(msg=>`<div>${esc(msg)}</div>`).join('');
+      const head = list.length === 1 ? 'No se pudo guardar:' : ('No se pudo guardar (' + list.length + ' problemas):');
+      errorsEl.innerHTML = `<div><strong>${esc(head)}</strong></div>` + list.map(msg=>`<div>${esc(msg)}</div>`).join('');
     }
+
+    // Errors name the field that is wrong, not the card it lives in. With ten
+    // zones and seventy inputs, "algo esta mal aqui dentro" is not a usable
+    // message -- the user has to compare nine numbers by hand to find it.
+    let firstInvalid = null;
 
     function validateConfig(cfg){
       const errs = [];
       function addError(field,msg){
         errs.push(msg);
         const el = $(field);
-        if (el) el.classList.add('invalid');
+        if (el){
+          el.classList.add('invalid');
+          if (!firstInvalid) firstInvalid = el;
+        }
       }
 
       if (cfg.led.brightness < 1 || cfg.led.brightness > 255) addError('brightness','Brillo fuera de rango (1..255).');
       if (!cfg.day_mode || typeof cfg.day_mode.enabled !== 'boolean') addError('day_mode_enabled','Modo DIA invalido.');
 
       const ranges = cfg.speed_ranges_kph;
-      if (ranges.length !== 9) addError('speed_lanes_block','Rangos requeridos.');
-      for (let i=0;i<ranges.length;i++){
-        if (!(ranges[i] > 0)){ addError('speed_lanes_block','Rangos deben ser > 0.'); break; }
+      if (ranges.length !== 9){
+        addError('speed_lanes_block','Rangos requeridos.');
+      } else {
+        for (let i=0;i<ranges.length;i++){
+          if (!(ranges[i] > 0)) addError('ln'+(i+1)+'_thr','Z'+(i+1)+': el umbral debe ser mayor que 0.');
+        }
+        for (let i=1;i<ranges.length;i++){
+          if (!(ranges[i] > ranges[i-1])) addError('ln'+(i+1)+'_thr','Z'+(i+1)+' debe ser mayor que Z'+i+' ('+ranges[i-1]+' km/h).');
+        }
       }
-      if (!isStrictAscending(ranges)) addError('speed_lanes_block','Rangos deben ser ascendentes.');
 
-      if (cfg.fence_max_m < 50 || cfg.fence_max_m > 5000) addError('fence_max','Distancia geofence 50..5000.');
+      if (cfg.fence_max_m < 50 || cfg.fence_max_m > 5000) addError('fence_max','Distancia geocerca fuera de rango (50..5000 m).');
 
       const g = cfg.gps || {};
-      if (g.min_fix_quality < 0 || g.min_fix_quality > 8) addError('gps_block','Fix quality min invalido.');
-      if (g.min_sats < 3 || g.min_sats > 12) addError('gps_block','Satellites min invalido.');
-      if (!(g.max_hdop >= 0.5 && g.max_hdop <= 20)) addError('gps_block','HDOP max invalido.');
-      if (g.max_gga_age_ms < 500 || g.max_gga_age_ms > 10000) addError('gps_block','Max age GGA invalido.');
-      if (!(g.min_segment_m >= 0.5 && g.min_segment_m <= 20)) addError('gps_block','Min segment invalido.');
-      if (!(g.hdop_factor >= 0 && g.hdop_factor <= 5)) addError('gps_block','HDOP factor invalido.');
-      if (!(g.max_min_segment_m >= 1 && g.max_min_segment_m <= 50)) addError('gps_block','Max min segment invalido.');
-      if (g.min_segment_m > g.max_min_segment_m) addError('gps_block','Min segment > max.');
+      if (g.min_fix_quality < 0 || g.min_fix_quality > 8) addError('gps_min_fix','Calidad de fix minima fuera de rango (0..8).');
+      if (g.min_sats < 3 || g.min_sats > 12) addError('gps_min_sats','Satelites minimos fuera de rango (3..12).');
+      if (!(g.max_hdop >= 0.5 && g.max_hdop <= 20)) addError('gps_max_hdop','HDOP maximo fuera de rango (0.5..20).');
+      if (g.max_gga_age_ms < 500 || g.max_gga_age_ms > 10000) addError('gps_max_gga_age','Edad maxima GGA fuera de rango (500..10000 ms).');
+      if (!(g.min_segment_m >= 0.5 && g.min_segment_m <= 20)) addError('gps_min_segment','Segmento minimo fuera de rango (0.5..20 m).');
+      if (!(g.hdop_factor >= 0 && g.hdop_factor <= 5)) addError('gps_hdop_factor','Factor HDOP fuera de rango (0..5).');
+      if (!(g.max_min_segment_m >= 1 && g.max_min_segment_m <= 50)) addError('gps_max_min_segment','Segmento minimo maximo fuera de rango (1..50 m).');
+      if (g.min_segment_m > g.max_min_segment_m) addError('gps_min_segment','El segmento minimo no puede superar su tope.');
 
       for (let i=1;i<=10;i++){
         const e = cfg.effects['range'+i];
         if (!e){ addError('speed_lanes_block','Efectos incompletos.'); break; }
-        if (e.a < 0 || e.a > 11 || e.b < 0 || e.b > 11) addError('speed_lanes_block','ID de efecto invalido.');
-        if (e.speed < 0 || e.speed > 255 || e.intensity < 0 || e.intensity > 255) addError('speed_lanes_block','Valores de efecto invalidos.');
+        if (e.a < 0 || e.a > 11) addError('ln'+i+'_eff','Z'+i+': efecto de tira A invalido.');
+        if (e.b < 0 || e.b > 11) addError('ln'+i+'_effb','Z'+i+': efecto de tira B invalido.');
+        if (e.speed < 0 || e.speed > 255) addError('ln'+i+'_spd','Z'+i+': velocidad fuera de rango (0..255).');
+        if (e.intensity < 0 || e.intensity > 255) addError('ln'+i+'_int','Z'+i+': intensidad fuera de rango (0..255).');
       }
 
       const s = cfg.single;
-      if (s.effect < 0 || s.effect > 11) addError('simple_block','Efecto simple invalido.');
-      if (s.speed < 0 || s.speed > 255) addError('simple_block','Speed simple invalido.');
-      if (s.intensity < 0 || s.intensity > 255) addError('simple_block','Intensity simple invalido.');
-      if (s.rgb.r < 0 || s.rgb.r > 255 || s.rgb.g < 0 || s.rgb.g > 255 || s.rgb.b < 0 || s.rgb.b > 255) {
-        addError('simple_block','RGB simple invalido.');
-      }
+      if (s.effect < 0 || s.effect > 11) addError('simple_effect','Efecto simple invalido.');
+      if (s.speed < 0 || s.speed > 255) addError('simple_speed','Velocidad simple fuera de rango (0..255).');
+      if (s.intensity < 0 || s.intensity > 255) addError('simple_intensity','Intensidad simple fuera de rango (0..255).');
+      if (s.rgb.r < 0 || s.rgb.r > 255) addError('simple_r','R fuera de rango (0..255).');
+      if (s.rgb.g < 0 || s.rgb.g > 255) addError('simple_g','G fuera de rango (0..255).');
+      if (s.rgb.b < 0 || s.rgb.b > 255) addError('simple_b','B fuera de rango (0..255).');
 
       if (errs.length) showErrors(errs);
       return errs.length === 0;
+    }
+
+    // The page is several screens tall and there is a save button at each end.
+    // Rendering the error next to the top button and leaving the viewport where
+    // it was reads, from the bottom of the page, as "the button does nothing".
+    function revealFirstError(){
+      if (!firstInvalid) return;
+      const host = firstInvalid.closest('details');
+      if (host && !host.open) host.open = true;
+      try{ firstInvalid.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){ firstInvalid.scrollIntoView(); }
+      try{ firstInvalid.focus({preventScroll:true}); }catch(e){}
     }
 
     function handleBackendError(reason){
@@ -1519,7 +1686,10 @@ String web_pages::html_config_page() {
         return;
       }
       const el = $(e.field);
-      if (el) el.classList.add('invalid');
+      if (el){
+        el.classList.add('invalid');
+        if (!firstInvalid) firstInvalid = el;
+      }
       showErrors([e.msg]);
     }
 
@@ -1561,22 +1731,41 @@ String web_pages::html_config_page() {
       return cfg;
     }
 
+    // Save is reachable from a button at each end of a page several screens
+    // tall, so every outcome has to leave a mark somewhere the user is looking.
+    // The sticky bar is always on screen; the error list is not.
+    let statusTimer = null;
+    function setStatus(msg, tone){
+      statusEl.innerText = msg || '';
+      statusEl.className = tone === 'error' ? 'error' : (tone === 'warn' ? 'warn' : 'muted');
+      if (statusTimer){ clearTimeout(statusTimer); statusTimer = null; }
+      if (msg && tone !== 'error'){
+        statusTimer = setTimeout(()=>{ statusEl.innerText=''; statusTimer=null; }, 4000);
+      }
+    }
+
     async function saveCfg(){
       clearErrors();
       const cfg = buildPayload();
-      if (!validateConfig(cfg)) return;
-      statusEl.innerText = 'Guardando...';
+      if (!validateConfig(cfg)){
+        setStatus('Revisa los campos marcados.', 'error');
+        revealFirstError();
+        return;
+      }
+      setStatus('Guardando...', 'muted');
       if (saveBtn) saveBtn.disabled = true;
       try{
         const r = await dogPost('/api/config',{headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)}).then(r=>r.json());
         if (r.status !== 'ok'){
           handleBackendError(r.reason);
-          statusEl.innerText = 'Error';
+          setStatus('No se pudo guardar.', 'error');
+          revealFirstError();
           return;
         }
-        statusEl.innerText = r.status + (r.wifi_restart ? ' (reiniciando AP)' : '');
+        markClean();
+        setStatus(r.wifi_restart ? 'Guardado — reiniciando el hotspot' : 'Guardado', 'muted');
       }catch(e){
-        statusEl.innerText = 'Error';
+        setStatus('Sin respuesta del collar. No se guardo.', 'error');
       }finally{
         if (saveBtn) saveBtn.disabled = false;
       }
@@ -1590,6 +1779,9 @@ String web_pages::html_config_page() {
     }
 
     function clearHome(){
+      // Destructive and not trivially reversible: setting a new Home needs the
+      // user to be physically back at the spot with a GPS fix.
+      if (!confirm('Borrar el Home? El modo Geocerca dejara de funcionar hasta que definas uno nuevo, y para eso hay que estar en el sitio con senal GPS.')) return;
       dogPost('/api/home/clear').then(r=>r.json()).then(r=>{
         homeStatus.innerText = r.status==='ok' ? 'Home borrado' : '';
         loadHome();
@@ -1597,11 +1789,22 @@ String web_pages::html_config_page() {
     }
 
     function resetCfg(){
-      if (!confirm('Restaurar defaults y reiniciar AP si aplica?')) return;
+      if (!confirm('Restaurar los valores de fabrica? Se pierde la configuracion actual de LEDs, zonas y GPS.')) return;
       if (resetBtn) resetBtn.disabled = true;
-      dogPost('/api/config/reset').then(r=>r.json()).then(r=>{
-        statusEl.innerText = r.status;
-      }).catch(()=>{statusEl.innerText='error';}).finally(()=>{if(resetBtn) resetBtn.disabled=false;});
+      setStatus('Restaurando...', 'muted');
+      dogPost('/api/config/reset').then(r=>r.json()).then(async r=>{
+        if (r.status !== 'ok'){
+          setStatus('No se pudo restaurar.', 'error');
+          return;
+        }
+        // Without this the form keeps showing the pre-reset values, and the next
+        // "Guardar cambios" writes them straight back, undoing the reset without
+        // the user ever seeing it happen.
+        await loadConfig();
+        markClean();
+        setStatus('Valores de fabrica restaurados', 'muted');
+      }).catch(()=>{setStatus('Sin respuesta del collar.', 'error');})
+        .finally(()=>{if(resetBtn) resetBtn.disabled=false;});
     }
 
     const lockEnabled = document.getElementById('lock_enabled');
@@ -1661,7 +1864,7 @@ String web_pages::html_config_page() {
 
     modeEl.onchange = updateModeVisibility;
     document.querySelectorAll('[data-mode-card]').forEach(btn=>btn.onclick=()=>selectMode(btn.dataset.modeCard));
-    document.querySelectorAll('[data-theme]').forEach(btn=>btn.onclick=()=>{ simpleTheme.value=btn.dataset.theme; if(btn.dataset.theme !== 'manual') applyTheme(btn.dataset.theme); updateThemeSelection(); });
+    document.querySelectorAll('[data-theme]').forEach(btn=>btn.onclick=()=>{ markDirty(); simpleTheme.value=btn.dataset.theme; if(btn.dataset.theme !== 'manual') applyTheme(btn.dataset.theme); updateThemeSelection(); });
     simpleTheme.onchange = () => { if (simpleTheme.value !== 'manual') applyTheme(simpleTheme.value); updateThemeSelection(); };
     [simpleEffect,simpleSpeed,simpleIntensity,simpleR,simpleG,simpleB].forEach(el=>el.oninput=updateThemeSelection);
     brightnessSlider.oninput = () => syncBrightness(brightnessSlider);
@@ -1672,7 +1875,7 @@ String web_pages::html_config_page() {
     fillEffectSelect(simpleEffect);
     buildColorSwatches();
 
-    fetch('/api/config').then(r=>r.json()).then(c=>{
+    function applyConfig(c){
       brightness.value = c.led.brightness;
       brightnessSlider.value = c.led.brightness;
       modeEl.value = c.mode || 'speed';
@@ -1713,7 +1916,28 @@ String web_pages::html_config_page() {
       updateThemeSelection();
       updateSwatchSelection();
       loadHome();
-    });
+    }
+
+    // Without a failure path a collar that is rebooting or out of range leaves
+    // an empty form on screen with nothing to explain it.
+    async function loadConfig(){
+      try{
+        const r = await fetch('/api/config');
+        if (!r.ok) throw new Error('http ' + r.status);
+        applyConfig(await r.json());
+        clearErrors();
+        markClean();
+        return true;
+      }catch(e){
+        errorsEl.innerHTML = '<div><strong>No se pudo leer la configuracion del collar.</strong></div>' +
+          '<div>Comprueba que sigues conectado al hotspot y reintenta.</div>' +
+          '<div class="actions"><button class="btn" type="button" onclick="loadConfig()">Reintentar</button></div>';
+        setStatus('Sin configuracion cargada.', 'error');
+        return false;
+      }
+    }
+
+    loadConfig();
   </script>
 </body>
 </html>
