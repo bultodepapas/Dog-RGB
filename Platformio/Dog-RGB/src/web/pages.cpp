@@ -245,6 +245,23 @@ String web_pages::html_page() {
   </div>
 
   <script>
+    // Every portal write goes through here. X-Dog-Portal is what the server's
+    // CSRF guard requires; X-Dog-Pin is empty unless the user turned on the
+    // optional lock, in which case a 401 prompts for it once per browser tab.
+    function dogPin(){try{return sessionStorage.getItem('dogPin')||'';}catch(e){return '';}}
+    async function dogPost(url,opts){
+      opts=opts||{};
+      const send=()=>fetch(url,Object.assign({},opts,{method:'POST',headers:Object.assign({'X-Dog-Portal':'1','X-Dog-Pin':dogPin()},opts.headers||{})}));
+      let r=await send();
+      if(r.status===401){
+        const pin=prompt('Portal bloqueado. Introduce el PIN:');
+        if(pin===null){return r;}
+        try{sessionStorage.setItem('dogPin',pin);}catch(e){}
+        r=await send();
+        if(r.status===401){try{sessionStorage.removeItem('dogPin');}catch(e){}}
+      }
+      return r;
+    }
     const $ = (id) => document.getElementById(id);
     const homeBtn = $('home_btn');
     const trackCanvas = $('track_map');
@@ -536,7 +553,7 @@ String web_pages::html_page() {
     async function updateHome(){
       if (homeBtn) homeBtn.disabled = true;
       try{
-        const r = await fetch('/api/home/set',{method:'POST'}).then(r=>r.json());
+        const r = await dogPost('/api/home/set').then(r=>r.json());
         if (r.status === 'ok'){
           loadStatus();
         }
@@ -603,7 +620,10 @@ String web_pages::html_wifi_page() {
       <div id="wifi_status_msg" class="notice"></div>
     </div>
 
-    <form class="card section" id="sta_form" method="post" action="/api/wifi">
+    <!-- No method/action on purpose: a native form post cannot carry the
+         X-Dog-Portal header, and that same fallback is what let a hostile page
+         submit this form cross-origin. Submission goes through onsubmit. -->
+    <form class="card section" id="sta_form">
       <h2>Home Wi-Fi</h2>
       <div class="muted">Conecta DOG-RGB al router de casa. El hotspot local queda disponible durante la conexion.</div>
       <div class="field">
@@ -654,6 +674,23 @@ String web_pages::html_wifi_page() {
   </div>
 
   <script>
+    // Every portal write goes through here. X-Dog-Portal is what the server's
+    // CSRF guard requires; X-Dog-Pin is empty unless the user turned on the
+    // optional lock, in which case a 401 prompts for it once per browser tab.
+    function dogPin(){try{return sessionStorage.getItem('dogPin')||'';}catch(e){return '';}}
+    async function dogPost(url,opts){
+      opts=opts||{};
+      const send=()=>fetch(url,Object.assign({},opts,{method:'POST',headers:Object.assign({'X-Dog-Portal':'1','X-Dog-Pin':dogPin()},opts.headers||{})}));
+      let r=await send();
+      if(r.status===401){
+        const pin=prompt('Portal bloqueado. Introduce el PIN:');
+        if(pin===null){return r;}
+        try{sessionStorage.setItem('dogPin',pin);}catch(e){}
+        r=await send();
+        if(r.status===401){try{sessionStorage.removeItem('dogPin');}catch(e){}}
+      }
+      return r;
+    }
     const pass = document.getElementById('pass');
     const show = document.getElementById('show_pass');
     show.onchange = () => { pass.type = show.checked ? 'text' : 'password'; };
@@ -795,7 +832,7 @@ String web_pages::html_wifi_page() {
         apHint.innerText = apHasPass ? 'Password configurada' : 'Sin password';
       }
       apWarn.innerText = apChanged() ? 'Nota: cambiar AP puede desconectar la sesion.' : '';
-      apOpenWarn.innerText = apOpen.checked ? 'Advertencia: el hotspot quedara sin password.' : '';
+      apOpenWarn.innerText = apOpen.checked ? 'Advertencia: sin password, cualquiera que este cerca podra abrir este portal y cambiar la configuracion del collar, incluido el password del hotspot.' : '';
       if (apChanged()) apRecovery.innerText = '';
     }
 
@@ -849,7 +886,7 @@ String web_pages::html_wifi_page() {
       const payload = {ap_ssid:ssid, ap_open:apOpen.checked, ap_pass:passVal, mdns:mdnsVal};
       if (apSaveBtn) apSaveBtn.disabled = true;
       try{
-        const res = await fetch('/api/wifi/ap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const res = await dogPost('/api/wifi/ap',{headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
         const r = await res.json();
         if (!res.ok || r.status !== 'ok'){
           handleApBackendError(r.reason);
@@ -881,7 +918,7 @@ String web_pages::html_wifi_page() {
       if (staSubmitBtn) staSubmitBtn.disabled = true;
       try{
         const fd = new FormData(staForm);
-        const r = await fetch('/api/wifi',{method:'POST',body:fd});
+        const r = await dogPost('/api/wifi',{body:fd});
         const text = await r.text();
         if (r.ok){
           staStatus.textContent = 'Guardado, conectando... el hotspot sigue disponible en http://192.168.4.1/.';
@@ -910,7 +947,7 @@ String web_pages::html_wifi_page() {
 }
 String web_pages::html_config_page() {
   String page;
-  page.reserve(46000);
+  page.reserve(50000);
   page += F(R"CFG(
 <!doctype html>
 <html>
@@ -1102,6 +1139,28 @@ String web_pages::html_config_page() {
       </div>
     </details>
 
+    <details class="card section" id="lock_section">
+      <summary>Bloqueo del portal (opcional)</summary>
+      <div class="section-body">
+        <div class="help">Desactivado de fabrica. Sirve si compartes la clave del Wi-Fi
+        y no quieres que se pueda cambiar la configuracion del collar. Ver el
+        dashboard nunca pide PIN.</div>
+        <label class="muted" for="lock_enabled"><input id="lock_enabled" type="checkbox"> Pedir un PIN para guardar cambios</label>
+        <div class="field" id="lock_pin_field" style="display:none">
+          <label for="lock_pin">PIN (4 a 8 digitos)</label>
+          <input id="lock_pin" type="password" inputmode="numeric" autocomplete="new-password" placeholder="(sin cambio)">
+        </div>
+        <div class="help">Se envia en claro por la red local. Protege de un
+        despiste, no de alguien decidido que ya este en tu Wi-Fi.</div>
+        <div class="warn">Apuntalo: si olvidas el PIN hay que reinstalar el
+        firmware por USB para quitarlo. "Restaurar defaults" no lo borra.</div>
+        <div class="actions">
+          <button class="btn" type="button" onclick="saveLock()">Guardar bloqueo</button>
+        </div>
+        <div id="lock_status" class="muted"></div>
+      </div>
+    </details>
+
     <div class="section">
       <div class="card action-bar">
         <button class="btn" type="button" onclick="saveCfg()">Guardar cambios</button>
@@ -1112,6 +1171,23 @@ String web_pages::html_config_page() {
   </div>
 
   <script>
+    // Every portal write goes through here. X-Dog-Portal is what the server's
+    // CSRF guard requires; X-Dog-Pin is empty unless the user turned on the
+    // optional lock, in which case a 401 prompts for it once per browser tab.
+    function dogPin(){try{return sessionStorage.getItem('dogPin')||'';}catch(e){return '';}}
+    async function dogPost(url,opts){
+      opts=opts||{};
+      const send=()=>fetch(url,Object.assign({},opts,{method:'POST',headers:Object.assign({'X-Dog-Portal':'1','X-Dog-Pin':dogPin()},opts.headers||{})}));
+      let r=await send();
+      if(r.status===401){
+        const pin=prompt('Portal bloqueado. Introduce el PIN:');
+        if(pin===null){return r;}
+        try{sessionStorage.setItem('dogPin',pin);}catch(e){}
+        r=await send();
+        if(r.status===401){try{sessionStorage.removeItem('dogPin');}catch(e){}}
+      }
+      return r;
+    }
     const $ = (id) => document.getElementById(id);
     const modeEl = $('mode');
     const speedLanesBlock = $('speed_lanes_block');
@@ -1480,7 +1556,7 @@ String web_pages::html_config_page() {
       statusEl.innerText = 'Guardando...';
       if (saveBtn) saveBtn.disabled = true;
       try{
-        const r = await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)}).then(r=>r.json());
+        const r = await dogPost('/api/config',{headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)}).then(r=>r.json());
         if (r.status !== 'ok'){
           handleBackendError(r.reason);
           statusEl.innerText = 'Error';
@@ -1495,14 +1571,14 @@ String web_pages::html_config_page() {
     }
 
     function setHome(){
-      fetch('/api/home/set',{method:'POST'}).then(r=>r.json()).then(r=>{
+      dogPost('/api/home/set').then(r=>r.json()).then(r=>{
         homeStatus.innerText = r.status==='ok' ? 'Home actualizado' : 'Home error';
         loadHome();
       }).catch(()=>{homeStatus.innerText='Home error';});
     }
 
     function clearHome(){
-      fetch('/api/home/clear',{method:'POST'}).then(r=>r.json()).then(r=>{
+      dogPost('/api/home/clear').then(r=>r.json()).then(r=>{
         homeStatus.innerText = r.status==='ok' ? 'Home borrado' : '';
         loadHome();
       }).catch(()=>{homeStatus.innerText='Home error';});
@@ -1511,10 +1587,65 @@ String web_pages::html_config_page() {
     function resetCfg(){
       if (!confirm('Restaurar defaults y reiniciar AP si aplica?')) return;
       if (resetBtn) resetBtn.disabled = true;
-      fetch('/api/config/reset',{method:'POST'}).then(r=>r.json()).then(r=>{
+      dogPost('/api/config/reset').then(r=>r.json()).then(r=>{
         statusEl.innerText = r.status;
       }).catch(()=>{statusEl.innerText='error';}).finally(()=>{if(resetBtn) resetBtn.disabled=false;});
     }
+
+    const lockEnabled = document.getElementById('lock_enabled');
+    const lockPin = document.getElementById('lock_pin');
+    const lockPinField = document.getElementById('lock_pin_field');
+    const lockStatus = document.getElementById('lock_status');
+
+    function updateLockFields(){
+      lockPinField.style.display = lockEnabled.checked ? '' : 'none';
+    }
+
+    async function loadLock(){
+      try{
+        const r = await fetch('/api/lock').then(r=>r.json());
+        lockEnabled.checked = !!r.enabled;
+        lockPin.placeholder = r.enabled ? '(sin cambio)' : '';
+        lockStatus.innerText = r.enabled ? 'Bloqueo activo' : 'Bloqueo desactivado';
+      }catch(e){
+        lockStatus.innerText = '';
+      }
+      updateLockFields();
+    }
+
+    async function saveLock(){
+      const enable = lockEnabled.checked;
+      const pin = lockPin.value;
+      // An empty PIN while already enabled means "keep the current one", so
+      // there is nothing to send and nothing to change.
+      if (enable && pin.length === 0){
+        lockStatus.innerText = 'Sin cambios: escribe un PIN nuevo para cambiarlo.';
+        return;
+      }
+      if (enable && !/^[0-9]{4,8}$/.test(pin)){
+        lockStatus.innerText = 'El PIN debe tener entre 4 y 8 digitos.';
+        return;
+      }
+      if (!enable && !confirm('Quitar el bloqueo del portal?')) return;
+      lockStatus.innerText = 'Guardando...';
+      try{
+        const res = await dogPost('/api/lock',{headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enable,pin:pin})});
+        const r = await res.json();
+        if (!res.ok || r.status !== 'ok'){
+          lockStatus.innerText = 'Error: ' + (r.reason || res.status);
+          return;
+        }
+        // The new PIN becomes this tab's credential so the next save works.
+        try{ enable ? sessionStorage.setItem('dogPin',pin) : sessionStorage.removeItem('dogPin'); }catch(e){}
+        lockPin.value = '';
+        await loadLock();
+      }catch(e){
+        lockStatus.innerText = 'Error';
+      }
+    }
+
+    lockEnabled.onchange = updateLockFields;
+    loadLock();
 
     modeEl.onchange = updateModeVisibility;
     document.querySelectorAll('[data-mode-card]').forEach(btn=>btn.onclick=()=>selectMode(btn.dataset.modeCard));

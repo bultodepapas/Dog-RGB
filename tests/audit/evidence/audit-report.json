@@ -60,7 +60,7 @@
     "smallTargetCount": 5,
     "inlineHandlers": 3,
     "imagesNoAlt": 0,
-    "docBytes": 26167,
+    "docBytes": 27040,
     "overflow": {
       "iphone-se": {
         "scrollW": 320,
@@ -190,7 +190,7 @@
     "smallTargetCount": 8,
     "inlineHandlers": 2,
     "imagesNoAlt": 0,
-    "docBytes": 24264,
+    "docBytes": 25430,
     "overflow": {
       "iphone-se": {
         "scrollW": 320,
@@ -438,6 +438,20 @@
         "text": "- tira B independiente"
       },
       {
+        "tag": "input",
+        "cls": "",
+        "w": 13,
+        "h": 13,
+        "text": ""
+      },
+      {
+        "tag": "button",
+        "cls": "btn",
+        "w": 149,
+        "h": 32,
+        "text": "Guardar bloqueo"
+      },
+      {
         "tag": "button",
         "cls": "btn",
         "w": 149,
@@ -459,10 +473,10 @@
         "text": "Volver"
       }
     ],
-    "smallTargetCount": 17,
-    "inlineHandlers": 16,
+    "smallTargetCount": 19,
+    "inlineHandlers": 17,
     "imagesNoAlt": 0,
-    "docBytes": 57819,
+    "docBytes": 62029,
     "overflow": {
       "iphone-se": {
         "scrollW": 320,
@@ -661,9 +675,62 @@
     "effectKeys": 10
   },
   {
-    "page": "xss-poc",
+    "page": "csrf-/config",
+    "posts": [
+      {
+        "url": "/api/config",
+        "header": "1"
+      },
+      {
+        "url": "/api/config",
+        "header": "1"
+      },
+      {
+        "url": "/api/config/reset",
+        "header": "1"
+      },
+      {
+        "url": "/api/config/reset",
+        "header": "1"
+      }
+    ]
+  },
+  {
+    "page": "csrf-/wifi",
+    "posts": [
+      {
+        "url": "/api/wifi",
+        "header": "1"
+      },
+      {
+        "url": "/api/wifi/ap",
+        "header": "1"
+      }
+    ]
+  },
+  {
+    "page": "lock-retry",
+    "attempts": [
+      "",
+      "4321"
+    ]
+  },
+  {
+    "page": "xss-regression",
     "hostileSsid": "\" autofocus onfocus=\"window.__xss=1",
-    "scriptExecuted": true,
-    "ssidInputValue": ""
+    "scriptExecuted": false,
+    "ssidInputValue": "\" autofocus onfocus=\"window.__xss=1"
+  },
+  {
+    "page": "xss-regression",
+    "hostileSsid": "\"><img src=x onerror=\"window.__xss=1\">",
+    "scriptExecuted": false,
+    "ssidInputValue": "\"><img src=x onerror=\"window.__xss=1\">"
+  },
+  {
+    "page": "xss-regression",
+    "hostileSsid": "Casa \"El Pino\" & Cía",
+    "scriptExecuted": false,
+    "ssidInputValue": "Casa \"El Pino\" & Cía"
   }
 ]

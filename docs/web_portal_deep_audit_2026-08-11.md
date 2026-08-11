@@ -24,6 +24,67 @@ Dicho eso, la auditoría encontró **una vulnerabilidad crítica explotable con 
 
 ---
 
+## 1.bis Estado de la remediación
+
+**Fase 0 implementada el 2026-08-11.** Verificación: `web_pages_smoke.py` verde (venía con 7 fallos), Playwright 28/28.
+
+| Item | Estado | Nota |
+|---|---|---|
+| R0.1 escapado del SSID | ✅ Hecho | `html_escape_attr()` + aplicación en el único punto de interpolación |
+| R0.1 blacklist de caracteres en `valid_ap_ssid` | ⛔ **No implementado — deliberado** | Ver más abajo |
+| R0.2 regresión | ✅ Hecho | Regla estática + 3 tests de extremo a extremo |
+| R0.3 `reserve()` | ✅ Hecho | 30 500 / 28 500 / 46 000 / 32 500 |
+| R0.4 `POST /api/mode` | ✅ Hecho | Handler, ruta y mock retirados |
+
+**Desviación sobre R0.1 (blacklist).** El plan proponía además rechazar `" < > ' &` en `valid_ap_ssid` como defensa en profundidad. **No se implementó, por decisión razonada:** ese validador gobierna también el SSID de la red *doméstica* en `handle_wifi_save`, y `&` es común en nombres de red reales (todo el parque de routers `AT&T`), igual que los apóstrofos. La lista negra habría cambiado un agujero ya cerrado por una limitación funcional real: imposibilidad de conectar el collar a redes legítimas. Con el escapado correcto, esos caracteres son inocuos.
+
+La defensa en profundidad se implementó en su lugar como **regla estructural en el smoke test**: cualquier `page += <expr>;` que no sea un literal de compilación, `FPSTR(BASE_CSS)` o `html_escape_attr(...)` falla la comprobación. Esto protege todos los puntos de interpolación futuros, no sólo el conocido. Verificado reintroduciendo el defecto original:
+
+```
+FAIL: pages.cpp:612: unescaped interpolation into markup: page += wifi_mgr::ssid();
+```
+
+**Cierre parcial de M5.** `extract_pages.py` ya no descarta las expresiones en silencio: aborta ante cualquier `page +=` que no reconozca, y modela el escapado del firmware para los valores interpolados, sustituibles vía `AP_PORTAL_SUBST`. Los tests de regresión inyectan SSIDs hostiles por esa vía. La salida por defecto es idéntica byte a byte, por lo que las líneas base visuales no se ven afectadas (15/15 siguen pasando).
+
+*Limitación:* `extract_pages.py` reimplementa `html_escape_attr()` en Python y podría desincronizarse del C++. Lo que impide la deriva es la regla estática del smoke, que garantiza que el lado C++ enruta toda interpolación por el helper.
+
+**No verificado:** PlatformIO no está instalado en la máquina de auditoría, así que **los cambios en C++ no se han compilado**. Requieren un `pio run` antes de flashear. El helper sigue el mismo patrón de iteración sobre `String` ya usado en `runtime_config.cpp:599-628`, y `pages.h` incluye `<Arduino.h>`.
+
+### Fase 1 implementada el 2026-08-11
+
+Reorientada respecto al plan original tras la indicación del propietario: esto es un proyecto DIY, y la protección no puede añadir pasos al usuario que monta el collar en su garaje ni impedir que un familiar vea el dashboard desde su móvil. La Fase 1 se dividió en consecuencia.
+
+**Siempre activo, sin coste de UX** — cierra H1 y M8 para todo el mundo por defecto:
+
+| Item | Implementación |
+|---|---|
+| R1.2 CSRF | Cabecera `X-Dog-Portal` obligatoria en los 6 handlers de escritura. Una petición cross-origin no puede añadirla sin superar un preflight CORS, que el servidor no responde. El JS propio la envía sin coste al ser mismo origen. |
+| R1.2 bis | Retirados `method`/`action` del formulario STA: el envío nativo era el vector CSRF y no puede llevar cabeceras. |
+| R1.3 Cabeceras | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` y `Cache-Control: no-store` en **todas** las respuestas, aplicadas desde `note_activity()`, que ya invocaba cada handler. |
+| R1.4 Aviso AP abierto | El texto ahora nombra la consecuencia real: cualquiera en rango puede cambiar la configuración, incluido el password del hotspot. |
+
+**Opt-in, apagado de fábrica** — R1.1, `portal_lock`:
+
+- PIN de 4–8 dígitos que sólo se pide al **guardar**; las lecturas nunca se bloquean.
+- Sección colapsada en `/config`, marcada como opcional. Un build nuevo no pide nada.
+- El cliente lo guarda en `sessionStorage`: se teclea una vez por pestaña. Ante un 401 pregunta y reintenta.
+- Cambiar o quitar el PIN es a su vez una escritura protegida: un portal bloqueado no se desbloquea sin el PIN actual.
+
+**Desviación de diseño sobre R1.1.** El plan asumía guardar el secreto en `RuntimeConfig`. **No se hizo:** `ConfigRecord` es un blob A/B con CRC y comprobación de tamaño exacto, y añadirle un campo invalidaría todos los registros ya escritos — un usuario perdería sus 10 zonas de LED afinadas al actualizar el firmware. El bloqueo vive en su propia clave NVS (`portal_lock`), con su propio CRC, sin tocar el registro endurecido.
+
+Compromiso asumido y documentado en la UI: un registro corrupto deja el portal **desbloqueado**, no inaccesible. Bloquear la configuración de un dispositivo casero por un CRC fallido es el peor de los dos fallos.
+
+**Riesgos que el usuario debe conocer** (ambos avisados en la propia interfaz):
+
+- El PIN viaja en claro por HTTP en la red local. Protege de un descuido, no de alguien decidido que ya esté en el Wi-Fi. Cifrarlo exigiría TLS, desproporcionado aquí.
+- **Un PIN olvidado sólo se quita reinstalando el firmware por USB.** `Restaurar defaults` no lo borra, y de todos modos es una escritura protegida, así que no serviría de vía de recuperación.
+
+**Cobertura añadida:** regla en el smoke que exige que todo POST pase por el helper `dogPost` con la cabecera; 6 tests Playwright nuevos (cabecera CSRF en `/config` y `/wifi`, bloqueo apagado por defecto, PIN malformado rechazado en cliente, y el ciclo 401 → prompt → reintento con PIN). Suite total: 33/33.
+
+**Sigue sin compilar.** Los nuevos `portal_lock.{h,cpp}` y los cambios en `portal_http.cpp` necesitan `pio run`. Dos puntos que la compilación debe confirmar y que no pude verificar: la firma de `WebServer::collectHeaders(const char**, size_t)` en arduino-esp32 3.3.11, y que `offsetof` sobre `LockRecord` esté disponible con los includes usados.
+
+---
+
 ## 2. Hallazgos críticos
 
 ### C1 — XSS almacenado vía reflexión del SSID sin escapar

@@ -17,6 +17,7 @@
 #include "storage/nvs_store.h"
 #include "util/time_utils.h"
 #include "web/pages.h"
+#include "web/portal_lock.h"
 #include "wifi/wifi_mgr.h"
 
 namespace portal_http {
@@ -96,8 +97,45 @@ struct CsvStreamContext {
   const gps::TrackView *view;
 };
 
+// Browsers may not carry a custom header cross-origin without first passing a
+// CORS preflight, and this server answers no OPTIONS route. Requiring the
+// header is therefore enough to reject a hostile page's form post or no-cors
+// fetch, while costing the portal's own same-origin scripts nothing. Origin
+// checking is deliberately not used instead: the captive-portal DNS resolves
+// every name to this device, so the portal has no stable origin to compare.
+static const char *CSRF_HEADER = "X-Dog-Portal";
+static const char *PIN_HEADER = "X-Dog-Pin";
+static const char *COLLECTED_HEADERS[] = {"X-Dog-Portal", "X-Dog-Pin"};
+
 void note_activity() {
   wifi_mgr::note_portal_activity();
+  // Every handler calls this first, so queueing the headers here attaches them
+  // to that handler's response without touching each send site.
+  server.sendHeader("X-Content-Type-Options", "nosniff");
+  server.sendHeader("X-Frame-Options", "DENY");
+  server.sendHeader("Referrer-Policy", "no-referrer");
+  server.sendHeader("Cache-Control", "no-store");
+}
+
+bool csrf_ok() {
+  if (server.hasHeader(CSRF_HEADER)) {
+    return true;
+  }
+  server.send(403, "application/json", "{\"status\":\"error\",\"reason\":\"csrf\"}");
+  return false;
+}
+
+// Guards every state-changing endpoint. The CSRF check is unconditional; the
+// PIN check does nothing unless the user opted into the lock.
+bool write_allowed() {
+  if (!csrf_ok()) {
+    return false;
+  }
+  if (portal_lock::accepts(server.header(PIN_HEADER))) {
+    return true;
+  }
+  server.send(401, "application/json", "{\"status\":\"error\",\"reason\":\"locked\"}");
+  return false;
 }
 
 bool persist_config_or_restore(const RuntimeConfig &previous) {
@@ -115,13 +153,11 @@ String ap_base_url() {
 void redirect_to_portal() {
   note_activity();
   server.sendHeader("Location", ap_base_url(), true);
-  server.sendHeader("Cache-Control", "no-store");
   server.send(302, "text/plain", "");
 }
 
 void handle_captive_probe() {
   note_activity();
-  server.sendHeader("Cache-Control", "no-store");
   server.send(200, "text/html",
               "<!doctype html><html><head><meta http-equiv='refresh' content='0;url=/'></head>"
               "<body><a href='/'>Dog-RGB</a></body></html>");
@@ -683,6 +719,9 @@ void handle_config_get() {
 
 void handle_config_post() {
   note_activity();
+  if (!write_allowed()) {
+    return;
+  }
   if (!server.hasArg("plain")) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
@@ -890,6 +929,9 @@ void handle_config_post() {
 
 void handle_config_reset() {
   note_activity();
+  if (!write_allowed()) {
+    return;
+  }
   RuntimeConfig previous = config::get();
   config::set_defaults();
   if (!persist_config_or_restore(previous)) {
@@ -905,6 +947,9 @@ void handle_config_reset() {
 
 void handle_wifi_ap_save() {
   note_activity();
+  if (!write_allowed()) {
+    return;
+  }
   if (!server.hasArg("plain")) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
     return;
@@ -986,6 +1031,9 @@ void handle_home_get() {
 
 void handle_home_set() {
   note_activity();
+  if (!write_allowed()) {
+    return;
+  }
   if (!gps::has_fix() || !gps::has_current_fix()) {
     server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no_gps\"}");
     return;
@@ -999,7 +1047,46 @@ void handle_home_set() {
 
 void handle_home_clear() {
   note_activity();
+  if (!write_allowed()) {
+    return;
+  }
   if (!geofence::clear_home()) {
+    server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
+    return;
+  }
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+void handle_lock_get() {
+  note_activity();
+  server.send(200, "application/json",
+              portal_lock::enabled() ? "{\"enabled\":true}" : "{\"enabled\":false}");
+}
+
+// Setting, changing or clearing the PIN is itself a guarded write, so a locked
+// portal cannot be unlocked without the current PIN.
+void handle_lock_post() {
+  note_activity();
+  if (!write_allowed()) {
+    return;
+  }
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"no body\"}");
+    return;
+  }
+  JsonDocument doc;
+  const DeserializationError err = deserializeJson(doc, server.arg("plain"));
+  if (err) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"bad json\"}");
+    return;
+  }
+  const bool enable = doc["enabled"] | false;
+  const String pin = doc["pin"] | String("");
+  if (enable && !portal_lock::valid_pin(pin)) {
+    server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"pin\"}");
+    return;
+  }
+  if (!portal_lock::set_pin(enable ? pin : String(""))) {
     server.send(500, "application/json", "{\"status\":\"error\",\"reason\":\"storage\"}");
     return;
   }
@@ -1008,6 +1095,9 @@ void handle_home_clear() {
 
 void handle_wifi_save() {
   note_activity();
+  if (!write_allowed()) {
+    return;
+  }
   if (!server.hasArg("ssid")) {
     server.send(400, "text/plain", "missing ssid");
     return;
@@ -1032,6 +1122,11 @@ void handle_wifi_save() {
 } // namespace
 
 void begin() {
+  portal_lock::begin();
+  // WebServer discards headers it was not told to keep, so csrf_ok() would
+  // never see the guard header without this.
+  server.collectHeaders(COLLECTED_HEADERS,
+                        sizeof(COLLECTED_HEADERS) / sizeof(COLLECTED_HEADERS[0]));
   server.on("/", HTTP_GET, handle_root);
   server.on("/api/summary", HTTP_GET, handle_summary);
   server.on("/api/status", HTTP_GET, handle_status_get);
@@ -1044,6 +1139,8 @@ void begin() {
   server.on("/api/config/reset", HTTP_POST, handle_config_reset);
   server.on("/config", HTTP_GET, handle_config_page);
   server.on("/dev", HTTP_GET, handle_dev_page);
+  server.on("/api/lock", HTTP_GET, handle_lock_get);
+  server.on("/api/lock", HTTP_POST, handle_lock_post);
   server.on("/api/home", HTTP_GET, handle_home_get);
   server.on("/api/home/set", HTTP_POST, handle_home_set);
   server.on("/api/home/clear", HTTP_POST, handle_home_clear);

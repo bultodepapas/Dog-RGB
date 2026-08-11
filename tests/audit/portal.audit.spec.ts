@@ -1,5 +1,6 @@
 import { expect, test, type Page, type ConsoleMessage } from '@playwright/test';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -65,6 +66,9 @@ async function mockApis(page: Page) {
         single: { effect: 1, speed: 120, intensity: 200, rgb: { r: 255, g: 80, b: 0 } },
         wifi: { ap_ssid: 'DOG-RGB', has_ap_pass: true, mdns: 'dogrgb' },
       });
+    }
+    if (p === '/api/lock') {
+      return send(route.request().method() === 'GET' ? { enabled: false } : { status: 'ok' });
     }
     if (p === '/api/home') {
       return send({ home_set: true, home_source: 'manual', home_lat: 40.4168, home_lon: -3.7038, gps_fix: true, current_lat: 40.4175, current_lon: -3.7041, distance_m: 120.5 });
@@ -201,25 +205,130 @@ test.describe('AP portal audit', () => {
     record({ page: 'config-post', postedKeys: keys, hasRanges: keys.includes('speed_ranges_kph'), effectKeys: eff ? Object.keys(eff).length : 0 });
   });
 
-  test('SSID reflection XSS (firmware concatenation reproduced)', async ({ page }) => {
-    // pages.cpp emits:  ...value=")  +  wifi_mgr::ssid()  +  ("> ...
-    // with no escaping. Reproduce that exact concatenation with a hostile SSID
-    // that config::valid_ap_ssid() accepts (printable ASCII, <=32 chars).
-    const hostileSsid = `" autofocus onfocus="window.__xss=1`;
-    const wifiHtml = readFileSync(path.join(__dirname, '..', '..', '.ap-portal-preview', 'wifi.html'), 'utf-8');
-    const injected = wifiHtml.replace('<input name="ssid" value="">', `<input name="ssid" value="${hostileSsid}">`);
-    writeFileSync(path.join(outDir, 'xss-poc.html'), injected, 'utf-8');
+  // The server rejects any POST without this header (csrf_ok in
+  // portal_http.cpp), which is what stops a hostile page from submitting to
+  // the portal cross-origin. Every write the UI performs must carry it.
+  for (const route of ['/config', '/wifi']) {
+    test(`portal POSTs carry the CSRF header :: ${route}`, async ({ page }) => {
+      const posts: { url: string; header: string | undefined }[] = [];
+      page.on('request', (req) => {
+        if (req.method() === 'POST') {
+          posts.push({ url: new URL(req.url()).pathname, header: req.headers()['x-dog-portal'] });
+        }
+      });
+      page.on('dialog', (d) => d.accept());
+      await mockApis(page);
+      await page.goto(route, { waitUntil: 'networkidle' });
 
+      for (const label of ['Guardar', 'Restaurar', 'Set Home']) {
+        const buttons = page.locator(`button:has-text("${label}")`);
+        for (let i = 0; i < (await buttons.count()); i++) {
+          await buttons.nth(i).click({ force: true }).catch(() => {});
+          await page.waitForTimeout(250);
+        }
+      }
+
+      record({ page: `csrf-${route}`, posts });
+      expect(posts.length, 'expected at least one POST to be exercised').toBeGreaterThan(0);
+      for (const p of posts) {
+        expect(p.header, `${p.url} must send X-Dog-Portal`).toBe('1');
+      }
+    });
+  }
+
+  test('portal lock is off by default and adds no steps', async ({ page }) => {
     await mockApis(page);
-    await page.route('**/wifi-xss', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: injected }));
-    await page.goto('/wifi-xss', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(400);
+    await page.goto('/config', { waitUntil: 'networkidle' });
+    const section = page.locator('#lock_section');
+    await expect(section).toHaveCount(1);
+    // Collapsed and unchecked: a fresh build must not ask the user for anything.
+    await expect(section).not.toHaveAttribute('open', /.*/);
+    await expect(page.locator('#lock_enabled')).not.toBeChecked();
+    await expect(page.locator('#lock_pin_field')).toBeHidden();
+  });
 
-    const executed = await page.evaluate(() => (window as unknown as { __xss?: number }).__xss === 1);
-    const ssidValue = await page.locator('input[name=ssid]').inputValue().catch(() => '(input not found)');
-    await page.screenshot({ path: path.join(outDir, 'xss-poc.png'), fullPage: false });
-    record({ page: 'xss-poc', hostileSsid, scriptExecuted: executed, ssidInputValue: ssidValue });
-    expect(executed, 'unescaped SSID reflection executes attacker JS').toBe(true);
+  test('lock rejects a malformed PIN before hitting the device', async ({ page }) => {
+    await mockApis(page);
+    const posts: string[] = [];
+    page.on('request', (r) => { if (r.method() === 'POST') posts.push(new URL(r.url()).pathname); });
+    await page.goto('/config', { waitUntil: 'networkidle' });
+    await page.locator('#lock_section').evaluate((el: HTMLDetailsElement) => { el.open = true; });
+    await page.locator('#lock_enabled').check();
+    await page.locator('#lock_pin').fill('12');
+    await page.locator('button:has-text("Guardar bloqueo")').click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('#lock_status')).toContainText('4 y 8');
+    expect(posts.filter((p) => p === '/api/lock'), 'must not POST an invalid PIN').toHaveLength(0);
+  });
+
+  test('a locked portal prompts once and retries with the PIN', async ({ page }) => {
+    await mockApis(page);
+    const attempts: (string | undefined)[] = [];
+    // First write is rejected as locked; the retry carrying the PIN succeeds.
+    await page.route('**/api/config', async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      const pin = route.request().headers()['x-dog-pin'];
+      attempts.push(pin);
+      if (!pin) return route.fulfill({ status: 401, json: { status: 'error', reason: 'locked' } });
+      return route.fulfill({ json: { status: 'ok', wifi_restart: false } });
+    });
+    page.on('dialog', (d) => d.accept('4321'));
+
+    await page.goto('/config', { waitUntil: 'networkidle' });
+    await page.locator('button:has-text("Guardar cambios")').first().click({ force: true });
+    await page.waitForTimeout(800);
+
+    record({ page: 'lock-retry', attempts });
+    expect(attempts.length, 'expected an initial attempt and one retry').toBe(2);
+    expect(attempts[0], 'first attempt carries no PIN').toBeFalsy();
+    expect(attempts[1], 'retry carries the PIN from the prompt').toBe('4321');
+  });
+
+  // Regression guard for the stored-XSS sink at pages.cpp:579-612. The SSID is
+  // the only runtime value the firmware interpolates into markup; it reaches
+  // the page from NVS and is attacker-settable via the unauthenticated
+  // POST /api/wifi. Render it through the same escaping the firmware applies
+  // and assert the payload stays inert.
+  //
+  // Fidelity note: extract_pages.py mirrors html_escape_attr() in Python. The
+  // static rule in tools/web_pages_smoke.py is what guarantees the C++ side
+  // routes every interpolation through that helper.
+  for (const hostileSsid of [
+    `" autofocus onfocus="window.__xss=1`,
+    `"><img src=x onerror="window.__xss=1">`,
+    `Casa "El Pino" & Cía`,
+  ]) {
+    test(`SSID reflection stays inert :: ${hostileSsid.slice(0, 28)}`, async ({ page }) => {
+      const repoRoot = path.join(__dirname, '..', '..');
+      execFileSync('python3', ['tools/ap_portal_preview/extract_pages.py'], {
+        cwd: repoRoot,
+        env: { ...process.env, AP_PORTAL_SUBST: JSON.stringify({ 'wifi_mgr::ssid()': hostileSsid }) },
+        stdio: 'pipe',
+      });
+      const injected = readFileSync(path.join(repoRoot, '.ap-portal-preview', 'wifi.html'), 'utf-8');
+
+      await mockApis(page);
+      await page.route('**/wifi-xss', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: injected }));
+      await page.goto('/wifi-xss', { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(400);
+
+      const executed = await page.evaluate(() => (window as unknown as { __xss?: number }).__xss === 1);
+      // The escaped entities must decode back to the exact SSID: the fix has to
+      // neutralise the payload without corrupting legitimate names.
+      const ssidValue = await page.locator('input[name=ssid]').inputValue();
+      record({ page: 'xss-regression', hostileSsid, scriptExecuted: executed, ssidInputValue: ssidValue });
+
+      expect(executed, 'escaped SSID must not execute').toBe(false);
+      expect(ssidValue, 'escaped SSID must round-trip intact').toBe(hostileSsid);
+    });
+  }
+
+  test.afterAll(async () => {
+    // Leave the preview in its default state for the other suites.
+    execFileSync('python3', ['tools/ap_portal_preview/extract_pages.py'], {
+      cwd: path.join(__dirname, '..', '..'),
+      stdio: 'pipe',
+    });
   });
 
   test.afterAll(async () => {

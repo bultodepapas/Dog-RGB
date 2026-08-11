@@ -83,10 +83,6 @@ async function mockPortalApis(page: Page, state: MockState = {}) {
       });
       return;
     }
-    if (url.pathname === '/api/mode') {
-      await route.fulfill({ json: { status: 'ok' } });
-      return;
-    }
     if (url.pathname === '/api/wifi') {
       await route.fulfill({ contentType: 'text/plain; charset=utf-8', body: 'saved, connecting' });
       return;
@@ -196,7 +192,11 @@ test.describe('AP portal mobile screenshots', () => {
     await mockPortalApis(page);
     await page.goto('/wifi');
     await page.locator('#ap_open').check();
-    await expect(page.getByText('Advertencia: el hotspot quedara sin password.')).toBeVisible();
+    // The warning must state the consequence, not just the missing password:
+    // an open AP hands portal write access to anyone in radio range.
+    const warning = page.locator('#ap_open_warn');
+    await expect(warning).toBeVisible();
+    await expect(warning).toContainText('cambiar la configuracion');
     await capture(page, 'wifi-open-ap-warning.png');
   });
 
