@@ -114,6 +114,44 @@ Hasta que esas líneas base se commiteen, la regresión visual sigue sin ser un 
 
 **R2.2** ya se había cubierto en la Fase 0.
 
+### Fase 3 implementada el 2026-08-11
+
+Compila: `pio run` → SUCCESS, RAM 17.3 %, Flash 34.4 % (1 149 883 B). Suite 33/33.
+
+Medido con el mismo harness que produjo los hallazgos originales, antes y después:
+
+| Métrica | Antes | Después |
+|---|---|---|
+| Controles sin nombre accesible (M2) | 73 | **0** |
+| `<label>` huérfanos | 110 | **0** |
+| Objetivos táctiles < 44 px (M7) | 33 | **0** |
+| Fallos de contraste AA (L1) | 8 | **0** |
+| Páginas con `lang` / `<h1>` / `<main>` (M3) | 0 / 0 / 0 | **4 / 4 / 4** |
+| Reglas de foco (L2) | 1 | 2 |
+| Páginas con `<noscript>` (L3) | 0 | **4** |
+
+**R3.1.** Los 73 controles se repartían en dos problemas distintos que el informe trataba como uno solo:
+
+- **73 `<label>` rotulaban un `<div class="data">`**, no un control. Ahí `<label>` no es una asociación rota sino un error semántico: se convirtieron en `<span>`. Elegido sin clase porque `<span>`+`</span>` ocupa 2 bytes *menos* que `<label>`+`</label>`, lo que evitó pasarse del presupuesto de la página `dev`.
+- **22 etiquetas de formulario reales** recibieron `for=`, y **49 controles de las zonas de velocidad** —generados por JS, sin sitio para una etiqueta visible— recibieron `aria-label` en la plantilla, de modo que el coste en bytes se paga una vez y no diez.
+- Los 4 restantes (`AP abierto`, `Rangos`, `Preajuste`, `Color base`) rotulan un *grupo*, no un control. También pasaron a `<span>`. *Pendiente:* la agrupación semántica plena (`role="group"` + `aria-labelledby`) no se implementó; se eliminó el error, no se añadió la asociación de grupo.
+
+**R3.3.** `min-height:44px` en `.btn`, `.back-link` y `.sl-adv-btn`; casillas de 13×13 a 24×24. Dos correcciones que sólo aparecieron al medir:
+
+- `input[type=checkbox]{width:20px}` no tenía efecto: **ya existía** una regla posterior `input[type="checkbox"]{width:auto}` que ganaba por orden. Se corrigió la regla original en vez de añadir un duplicado.
+- Dentro de un contenedor `inline-flex` la casilla se comprimía a 13 px; hizo falta `flex:none`.
+- El selector pasó de `label.muted` a `label:has(input[type="checkbox"])` porque no todas las casillas viven en un `label.muted`. Si el navegador no soporta `:has()`, la regla se ignora y quedan casillas de 24 px sin los 44 del label: degrada, no rompe.
+
+A 24 px la casilla nativa es un cuadro blanco que rompía el tema CRT, así que se estilizó con `appearance:none` (borde verde sobre negro, relleno sólido al marcar).
+
+**R3.4.** `--muted` de `#00882A` a `#00A838`: 4.29:1 → 6.28:1 medido. El `outline:none` de `input:focus` se retiró y se añadió `:focus-visible` con contorno de 2 px; antes la navegación por teclado no dejaba rastro en botones ni enlaces.
+
+**R3.5.** `<noscript>` en las cuatro páginas.
+
+**Nota sobre los presupuestos de página.** El trabajo de accesibilidad hizo crecer las páginas y el guardarraíl saltó dos veces, que es exactamente su función. En vez de ir empujando un presupuesto cada vez, se recalibraron los cuatro a la vez dejando ~15 % de margen entre tamaño real y `reserve`, y ~5 % entre tamaño y presupuesto: 29 000 / 27 500 / 46 500 / 29 500, con reservas 31 500 / 29 700 / 51 000 / 32 000.
+
+**Corrección al harness.** La medición de objetivos táctiles evaluaba el `<input>`, no el `<label>` que lo envuelve y que es lo que el usuario realmente pulsa. Se corrigió para medir el área efectiva; sin ese arreglo el harness habría reportado 6 falsos positivos.
+
 ---
 
 ## 2. Hallazgos críticos

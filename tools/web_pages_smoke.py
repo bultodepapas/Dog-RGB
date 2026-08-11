@@ -15,10 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 PAGES = ROOT / "Platformio" / "Dog-RGB" / "src" / "web" / "pages.cpp"
 
 PAGE_BUDGETS = {
-    "html_page": 28_000,
-    "html_wifi_page": 26_000,
-    "html_config_page": 44_000,
-    "html_dev_page": 28_000,
+    "html_page": 29_000,
+    "html_wifi_page": 27_500,
+    "html_config_page": 46_500,
+    "html_dev_page": 29_500,
 }
 
 REQUIRED_SNIPPETS = [

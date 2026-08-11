@@ -134,7 +134,10 @@ test.describe('AP portal audit', () => {
         // Interactive controls smaller than the 44x44 CSS px touch target.
         const smallTargets = q('button,a,input[type=checkbox],.swatch')
           .map((el) => {
-            const r = el.getBoundingClientRect();
+            // A checkbox wrapped in a label is clickable across the whole
+            // label, so that is the target the user actually hits.
+            const hit = el.closest('label') ?? el;
+            const r = hit.getBoundingClientRect();
             return { tag: el.tagName.toLowerCase(), cls: el.className, w: Math.round(r.width), h: Math.round(r.height), text: (el.textContent || '').trim().slice(0, 24) };
           })
           .filter((t) => t.w > 0 && t.h > 0 && (t.w < 44 || t.h < 44));

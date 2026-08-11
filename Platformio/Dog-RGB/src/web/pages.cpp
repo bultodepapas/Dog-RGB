@@ -6,8 +6,9 @@
 
 namespace {
 const char BASE_CSS[] PROGMEM = R"CSS(
-:root{--bg:#000;--surface:#0A0A0A;--text:#00FF41;--muted:#00882A;--accent:#00FF41;--accent-2:#FFD700;--danger:#FF0055;--border:#003300;--shadow:0 0 10px rgba(0,255,65,0.12);--glow-sm:0 0 4px #00FF41;--glow-md:0 0 8px #00FF41,0 0 16px rgba(0,255,65,0.4);--radius:3px;--space-1:6px;--space-2:10px;--space-3:14px;--space-4:20px;--space-5:28px;--font-mono:"Courier New","Lucida Console","DejaVu Sans Mono",monospace;}
+:root{--bg:#000;--surface:#0A0A0A;--text:#00FF41;--muted:#00A838;--accent:#00FF41;--accent-2:#FFD700;--danger:#FF0055;--border:#003300;--shadow:0 0 10px rgba(0,255,65,0.12);--glow-sm:0 0 4px #00FF41;--glow-md:0 0 8px #00FF41,0 0 16px rgba(0,255,65,0.4);--radius:3px;--space-1:6px;--space-2:10px;--space-3:14px;--space-4:20px;--space-5:28px;--font-mono:"Courier New","Lucida Console","DejaVu Sans Mono",monospace;}
 *{box-sizing:border-box;}
+label:has(input[type="checkbox"]){display:inline-flex;align-items:center;gap:8px;min-height:44px;}
 @keyframes flicker{0%{opacity:0.96}5%{opacity:0.92}10%{opacity:1}70%{opacity:0.98}100%{opacity:1}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 body{margin:0;font-family:var(--font-mono);font-size:14px;background:#000;color:var(--text);text-shadow:0 0 3px rgba(0,255,65,0.35);line-height:1.5;}
@@ -21,7 +22,7 @@ h2{font-size:16px;letter-spacing:0.04em;}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:var(--space-4);}
 .hero{display:flex;flex-direction:column;gap:var(--space-3);}
 .hero-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3);}
-.brand{font-size:22px;font-weight:700;letter-spacing:0.1em;text-shadow:var(--glow-md);text-transform:uppercase;}
+.brand{margin:0;font-size:22px;font-weight:700;letter-spacing:0.1em;text-shadow:var(--glow-md);text-transform:uppercase;}
 .brand::after{content:'_';animation:blink 1s step-end infinite;}
 .tagline{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
 .chips{display:flex;flex-wrap:wrap;gap:8px;}
@@ -50,7 +51,7 @@ h2{font-size:16px;letter-spacing:0.04em;}
 .summary-meta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;color:var(--muted);font-size:12px;}
 .empty-state{padding:12px;background:#000;border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);font-size:12px;}
 .muted{color:var(--muted);font-size:12px;}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;border-radius:var(--radius);border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:600;font-size:12px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;cursor:pointer;transition:box-shadow 0.15s,background 0.15s;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 14px;border-radius:var(--radius);border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:600;font-size:12px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;cursor:pointer;transition:box-shadow 0.15s,background 0.15s;}
 .btn:hover{background:rgba(0,255,65,0.08);box-shadow:var(--glow-sm);}
 .btn:active{background:rgba(0,255,65,0.16);}
 .btn.ghost{border-color:var(--border);color:var(--muted);}
@@ -76,10 +77,12 @@ h2{font-size:16px;letter-spacing:0.04em;}
 .preset-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow-sm);}
 .swatch{width:32px;height:32px;border-radius:2px;border:2px solid var(--border);cursor:pointer;}
 .swatch.active{border-color:var(--accent);box-shadow:var(--glow-sm);}
-.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;}
+.field label,.field span{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;}
 input,select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:#000;font-family:var(--font-mono);font-size:13px;color:var(--text);}
-input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:var(--glow-sm);}
-input[type="checkbox"]{width:auto;margin-right:6px;accent-color:var(--accent);}
+input:focus,select:focus{border-color:var(--accent);box-shadow:var(--glow-sm);}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+input[type="checkbox"]{flex:none;appearance:none;width:24px;height:24px;margin-right:6px;border:1px solid var(--accent);border-radius:var(--radius);background:#000;cursor:pointer;}
+input[type="checkbox"]:checked{background:var(--accent);box-shadow:var(--glow-sm);}
 input[type="range"]{accent-color:var(--accent);}
 input::placeholder{color:var(--muted);}
 .section{margin-top:14px;}
@@ -100,7 +103,7 @@ input.invalid,select.invalid{border-color:var(--danger);}
 .ctl-grp{display:flex;align-items:center;gap:3px;}.ctl-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;}.sl-ctrls input[type=number]{width:50px;padding:4px 5px;font-size:12px;}
 .sl-adv{display:flex;align-items:center;gap:8px;padding:6px 12px 8px 29px;border-top:1px solid var(--border);}
 .sl-adv label{font-size:11px;color:var(--muted);}.sl-adv select{min-width:118px;padding:4px 7px;font-size:12px;width:auto;}
-.sl-adv-btn{display:block;width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--border);color:var(--muted);font-size:10px;font-family:var(--font-mono);cursor:pointer;padding:3px 12px;text-transform:uppercase;letter-spacing:0.04em;}.sl-adv-btn:hover{color:var(--accent);}
+.sl-adv-btn{display:block;width:100%;min-height:44px;text-align:left;background:none;border:none;border-top:1px solid var(--border);color:var(--muted);font-size:10px;font-family:var(--font-mono);cursor:pointer;padding:3px 12px;text-transform:uppercase;letter-spacing:0.04em;}.sl-adv-btn:hover{color:var(--accent);}
 details.section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;font-size:13px;}
 details.section > summary::-webkit-details-marker{display:none;}
 details.section > summary::after{content:'[+]';font-weight:700;color:var(--muted);font-size:11px;}
@@ -114,7 +117,7 @@ details.section[open] > summary::after{content:'[-]';}
 .track-canvas{width:100%;height:220px;border:1px solid var(--border);border-radius:var(--radius);background:#000;}
 .track-note{color:var(--muted);font-size:12px;margin:8px 0;}
 .is-hidden{display:none !important;}
-.back-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.06em;}
+.back-link{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:12px;color:var(--muted);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.06em;}
 .back-link:hover{color:var(--accent);}
 @media(max-width:760px){.grid-2,.grid-3,.dashboard-summary{grid-template-columns:1fr;}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.mode-cards{grid-template-columns:repeat(2,minmax(0,1fr));}.primary-metric{min-height:auto;width:100%;text-align:center;align-items:center;}.primary-metric .value{font-size:36px;}.dashboard-actions .btn,.dashboard-actions summary.btn{flex:1 1 130px;}.sticky-actions{margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;border-radius:0;}.hero-top{flex-direction:column;align-items:flex-start;}}
 @media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
@@ -155,10 +158,10 @@ String html_escape_attr(const String &value) {
 
 String web_pages::html_page() {
   String page;
-  page.reserve(30500);
+  page.reserve(31500);
   page += F(R"HTML(
 <!doctype html>
-<html>
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -170,11 +173,12 @@ String web_pages::html_page() {
   </style>
 </head>
 <body>
-  <div class="container">
+  <noscript><div class="warn" style="padding:12px">Este portal necesita JavaScript activado para mostrar los datos del collar.</div></noscript>
+  <main class="container">
     <div class="hero card">
       <div class="hero-top">
         <div>
-          <div class="brand">DOG-RGB</div>
+          <h1 class="brand">DOG-RGB</h1>
           <div class="tagline">Collar inteligente de seguridad</div>
         </div>
         <div class="chips">
@@ -227,7 +231,7 @@ String web_pages::html_page() {
         <div id="history"></div>
         <div class="track-controls section">
           <h2>Ruta GPS</h2>
-          <select id="track_session">
+          <select id="track_session" aria-label="Sesion a mostrar">
             <option value="current">Sesion actual</option>
             <option value="0">Sesion 1 (ultima)</option>
             <option value="1">Sesion 2</option>
@@ -242,7 +246,7 @@ String web_pages::html_page() {
         <div class="empty-state" id="track_status">Ruta: sin cargar</div>
       </div>
     </details>
-  </div>
+  </main>
 
   <script>
     // Every portal write goes through here. X-Dog-Portal is what the server's
@@ -578,10 +582,10 @@ String web_pages::html_page() {
 }
 String web_pages::html_wifi_page() {
   String page;
-  page.reserve(28500);
+  page.reserve(29700);
   page += F(R"HTML(
 <!doctype html>
-<html>
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -593,11 +597,12 @@ String web_pages::html_wifi_page() {
   </style>
 </head>
 <body>
-  <div class="container">
+  <noscript><div class="warn" style="padding:12px">Este portal necesita JavaScript activado para mostrar los datos del collar.</div></noscript>
+  <main class="container">
     <div class="hero card">
       <div class="hero-top">
         <div>
-          <div class="brand">DOG-RGB</div>
+          <h1 class="brand">DOG-RGB</h1>
           <div class="tagline">Configurar Wi-Fi</div>
         </div>
       </div>
@@ -609,10 +614,10 @@ String web_pages::html_wifi_page() {
     <div class="card section">
       <h2>Estado Wi-Fi</h2>
       <div class="grid grid-2 section-body">
-        <div class="field"><label>Home Wi-Fi</label><div class="data" id="wifi_home_state">--</div></div>
-        <div class="field"><label>Hotspot collar</label><div class="data" id="wifi_ap_state">--</div></div>
-        <div class="field"><label>Portal local</label><div class="data mono" id="wifi_portal">--</div></div>
-        <div class="field"><label>mDNS</label><div class="data mono" id="wifi_mdns_state">--</div></div>
+        <div class="field"><span>Home Wi-Fi</span><div class="data" id="wifi_home_state">--</div></div>
+        <div class="field"><span>Hotspot collar</span><div class="data" id="wifi_ap_state">--</div></div>
+        <div class="field"><span>Portal local</span><div class="data mono" id="wifi_portal">--</div></div>
+        <div class="field"><span>mDNS</span><div class="data mono" id="wifi_mdns_state">--</div></div>
       </div>
       <div class="actions">
         <button class="btn ghost" id="wifi_refresh_btn" type="button" onclick="loadWifiStatus()">Actualizar estado</button>
@@ -627,13 +632,13 @@ String web_pages::html_wifi_page() {
       <h2>Home Wi-Fi</h2>
       <div class="muted">Conecta DOG-RGB al router de casa. El hotspot local queda disponible durante la conexion.</div>
       <div class="field">
-        <label>Nombre de red (SSID)</label>
-        <input name="ssid" value=")HTML");
+        <label for="ssid">Nombre de red (SSID)</label>
+        <input id="ssid" name="ssid" value=")HTML");
   page += html_escape_attr(wifi_mgr::ssid());
   page += F(R"HTML(">
       </div>
       <div class="field">
-        <label>Password red de casa</label>
+        <label for="pass">Password red de casa</label>
         <input name="pass" id="pass" type="password" placeholder="Password">
       </div>
       <label class="muted"><input type="checkbox" id="show_pass"> Mostrar password</label>
@@ -647,13 +652,13 @@ String web_pages::html_wifi_page() {
       <h2>Hotspot del collar</h2>
       <div class="muted">Estos datos son para conectarte directo al collar desde el telefono.</div>
       <div class="grid grid-2 section-body">
-        <div class="field"><label>Nombre hotspot (SSID)</label><input id="ap_ssid" type="text"></div>
-        <div class="field"><label>Portal mDNS</label><input id="mdns" type="text"></div>
+        <div class="field"><label for="ap_ssid">Nombre hotspot (SSID)</label><input id="ap_ssid" type="text"></div>
+        <div class="field"><label for="mdns">Portal mDNS</label><input id="mdns" type="text"></div>
       </div>
       <div class="grid grid-2">
-        <div class="field"><label>Password hotspot</label><input id="ap_pass" type="password" placeholder="(sin cambio)"></div>
+        <div class="field"><label for="ap_pass">Password hotspot</label><input id="ap_pass" type="password" placeholder="(sin cambio)"></div>
         <div class="field">
-          <label>AP abierto</label>
+          <span>AP abierto</span>
           <label class="muted"><input id="ap_open" type="checkbox"> Sin password</label>
         </div>
       </div>
@@ -671,7 +676,7 @@ String web_pages::html_wifi_page() {
     <div class="actions">
       <a class="btn ghost" href="/">Volver</a>
     </div>
-  </div>
+  </main>
 
   <script>
     // Every portal write goes through here. X-Dog-Portal is what the server's
@@ -947,10 +952,10 @@ String web_pages::html_wifi_page() {
 }
 String web_pages::html_config_page() {
   String page;
-  page.reserve(50000);
+  page.reserve(51000);
   page += F(R"CFG(
 <!doctype html>
-<html>
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -962,11 +967,12 @@ String web_pages::html_config_page() {
   </style>
 </head>
 <body>
-  <div class="container">
+  <noscript><div class="warn" style="padding:12px">Este portal necesita JavaScript activado para mostrar los datos del collar.</div></noscript>
+  <main class="container">
     <div class="hero card">
       <div class="hero-top">
         <div>
-          <div class="brand">DOG-RGB</div>
+          <h1 class="brand">DOG-RGB</h1>
           <div class="tagline">Modos y LEDs</div>
         </div>
       </div>
@@ -993,15 +999,15 @@ String web_pages::html_config_page() {
           <button class="mode-card" type="button" data-mode-card="show"><strong>Show</strong><span>Demo automatica de efectos.</span></button>
         </div>
         <div class="grid grid-2 section-body">
-          <div class="field"><label>Brillo</label><input id="brightness_slider" type="range" min="1" max="255"></div>
-          <div class="field"><label>Valor brillo</label><input id="brightness" type="number" min="1" max="255"></div>
+          <div class="field"><label for="brightness_slider">Brillo</label><input id="brightness_slider" type="range" min="1" max="255"></div>
+          <div class="field"><label for="brightness">Valor brillo</label><input id="brightness" type="number" min="1" max="255"></div>
         </div>
         <div class="field">
           <label><input id="day_mode_enabled" type="checkbox"> Modo DIA</label>
           <div class="help">Apaga efectos de 06:00 a 16:00; alertas y rastreo siguen activos.</div>
         </div>
         <div class="field" style="display:none">
-          <label>Modo</label>
+          <label for="mode">Modo</label>
           <select id="mode">
             <option value="speed">Velocidad</option>
             <option value="geofence">Geocerca</option>
@@ -1026,11 +1032,11 @@ String web_pages::html_config_page() {
       <div class="section-body">
         <div class="grid grid-2">
           <div class="field">
-            <label>Distancia maxima (m)</label>
+            <label for="fence_max">Distancia maxima (m)</label>
             <input id="fence_max" type="number" min="50" max="5000">
           </div>
           <div class="field">
-            <label>Rangos</label>
+            <span>Rangos</span>
             <div id="fence_ranges" class="muted"></div>
           </div>
         </div>
@@ -1047,35 +1053,35 @@ String web_pages::html_config_page() {
       <div class="section-body">
         <div class="grid grid-2">
           <div class="field">
-            <label>Fix quality min (0..8)</label>
+            <label for="gps_min_fix">Fix quality min (0..8)</label>
             <input id="gps_min_fix" type="number" min="0" max="8">
           </div>
           <div class="field">
-            <label>Satellites min (3..12)</label>
+            <label for="gps_min_sats">Satellites min (3..12)</label>
             <input id="gps_min_sats" type="number" min="3" max="12">
           </div>
         </div>
         <div class="grid grid-2">
           <div class="field">
-            <label>HDOP max (0.5..20)</label>
+            <label for="gps_max_hdop">HDOP max (0.5..20)</label>
             <input id="gps_max_hdop" type="number" step="0.1" min="0.5" max="20">
           </div>
           <div class="field">
-            <label>Max age GGA (ms)</label>
+            <label for="gps_max_gga_age">Max age GGA (ms)</label>
             <input id="gps_max_gga_age" type="number" step="100" min="500" max="10000">
           </div>
         </div>
         <div class="grid grid-3">
           <div class="field">
-            <label>Min segment (m)</label>
+            <label for="gps_min_segment">Min segment (m)</label>
             <input id="gps_min_segment" type="number" step="0.1" min="0.5" max="20">
           </div>
           <div class="field">
-            <label>HDOP factor</label>
+            <label for="gps_hdop_factor">HDOP factor</label>
             <input id="gps_hdop_factor" type="number" step="0.1" min="0" max="5">
           </div>
           <div class="field">
-            <label>Max min segment (m)</label>
+            <label for="gps_max_min_segment">Max min segment (m)</label>
             <input id="gps_max_min_segment" type="number" step="0.1" min="1" max="50">
           </div>
         </div>
@@ -1087,7 +1093,7 @@ String web_pages::html_config_page() {
       <summary>Simple</summary>
       <div class="section-body">
         <div class="field">
-          <label>Preajuste</label>
+          <span>Preajuste</span>
           <div class="preset-row" id="simple_preset_buttons">
             <button class="preset-btn" type="button" data-theme="calm">Calm</button>
             <button class="preset-btn" type="button" data-theme="active">Active</button>
@@ -1097,12 +1103,12 @@ String web_pages::html_config_page() {
           </div>
         </div>
         <div class="field">
-          <label>Color base</label>
+          <span>Color base</span>
           <div class="swatch-row" id="color_swatches"></div>
         </div>
         <div class="grid grid-2">
           <div class="field">
-            <label>Tema</label>
+            <label for="simple_theme">Tema</label>
             <select id="simple_theme">
               <option value="manual">Manual</option>
               <option value="calm">Calm</option>
@@ -1112,20 +1118,20 @@ String web_pages::html_config_page() {
             </select>
           </div>
           <div class="field">
-            <label>Efecto</label>
+            <label for="simple_effect">Efecto</label>
             <select id="simple_effect"></select>
           </div>
         </div>
         <div class="grid grid-2">
-          <div class="field"><label>Velocidad (0..255)</label><input id="simple_speed" type="number" min="0" max="255"></div>
-          <div class="field"><label>Intensidad (0..255)</label><input id="simple_intensity" type="number" min="0" max="255"></div>
+          <div class="field"><label for="simple_speed">Velocidad (0..255)</label><input id="simple_speed" type="number" min="0" max="255"></div>
+          <div class="field"><label for="simple_intensity">Intensidad (0..255)</label><input id="simple_intensity" type="number" min="0" max="255"></div>
         </div>
         <details class="section">
           <summary>RGB manual</summary>
           <div class="grid grid-3 section-body">
-            <div class="field"><label>R</label><input id="simple_r" type="number" min="0" max="255"></div>
-            <div class="field"><label>G</label><input id="simple_g" type="number" min="0" max="255"></div>
-            <div class="field"><label>B</label><input id="simple_b" type="number" min="0" max="255"></div>
+            <div class="field"><label for="simple_r">R</label><input id="simple_r" type="number" min="0" max="255"></div>
+            <div class="field"><label for="simple_g">G</label><input id="simple_g" type="number" min="0" max="255"></div>
+            <div class="field"><label for="simple_b">B</label><input id="simple_b" type="number" min="0" max="255"></div>
           </div>
         </details>
         <div class="help">RAINBOW, GRADIENT_WAVE y FIRE ignoran el color base.</div>
@@ -1168,7 +1174,7 @@ String web_pages::html_config_page() {
       </div>
       <a class="btn ghost" href="/">Volver</a>
     </div>
-  </div>
+  </main>
 
   <script>
     // Every portal write goes through here. X-Dog-Portal is what the server's
@@ -1276,13 +1282,13 @@ String web_pages::html_config_page() {
         const isLast = (i===10);
         let rangeHtml;
         if (i===1){
-          rangeHtml = `0 &ndash; <input id="ln${i}_thr" type="number" step="0.1" min="0.1" max="40" placeholder="2.0"> km/h`;
+          rangeHtml = `0 &ndash; <input id="ln${i}_thr" aria-label="Z${i} umbral km/h" type="number" step="0.1" min="0.1" max="40" placeholder="2.0"> km/h`;
         } else if (!isLast){
-          rangeHtml = `<span id="ln${i}_prev" class="sl-prev">?</span> &ndash; <input id="ln${i}_thr" type="number" step="0.1" min="0.1" max="40"> km/h`;
+          rangeHtml = `<span id="ln${i}_prev" class="sl-prev">?</span> &ndash; <input id="ln${i}_thr" aria-label="Z${i} umbral km/h" type="number" step="0.1" min="0.1" max="40"> km/h`;
         } else {
           rangeHtml = `&gt; <span id="ln${i}_prev" class="sl-prev">?</span> km/h`;
         }
-        html += `<div class="speed-lane"><div class="sl-main"><div class="sl-meta"><span class="sl-dot" style="background:${color};box-shadow:0 0 6px ${color}88"></span><span class="sl-name" style="color:${color}">Z${i}</span><span class="sl-lbl">${lbl}</span><span class="sl-range">${rangeHtml}</span></div><div class="sl-ctrls"><select id="ln${i}_eff"></select><span class="ctl-grp"><span class="ctl-lbl">vel</span><input id="ln${i}_spd" type="number" min="0" max="255"></span><span class="ctl-grp"><span class="ctl-lbl">int</span><input id="ln${i}_int" type="number" min="0" max="255"></span></div></div><div class="sl-adv" id="ln${i}_adv" style="display:none"><label>Tira B:</label><select id="ln${i}_effb"></select></div><button class="sl-adv-btn" type="button" onclick="toggleLaneAdv(${i})" id="ln${i}_advbtn">+ tira B independiente</button></div>`;
+        html += `<div class="speed-lane"><div class="sl-main"><div class="sl-meta"><span class="sl-dot" style="background:${color};box-shadow:0 0 6px ${color}88"></span><span class="sl-name" style="color:${color}">Z${i}</span><span class="sl-lbl">${lbl}</span><span class="sl-range">${rangeHtml}</span></div><div class="sl-ctrls"><select id="ln${i}_eff" aria-label="Z${i} efecto tira A"></select><span class="ctl-grp"><span class="ctl-lbl">vel</span><input id="ln${i}_spd" aria-label="Z${i} velocidad" type="number" min="0" max="255"></span><span class="ctl-grp"><span class="ctl-lbl">int</span><input id="ln${i}_int" aria-label="Z${i} intensidad" type="number" min="0" max="255"></span></div></div><div class="sl-adv" id="ln${i}_adv" style="display:none"><label for="ln${i}_effb">Tira B:</label><select id="ln${i}_effb"></select></div><button class="sl-adv-btn" type="button" onclick="toggleLaneAdv(${i})" id="ln${i}_advbtn">+ tira B independiente</button></div>`;
       }
       $('lanes_container').innerHTML = html;
       for (let i=1;i<=10;i++){
@@ -1711,10 +1717,10 @@ String web_pages::html_config_page() {
 
 String web_pages::html_dev_page() {
   String page;
-  page.reserve(32500);
+  page.reserve(32000);
   page += F(R"DEV(
 <!doctype html>
-<html>
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1726,11 +1732,12 @@ String web_pages::html_dev_page() {
   </style>
 </head>
 <body>
-  <div class="container">
+  <noscript><div class="warn" style="padding:12px">Este portal necesita JavaScript activado para mostrar los datos del collar.</div></noscript>
+  <main class="container">
     <div class="hero card">
       <div class="hero-top">
         <div>
-          <div class="brand">DOG-RGB</div>
+          <h1 class="brand">DOG-RGB</h1>
           <div class="tagline">Diagnostico tecnico</div>
         </div>
         <div class="chips">
@@ -1749,105 +1756,105 @@ String web_pages::html_dev_page() {
     <div class="card section">
       <h2>Sistema</h2>
       <div class="grid grid-2">
-        <div class="field"><label>Tiempo activo</label><div class="data mono" id="dev-uptime">--</div></div>
-        <div class="field"><label>Compilacion</label><div class="data mono" id="dev-build">--</div></div>
-        <div class="field"><label>Heap libre</label><div class="data mono" id="dev-heap">--</div></div>
+        <div class="field"><span>Tiempo activo</span><div class="data mono" id="dev-uptime">--</div></div>
+        <div class="field"><span>Compilacion</span><div class="data mono" id="dev-build">--</div></div>
+        <div class="field"><span>Heap libre</span><div class="data mono" id="dev-heap">--</div></div>
       </div>
     </div>
 
     <div class="card section">
       <h2>Wi-Fi</h2>
       <div class="grid grid-2">
-        <div class="field"><label>Modo</label><div class="data mono" id="wifi-mode">--</div></div>
-        <div class="field"><label>STA</label><div class="data mono" id="wifi-sta">--</div></div>
-        <div class="field"><label>AP</label><div class="data mono" id="wifi-ap">--</div></div>
-        <div class="field"><label>Clientes AP</label><div class="data mono" id="wifi-stations">--</div></div>
-        <div class="field"><label>Wi-Fi apagado</label><div class="data mono" id="wifi-off">--</div></div>
-        <div class="field"><label>SSID AP</label><div class="data mono" id="wifi-ssid">--</div></div>
-        <div class="field"><label>mDNS</label><div class="data mono" id="wifi-mdns">--</div></div>
-        <div class="field"><label>STA IP</label><div class="data mono" id="wifi-sta-ip">--</div></div>
-        <div class="field"><label>AP IP</label><div class="data mono" id="wifi-ap-ip">--</div></div>
-        <div class="field"><label>RSSI</label><div class="data mono" id="wifi-rssi">--</div></div>
+        <div class="field"><span>Modo</span><div class="data mono" id="wifi-mode">--</div></div>
+        <div class="field"><span>STA</span><div class="data mono" id="wifi-sta">--</div></div>
+        <div class="field"><span>AP</span><div class="data mono" id="wifi-ap">--</div></div>
+        <div class="field"><span>Clientes AP</span><div class="data mono" id="wifi-stations">--</div></div>
+        <div class="field"><span>Wi-Fi apagado</span><div class="data mono" id="wifi-off">--</div></div>
+        <div class="field"><span>SSID AP</span><div class="data mono" id="wifi-ssid">--</div></div>
+        <div class="field"><span>mDNS</span><div class="data mono" id="wifi-mdns">--</div></div>
+        <div class="field"><span>STA IP</span><div class="data mono" id="wifi-sta-ip">--</div></div>
+        <div class="field"><span>AP IP</span><div class="data mono" id="wifi-ap-ip">--</div></div>
+        <div class="field"><span>RSSI</span><div class="data mono" id="wifi-rssi">--</div></div>
       </div>
     </div>
 
     <details class="card section" open>
       <summary>Diagnostico AP</summary>
       <div class="grid grid-2 section-body">
-        <div class="field"><label>Inicios AP</label><div class="data mono" id="diag-ap-start">--</div></div>
-        <div class="field"><label>Fallos AP</label><div class="data mono" id="diag-ap-fail">--</div></div>
-        <div class="field"><label>Paradas AP</label><div class="data mono" id="diag-ap-stop">--</div></div>
-        <div class="field"><label>Reinicios AP</label><div class="data mono" id="diag-ap-restart">--</div></div>
-        <div class="field"><label>Clientes conectados</label><div class="data mono" id="diag-ap-sta-connect">--</div></div>
-        <div class="field"><label>Clientes desconectados</label><div class="data mono" id="diag-ap-sta-disconnect">--</div></div>
-        <div class="field"><label>DNS cautivo</label><div class="data mono" id="diag-dns">--</div></div>
-        <div class="field"><label>Canal AP</label><div class="data mono" id="diag-channel">--</div></div>
-        <div class="field"><label>Hold AP</label><div class="data mono" id="diag-hold">--</div></div>
-        <div class="field"><label>Proximo retry AP</label><div class="data mono" id="diag-next-ap-retry">--</div></div>
-        <div class="field"><label>Proximo retry STA</label><div class="data mono" id="diag-next-retry">--</div></div>
-        <div class="field"><label>Ultima razon AP</label><div class="data mono" id="diag-ap-reason">--</div></div>
-        <div class="field"><label>Etapa fallo AP</label><div class="data mono" id="diag-ap-failure-stage">--</div></div>
-        <div class="field"><label>Ultima razon STA</label><div class="data mono" id="diag-sta-reason">--</div></div>
+        <div class="field"><span>Inicios AP</span><div class="data mono" id="diag-ap-start">--</div></div>
+        <div class="field"><span>Fallos AP</span><div class="data mono" id="diag-ap-fail">--</div></div>
+        <div class="field"><span>Paradas AP</span><div class="data mono" id="diag-ap-stop">--</div></div>
+        <div class="field"><span>Reinicios AP</span><div class="data mono" id="diag-ap-restart">--</div></div>
+        <div class="field"><span>Clientes conectados</span><div class="data mono" id="diag-ap-sta-connect">--</div></div>
+        <div class="field"><span>Clientes desconectados</span><div class="data mono" id="diag-ap-sta-disconnect">--</div></div>
+        <div class="field"><span>DNS cautivo</span><div class="data mono" id="diag-dns">--</div></div>
+        <div class="field"><span>Canal AP</span><div class="data mono" id="diag-channel">--</div></div>
+        <div class="field"><span>Hold AP</span><div class="data mono" id="diag-hold">--</div></div>
+        <div class="field"><span>Proximo retry AP</span><div class="data mono" id="diag-next-ap-retry">--</div></div>
+        <div class="field"><span>Proximo retry STA</span><div class="data mono" id="diag-next-retry">--</div></div>
+        <div class="field"><span>Ultima razon AP</span><div class="data mono" id="diag-ap-reason">--</div></div>
+        <div class="field"><span>Etapa fallo AP</span><div class="data mono" id="diag-ap-failure-stage">--</div></div>
+        <div class="field"><span>Ultima razon STA</span><div class="data mono" id="diag-sta-reason">--</div></div>
       </div>
     </details>
 
     <div class="card section">
       <h2>GPS</h2>
       <div class="grid grid-2">
-        <div class="field"><label>Fix</label><div class="data mono" id="gps-fix">--</div></div>
-        <div class="field"><label>Fix actual</label><div class="data mono" id="gps-current-fix">--</div></div>
-        <div class="field"><label>Fix sin filtrar</label><div class="data mono" id="gps-raw-fix">--</div></div>
-        <div class="field"><label>Fix confiable</label><div class="data mono" id="gps-trusted-fix">--</div></div>
-        <div class="field"><label>Sats</label><div class="data mono" id="gps-sats">--</div></div>
-        <div class="field"><label>Calidad fix</label><div class="data mono" id="gps-fix-quality">--</div></div>
-        <div class="field"><label>HDOP</label><div class="data mono" id="gps-hdop">--</div></div>
-        <div class="field"><label>Calidad OK</label><div class="data mono" id="gps-quality-ok">--</div></div>
-        <div class="field"><label>Velocidad (kph)</label><div class="data mono" id="gps-speed">--</div></div>
-        <div class="field"><label>Lat</label><div class="data mono" id="gps-lat">--</div></div>
-        <div class="field"><label>Lon</label><div class="data mono" id="gps-lon">--</div></div>
-        <div class="field"><label>Fecha</label><div class="data mono" id="gps-date">--</div></div>
-        <div class="field"><label>Ultima actualizacion</label><div class="data mono" id="gps-update">--</div></div>
-        <div class="field"><label>Edad ultimo byte</label><div class="data mono" id="gps-age-byte">--</div></div>
-        <div class="field"><label>Edad ultimo fix</label><div class="data mono" id="gps-age-fix">--</div></div>
-        <div class="field"><label>Bytes RX</label><div class="data mono" id="gps-bytes">--</div></div>
-        <div class="field"><label>Sentencias RX</label><div class="data mono" id="gps-sentences">--</div></div>
-        <div class="field"><label>RMC visto</label><div class="data mono" id="gps-rmc-seen">--</div></div>
-        <div class="field"><label>RMC valido</label><div class="data mono" id="gps-rmc-valid">--</div></div>
-        <div class="field"><label>GGA visto</label><div class="data mono" id="gps-gga-seen">--</div></div>
-        <div class="field"><label>Overflow</label><div class="data mono" id="gps-overflow">--</div></div>
+        <div class="field"><span>Fix</span><div class="data mono" id="gps-fix">--</div></div>
+        <div class="field"><span>Fix actual</span><div class="data mono" id="gps-current-fix">--</div></div>
+        <div class="field"><span>Fix sin filtrar</span><div class="data mono" id="gps-raw-fix">--</div></div>
+        <div class="field"><span>Fix confiable</span><div class="data mono" id="gps-trusted-fix">--</div></div>
+        <div class="field"><span>Sats</span><div class="data mono" id="gps-sats">--</div></div>
+        <div class="field"><span>Calidad fix</span><div class="data mono" id="gps-fix-quality">--</div></div>
+        <div class="field"><span>HDOP</span><div class="data mono" id="gps-hdop">--</div></div>
+        <div class="field"><span>Calidad OK</span><div class="data mono" id="gps-quality-ok">--</div></div>
+        <div class="field"><span>Velocidad (kph)</span><div class="data mono" id="gps-speed">--</div></div>
+        <div class="field"><span>Lat</span><div class="data mono" id="gps-lat">--</div></div>
+        <div class="field"><span>Lon</span><div class="data mono" id="gps-lon">--</div></div>
+        <div class="field"><span>Fecha</span><div class="data mono" id="gps-date">--</div></div>
+        <div class="field"><span>Ultima actualizacion</span><div class="data mono" id="gps-update">--</div></div>
+        <div class="field"><span>Edad ultimo byte</span><div class="data mono" id="gps-age-byte">--</div></div>
+        <div class="field"><span>Edad ultimo fix</span><div class="data mono" id="gps-age-fix">--</div></div>
+        <div class="field"><span>Bytes RX</span><div class="data mono" id="gps-bytes">--</div></div>
+        <div class="field"><span>Sentencias RX</span><div class="data mono" id="gps-sentences">--</div></div>
+        <div class="field"><span>RMC visto</span><div class="data mono" id="gps-rmc-seen">--</div></div>
+        <div class="field"><span>RMC valido</span><div class="data mono" id="gps-rmc-valid">--</div></div>
+        <div class="field"><span>GGA visto</span><div class="data mono" id="gps-gga-seen">--</div></div>
+        <div class="field"><span>Overflow</span><div class="data mono" id="gps-overflow">--</div></div>
       </div>
     </div>
 
     <div class="card section">
       <h2>LED</h2>
       <div class="grid grid-2">
-        <div class="field"><label>Modo</label><div class="data mono" id="led-mode">--</div></div>
-        <div class="field"><label>Brillo</label><div class="data mono" id="led-brightness">--</div></div>
-        <div class="field"><label>Rango actual</label><div class="data mono" id="led-range">--</div></div>
-        <div class="field"><label>Base RGB</label><div class="data mono" id="led-base">--</div></div>
-        <div class="field"><label>Efecto A</label><div class="data mono" id="led-effect-a">--</div></div>
-        <div class="field"><label>Efecto B</label><div class="data mono" id="led-effect-b">--</div></div>
-        <div class="field"><label>Velocidad rango</label><div class="data mono" id="led-range-speed">--</div></div>
-        <div class="field"><label>Intensidad rango</label><div class="data mono" id="led-range-intensity">--</div></div>
-        <div class="field"><label>Efecto simple</label><div class="data mono" id="led-simple-effect">--</div></div>
-        <div class="field"><label>Velocidad simple</label><div class="data mono" id="led-simple-speed">--</div></div>
-        <div class="field"><label>Intensidad simple</label><div class="data mono" id="led-simple-intensity">--</div></div>
-        <div class="field"><label>Simple RGB</label><div class="data mono" id="led-simple-rgb">--</div></div>
-        <div class="field"><label>Efecto show</label><div class="data mono" id="led-show-effect">--</div></div>
-        <div class="field"><label>Modo DIA</label><div class="data mono" id="day-state">--</div></div>
-        <div class="field"><label>DIA hora local</label><div class="data mono" id="day-local">--</div></div>
+        <div class="field"><span>Modo</span><div class="data mono" id="led-mode">--</div></div>
+        <div class="field"><span>Brillo</span><div class="data mono" id="led-brightness">--</div></div>
+        <div class="field"><span>Rango actual</span><div class="data mono" id="led-range">--</div></div>
+        <div class="field"><span>Base RGB</span><div class="data mono" id="led-base">--</div></div>
+        <div class="field"><span>Efecto A</span><div class="data mono" id="led-effect-a">--</div></div>
+        <div class="field"><span>Efecto B</span><div class="data mono" id="led-effect-b">--</div></div>
+        <div class="field"><span>Velocidad rango</span><div class="data mono" id="led-range-speed">--</div></div>
+        <div class="field"><span>Intensidad rango</span><div class="data mono" id="led-range-intensity">--</div></div>
+        <div class="field"><span>Efecto simple</span><div class="data mono" id="led-simple-effect">--</div></div>
+        <div class="field"><span>Velocidad simple</span><div class="data mono" id="led-simple-speed">--</div></div>
+        <div class="field"><span>Intensidad simple</span><div class="data mono" id="led-simple-intensity">--</div></div>
+        <div class="field"><span>Simple RGB</span><div class="data mono" id="led-simple-rgb">--</div></div>
+        <div class="field"><span>Efecto show</span><div class="data mono" id="led-show-effect">--</div></div>
+        <div class="field"><span>Modo DIA</span><div class="data mono" id="day-state">--</div></div>
+        <div class="field"><span>DIA hora local</span><div class="data mono" id="day-local">--</div></div>
       </div>
     </div>
 
     <div class="card section">
       <h2>Geocerca</h2>
       <div class="grid grid-2">
-        <div class="field"><label>Home definido</label><div class="data mono" id="geo-set">--</div></div>
-        <div class="field"><label>Fuente</label><div class="data mono" id="geo-source">--</div></div>
-        <div class="field"><label>Home lat</label><div class="data mono" id="geo-lat">--</div></div>
-        <div class="field"><label>Home lon</label><div class="data mono" id="geo-lon">--</div></div>
-        <div class="field"><label>Distancia (m)</label><div class="data mono" id="geo-dist">--</div></div>
-        <div class="field"><label>Rango</label><div class="data mono" id="geo-range">--</div></div>
+        <div class="field"><span>Home definido</span><div class="data mono" id="geo-set">--</div></div>
+        <div class="field"><span>Fuente</span><div class="data mono" id="geo-source">--</div></div>
+        <div class="field"><span>Home lat</span><div class="data mono" id="geo-lat">--</div></div>
+        <div class="field"><span>Home lon</span><div class="data mono" id="geo-lon">--</div></div>
+        <div class="field"><span>Distancia (m)</span><div class="data mono" id="geo-dist">--</div></div>
+        <div class="field"><span>Rango</span><div class="data mono" id="geo-range">--</div></div>
       </div>
     </div>
 
@@ -1859,7 +1866,7 @@ String web_pages::html_dev_page() {
     <div class="actions">
       <a class="btn ghost" href="/">Volver</a>
     </div>
-  </div>
+  </main>
 
   <script>
     const $ = (id) => document.getElementById(id);
