@@ -48,9 +48,24 @@ h2{font-size:16px;letter-spacing:0.04em;}
 .stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 .stat{background:#000;border:1px solid var(--border);border-radius:var(--radius);padding:12px;}
 .stat .value{font-size:24px;font-weight:700;line-height:1.1;}
-.summary-meta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;color:var(--muted);font-size:12px;}
+/* Two labelled pairs, not one run-on sentence: with a plain gap the eye read
+   "Fecha: 2026-05-06 Ultima lectura: 10:43" as a single phrase. */
+.summary-meta{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px 24px;color:var(--muted);font-size:12px;}
+.meta-pair{display:flex;flex-direction:column;gap:2px;}
+.meta-k{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);}
+.meta-v{font-size:13px;color:var(--text);}
+/* Label/value pairs are short; forcing them to one column on a phone doubles
+   the page for no gain. auto-fit keeps two columns where they fit and falls
+   back to one on very narrow screens. */
+.grid-kv{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
+.health-ok{color:var(--accent);}
+.health-warn{color:var(--accent-2);}
+.health-bad{color:var(--danger);text-shadow:0 0 6px rgba(255,0,85,0.5);}
 .empty-state{padding:12px;background:#000;border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);font-size:12px;}
 .muted{color:var(--muted);font-size:12px;}
+/* The dashboard note is empty in the normal case; without this the flex gap
+   still reserves a band of dead space under the buttons. */
+#status:empty{display:none;}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 14px;border-radius:var(--radius);border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:600;font-size:12px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;cursor:pointer;transition:box-shadow 0.15s,background 0.15s;}
 .btn:hover{background:rgba(0,255,65,0.08);box-shadow:var(--glow-sm);}
 .btn:active{background:rgba(0,255,65,0.16);}
@@ -73,18 +88,18 @@ h2{font-size:16px;letter-spacing:0.04em;}
 .mode-card.active{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow-sm);}
 .mode-card:hover{border-color:var(--accent);color:var(--text);}
 .preset-row,.swatch-row{display:flex;flex-wrap:wrap;gap:8px;}
-.preset-btn{border:1px solid var(--border);border-radius:var(--radius);background:transparent;color:var(--muted);padding:6px 10px;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;cursor:pointer;}
+.preset-btn{display:inline-flex;align-items:center;min-height:44px;border:1px solid var(--border);border-radius:var(--radius);background:transparent;color:var(--muted);padding:6px 12px;font-family:var(--font-mono);font-size:12px;text-transform:uppercase;cursor:pointer;}
 .preset-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow-sm);}
-.swatch{width:32px;height:32px;border-radius:2px;border:2px solid var(--border);cursor:pointer;}
+.swatch{width:44px;height:44px;border-radius:2px;border:2px solid var(--border);cursor:pointer;}
 .swatch.active{border-color:var(--accent);box-shadow:var(--glow-sm);}
 /* Direct children only: this styles a field's own label, and must not reach
    spans nested inside help text, where it would force block layout and caps. */
 .field > label,.field > span{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;}
-input,select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:#000;font-family:var(--font-mono);font-size:13px;color:var(--text);}
+input,select{width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:#000;font-family:var(--font-mono);font-size:13px;color:var(--text);}
 input:focus,select:focus{border-color:var(--accent);box-shadow:var(--glow-sm);}
 input:disabled,select:disabled{opacity:0.45;color:var(--muted);border-style:dashed;cursor:not-allowed;}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-input[type="checkbox"]{flex:none;appearance:none;width:24px;height:24px;margin-right:6px;border:1px solid var(--accent);border-radius:var(--radius);background:#000;cursor:pointer;}
+input[type="checkbox"]{flex:none;appearance:none;min-height:0;width:24px;height:24px;margin-right:6px;border:1px solid var(--accent);border-radius:var(--radius);background:#000;cursor:pointer;}
 input[type="checkbox"]:checked{background:var(--accent);box-shadow:var(--glow-sm);}
 input[type="range"]{accent-color:var(--accent);}
 input::placeholder{color:var(--muted);}
@@ -106,15 +121,15 @@ input.invalid,select.invalid{border-color:var(--danger);}
 .notice{color:var(--muted);font-size:12px;margin-top:6px;}
 .speed-lane{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:5px;background:#000;overflow:hidden;}
 .sl-main{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;}
-.sl-meta{display:flex;align-items:center;gap:8px;flex:1;min-width:180px;}.sl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}.sl-name{font-size:11px;font-weight:700;text-transform:uppercase;min-width:20px;}
-.sl-lbl{font-size:11px;color:var(--muted);min-width:64px;}.sl-range{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);}
-.sl-range input{width:52px;padding:3px 5px;font-size:12px;}.sl-ctrls{display:flex;align-items:center;flex-wrap:wrap;gap:6px;}
-.sl-ctrls select{min-width:118px;padding:4px 7px;font-size:12px;width:auto;}
-.ctl-grp{display:flex;align-items:center;gap:3px;}.ctl-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;}.sl-ctrls input[type=number]{width:50px;padding:4px 5px;font-size:12px;}
+.sl-meta{display:flex;align-items:center;gap:8px;flex:1;min-width:180px;}.sl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}.sl-name{font-size:12px;font-weight:700;text-transform:uppercase;min-width:20px;}
+.sl-lbl{font-size:12px;color:var(--muted);min-width:64px;}.sl-range{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);}
+.sl-range input{width:64px;padding:3px 6px;font-size:13px;}.sl-ctrls{display:flex;align-items:center;flex-wrap:wrap;gap:6px;}
+.sl-ctrls select{min-width:124px;padding:4px 8px;font-size:13px;width:auto;}
+.ctl-grp{display:flex;align-items:center;gap:3px;}.ctl-lbl{font-size:12px;color:var(--muted);text-transform:uppercase;}.sl-ctrls input[type=number]{width:62px;padding:4px 6px;font-size:13px;}
 .sl-adv{display:flex;align-items:center;gap:8px;padding:6px 12px 8px 29px;border-top:1px solid var(--border);}
-.sl-adv label{font-size:11px;color:var(--muted);}.sl-adv select{min-width:118px;padding:4px 7px;font-size:12px;width:auto;}
-.sl-adv-btn{display:block;width:100%;min-height:44px;text-align:left;background:none;border:none;border-top:1px solid var(--border);color:var(--muted);font-size:10px;font-family:var(--font-mono);cursor:pointer;padding:3px 12px;text-transform:uppercase;letter-spacing:0.04em;}.sl-adv-btn:hover{color:var(--accent);}
-details.section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;font-size:13px;}
+.sl-adv label{font-size:12px;color:var(--muted);}.sl-adv select{min-width:124px;padding:4px 8px;font-size:13px;width:auto;}
+.sl-adv-btn{display:block;width:100%;min-height:44px;text-align:left;background:none;border:none;border-top:1px solid var(--border);color:var(--muted);font-size:12px;font-family:var(--font-mono);cursor:pointer;padding:3px 12px;text-transform:uppercase;letter-spacing:0.04em;}.sl-adv-btn:hover{color:var(--accent);}
+details.section > summary{list-style:none;cursor:pointer;display:flex;align-items:center;min-height:44px;justify-content:space-between;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;font-size:13px;}
 details.section > summary::-webkit-details-marker{display:none;}
 details.section > summary::after{content:'[+]';font-weight:700;color:var(--muted);font-size:11px;}
 details.section[open] > summary::after{content:'[-]';}
@@ -175,7 +190,7 @@ String html_escape_attr(const String &value) {
 
 String web_pages::html_page() {
   String page;
-  page.reserve(32500);
+  page.reserve(36000);
   page += F(R"HTML(
 <!doctype html>
 <html lang="es">
@@ -235,8 +250,8 @@ String web_pages::html_page() {
         </div>
       </div>
       <div class="summary-meta">
-        <span>Fecha: <span id="date">--</span></span>
-        <span id="updated">Ultima lectura: --</span>
+        <span class="meta-pair"><span class="meta-k">Fecha</span><span class="meta-v" id="date">--</span></span>
+        <span class="meta-pair"><span class="meta-k">Ultima lectura</span><span class="meta-v" id="updated">--</span></span>
       </div>
     </div>
 
@@ -429,37 +444,47 @@ String web_pages::html_page() {
       }
     }
 
+    // The GPS state already has its own pill, so repeating it here as
+    // "Estado: GPS OK" said nothing twice. This line now only speaks when it
+    // has something the pills do not carry.
+    function setDashNote(msg,tone){
+      const el=$('status');
+      el.textContent=msg||'';
+      el.className=msg?(tone==='warn'?'warn':'muted'):'muted';
+    }
+
     function renderSummary(d){
       if(!d||!d.has_data){
         const gpsFix=!!(d&&d.gps_fix);
         const gpsRaw=!!(d&&d.gps_raw_fix);
         if(gpsFix){
-          $('status').textContent='Estado: Sin actividad registrada hoy';
+          // With a trusted fix and no movement, the day really is all zeros.
+          // Mixing 0.00 with "--" made the empty state contradict itself.
+          setDashNote('Sin actividad registrada hoy');
           $('dist').textContent='0.00';
-        } else if(gpsRaw){
-          $('status').textContent='Estado: GPS no confiable';
-          $('dist').textContent='--';
+          $('avg').textContent='0.0';
+          $('max').textContent='0.0';
         } else {
-          $('status').textContent='Estado: Esperando GPS';
+          setDashNote(gpsRaw?'GPS no confiable todavia: aun no se registra actividad.':'Esperando senal GPS para empezar a registrar.','warn');
           $('dist').textContent='--';
+          $('avg').textContent='--';
+          $('max').textContent='--';
         }
-        $('avg').textContent='--';
-        $('max').textContent='--';
         $('date').textContent=(d&&d.date)?fmtDate(d.date):'--';
-        $('updated').textContent='Ultima lectura: --';
+        $('updated').textContent='--';
         return;
       }
       $('dist').textContent=(d.distance_m/1000).toFixed(2);
       $('avg').textContent=cmpsToKph(d.avg_speed_cmps);
       $('max').textContent=cmpsToKph(d.max_speed_cmps);
       $('date').textContent=fmtDate(d.date);
-      $('updated').textContent='Ultima lectura: '+minToTime(d.last_update_min);
+      $('updated').textContent=minToTime(d.last_update_min);
       if (d.gps_fix) {
-        $('status').textContent='Estado: GPS OK';
+        setDashNote('');
       } else if (d.gps_raw_fix) {
-        $('status').textContent='Estado: GPS no confiable';
+        setDashNote('GPS no confiable: los datos de hoy pueden estar incompletos.','warn');
       } else {
-        $('status').textContent='Estado: Sin GPS';
+        setDashNote('Sin GPS: no se esta registrando actividad ahora mismo.','warn');
       }
     }
 
@@ -2015,7 +2040,7 @@ String web_pages::html_config_page() {
 
 String web_pages::html_dev_page() {
   String page;
-  page.reserve(32000);
+  page.reserve(36000);
   page += F(R"DEV(
 <!doctype html>
 <html lang="es">
@@ -2053,7 +2078,7 @@ String web_pages::html_dev_page() {
 
     <div class="card section">
       <h2>Sistema</h2>
-      <div class="grid grid-2">
+      <div class="grid grid-kv">
         <div class="field"><span>Tiempo activo</span><div class="data mono" id="dev-uptime">--</div></div>
         <div class="field"><span>Compilacion</span><div class="data mono" id="dev-build">--</div></div>
         <div class="field"><span>Heap libre</span><div class="data mono" id="dev-heap">--</div></div>
@@ -2062,7 +2087,7 @@ String web_pages::html_dev_page() {
 
     <div class="card section">
       <h2>Wi-Fi</h2>
-      <div class="grid grid-2">
+      <div class="grid grid-kv">
         <div class="field"><span>Modo</span><div class="data mono" id="wifi-mode">--</div></div>
         <div class="field"><span>STA</span><div class="data mono" id="wifi-sta">--</div></div>
         <div class="field"><span>AP</span><div class="data mono" id="wifi-ap">--</div></div>
@@ -2078,7 +2103,7 @@ String web_pages::html_dev_page() {
 
     <details class="card section" open>
       <summary>Diagnostico AP</summary>
-      <div class="grid grid-2 section-body">
+      <div class="grid grid-kv section-body">
         <div class="field"><span>Inicios AP</span><div class="data mono" id="diag-ap-start">--</div></div>
         <div class="field"><span>Fallos AP</span><div class="data mono" id="diag-ap-fail">--</div></div>
         <div class="field"><span>Paradas AP</span><div class="data mono" id="diag-ap-stop">--</div></div>
@@ -2098,7 +2123,7 @@ String web_pages::html_dev_page() {
 
     <div class="card section">
       <h2>GPS</h2>
-      <div class="grid grid-2">
+      <div class="grid grid-kv">
         <div class="field"><span>Fix</span><div class="data mono" id="gps-fix">--</div></div>
         <div class="field"><span>Fix actual</span><div class="data mono" id="gps-current-fix">--</div></div>
         <div class="field"><span>Fix sin filtrar</span><div class="data mono" id="gps-raw-fix">--</div></div>
@@ -2125,7 +2150,7 @@ String web_pages::html_dev_page() {
 
     <div class="card section">
       <h2>LED</h2>
-      <div class="grid grid-2">
+      <div class="grid grid-kv">
         <div class="field"><span>Modo</span><div class="data mono" id="led-mode">--</div></div>
         <div class="field"><span>Brillo</span><div class="data mono" id="led-brightness">--</div></div>
         <div class="field"><span>Rango actual</span><div class="data mono" id="led-range">--</div></div>
@@ -2146,7 +2171,7 @@ String web_pages::html_dev_page() {
 
     <div class="card section">
       <h2>Geocerca</h2>
-      <div class="grid grid-2">
+      <div class="grid grid-kv">
         <div class="field"><span>Home definido</span><div class="data mono" id="geo-set">--</div></div>
         <div class="field"><span>Fuente</span><div class="data mono" id="geo-source">--</div></div>
         <div class="field"><span>Home lat</span><div class="data mono" id="geo-lat">--</div></div>
@@ -2183,6 +2208,23 @@ String web_pages::html_dev_page() {
       el.className = 'pill' + (tone ? (' ' + tone) : '');
     }
 
+    // A page whose whole job is answering "is something wrong?" cannot render
+    // every number in the same colour. Only the counters that mean something
+    // get a verdict; the rest stay neutral so the coloured ones stand out.
+    function setHealth(id, value, tone){
+      const el = $(id);
+      if (!el) return;
+      el.textContent = (value === undefined || value === null) ? '--' : value;
+      el.className = 'data mono' + (tone ? (' health-' + tone) : '');
+    }
+
+    // Counters that should be zero on a healthy device.
+    function zeroIsGood(v){
+      const n = Number(v);
+      if (!isFinite(n)) return null;
+      return n === 0 ? 'ok' : (n < 5 ? 'warn' : 'bad');
+    }
+
     function fmtUptime(ms){
       if (ms === undefined || ms < 0) return '--';
       let s = Math.floor(ms / 1000);
@@ -2211,7 +2253,8 @@ String web_pages::html_dev_page() {
         const d = await fetch('/api/dev').then(r=>r.json());
         setText('dev-uptime', fmtUptime(d.time.uptime_ms));
         setText('dev-build', d.time.build);
-        setText('dev-heap', d.system.free_heap);
+        const heap = d.system.free_heap;
+        setHealth('dev-heap', heap, heap === undefined ? null : (heap < 20000 ? 'bad' : (heap < 50000 ? 'warn' : 'ok')));
 
         const wifi = d.wifi || {};
         const staState = wifi.sta_connected ? 'conectada' : (wifi.sta_connecting ? 'conectando' : 'desconectada');
@@ -2227,7 +2270,7 @@ String web_pages::html_dev_page() {
         setText('wifi-rssi', wifi.rssi);
         const diag = wifi.diagnostics || {};
         setText('diag-ap-start', diag.ap_start_count);
-        setText('diag-ap-fail', diag.ap_start_fail_count);
+        setHealth('diag-ap-fail', diag.ap_start_fail_count, zeroIsGood(diag.ap_start_fail_count));
         setText('diag-ap-stop', diag.ap_stop_count);
         setText('diag-ap-restart', diag.ap_restart_count);
         setText('diag-ap-sta-connect', diag.ap_station_connect_count);
@@ -2242,14 +2285,14 @@ String web_pages::html_dev_page() {
         setText('diag-sta-reason', diag.last_sta_reason);
 
         const gps = d.gps || {};
-        setText('gps-fix', gps.fix ? 'si' : 'no');
+        setHealth('gps-fix', gps.fix ? 'si' : 'no', gps.fix ? 'ok' : 'warn');
         setText('gps-current-fix', gps.current_fix ? 'si' : 'no');
         setText('gps-raw-fix', gps.raw_fix ? 'si' : 'no');
         setText('gps-trusted-fix', gps.trusted_fix ? 'si' : 'no');
         setText('gps-sats', gps.sats);
         setText('gps-fix-quality', gps.fix_quality);
         setText('gps-hdop', (gps.hdop !== undefined) ? gps.hdop.toFixed(2) : '--');
-        setText('gps-quality-ok', gps.quality_ok ? 'si' : 'no');
+        setHealth('gps-quality-ok', gps.quality_ok ? 'si' : 'no', gps.quality_ok ? 'ok' : 'warn');
         setText('gps-speed', (gps.speed_kph !== undefined) ? gps.speed_kph.toFixed(2) : '--');
         setText('gps-lat', (gps.lat !== undefined) ? gps.lat.toFixed(6) : '--');
         setText('gps-lon', (gps.lon !== undefined) ? gps.lon.toFixed(6) : '--');
@@ -2262,7 +2305,7 @@ String web_pages::html_dev_page() {
         setText('gps-rmc-seen', gps.rmc_seen);
         setText('gps-rmc-valid', gps.rmc_valid);
         setText('gps-gga-seen', gps.gga_seen);
-        setText('gps-overflow', gps.overflow);
+        setHealth('gps-overflow', gps.overflow, gps.overflow === undefined ? null : (gps.overflow ? 'bad' : 'ok'));
 
         const led = d.led || {};
         setText('led-mode', led.mode);

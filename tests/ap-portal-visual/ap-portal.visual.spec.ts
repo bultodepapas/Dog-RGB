@@ -159,7 +159,10 @@ test.describe('AP portal mobile screenshots', () => {
   test('dashboard active', async ({ page }) => {
     await mockPortalApis(page);
     await page.goto('/');
-    await expect(page.getByText('Estado: GPS OK')).toBeVisible();
+    // The GPS pill carries this now; the note line stays quiet when there is
+    // nothing to add beyond what the pills already say.
+    await expect(page.locator('#pill-gps')).toHaveText('GPS OK (11)');
+    await expect(page.locator('#status')).toHaveText('');
     await expect(page.getByText('STA conectada')).toBeVisible();
     await capture(page, 'dashboard-active-full.png');
   });
@@ -284,6 +287,16 @@ test.describe('AP portal mobile screenshots', () => {
     await expect(page.getByText('Diagnostico tecnico')).toBeVisible();
     await expect(page.getByText('STA conectada')).toBeVisible();
     await capture(page, 'dev-healthy.png');
+  });
+
+  test('dev degraded', async ({ page }) => {
+    await mockPortalApis(page, { dev: 'dev.unhealthy.json' });
+    await page.goto('/dev');
+    await expect(page.getByText('Diagnostico tecnico')).toBeVisible();
+    // The whole point of the page: what is wrong has to look wrong.
+    await expect(page.locator('#dev-heap')).toHaveClass(/health-bad/);
+    await expect(page.locator('#diag-ap-fail')).toHaveClass(/health-bad/);
+    await capture(page, 'dev-degraded.png');
   });
 
   test('dev raw json open', async ({ page }) => {

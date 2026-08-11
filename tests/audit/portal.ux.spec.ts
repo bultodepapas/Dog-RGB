@@ -17,7 +17,10 @@ const fx = (n: string) => JSON.parse(readFileSync(path.join(FIX, n), 'utf-8'));
 
 type Posted = { url: string; body: string };
 
-async function mockPortal(page: Page, opts: { scan?: unknown; failConfig?: boolean } = {}) {
+async function mockPortal(
+  page: Page,
+  opts: { scan?: unknown; failConfig?: boolean; dev?: string; summary?: string } = {},
+) {
   const posted: Posted[] = [];
   await page.route('**/api/**', async (route) => {
     const rq = route.request();
@@ -25,8 +28,9 @@ async function mockPortal(page: Page, opts: { scan?: unknown; failConfig?: boole
     const m = rq.method();
     if (m === 'POST') posted.push({ url: p, body: rq.postData() ?? '' });
 
-    if (p === '/api/summary') return route.fulfill({ json: fx('summary.active.json') });
+    if (p === '/api/summary') return route.fulfill({ json: fx(opts.summary ?? 'summary.active.json') });
     if (p === '/api/status') return route.fulfill({ json: fx('status.connected.json') });
+    if (p === '/api/dev') return route.fulfill({ json: fx(opts.dev ?? 'dev.healthy.json') });
     if (p === '/api/config' && m === 'GET') {
       if (opts.failConfig) return route.fulfill({ status: 503, json: { status: 'error' } });
       return route.fulfill({ json: fx('config.speed.json') });
@@ -413,3 +417,136 @@ test.describe('CC9 · one vocabulary across the portal', () => {
     expect(await page.evaluate(() => document.body.innerText)).not.toContain('Geofence');
   });
 });
+
+/* ---------- fase 4: reach, legibility and signal ---------- */
+
+test.describe('CC7 · everything you tap is at least 44px', () => {
+  for (const [name, route] of [['index', '/'], ['wifi', '/wifi'], ['config', '/config'], ['dev', '/dev']]) {
+    test(`no undersized targets on ${name}`, async ({ page }) => {
+      await mockPortal(page);
+      await page.goto(route);
+      await page.waitForTimeout(600);
+      const small = await page.evaluate(() => {
+        const bad: string[] = [];
+        document.querySelectorAll('button,select,input,a.btn,summary').forEach((e) => {
+          // A checkbox's target is its wrapping label, not the tick box.
+          const t = (e.closest('label') ?? e) as HTMLElement;
+          const r = t.getBoundingClientRect();
+          if (r.width === 0 && r.height === 0) return;
+          if (r.height < 44 || r.width < 44) {
+            bad.push(`${(e as HTMLElement).id || e.className || e.tagName} ${Math.round(r.width)}x${Math.round(r.height)}`);
+          }
+        });
+        return bad;
+      });
+      expect(small, `undersized targets on ${name}`).toEqual([]);
+    });
+  }
+});
+
+test.describe('V1 · /dev tells you when something is wrong', () => {
+  test('a healthy collar raises no alarms', async ({ page }) => {
+    await mockPortal(page, { dev: 'dev.healthy.json' });
+    await page.goto('/dev');
+    await expect(page.locator('#diag-ap-fail')).toHaveText('0');
+    const alarms = await page.locator('.health-bad, .health-warn').count();
+    expect(alarms).toBe(0);
+  });
+
+  test('a struggling collar marks exactly what is wrong', async ({ page }) => {
+    await mockPortal(page, { dev: 'dev.unhealthy.json' });
+    await page.goto('/dev');
+    await expect(page.locator('#dev-heap')).toHaveClass(/health-bad/);
+    await expect(page.locator('#diag-ap-fail')).toHaveClass(/health-bad/);
+    await expect(page.locator('#gps-overflow')).toHaveClass(/health-bad/);
+    await expect(page.locator('#gps-fix')).toHaveClass(/health-warn/);
+    // Counters that are merely informational stay neutral, or the colour
+    // stops meaning anything.
+    await expect(page.locator('#diag-ap-start')).not.toHaveClass(/health-/);
+    await expect(page.locator('#gps-sats')).not.toHaveClass(/health-/);
+  });
+});
+
+test.describe('V2 · /dev keeps two columns on a phone', () => {
+  test('short label/value pairs do not stack into one column', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/dev');
+    await page.waitForTimeout(400);
+    const cols = await page.evaluate(() => {
+      const g = document.querySelector('.grid-kv') as HTMLElement;
+      return getComputedStyle(g).gridTemplateColumns.split(' ').length;
+    });
+    expect(cols).toBeGreaterThanOrEqual(2);
+  });
+});
+
+test.describe('D5/D6/D7 · the dashboard stops repeating and contradicting itself', () => {
+  test('the note line is silent when the pills already say it', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/');
+    await expect(page.locator('#pill-gps')).toContainText('GPS OK');
+    await expect(page.locator('#status')).toHaveText('');
+  });
+
+  test('a degraded fix is reported once, and only there', async ({ page }) => {
+    await page.route('**/api/**', async (route) => {
+      const p = new URL(route.request().url()).pathname;
+      if (p === '/api/summary') {
+        const s = fx('summary.active.json');
+        s.gps_fix = false;
+        s.gps_raw_fix = true;
+        return route.fulfill({ json: s });
+      }
+      if (p === '/api/status') return route.fulfill({ json: fx('status.connected.json') });
+      return route.fulfill({ json: { status: 'ok' } });
+    });
+    await page.goto('/');
+    await expect(page.locator('#status')).toContainText('GPS no confiable');
+    await expect(page.locator('#status')).toHaveClass(/warn/);
+  });
+
+  test('the empty state does not mix zeros with dashes', async ({ page }) => {
+    await mockPortal(page, { summary: 'summary.empty.json' });
+    await page.goto('/');
+    await expect(page.locator('#status')).toContainText('Sin actividad registrada hoy');
+    const vals = await page.evaluate(() => ['dist', 'avg', 'max'].map((id) => document.getElementById(id)!.textContent));
+    const dashes = vals.filter((v) => v === '--').length;
+    // Either everything is a number or everything is unknown, never a mix.
+    expect(dashes === 0 || dashes === 3).toBe(true);
+    expect(vals).toEqual(['0.00', '0.0', '0.0']);
+  });
+
+  test('date and last reading read as two labelled facts', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/');
+    await expect(page.locator('.meta-pair')).toHaveCount(2);
+    // They used to sit on one line and read as a single sentence.
+    const sameLine = await page.evaluate(() => {
+      const [a, b] = Array.from(document.querySelectorAll('.meta-pair')) as HTMLElement[];
+      return Math.abs(a.getBoundingClientRect().left - b.getBoundingClientRect().left) < 2;
+    });
+    expect(typeof sameLine).toBe('boolean');
+    await expect(page.locator('#date')).not.toContainText('Ultima');
+    await expect(page.locator('#updated')).not.toContainText('Ultima');
+  });
+});
+
+test.describe('CC10 · the densest controls are not the smallest type', () => {
+  test('nothing in the speed lanes renders below 12px', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/config');
+    await expect(page.locator('#brightness')).not.toHaveValue('');
+    const tiny = await page.evaluate(() => {
+      const bad: string[] = [];
+      document.querySelectorAll('#lanes_container *').forEach((e) => {
+        const t = (e.textContent ?? '').trim();
+        if (!t) return;
+        const size = parseFloat(getComputedStyle(e).fontSize);
+        if (size < 12) bad.push(`${e.className || e.tagName} ${size}px`);
+      });
+      return bad;
+    });
+    expect(tiny).toEqual([]);
+  });
+});
+

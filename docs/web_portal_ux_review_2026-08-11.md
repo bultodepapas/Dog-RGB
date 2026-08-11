@@ -530,6 +530,59 @@ fase. Presupuesto de `/wifi` recalibrado 32 500 → 36 000.
 
 ---
 
+## 7.quater Estado de implementación — Fase 4 (completada)
+
+Ejecutada **antes que la fase 3**, por decisión explícita. Eso tiene una consecuencia
+medible que conviene no disimular: la fase 3 era la que *acortaba* las páginas y CC7 las
+*alarga*, así que el coste se paga entero (ver la tabla de alturas).
+
+| # | Cambio | Antes (medido) | Ahora (medido) |
+| --- | --- | --- | --- |
+| CC7 | `min-height:44px` en inputs, selects, `<summary>` y `.preset-btn`; swatches a 44×44 | **32** objetivos < 44 px | **0** en las 4 pantallas |
+| CC10 | Tipos de 10-11 px subidos a 12-13 px en las zonas de velocidad | `.ctl-lbl` a 10 px | nada por debajo de 12 px |
+| V1 | `setHealth()` colorea sólo los contadores con veredicto | 60 valores del mismo verde | heap, fallos AP y overflow en rojo; fix y calidad en ámbar |
+| V2 | `.grid-kv` con `auto-fit minmax(150px)` en `/dev` | 1 columna en móvil | 2 columnas, degradando a 1 a 320 px |
+| D5 | La nota del dashboard calla cuando las pastillas ya lo dicen | "Estado: GPS OK" duplicaba la pastilla | vacía en el caso normal |
+| D6 | `.meta-pair` con clave y valor apilados | "Fecha: … Ultima lectura: …" se leía como una frase | dos hechos etiquetados |
+| D7 | Estado vacío coherente | `0.00` km junto a `--` de media y máxima | `0.00 / 0.0 / 0.0`, o los tres `--` sin fix |
+
+**Coste en scroll (medido a 428 px):**
+
+| Pantalla | Antes de fase 4 | Después | Δ |
+| --- | --- | --- | --- |
+| `/` | 926 px | 926 px | sin cambio |
+| `/wifi` | 1567 px | 1786 px | +14 % |
+| `/config` | 2895 px | **4127 px** | **+43 %** (3,1 → 4,5 pantallas) |
+| `/dev` | 4740 px | **2979 px** | **−37 %** (5,1 → 3,2 pantallas) |
+
+`/dev` sale ganando: las dos columnas compensan de sobra las filas más altas. `/config`
+es el que paga, y es justo lo que la fase 3 recuperaría — eliminar el control de brillo
+duplicado, el selector de tema redundante y la tarjeta "Show" vacía. Con la fase 3 hecha,
+`/config` debería volver a rondar las 3,5 pantallas conservando los 44 px.
+
+**Decisiones:**
+
+- **El verde "ok" es deliberadamente invisible.** `.health-ok` coincide con el color de
+  texto normal. Pintar de verde los sesenta valores sanos habría sido ruido: lo que da
+  señal es la excepción. En un collar sano `/dev` se ve como siempre; cuando algo falla,
+  salta a la vista.
+- **Sólo se colorea lo que tiene veredicto.** `Inicios AP` o `Sats` son informativos y
+  quedan neutros a propósito; si todo lleva color, el color deja de significar nada. Hay
+  un test que lo comprueba en ambos sentidos.
+- **Se añadió `dev.unhealthy.json`.** Un indicador de salud que nunca se ha visto en
+  alarma no está probado. El fixture fuerza heap a 14 320 B, 7 fallos de AP, overflow de
+  GPS y pérdida de fix, y hay captura visual (`dev-degraded.png`) además del test.
+- **Contraste de los colores nuevos verificado**, no supuesto: `health-ok` 14,50:1,
+  `health-warn` 14,12:1, `health-bad` 5,08:1 — el rojo es el más justo y aun así supera
+  el 4,5:1 exigido.
+
+**Verificación:** firmware SUCCESS (RAM 17,3 % · 56 644 B; Flash 35,0 % · 1 171 071 B),
+smoke en verde, **36 tests de regresión** en `portal.ux.spec.ts` (12 nuevos de esta fase),
+suite completa verificada en el contenedor de CI con comparación visual. Presupuestos
+recalibrados: `html_page` 30 000 → 33 000 y `html_dev_page` 29 500 → 33 000.
+
+---
+
 ## 8. Nota de riesgo
 
 El presupuesto de tamaño de página está vigilado por `tools/web_pages_smoke.py`
