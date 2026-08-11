@@ -81,7 +81,38 @@ Compromiso asumido y documentado en la UI: un registro corrupto deja el portal *
 
 **Cobertura añadida:** regla en el smoke que exige que todo POST pase por el helper `dogPost` con la cabecera; 6 tests Playwright nuevos (cabecera CSRF en `/config` y `/wifi`, bloqueo apagado por defecto, PIN malformado rechazado en cliente, y el ciclo 401 → prompt → reintento con PIN). Suite total: 33/33.
 
-**Sigue sin compilar.** Los nuevos `portal_lock.{h,cpp}` y los cambios en `portal_http.cpp` necesitan `pio run`. Dos puntos que la compilación debe confirmar y que no pude verificar: la firma de `WebServer::collectHeaders(const char**, size_t)` en arduino-esp32 3.3.11, y que `offsetof` sobre `LockRecord` esté disponible con los includes usados.
+### Fase 2 implementada el 2026-08-11
+
+**El firmware compila.** `pio run -e seeed_xiao_esp32s3` → SUCCESS. RAM 17.3 % (56 628 B), Flash 34.4 % (1 148 395 B). Esto cierra la advertencia que arrastraban las fases 0 y 1: quedan confirmados el helper de escapado, la firma real de `WebServer::collectHeaders(const char**, size_t)` en arduino-esp32 3.3.11, `portal_lock` con su `offsetof`, y el guard del export.
+
+**R2.1 — Consistencia del export (cierra H3).** El diagnóstico original era correcto pero la corrección propuesta —copiar la cola RAM a un búfer— habría añadido 576 B de pila a una función que ya usa 576 B, dentro de una cadena de llamadas profunda (WebServer → handler → TrackStream → `gps::tick`). Se optó por una solución sin coste de memoria: un flag `track_export_active` que congela **captura y volcado** mientras dura el export.
+
+- `track_flush_if_due()` retorna sin efecto → los chunks NVS no se reescriben ni rotan a media lectura.
+- `track_try_add_point()` retorna sin efecto → la cola RAM que el export está leyendo no se sobrescribe, y `flush_count` no puede crecer más allá de `flush_buf` con el volcado suspendido.
+- El flag se activa y se limpia en `track_iter_points()`, el único punto de entrada del camino de export. Verificado que el otro llamador de `track_iter_points_internal()` está en `track_get_view()`, que termina antes de que arranque el streaming: no hay anidamiento que pudiera limpiar el flag antes de tiempo.
+
+*Coste asumido:* no se registran puntos mientras el usuario descarga su ruta. Es aceptable porque el export lo inicia el propio dueño con el móvil conectado al collar, es decir, con el perro al lado. La alternativa era seguir emitiendo trazas corruptas.
+
+**R2.3 — CI (cierra H4).** `.github/workflows/ci.yml`, en push a `main` y en cada PR, con tres jobs:
+
+- **portal**: smoke estático + Playwright funcional sobre `ubuntu-latest`. Gate duro, verde desde el primer commit.
+- **visual**: comparación de capturas con `AP_PORTAL_VISUAL=1`, dentro de `mcr.microsoft.com/playwright:v1.62.1-noble`.
+- **firmware**: `pio run -e seeed_xiao_esp32s3`, con caché de `~/.platformio`.
+
+**R2.4 — Líneas base visuales (M6 parcialmente cerrado, L7 cerrado).**
+
+Las capturas de referencia son comparaciones de píxeles y sólo valen contra el renderizador que las produjo. Generadas en Windows llevan sufijo `-win32`; el CI en Linux ni las buscaría, y el tipo de letra difiere. Deben generarse en la misma imagen que usa el CI.
+
+**Estado real: no hay líneas base commiteadas.** Intenté generarlas en el contenedor pero la descarga de la imagen (~2 GB) no completó en esta máquina. En vez de commitear capturas de Windows —que dejarían el job en rojo por un motivo falso y sin valor— el trabajo se dejó preparado para un arranque en un solo paso:
+
+- El job `visual` sube siempre el directorio de snapshots como artefacto `visual-baselines`. **Su primera ejecución fallará** con `A snapshot doesn't exist`; basta descargar ese artefacto, commitear su contenido en `tests/ap-portal-visual/ap-portal.visual.spec.ts-snapshots/` y el job pasa a ser un gate real. El propio workflow lo documenta en un comentario.
+- Alternativa local para quien tenga Docker y ancho de banda: `npm run ap-portal:visual:baseline`, que monta el repo en sólo lectura y copia lo necesario dentro del contenedor. El montaje de escritura es deliberadamente evitado: un `npm ci` dentro del contenedor sobre el repo montado reemplazaría `node_modules` del host con binarios Linux y rompería los tests locales.
+
+Hasta que esas líneas base se commiteen, la regresión visual sigue sin ser un gate efectivo. Los gates que sí funcionan desde el primer día son el smoke estático, el Playwright funcional y la compilación.
+
+**L7 cerrado:** añadido `postinstall` en `package.json` (`playwright install chromium`) y un paso `playwright install-deps chromium` en CI —el binario y las librerías del sistema son cosas distintas—. Verificado borrando `node_modules` y reinstalando desde cero: `npm ci` deja el repo operativo sin pasos manuales.
+
+**R2.2** ya se había cubierto en la Fase 0.
 
 ---
 

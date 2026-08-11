@@ -288,6 +288,10 @@ struct TrackSession {
 
 TrackSession track_current;
 uint8_t track_slot = 0;
+// Set while an export walks the track. Exports service GNSS between socket
+// writes, so without this the very callback that keeps the link alive could
+// rewrite the buffer being read. Point capture pauses for the duration.
+bool track_export_active = false;
 
 uint32_t track_meta_crc(const TrackMeta &m);
 TrackMeta track_load_meta(Preferences &prefs, uint8_t slot);
@@ -1891,6 +1895,11 @@ void track_begin() {
 }
 
 void track_flush_if_due(unsigned long now_ms) {
+  // Rewriting or rotating a chunk mid-export would make the reader see a
+  // different ring than the one it measured.
+  if (track_export_active) {
+    return;
+  }
   Preferences &prefs = storage::prefs_trk();
   if (track_current.meta_dirty) {
     if (!track_save_current_meta(prefs)) {
@@ -1976,7 +1985,10 @@ void track_flush_if_due(unsigned long now_ms) {
 }
 
 void track_try_add_point(float lat_deg, float lon_deg, uint16_t t_min, uint32_t date_yyyymmdd, unsigned long now_ms) {
-  if (date_yyyymmdd == 0) {
+  // Appending here would overwrite the RAM tail the export is streaming, and
+  // with flushing paused flush_count could run past the end of flush_buf.
+  // A handful of samples are dropped while the user downloads their track.
+  if (track_export_active || date_yyyymmdd == 0) {
     return;
   }
   if (track_current.last_sample_ms == 0 ||
@@ -2081,9 +2093,10 @@ bool track_iter_points_internal(uint8_t slot, uint16_t max_points, TrackPointCb 
       }
     }
   }
-  // Freeze the RAM tail for this iteration. A callback is allowed to service
-  // GNSS input, which may append new points, but an export must remain a
-  // finite and internally consistent snapshot.
+  // Bound the RAM tail for this iteration. These indices alone are not enough
+  // to keep the export consistent -- a callback that services GNSS could still
+  // reset flush_count and refill the buffer underneath them -- so capture and
+  // flushing are both paused for the duration via track_export_active.
   const uint8_t unpersisted_end = current ? track_current.flush_count : 0;
   const uint8_t unpersisted_start = current
                                         ? ((newest_chunk_count <= track_current.flush_count)
@@ -2534,7 +2547,10 @@ void save_if_due(unsigned long now_ms) {
 }
 
 bool track_iter_points(uint8_t slot, uint16_t max_points, TrackPointCb cb, void *ctx) {
-  return track_iter_points_internal(slot, max_points, cb, ctx);
+  track_export_active = true;
+  const bool ok = track_iter_points_internal(slot, max_points, cb, ctx);
+  track_export_active = false;
+  return ok;
 }
 
 bool track_get_view(int session_id, TrackView &out) {

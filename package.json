@@ -7,11 +7,14 @@
     "node": ">=24.0.0 <25"
   },
   "scripts": {
+    "postinstall": "playwright install chromium",
+    "smoke": "python3 tools/web_pages_smoke.py",
     "ap-portal:extract": "python3 tools/ap_portal_preview/extract_pages.py",
     "ap-portal:serve": "node tools/ap_portal_preview/server.mjs --port 4173",
     "ap-portal:screenshots": "playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium",
     "ap-portal:visual": "AP_PORTAL_VISUAL=1 playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium",
     "ap-portal:visual:update": "AP_PORTAL_VISUAL=1 playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --update-snapshots",
+    "ap-portal:visual:baseline": "bash tools/ap_portal_preview/gen_baselines.sh",
     "ap-portal:ui": "playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --ui"
   },
   "devDependencies": {
