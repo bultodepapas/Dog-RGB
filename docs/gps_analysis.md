@@ -1,65 +1,116 @@
-# Análisis y Validación del Módulo GPS (Fase 1 MVP)
+# GNSS, Metrics, and Route Processing
 
-## 1. Resumen Ejecutivo
-Se ha realizado una auditoría técnica profunda del código firmware (`main.cpp`) encargado de la lectura, parsing y procesamiento de datos GNSS (GPS). El objetivo fue verificar la precisión de los cálculos de velocidad y distancia, contrastar la implementación con estándares de la industria y detectar posibles mejoras.
+**Status:** Current implementation reference, verified against `src/gps/gps.cpp` on 2026-08-12.
 
-**Conclusión General:** El código es **robusto, correcto y seguro** para la Fase 1. La lógica matemática es exacta. Se ha identificado una mejora menor recomendada para evitar la acumulación de "distancia fantasma" en reposo.
+The active firmware consumes NMEA from an EBYTE E108-GN02 on UART1 at 9,600 baud. The receiver can emit at higher rates, but Dog-RGB's normal metric sampling cadence is one second.
 
----
+## Input pipeline
 
-## 2. Validación de Lógica Existente
+1. Drain all available UART bytes into a bounded NMEA line buffer.
+2. Validate the NMEA XOR checksum before parsing.
+3. Parse RMC for status, coordinate, speed in knots, UTC time, and date.
+4. Parse GGA for fix quality, satellite count, and HDOP.
+5. Combine fresh RMC/GGA evidence into raw, quality, trusted, current, and speed-usable states.
 
-### 2.1 Parsing NMEA (Sentencia RMC)
-*   **Estándar:** La sentencia `$GPRMC` ubica la velocidad en nudos en el **campo 7**.
-*   **Implementación:** El código cuenta correctamente las comas y extrae el campo 7.
-*   **Conversión:** Se utiliza el factor correcto: `1 nudo = 1.852 km/h`.
-*   **Estado:** ✅ **CORRECTO** (Verificado contra documentación oficial NMEA 0183).
+The 16 KiB UART receive buffer is deliberately large enough to cover long synchronous portal writes. Diagnostics expose received bytes/sentences, RMC/GGA counts, checksum/parse failures, overflow, and observation ages.
 
-### 2.2 Cálculo de Distancia
-*   **Método:** Fórmula de Haversine (distancia ortodrómica entre dos puntos en una esfera).
-*   **Radio Terrestre:** Se usa `6371000.0` metros.
-*   **Implementación:** Matemáticamente correcta usando `sin`, `cos`, `atan2`, `sqrt`.
-*   **Estado:** ✅ **CORRECTO**.
+## Fix vocabulary
 
-### 2.3 Filtros de Seguridad (Sanity Checks)
-*   **Picos de Velocidad:** Se descartan velocidades `> 40 km/h` (`SPEED_MAX_VALID_KPH`). Esto filtra errores de multipath severos.
-*   **Saltos de Distancia:** Se descartan segmentos `> 50m` en 1 segundo (equiv. 180 km/h).
-*   **Estado:** ✅ **CORRECTO** y buena práctica para rastreadores de mascotas.
+| State | Meaning |
+| --- | --- |
+| Raw fix | RMC status says the receiver has a valid navigation solution |
+| Quality OK | GGA is recent and fix quality, satellites, and HDOP pass runtime thresholds |
+| Trusted fix | Raw fix **and** quality OK |
+| Current fix | A coordinate was present in the latest valid RMC, even if quality gates currently reject metrics |
+| Speed usable | Trusted fix plus finite speed in `0..40 km/h` |
 
----
+Only trusted, speed-usable, date-accepted observations update metrics. The portal exposes the layers separately so a user can distinguish “receiver reports a fix” from “firmware trusts it.”
 
-## 3. Comparativa con Estándares de la Industria
+## Runtime quality gates
 
-| Característica | Implementación Actual (Dog-RGB) | Estándar Industria (Garmin/Tractive) | Evaluación |
-| :--- | :--- | :--- | :--- |
-| **Filtro de Ruido** | Umbral ("Clamping"): <br> - Ignora Vel > 40km/h <br> - Ignora Dist > 50m | **Filtro de Kalman:** <br> Modelo predictivo probabilístico. | El método actual es eficiente (baja CPU) y suficiente para un MVP. Kalman es superior en curvas suaves pero complejo. |
-| **Micromovimientos** | Filtro de velocidad (`SPEED_ACTIVE_KPH` = 0.7 km/h) solo para *tiempo activo*. | **Gating con IMU:** <br> Acelerómetro confirma movimiento físico. | El estándar actual es adecuado para GPS-only. La fusión con IMU es el paso lógico para Fase 2. |
-| **Acumulación** | Suma lineal de segmentos Haversine. | **Simplificación (Douglas-Peucker):** <br> Suaviza la ruta antes de sumar. | La suma lineal tiende a sobrestimar ligeramente por "jitter", pero es aceptable para uso recreativo. |
+| Setting | Default | Range |
+| --- | ---: | ---: |
+| Minimum fix quality | 1 | 0–8 |
+| Minimum satellites | 6 | 3–12 |
+| Maximum HDOP | 2.5 | 0.5–20.0 |
+| Maximum GGA age | 2,000 ms | 500–10,000 ms |
+| Base minimum segment | 3.0 m | 0.5–20.0 m |
+| HDOP segment factor | 2.0 | 0.0–5.0 |
+| Maximum adaptive minimum | 10.0 m | 1.0–50.0 m |
 
----
+The effective minimum distance segment is `max(base_min, hdop_factor × HDOP)`, capped at `max_min_segment_m`.
 
-## 4. Hallazgo Específico: Filtro de Micromovimientos
+## Speed and distance
 
-El firmware actual aplica de forma consistente el filtro de "actividad" (0.7 km/h):
+- RMC speed is converted from knots to km/h.
+- Values above 40 km/h are marked unusable and counted as speed spikes; metrics are not updated from them.
+- Haversine distance uses a 6,371,000 m Earth radius.
+- A segment is accumulated only while the observation is active (`speed > 0.7 km/h`), at least the adaptive minimum, and below 50 m.
+- Rejected small/large segments and the last segment/reason are visible in diagnostics.
+- A rejected/untrusted/date-pending observation resets the distance baseline so a later reacquisition cannot bridge an unobserved jump.
 
-1.  **Tiempo Activo (`active_time_ms`):** solo suma un intervalo si las observaciones GNSS confiables de ambos extremos superan `SPEED_ACTIVE_KPH`.
-2.  **Distancia Total (`total_distance_m`):** solo evalúa segmentos dentro de una muestra activa y además aplica el umbral dinámico basado en HDOP.
-3.  **Bloqueos del loop:** el tiempo usa la marca UTC de cada RMC, no la hora en que el loop procesa la sentencia. Una cola de sentencias conservada durante un bloqueo mantiene sus intervalos reales.
+This is a practical GPS-only filter, not a precision survey or Kalman/IMU fusion system. Stationary jitter, urban multipath, and overly strict/loose gates must be characterized on the finished collar.
 
-Un intervalo aislado de más de tres segundos se rechaza porque no existe evidencia suficiente para afirmar que el perro estuvo activo durante todo el hueco. La siguiente observación establece una nueva línea base.
+## Active time and average speed
 
-Si un intervalo cruza medianoche, la sesión recibe el intervalo completo y el contador diario nuevo recibe únicamente la fracción posterior a las 00:00. Ambos contadores saturan en su máximo representable en vez de desbordarse.
+Active time uses GNSS observation timestamps, not the speed of the main loop:
 
-La fecha diaria tampoco cambia por una sola sentencia anómala. Una medianoche con marcas de tiempo continuas se acepta inmediatamente; cualquier otro salto hacia adelante exige tres observaciones RMC confiables, consecutivas y ordenadas. Las fechas hacia atrás se rechazan para evitar que una fecha vieja del receptor borre las métricas actuales. Antes de activar el día nuevo, el resumen terminado se escribe en registros A/B con versión, generación, CRC y verificación de lectura. Si esa verificación falla, el día actual no se borra y la transición se reintenta.
+- both endpoints must contain active, trusted, accepted evidence;
+- duplicate time contributes nothing;
+- backward time rebaselines;
+- intervals above 3 seconds are rejected rather than inventing activity during an outage;
+- buffered one-Hz observations can still be counted individually after a loop stall;
+- counters saturate instead of wrapping.
 
-**Comportamiento actual simplificado:**
-```cpp
-if (previous_active && current_active && delta_ms <= GPS_ACTIVE_MAX_GAP_MS) {
-    active_time_ms += delta_ms;
-}
+Average speed is:
+
+```text
+average_kph = total_distance_m / (active_time_ms / 1000) × 3.6
 ```
 
----
+It is therefore average speed while active, not average over the entire day.
 
-## 5. Conclusión
-El módulo GPS está listo para operar. La lógica es segura y los cálculos son precisos. La mejora del filtro de distancia es recomendable para la experiencia de usuario (evitar falsos positivos de distancia), pero no crítica para el funcionamiento del sistema.
+## Date rollover
+
+GNSS dates are validated calendar dates. Rollover behavior is designed to protect accumulated data:
+
+- the first trusted date initializes the current day without inventing a completed day;
+- a continuous next-day midnight is accepted immediately, including month/year/leap boundaries;
+- a non-contiguous forward date after a gap requires three trusted observations no more than three seconds apart;
+- backward dates are never accepted automatically;
+- stale/untrusted observations break pending confirmation;
+- before reset, the completed day is written to a CRC-protected A/B journal;
+- a failed journal write blocks the reset and retries later, preserving current metrics.
+
+On boot, the completed-day journal also prevents an older live metric snapshot from resurrecting the previous day.
+
+## Sessions and routes
+
+Daily metrics and session summaries are related but separate:
+
+- one current session is transactionally persisted;
+- up to three complete sessions are retained;
+- power loss around finalization cannot duplicate a recovered session;
+- route points live in the dedicated `tracknvs` partition;
+- the rolling route holds up to 1,440 points at a nominal five-second interval;
+- partial route data is flushed every 15 seconds;
+- chunks and metadata use CRC-32/IEEE and strict coordinate/time validation.
+
+The API streams route snapshots as JSON, CSV, or GeoJSON. See [Local HTTP API](api-reference.md#route-exports).
+
+## Persistence
+
+Metrics, the completed-day journal, and the session store use independent structured records with magic/version/size/semantic validation, CRC, generation ordering, and A/B selection. Diagnostics expose active slot, generation, write failures, and recoveries.
+
+The firmware may migrate older key-based state once. After migration, current structured records are authoritative.
+
+## Known limitations and validation needs
+
+- RMC/GGA pairing is based on freshness, not a receiver-specific epoch ID.
+- The 50 m upper segment rule and adaptive minimum are heuristic.
+- No IMU confirms physical movement.
+- No antenna/EMI/enclosure characterization exists yet for the final build.
+- GNSS time is UTC; Day Mode applies a fixed UTC-5 offset rather than daylight-saving/timezone rules.
+- Route timestamps are date plus minute-of-day, not full per-point seconds.
+
+Use `/dev`, Wokwi fault/rate scenarios, and physical reference-track comparisons to tune gates. Never loosen filters from a single anecdotal walk without preserving spike/outage protection.

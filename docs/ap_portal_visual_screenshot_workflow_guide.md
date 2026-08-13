@@ -1,185 +1,93 @@
-# AP Portal Visual Screenshot Workflow Guide
+# AP Portal Visual Verification
 
-This guide explains how to preview, screenshot, and visually review the DOG-RGB Access Point portal from VS Code or a terminal without flashing the ESP32.
+**Status:** Current developer workflow, reviewed on 2026-08-12.
 
-Use this workflow whenever you change the portal UI in `Platformio/Dog-RGB/src/web/pages.cpp`.
+Use this workflow after changing embedded portal markup, styles, scripts, or API fixtures. It extracts the pages from `Platformio/Dog-RGB/src/web/pages.cpp`, serves them locally, mocks device APIs, and exercises mobile layouts with Playwright.
 
-## What The Workflow Does
+It validates UI behavior and pixel output; it does not replace a firmware build or a real-device AP test.
 
-- Extracts the embedded HTML pages from `pages.cpp`.
-- Serves `/`, `/wifi`, `/config`, and `/dev` locally.
-- Uses Playwright to emulate an iPhone 13 Pro Max style mobile viewport.
-- Mocks portal API responses with deterministic JSON fixtures.
-- Generates screenshots for the important screen states.
-- Optionally compares the UI against approved visual baselines.
+## Prerequisites
 
-The workflow is for UI review. It does not replace the firmware build or real-device AP testing.
+- Node.js 24, matching [`.node-version`](../.node-version)
+- Python 3
+- npm dependencies and the pinned Chromium build
 
-## One-Time Setup
+Install reproducibly from the repository root:
 
-Install Node dependencies:
-
-```bash
-npm install
+```powershell
+npm ci
 ```
 
-Install Playwright browsers:
+`postinstall` installs Chromium. On a minimal Linux runner, system packages may also require `npx playwright install-deps chromium`.
 
-```bash
-npx playwright install chromium
-```
+## Normal change loop
 
-Optional VS Code setup:
+```powershell
+# Fast source/contract checks
+npm run smoke
 
-- Install the official Playwright extension from Microsoft.
-- Open the Testing sidebar.
-- Use the `iphone-13-pro-max-chromium` project when running AP portal visual tests.
-
-## Daily UI Change Loop
-
-1. Plan the UI change and list affected screens.
-2. Edit `Platformio/Dog-RGB/src/web/pages.cpp`.
-3. Run the embedded page smoke test:
-
-```bash
-python3 tools/web_pages_smoke.py
-```
-
-4. Generate mobile screenshots:
-
-```bash
+# Generate the reviewed mobile states
 npm run ap-portal:screenshots
-```
 
-5. Open the generated screenshots:
-
-```text
-tests/ap-portal-visual/screenshots/current/
-```
-
-6. Review every affected screenshot carefully.
-7. Fix any visual or usability problems in `pages.cpp`.
-8. Repeat screenshot generation and review until the UI is acceptable.
-9. Run optional visual regression comparison:
-
-```bash
+# Compare against committed baselines on Linux/macOS
 npm run ap-portal:visual
 ```
 
-10. Update reference screenshots only after manual review confirms the changes are intentional:
+Review the generated images and Playwright report. If a visual change is intentional, regenerate baselines only after examining all affected states:
 
 ```bash
 npm run ap-portal:visual:update
 ```
 
-11. Run firmware validation:
+The two visual package scripts set an environment variable with POSIX syntax. On PowerShell, run the equivalent commands explicitly:
 
-```bash
-cd Platformio/Dog-RGB
-/Users/angel/.platformio/penv/bin/platformio run
+```powershell
+$env:AP_PORTAL_VISUAL = '1'
+npx playwright test tests/ap-portal-visual/ --project=iphone-13-pro-max-chromium
+# Add --update-snapshots only after approving an intentional change.
+Remove-Item Env:AP_PORTAL_VISUAL
 ```
 
-## Commands
+Linux baselines are authoritative in CI. To regenerate them in the same pinned Playwright container, use:
 
-Extract embedded pages:
-
-```bash
-npm run ap-portal:extract
+```powershell
+npm run ap-portal:visual:baseline
 ```
 
-Serve local preview pages:
+The helper uses Bash/container tooling; run it in an environment that provides those dependencies.
 
-```bash
-npm run ap-portal:serve
-```
+## Other commands
 
-Generate current screenshots:
+| Command | Purpose |
+| --- | --- |
+| `npm run ap-portal:extract` | Extract embedded pages into the generated preview directory |
+| `npm run ap-portal:serve` | Serve the preview at `http://127.0.0.1:4173` |
+| `npm run ap-portal:screenshots` | Run deterministic mobile screenshot scenarios |
+| `npm run ap-portal:visual` | Enable snapshot comparisons |
+| `npm run ap-portal:visual:update` | Replace snapshots for the current platform |
+| `npm run ap-portal:visual:baseline` | Rebuild Linux baselines in the pinned container |
+| `npm run ap-portal:ui` | Open Playwright UI mode |
 
-```bash
-npm run ap-portal:screenshots
-```
+The scripts themselves are the source of truth; check [`package.json`](../package.json) if a command changes.
 
-Run visual comparisons against reference screenshots:
+## What to inspect
 
-```bash
-npm run ap-portal:visual
-```
+- no horizontal overflow, clipped labels, overlaps, or accidental scroll traps;
+- readable hierarchy at the configured phone viewport;
+- touch targets, visible focus, labels, error messages, and disabled/loading states;
+- realistic values with no `undefined`, `NaN`, broken placeholders, or raw errors;
+- advanced diagnostics subordinate to normal user tasks;
+- correct behavior for no-fix, empty history, lock enabled, failed request, scanning, open network, and long SSID states;
+- page weight and source-size limits suitable for an ESP32-hosted portal.
 
-Update visual reference screenshots:
+Fixtures live under `tests/ap-portal-visual/fixtures/`. Keep them deterministic, small, and aligned with the real response contracts in [api-reference.md](api-reference.md). An unmocked `/api/...` dependency should fail loudly.
 
-```bash
-npm run ap-portal:visual:update
-```
+## Failure triage
 
-Open Playwright UI Mode:
+1. Open the expected, actual, and diff images in `test-results/` or the HTML report.
+2. Decide whether the change is intended or a regression.
+3. Fix source markup/fixtures and rerun when unintended.
+4. When intended, review every affected viewport and state before updating snapshots.
+5. Build the firmware if `pages.cpp` changed, because HTML extraction alone cannot catch C++ or flash-size failures.
 
-```bash
-npm run ap-portal:ui
-```
-
-## Screenshot Output
-
-Current screenshots are written to:
-
-```text
-tests/ap-portal-visual/screenshots/current/
-```
-
-These are generated review artifacts and are ignored by git.
-
-Reference screenshots created by Playwright visual comparisons live beside the test file in Playwright snapshot directories. Commit those only when the UI state is intentionally approved.
-
-## Screen Review Checklist
-
-For each screenshot, check:
-
-- The first visible screen explains the task clearly.
-- There is no horizontal scrolling.
-- Buttons and inputs fit within the mobile viewport.
-- Text does not overlap, clip, or wrap awkwardly.
-- Status values are realistic and understandable.
-- No `undefined`, `NaN`, accidental `--`, or broken API placeholders appear.
-- Advanced sections do not dominate normal user tasks.
-- Raw JSON is collapsed unless the specific screenshot intentionally opens it.
-- Tap targets are large enough for a phone.
-- The page still feels lightweight enough for an ESP32-hosted portal.
-
-## Mock Data
-
-Mock API fixtures live in:
-
-```text
-tests/ap-portal-visual/fixtures/
-```
-
-Update fixtures when a UI change needs a new screen state.
-
-Keep fixture data:
-
-- Deterministic.
-- Realistic.
-- Small.
-- Representative of actual ESP32 API payloads.
-
-If a test hits an unmocked `/api/...` route, the preview server or Playwright test should fail clearly. Add the missing mock instead of allowing silent broken UI.
-
-## When Screenshots Fail
-
-If `npm run ap-portal:visual` fails:
-
-1. Open the actual, expected, and diff images from Playwright output.
-2. Decide whether the change is intentional.
-3. If the change is not intentional, fix the UI and rerun screenshots.
-4. If the change is intentional, inspect all affected screenshots before updating references.
-5. Do not update reference screenshots just to make the test pass.
-
-## Codex Completion Rule
-
-When Codex changes the AP portal UI, completion should include:
-
-- Static smoke test passed.
-- Mobile screenshots generated.
-- A visual review summary of the affected screens.
-- Firmware build passed if the embedded C++ file changed.
-
-For UI work, screenshots are development evidence, not decoration.
+CI runs static portal checks, the complete Playwright project, and visual comparisons in the pinned Linux image. See [Testing and simulation](testing.md) for the full matrix.

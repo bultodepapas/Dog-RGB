@@ -1,137 +1,163 @@
-# Smart LED Dog Collar
+# Dog-RGB
 
-[English](README.en.md) | [Espanol](README.es.md) | [User Manual](docs/manual_de_uso.md) | [Build Manual](docs/manual_de_construccion.md)
+[English (canonical)](README.md) · [Español](README.es.md) · [Documentation](docs/README.md) · [Build guide](docs/manual_de_construccion.en.md)
 
-Smart, high-visibility LED collar for medium-to-large dogs. Built for safety, comfort, and GPS-first telemetry with a local Wi-Fi portal and runtime LED configuration.
+Dog-RGB is an intentionally over-engineered DIY smart collar built around a simple idea: put high-visibility RGBW LEDs, GNSS telemetry, and an ESP32-S3 on a dog collar, then explore how far careful firmware and electronics can take it.
 
----
+The active implementation is local-first. The collar records activity, drives two LED strips, and serves its own mobile-friendly Wi-Fi portal. It does not require a cloud account or Internet connection.
 
-## Quick Links
+> **Project status — working prototype.** The firmware and portal are implemented and tested in CI and Wokwi. The mechanical enclosure, weatherproofing, battery runtime, thermal behavior, and final wiring still require validation on the physical collar. This is a DIY project, not certified pet-safety or production hardware.
 
-- User guide: [docs/manual_de_uso.md](docs/manual_de_uso.md)
-- Build guide: [docs/manual_de_construccion.md](docs/manual_de_construccion.md)
-- Color reference: [docs/manual_de_colores.md](docs/manual_de_colores.md)
-- XIAO ESP32-S3 pinout (official): [xiao_s3_pin.md](xiao_s3_pin.md)
-- Architecture: [docs/architecture.md](docs/architecture.md)
-- Firmware refactor: [docs/main_refactor.md](docs/main_refactor.md)
-- Requirements: [docs/requirements.md](docs/requirements.md)
-- Roadmap: [docs/roadmap.md](docs/roadmap.md)
-- Tasks: [docs/tasks.md](docs/tasks.md)
+## What works today
 
----
+| Area | Implemented behavior |
+| --- | --- |
+| GNSS | NMEA RMC/GGA parsing, fix-quality gates, Haversine distance, active time, average/max speed, spike rejection, trusted date rollover |
+| Route history | Latest two hours at a nominal 5-second interval, plus the current and three completed session summaries; JSON, CSV, and GeoJSON streaming exports |
+| LEDs | Two 24-pixel SK6812 RGBW strips by default, reserved status pixels, 12 effects, and Speed, Geofence, Show, and Simple modes |
+| Power saving | Optional Day Mode turns off effect pixels from 06:00 to 16:00 in America/Bogota while keeping status LEDs, GNSS, storage, and the portal active |
+| Wi-Fi | SoftAP + station mode, captive-portal helpers, on-demand network scan, mDNS, bounded retry/backoff, and automatic AP availability policy |
+| Portal | Dashboard, route preview, Wi-Fi setup, runtime configuration, diagnostics, optional write PIN, and safe configuration reset |
+| Persistence | CRC-protected A/B records for runtime config, metrics, sessions, home, and Wi-Fi credentials; dedicated NVS partition for route points |
+| BLE | A read-only 16-byte daily summary is implemented but **disabled by default** because SoftAP/BLE coexistence is unreliable on the shared ESP32-S3 antenna |
+| Verification | PlatformIO build, Python host tests, static portal checks, Playwright behavior/a11y tests, committed visual baselines, and eight Wokwi scenarios |
 
-## What This Is
+Not implemented: cloud sync, user accounts, a native mobile app, IMU/heart-rate input, battery telemetry, OTA updates, and portal presets. Those ideas remain optional roadmap items.
 
-A wearable LED collar with GPS-first telemetry, configurable LED behavior, and a local Wi-Fi portal (AP/STA) for data and runtime settings.
+## Hardware baseline
 
----
+| Component | Current baseline |
+| --- | --- |
+| MCU | Seeed Studio XIAO ESP32-S3 |
+| GNSS | EBYTE E108-GN02, 9,600 baud; receiver supports higher rates, firmware samples metrics at 1 Hz |
+| LEDs | SK6812 RGBW, 5 V, two independent strips, 24 pixels per strip |
+| Battery | One protected 21700 Li-ion cell, charger/BMS, and a measured/suitably rated 5 V boost stage |
+| LED logic | 74AHCT125/74HCT125-class 3.3 V-to-5 V level shifter recommended |
 
-## System Summary
+Default pin assignment:
 
-- MCU: Seeed Studio XIAO ESP32-S3
-- GNSS: EBYTE E108-GN02 (10 Hz)
-- LEDs: SK6812 RGBW (5V, single-wire), dual strips
-- Power: 21700 Li-ion + BMS + 5V boost (>=3A)
-- Portal: AP + STA with local dashboard and config UI
-- BLE: read-only daily summary characteristic
+| Signal | XIAO pin | GPIO |
+| --- | --- | ---: |
+| LED strip A data | D0 | 1 |
+| LED strip B data | D1 | 2 |
+| External status LED | D2 | 3 |
+| ESP32 GNSS TX | D6 | 43 |
+| ESP32 GNSS RX | D7 | 44 |
 
-More details:
-- Hardware freeze: [docs/phase0_freeze.md](docs/phase0_freeze.md)
-- Wiring: [docs/sk6812_wiring.md](docs/sk6812_wiring.md)
-- Power budget: [docs/bom_power_budget.md](docs/bom_power_budget.md)
+See the [build guide](docs/manual_de_construccion.en.md), [wiring reference](docs/sk6812_wiring.md), and [power-budget assumptions](docs/bom_power_budget.md) before connecting a cell or LED strip.
 
----
+## Quick start
 
-## Firmware (Current Status)
+### 1. Build the firmware
 
-The active firmware project is in [Platformio/Dog-RGB](Platformio/Dog-RGB) with:
+Install [PlatformIO Core](https://docs.platformio.org/en/latest/core/installation/index.html), then run:
 
-- NMEA RMC + GGA parsing (fix, speed, satellites)
-- Distance calculation (Haversine) with spike filtering
-- Active time tracking and speed thresholds
-- GNSS-timestamp active-time accounting that survives buffered loop stalls
-- Confirmed, monotonic GPS-date rollover with a CRC-protected completed-day journal
-- Max/avg speed metrics
-- NVS persistence for metrics + runtime config
-- CRC32-protected A/B runtime-configuration recovery across interrupted writes
-- Validated A/B home/geofence recovery across interrupted set and clear operations
-- Wi-Fi portal (AP/STA) with `/`, `/api/summary`, `/wifi`
-- Bounded JSON/CSV/GeoJSON track streaming with GNSS servicing during exports
-- Runtime config UI at `/config` with `/api/config` + `/api/config/reset`
-- BLE read-only daily summary payload
-- LED UI with 12 effects, configurable per speed range, plus Show/Simple modes
+```powershell
+cd Platformio\Dog-RGB
+pio run -e seeed_xiao_esp32s3
+```
 
-Short summary: the firmware is now modularized by domain (GPS, Wi-Fi, web portal, BLE, LED UI, config, storage), and `main.cpp` only orchestrates setup/loop. See [docs/architecture.md](docs/architecture.md) and [docs/main_refactor.md](docs/main_refactor.md).
+The environment is pinned to pioarduino `55.03.311` (Arduino-ESP32 3.3.11 / ESP-IDF 5.5.5), ArduinoJson 7.4.3, and Adafruit NeoPixel 1.15.5.
 
-Key files:
-- Firmware entrypoint: [Platformio/Dog-RGB/src/main.cpp](Platformio/Dog-RGB/src/main.cpp)
-- Pin mapping: [Platformio/Dog-RGB/include/pins.h](Platformio/Dog-RGB/include/pins.h)
-- Runtime defaults: [Platformio/Dog-RGB/include/config.h](Platformio/Dog-RGB/include/config.h)
-- Build config: [Platformio/Dog-RGB/platformio.ini](Platformio/Dog-RGB/platformio.ini)
+### 2. Flash the complete image
 
----
+```powershell
+pio run -e seeed_xiao_esp32s3 -t upload
+pio device monitor -e seeed_xiao_esp32s3
+```
 
-## Portal Configuration (Runtime)
+Use the PlatformIO upload target at least once when moving to this firmware layout. Uploading only `firmware.bin` does not install [`partitions_dog_rgb.csv`](Platformio/Dog-RGB/partitions_dog_rgb.csv), including the dedicated `tracknvs` partition.
 
-The portal exposes runtime config via `/config` and `/api/config` (plus `/api/config/reset`).
+### 3. Open the local portal
 
-- Portal config (runtime): [docs/portal_config.md](docs/portal_config.md)
-- Presets (no implementado): [docs/portal_config_presets.md](docs/portal_config_presets.md)
+1. Connect to Wi-Fi `DogRGB` with the default password `Dog12345`.
+2. Let the captive portal open, or browse to `http://192.168.4.1/`.
+3. Use `/wifi` to join a home network, `/config` for runtime settings, or `/dev` for diagnostics.
+4. When station mode is connected, try `http://dog-collar.local/` on a client that supports mDNS.
 
-Wi-Fi portal docs:
-- Wi-Fi spec: [docs/wifi_portal_spec.md](docs/wifi_portal_spec.md)
-- Wi-Fi spec: [docs/wifi_portal_spec.md](docs/wifi_portal_spec.md)
-- State diagram: [docs/wifi_portal_state_diagram.md](docs/wifi_portal_state_diagram.md)
+Change the default AP password before regular use. The optional 4–8 digit portal PIN protects write actions, but read-only telemetry remains visible to clients that can join the collar network.
 
----
+## Development checks
 
-## LED Behavior
+Run firmware contract tests from the active firmware directory:
 
-- UI spec: [docs/led_ui_spec.md](docs/led_ui_spec.md)
-- Effects reference: [docs/led_effects.md](docs/led_effects.md)
-- Color reference: [docs/manual_de_colores.md](docs/manual_de_colores.md)
+```powershell
+cd Platformio\Dog-RGB
+python -m unittest discover -s test -p "test_*.py" -v
+```
 
----
+Run portal checks from the repository root with Node.js 24:
 
-## Specs and Product Docs
+```powershell
+npm ci
+npm run smoke
+npx playwright test --project=iphone-13-pro-max-chromium
+```
 
-- Requirements: [docs/requirements.md](docs/requirements.md)
-- Architecture: [docs/architecture.md](docs/architecture.md)
-- App MVP spec: [docs/app_mvp_spec.md](docs/app_mvp_spec.md)
-- BLE spec: [docs/ble_spec.md](docs/ble_spec.md)
-- Web portal spec: [docs/web_portal_spec.md](docs/web_portal_spec.md)
+Prepare or exercise the Wokwi simulation:
 
----
+```powershell
+cd Platformio\Dog-RGB
+.\tools\wokwi.ps1 -Action prepare
+.\tools\wokwi.ps1 -Action suite -TimeoutMs 90000
+```
 
-## Hardware Setup (Phase 1 MVP)
+Wokwi automation needs a local `WOKWI_CLI_TOKEN`; copy `.env.example` to the ignored `.env` file. See [Testing and simulation](docs/testing.md) for the full matrix and platform notes.
 
-Pins (XIAO ESP32-S3):
-- GPS RX: D7 / GPIO44
-- GPS TX: D6 / GPIO43
-- Status LED: D2 / GPIO3 (external LED)
-- LED A data: D0 / GPIO1
-- LED B data: D1 / GPIO2
+## Architecture at a glance
 
-Wiring reference:
-- [docs/manual_de_uso.md](docs/manual_de_uso.md)
-- [docs/sk6812_wiring.md](docs/sk6812_wiring.md)
+```mermaid
+flowchart LR
+    GNSS[GNSS RMC/GGA] --> GPS[GPS, metrics, sessions]
+    GPS --> LED[LED UI]
+    GPS --> API[Local HTTP API]
+    GPS --> NVS[(NVS + tracknvs)]
+    CFG[Runtime config] --> LED
+    CFG --> WIFI[AP/STA manager]
+    WIFI --> API
+    API --> PORTAL[Embedded portal]
+    GPS -. optional .-> BLE[Read-only BLE summary]
+```
 
----
+`main.cpp` orchestrates bounded ticks; domain state lives inside modules. Wi-Fi callbacks enqueue events for processing in the main loop, route exports stream in bounded chunks while servicing GNSS, and persistent records use validation plus CRC/generation selection. The detailed module and data-flow map is in [Architecture](docs/architecture.md).
 
-## Repo Structure
+## Documentation map
 
-- `Datasheets/` component datasheets
-- `docs/` specs, architecture, decisions, roadmap
-- `firmware/` firmware notes and references
-- `hardware/` hardware notes
-- `Platformio/` active PlatformIO firmware project
-- `software/` app/BLE tooling (future)
+- [Documentation hub](docs/README.md) — canonical index and document status definitions
+- [User guide](docs/user-guide.md) — operation, portal access, modes, exports, and troubleshooting
+- [Build guide](docs/manual_de_construccion.en.md) — assembly and bench-test sequence
+- [Architecture](docs/architecture.md) — modules, runtime flow, storage, and design constraints
+- [Local HTTP API](docs/api-reference.md) — pages, endpoints, headers, payloads, and errors
+- [Runtime configuration](docs/portal_config.md) — fields, defaults, validation, and persistence
+- [Testing and simulation](docs/testing.md) — host, portal, visual, CI, and Wokwi workflows
+- [Requirements](docs/requirements.md), [roadmap](docs/roadmap.md), and [work queue](docs/tasks.md)
 
----
+Historical audits and implementation plans are retained for engineering traceability. Their line references and proposed designs may no longer match the current source; the [documentation hub](docs/README.md) labels each one.
 
-## Next Steps
+## Repository layout
 
-- Validate the power budget with real component efficiencies
-- Finalize BOM and sourcing list
-- Draft enclosure and cable routing
-- Add IMU motion classification (Phase 2)
+```text
+Dog-RGB-1/
+├── Platformio/Dog-RGB/   active ESP32-S3 firmware and Wokwi project
+├── docs/                 current guides, specifications, audits, and plans
+├── tests/                portal behavior, accessibility, and visual tests
+├── tools/                portal extraction, preview, and smoke tooling
+├── hardware/             hardware-area entry point
+├── firmware/             firmware-area entry point
+├── software/             future companion/cloud software placeholder
+└── Datasheets/           locally retained component references
+```
+
+## Design principles
+
+- Keep the collar useful offline and recoverable by a hobbyist.
+- Make advanced security, cloud, and production hardening optional unless the project goal changes.
+- Prefer bounded work and explicit diagnostics on the MCU.
+- Never turn estimates into safety claims: measure current, temperature, runtime, RF behavior, and weather resistance on the assembled collar.
+- Update canonical docs with the code; preserve dated audits and plans as snapshots.
+
+Contributions are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License and external inspiration
+
+This repository does not yet contain a root `LICENSE` file, so do not assume redistribution terms. Work inspired by WLED must follow the provisional [clean-room and provenance decision](docs/adr/0001-wled-clean-room-y-licencia-del-proyecto.md): learn from public concepts and behavior, but do not copy code or assets unless provenance, license compatibility, attribution, and owner approval are explicitly resolved.

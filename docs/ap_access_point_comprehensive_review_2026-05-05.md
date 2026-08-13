@@ -1,5 +1,7 @@
 # Dog-RGB ESP32-S3 Access Point Comprehensive Review
 
+> **Document status:** Historical review snapshot. Many hardening recommendations in this report were subsequently implemented; source line numbers and “current” statements below refer to the reviewed 2026-05-05 revision. See [Wi-Fi and captive portal](wifi_portal_spec.md).
+
 Prepared: 2026-05-05 America/Bogota  
 Scope: ESP32-S3 Access Point behavior, AP+STA policy, portal reachability, connection reliability, and hardening plan.
 

@@ -1,176 +1,93 @@
-# Manual de Uso - Smart LED Dog Collar (MVP)
+# Guía de Uso de Dog-RGB
 
-Guia practica para instalar, usar y configurar el collar en Fase 1 (GPS + portal Wi-Fi).
+**Estado:** traducción resumida, revisada el 2026-08-12. Para el detalle canónico consulta la [User guide](user-guide.md).
 
----
+Dog-RGB funciona de forma local, sin app ni cuenta cloud. Los LEDs muestran el estado rápido y el portal Wi-Fi permite ver métricas, rutas, configuración y diagnóstico.
 
-## 1) Requisitos y seguridad
+## Primer inicio
 
-- Telefono o laptop con Wi-Fi.
-- Uso al aire libre para GPS confiable.
-- Evita que el collar quede muy apretado; debe poder pasar un dedo.
-- No sumerjas el collar si el enclosure no es IP67.
+1. Enciende el collar al aire libre y con vista clara al cielo.
+2. Conecta el teléfono a `DogRGB` usando la contraseña inicial `Dog12345`.
+3. Abre el portal cautivo o visita `http://192.168.4.1/`.
+4. Cambia la contraseña AP antes de usar el collar en lugares públicos.
+5. Espera a que el indicador GNSS pase de azul pulsante a azul fijo.
 
----
+No cargues el dispositivo mientras el perro lo usa. Revisa ajuste, temperatura, batería, cables y sellos; las luces no reemplazan correa, identificación ni un rastreador certificado.
 
-## 2) Instalacion fisica
+## Estado LED
 
-1) Coloca el collar en el cuello del perro.
-2) Ajusta hasta que quede firme pero comodo.
-3) Verifica que el difusor LED no quede en contacto directo con piel sensible.
-4) Enciende el collar.
+En Speed, Geofence y Show, los primeros dos píxeles de cada tira están reservados:
 
----
+| Indicador | Apariencia | Significado |
+| --- | --- | --- |
+| Wi-Fi | Verde fijo | STA conectado |
+| Wi-Fi | Verde pulsante | Conexión STA en progreso |
+| Wi-Fi | Amarillo fijo/pulsante | AP activo; el pulso indica cliente conectado |
+| Wi-Fi | Rojo fijo | STA falló y existe fallback AP |
+| Wi-Fi | Doble pulso ámbar | Estado Wi-Fi OFF explícito/experimental |
+| GNSS | Azul fijo | Fix confiable |
+| GNSS | Azul pulsante | Buscando o sin cumplir filtros de calidad |
+| Ambos | Rojo rápido | Timeout crítico sin GNSS confiable ni STA |
 
-## 2.1) Diagrama de wiring (XIAO ESP32-S3 + componentes)
+Simple usa toda la tira. Day Mode conserva los indicadores aunque apaga los píxeles de efecto. El modo homogéneo también existe para un estado Wi-Fi OFF explícito, pero el cierre automático del AP por inactividad actualmente no apaga todo el radio.
 
-```
-  21700 Li-ion
-      |
-   BMS + USB-C
-      |
-  5V Boost (>=3A) --------------+-------------------+------------------+
-      |                         |                   |                  |
-     5V                      74AHCT125           SK6812 Strip A     SK6812 Strip B
-      |                     (level shifter)         VDD/GND           VDD/GND
-      |                         |
-     GND ----+------------------+-------------------+------------------+---- GND (star)
-            |
-        3V3 Reg (si aplica) ----+-------------------+
-            |                    |                  |
-        XIAO ESP32-S3           GNSS (GPS)      10-47uF + 0.1uF
+## Páginas del portal
 
-XIAO ESP32-S3 (3.3V)
-  D0 / GPIO1 (LED A data) -------+--> 74AHCT125 IN1 -> OUT1 -> DIN A (330-470R)
-  D1 / GPIO2 (LED B data) -------+--> 74AHCT125 IN2 -> OUT2 -> DIN B (330-470R)
-  GPIO44 (GPS RX / D7) <--------------------------- GPS TX
-  GPIO43 (GPS TX / D6) ---------------------------> GPS RX (opcional)
-  GPIO3  (Status LED) ----[R]----> LED externo -> GND
-  3V3 ---------------------------> GPS VCC (si 3.3V)
-  GND ----------------------------> GPS GND
-```
+| Ruta | Uso |
+| --- | --- |
+| `/` | Métricas del día, sesión actual, tres sesiones terminadas y ruta/exportación |
+| `/wifi` | Escaneo manual, credenciales STA, nombre/password del AP y estado |
+| `/config` | Modo LED, brillo, Day Mode, filtros GNSS, Home, efectos y PIN opcional |
+| `/dev` | Diagnóstico técnico, storage, parser GNSS, tiempos de loop y JSON |
 
-Notas:
-- Todos los GND deben ser comunes (MCU, GPS, LEDs, booster) con punto estrella en la salida del boost.
-- Usa resistor serie de 330-470 ohm en cada data line, cerca de DIN.
-- Decoupling recomendado: 1000 uF en 5V cerca del primer LED (ideal uno por tira).
-- GNSS: 10-47 uF + 0.1 uF cerca de VCC, cables cortos y lejos del boost/5V de LEDs.
-- En este proyecto: 2 tiras LED. Los primeros 2 LEDs de cada tira son de estado.
+Cuando STA está conectado, abre `http://dog-collar.local/` o la IP indicada por el portal. mDNS puede no funcionar en algunas redes.
 
----
+## Modos
 
-## 3) Estados LED (estado rapido)
+- **Speed:** diez rangos de velocidad, cada uno con efecto configurable para ambas tiras.
+- **Geofence:** diez bandas según distancia al punto Home.
+- **Show:** recorre los 12 efectos en orden barajado, aproximadamente cada 30 segundos.
+- **Simple:** aplica un efecto y color base a toda la tira.
 
-Los primeros LEDs muestran estado del sistema:
+El brillo por defecto es `77/255`. Un brillo mayor puede aumentar mucho la corriente y la temperatura; mídelo en el hardware real.
 
-LED0 = Wi-Fi/AP
-- Verde fijo: STA conectado.
-- Verde pulsante: STA intentando conectar.
-- Amarillo fijo: AP activo sin clientes.
-- Amarillo pulsante: AP activo con clientes.
-- Rojo fijo: STA fallo (fallback a AP).
-- Ambar doble pulso: Wi-Fi apagado por ahorro.
+Day Mode es opcional y viene apagado. Si se activa, usa hora GNSS confiable y UTC-5 para apagar solo los píxeles de efecto entre 06:00 y 16:00. Si la hora falta o está stale, deja los efectos encendidos.
 
-LED1 = GPS
-- Azul fijo: GPS OK.
-- Azul pulsante: GPS buscando (sin fix).
+## Métricas y rutas
 
-Override:
-- Rojo parpadeo rapido: sin GPS ni STA por >10 min.
+El dashboard muestra distancia de hoy, velocidad activa promedio, máxima válida, GNSS y sesiones. La ruta conserva hasta 1.440 puntos —aproximadamente dos horas a cinco segundos nominales— y se puede exportar como JSON, CSV o GeoJSON para la sesión actual o una de las tres sesiones terminadas.
 
-Segmento resto:
-- Si no hay GPS fix, muestra rainbow animado.
-- Con GPS OK, usa efectos por rangos de velocidad.
-- Si Wi-Fi esta OFF y GPS OK por >5 min, los LEDs de estado se igualan al segmento resto.
+## Política Wi-Fi actual
 
-Modos especiales:
-- Show: demo visual que recorre los 12 efectos automaticamente; usa color base aleatorio por efecto cuando el efecto lo permite. RAINBOW, GRADIENT_WAVE y FIRE no reflejan directamente ese color base.
-- Simple: un solo efecto configurado por el usuario, aplicado a toda la tira (incluye LEDs de estado).
+- Sin fix GNSS confiable, el firmware solicita disponibilidad del AP.
+- Permanecer a `<= 2,0 km/h` durante unos dos minutos también puede activarlo.
+- Un AP recién iniciado se mantiene al menos 15 minutos.
+- La actividad del portal extiende la disponibilidad cinco minutos.
+- Diez minutos sin clientes ni actividad permiten detener el SoftAP.
+- Ese cierre por inactividad no apaga automáticamente todo el radio Wi-Fi.
+- Los fallos usan reintentos limitados con backoff.
 
-AP/Wi-Fi auto:
-- Si no hay GPS fix, el AP se mantiene encendido.
-- Si la velocidad es <= 2 km/h por ~2 min, el AP se enciende automaticamente.
-- Al arrancar o reiniciar el AP, queda visible al menos 15 min.
-- La actividad del portal mantiene el AP activo por 5 min adicionales.
-- Si no hay clientes ni actividad del portal por 10 min, el AP se apaga.
-- Si no hay STA y no hay AP, el Wi-Fi se apaga para ahorrar bateria.
+El escaneo es manual, devuelve hasta 20 redes únicas y puede interrumpir brevemente la conexión AP mientras cambia de canal.
 
----
+## PIN opcional
 
-## 4) Conectar al portal (modo AP)
+Puedes proteger las acciones de escritura con un PIN de 4–8 dígitos. Viene desactivado para facilitar recuperación DIY. El PIN no cifra el tráfico ni oculta lecturas a alguien ya conectado a la red local. Un registro corrupto falla abierto para evitar bloquear permanentemente el portal.
 
-1) Busca la red Wi-Fi del collar: `DogRGB`
-2) Password por defecto: `Dog12345`
-3) El telefono puede mostrar automaticamente el portal cautivo. Si no aparece, abre el navegador:
-   - `http://192.168.4.1`
-4) Veras el dashboard con:
-   - Distancia
-   - Velocidad promedio
-   - Velocidad maxima
+## Restore defaults
 
-Si el AP esta abierto, conectate sin password.
+La acción restaura la configuración runtime de LEDs, GNSS, AP y mDNS usando el storage validado. No borra rutas, métricas diarias, sesiones, credenciales STA, Home ni el PIN almacenado por separado. Si cambias nombre o password del AP, deberás reconectarte.
 
----
+## Solución rápida
 
-## 5) Configurar Wi-Fi normal (modo STA)
+| Problema | Revisión |
+| --- | --- |
+| No aparece `DogRGB` | Verifica alimentación/boot, prueba al aire libre y reinicia una vez |
+| No abre el portal cautivo | Visita `http://192.168.4.1/` directamente |
+| STA no conecta | Escanea de nuevo, revisa credenciales y usa el fallback AP |
+| `dog-collar.local` falla | Usa la IP STA mostrada; la red puede bloquear mDNS |
+| No hay métricas | Revisa fix, satélites, HDOP y edades GGA/RMC en `/dev` |
+| LEDs hacen flicker o reinician | Detén la prueba y revisa 5 V, GND, level shifter, resistencias, capacitancia y temperatura |
+| Una escritura devuelve `403 csrf` | Un cliente propio debe enviar `X-Dog-Portal` |
+| Una escritura devuelve `401 locked` | Envía el PIN desde la UI o en `X-Dog-Pin` |
 
-1) En el portal, entra a `Configurar Wi-Fi`.
-2) Escribe el SSID y password de tu red.
-3) Guarda.
-4) El collar intenta conectarse.
-5) Si conecta, abre:
-   - `http://dog-collar.local`
-
-El AP puede apagarse automaticamente al conectar en STA para ahorrar energia.
-
----
-
-## 6) Configuracion avanzada (/config)
-
-Acceso:
-- AP: `http://192.168.4.1/config`
-- STA: `http://dog-collar.local/config`
-
-Desde aqui puedes:
-- Ajustar brillo (1..255).
-- Cambiar modo (Speed / Geofence / Show / Simple).
-- Cambiar rangos de velocidad (km/h).
-- Cambiar efectos por rango (IDs 0..11).
-- Configurar el modo Simple (efecto, speed, intensity, RGB y tema).
-- Cambiar SSID/AP password o dejar el AP abierto.
-- Cambiar mDNS.
-
-Acciones:
-- "Guardar": aplica cambios en caliente.
-- "Restaurar defaults": vuelve a valores de fabrica.
-
-Nota: si cambias SSID/password del AP, el AP se reinicia y puede desconectar la sesion.
-Nota: RAINBOW, GRADIENT_WAVE y FIRE ignoran el color base en modo Simple.
-Nota: en modo Show, los LEDs de estado siguen indicando Wi-Fi/GPS salvo que se active el modo homogeneo.
-
----
-
-## 7) Lectura de datos
-
-- Presiona "Actualizar" para leer la ultima medicion.
-- Si no hay datos:
-  - Espera a que el GPS tenga fix (azul pulsante -> azul fijo).
-  - Intenta de nuevo.
-
----
-
-## 8) Consejos de uso
-
-- Para GPS rapido, espera 30-90 s en cielo abierto.
-- Mantente cerca del collar para el portal Wi-Fi.
-- Si no usas STA, puedes dejar solo AP.
-- Si el portal no responde, reinicia el collar.
-
----
-
-## 9) Solucion rapida de problemas
-
-- No aparece el AP: revisa bateria y reinicia.
-- STA no conecta: revisa SSID/password y vuelve a AP.
-- LED rojo fijo: STA fallo; abre `192.168.4.1` y corrige credenciales.
-- Sin datos GPS: prueba en exterior y espera.
+Consulta la [referencia HTTP](api-reference.md) para payloads exactos.

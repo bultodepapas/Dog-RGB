@@ -143,7 +143,22 @@ class ConfigPersistenceTests(unittest.TestCase):
             self.assertIn(required, config_cpp)
         self.assertIn("bool save();", config_h)
         self.assertNotIn("prefs_cfg().clear()", portal)
-        self.assertEqual(portal.count("persist_config_or_restore(previous)"), 4)
+        # Verify each current RuntimeConfig mutation route instead of relying
+        # on a global occurrence count, which breaks whenever unrelated route
+        # layout changes.
+        route_bounds = (
+            ("void handle_config_post()", "void handle_config_reset()"),
+            ("void handle_config_reset()", "void handle_wifi_ap_save()"),
+            ("void handle_wifi_ap_save()", "void handle_config_page()"),
+        )
+        for start_marker, end_marker in route_bounds:
+            start = portal.index(start_marker)
+            end = portal.index(end_marker, start + len(start_marker))
+            self.assertIn(
+                "persist_config_or_restore(previous)",
+                portal[start:end],
+                start_marker,
+            )
         self.assertIn(r'\"reason\":\"storage\"', portal)
         self.assertIn('configStorage["generation"]', portal)
         self.assertIn('configStorage["save_failures"]', portal)

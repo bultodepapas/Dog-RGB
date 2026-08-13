@@ -1,5 +1,7 @@
 # Plan Modo SHOW (Demo de Efectos)
 
+> **Document status:** Historical implementation plan (Spanish). Show mode is implemented and has evolved beyond this proposal; notably, its current cadence and shuffle behavior are documented in [LED UI](led_ui_spec.md).
+
 Este documento propone un nuevo modo **SHOW** para el firmware LED, pensado como demo visual: recorre todos los efectos existentes y los muestra en ambas tiras cada 15 segundos, con colores aleatorios. **No implementa cambios**; es un plan con pseudocódigo y puntos de integración.
 
 ---

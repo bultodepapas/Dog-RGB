@@ -1,125 +1,57 @@
-# Flujo GPS -> Calculo -> BLE
+# Proposed Companion App Flow and Wireframe
 
-```
-[GPS Fix]
-   |
-   v
-[Leer NMEA: lat/lon/speed]
-   |
-   v
-[Filtrar picos y datos invalidos]
-   |
-   +--> (sin fix) -> [No actualizar]
-   |
-   v
-[Calcular distancia incremental]
-   |
-   v
-[Actualizar tiempo activo]
-   |
-   v
-[Actualizar velocidad maxima]
-   |
-   v
-[Calcular velocidad promedio]
-   |
-   v
-[Guardar resumen diario en memoria]
-   |
-   v
-[Exponer resumen por BLE]
+**Document status:** Proposed. This describes an optional BLE companion app; no mobile application exists in this repository, and BLE is disabled in normal firmware builds.
+
+## Data flow concept
+
+```text
+[Collar GNSS]
+      |
+      v
+[Validated daily metrics]
+      |
+      +------> [Local Wi-Fi portal — implemented]
+      |
+      +------> [16-byte BLE summary — implemented, disabled]
+                          |
+                          v
+                  [Companion app — proposed]
 ```
 
----
+The companion must decode the documented [BLE payload](ble_spec.md); it must not duplicate GNSS calculation logic.
 
-# Pantalla MVP (Wireframe Textual)
+## One-screen wireframe
 
-```
-+-----------------------------+
-| Dog Collar                  |
-| Status: Conectado | GPS OK  |
-|                             |
-| [ Sincronizar ]             |
-|                             |
-| Distancia (hoy)             |
-| 12.4 km                     |
-|                             |
-| Velocidad promedio          |
-| 4.8 km/h                    |
-|                             |
-| Velocidad maxima            |
-| 18.2 km/h                   |
-|                             |
-| Ultima lectura: 18:35       |
-+-----------------------------+
+```text
++----------------------------------+
+| Dog-RGB                          |
+| Collar: connected / disconnected|
+| GNSS: current / stale / no data  |
+|                                  |
+| [ Sync from collar ]             |
+|                                  |
+| Distance today       12.4 km     |
+| Average active speed  4.8 km/h   |
+| Maximum speed         9.2 km/h   |
+|                                  |
+| Last update: 10:32 GPS time      |
++----------------------------------+
 ```
 
-Estados alternos:
-- Sin conexion: "Acercate al collar"
-- Sin GPS: "Esperando GPS"
+## Required states
 
----
+- Bluetooth unavailable or permission denied;
+- scanning, connecting, reading, and disconnected;
+- checksum failure or unsupported payload;
+- valid payload with no date/data;
+- valid payload with/without current GNSS fix;
+- last successful reading with a clear timestamp.
 
-# Diagrama de estados BLE (Conectado/Desconectado)
+## Accessibility and privacy
 
-```
-            +--------------------+
-            |   Desconectado     |
-            | (Idle/Advertising) |
-            +----------+---------+
-                       |
-                       | Scan + Connect
-                       v
-            +--------------------+
-            |     Conectado      |
-            |  (Ready to Read)   |
-            +----+----+-----+----+
-                 |    |     |
-         Read OK |    |     | Timeout/Error
-                 |    |     v
-                 |    |  +-----------------+
-                 |    |  | Error/Retry     |
-                 |    |  | (Retry/Backoff) |
-                 |    |  +--------+--------+
-                 |    |           |
-                 |    |           | Give up
-                 |    |           v
-                 |    |    +-----------------------------+
-                 |    |    |        Desconectado         |
-                 |    |    |    (Idle/Advertising)       |
-                 |    |    +-----------------------------+
-                 |    |
-                 |    v
-                 |  +--------------------+
-                 |  |  Sin GPS Fix       |
-                 |  | (Mostrar aviso)    |
-                 |  +---------+----------+
-                 |            |
-                 |  Reintentar lectura
-                 |            v
-                 |     +----------------+
-                 |     |  Datos leidos  |
-                 |     | (Summary OK)   |
-                 |     +--------+-------+
-                 |              |
-                 |              | User disconnect
-                 v              v
-     +----------------+   +-----------------------------+
-     | Datos invalidos|   |        Desconectado         |
-     | (Checksum fail)|   |    (Idle/Advertising)       |
-     +--------+-------+   +-----------------------------+
-              |
-              | Retry read
-              v
-     +----------------+
-     |  Datos leidos  |
-     | (Summary OK)   |
-     +--------+-------+
-              |
-              | User disconnect
-              v
-            +-----------------------------+
-            |        Desconectado         |
-            |    (Idle/Advertising)       |
-            +-----------------------------+
-```
+- Metrics need text labels; color alone cannot indicate GNSS/connection state.
+- The sync action needs progress and a retry path.
+- Store only the last reading for the MVP and explain that it may contain activity/location-derived data.
+- No account, analytics, cloud upload, or background tracking is required.
+
+Implementation should wait until BLE has a supported radio operating mode and a phone compatibility matrix. See [Companion app MVP](app_mvp_spec.md).

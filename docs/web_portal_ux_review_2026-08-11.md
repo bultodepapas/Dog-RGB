@@ -1,5 +1,7 @@
 # Auditoría de UI/UX del portal web — DOG-RGB
 
+> **Document status:** Historical UI/UX review snapshot (Spanish). The observations remain design evidence, not a current defect list. See [Embedded Web Portal Specification](web_portal_spec.md).
+
 **Fecha:** 2026-08-11
 **Alcance:** las 4 pantallas del portal (`/`, `/wifi`, `/config`, `/dev`), sus opciones,
 flujos y estados, contrastadas contra el código que las genera
@@ -45,7 +47,7 @@ están en `BASE_CSS`.
 - **Renderizado real.** Las páginas se extraen de `pages.cpp` con
   `tools/ap_portal_preview/extract_pages.py` y se sirven localmente; las 15 capturas se
   regeneraron contra el HEAD actual (15/15 en verde) y están en
-  [tests/ap-portal-visual/screenshots/current/](../tests/ap-portal-visual/screenshots/current/).
+  `tests/ap-portal-visual/screenshots/current/` (generated locally and therefore not retained in Git).
 - **Análisis visual** de cada captura a 428×926 CSS px (iPhone 13 Pro Max, ×3).
 - **Sondas instrumentadas.** 16 mediciones automatizadas (P1–P16) sobre el DOM vivo, con
   las APIs mockeadas desde los fixtures del repo. Miden lo que no se puede juzgar a ojo:

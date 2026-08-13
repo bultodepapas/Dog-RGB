@@ -1,5 +1,7 @@
 # Analisis de comportamiento del AP (Wi-Fi) - Dog-RGB
 
+> **Document status:** Historical analysis (Spanish). It predates the current event queue, captive portal, bounded retry, scan flow, and AP availability policy. See [Wi-Fi and captive portal](wifi_portal_spec.md).
+
 Fecha: 2026-02-03
 
 Nota 2026-05-05: este documento queda como historial. El analisis actualizado y la implementacion de hardening

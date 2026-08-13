@@ -1,5 +1,7 @@
 # Plan — Ideas para ampliar estadisticas en el portal AP
 
+> **Document status:** Historical idea list (Spanish). Some items exist and others remain optional; verify each against the [current portal specification](../web_portal_spec.md).
+
 Este plan propone ideas nuevas para mostrar estadisticas del collar en la UI del access point. No implementa cambios.
 
 ---

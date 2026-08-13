@@ -1,161 +1,101 @@
-# Config Parameters (Centralized)
+# Configuration Parameters
 
-Este documento centraliza los parametros que se definen al inicio del proyecto para facilitar ajustes y futura configuracion via portal.
+**Status:** Current defaults and ownership, verified against `include/config.h` and `RuntimeConfig` on 2026-08-12.
 
----
+Dog-RGB has two configuration classes:
 
-## 1) LED Hardware
+- **Compile-time constants** describe physical hardware, hard limits, scheduler timing, safety fallbacks, and diagnostic builds. They require a rebuild/flash.
+- **Runtime settings** are user-facing fields validated and stored as a schema-versioned A/B record. They are editable through `/config` or `/api/config`.
 
-- LED_STRIP_MODE: 1 (tira unica) o 2 (doble tira)
-  - Controla si se usan una o dos tiras independientes.
-- LED_STRIP_COUNT: LEDs por tira (min 10, max 50)
-  - Se usa para dimensionar todos los bucles y efectos.
-- LED_STATUS_COUNT: LEDs reservados para estados (default 2)
-  - Segmento A (estado) siempre tiene prioridad.
-- LED_BRIGHTNESS: brillo global (0-255)
-  - Recomendado ~30% para bateria y calor.
-- Tipo de LED: SK6812 (single-wire, 5V)
-  - Implica uso de timing preciso y posible level shifting.
+## Compile-time hardware defaults
 
----
+| Constant | Default | Meaning |
+| --- | ---: | --- |
+| `LED_STRIP_MODE` | `2` | One or two independently driven strips |
+| `LED_STRIP_COUNT` | `24` | Pixels per strip |
+| `LED_STATUS_COUNT` | `2` | Reserved leading status pixels per strip |
+| `LED_BRIGHTNESS` | `77` | Fallback/runtime default, about 30% of 255 |
+| `LED_UPDATE_MS` | `50` | Effect-state update cadence |
+| `GPS_BAUD` | `9600` | GNSS UART baud rate |
+| `GPS_RX_BUFFER_SIZE` | `16384` | UART margin for slow synchronous HTTP/storage work |
+| `GPS_SAMPLE_MS` | `1000` | Metric/route observation cadence |
+| `GPS_ACTIVE_MAX_GAP_MS` | `3000` | Longest active-time interval bridged |
+| `SAVE_INTERVAL_MS` | `60000` | Normal metric/session persistence interval |
+| `BLE_ENABLED` | `false` | BLE summary compile-time gate |
 
-## Defaults vs Recommended
+Pin assignments live in `include/pins.h`:
 
-Valores actuales (default) y recomendados para inicio.
-Estos valores viven en `Platformio/Dog-RGB/include/config.h` y el firmware los usa en compilacion.
-Los parametros runtime pueden ser sobrescritos desde el portal y se guardan en NVS.
+- strip A: GPIO1 / D0;
+- strip B: GPIO2 / D1;
+- external status: GPIO3 / D2;
+- GNSS ESP TX: GPIO43 / D6;
+- GNSS ESP RX: GPIO44 / D7.
 
-| Parametro | Default | Recomendado | Nota |
-| --- | --- | --- | --- |
-| LED_STRIP_MODE | 2 | 2 | Cambiar a 1 si solo hay una tira |
-| LED_STRIP_COUNT | 24 | 24 | Ajustar segun largo real |
-| LED_STATUS_COUNT | 2 | 2 | Mantener corto para estados |
-| LED_BRIGHTNESS | 77 | 77 | ~30% brillo |
-| AP_SSID | DogRGB | DogRGB | Temporal |
-| AP_PASS | Dog12345 | Dog12345 | Temporal |
-| GPS_BAUD | 9600 | 9600 | GNSS E108-GN02 |
-| GPS_SAMPLE_MS | 1000 | 1000 | 1 s |
-| SPEED_ACTIVE_KPH | 0.7 | 0.7 | Umbral activo |
-| SPEED_MAX_VALID_KPH | 40.0 | 40.0 | Filtro de picos |
-| SAVE_INTERVAL_MS | 60000 | 60000 | Guardado cada 60 s |
+Change hardware constants only when the assembled design changes, then update the build/wiring docs and Wokwi diagram together.
 
----
+## Runtime defaults
 
-## 2) LED UI (Estados)
+The current runtime schema version is `5`.
 
-- Colores base RGB (30% aprox):
-  - Blanco suave: 60, 60, 60
-  - Azul: 0, 0, 60
-  - Verde: 0, 60, 0
-  - Amarillo: 60, 45, 0
-  - Rojo: 60, 0, 0
-- Prioridad de estados (de mayor a menor):
-  1) Error critico (rojo rapido, segmento A)
-  2) Modo homogeneo (Wi-Fi OFF + GPS OK estable, toda la tira con efecto de rango)
-  3) Estados Wi-Fi/GPS (segmento A)
-  4) Modo normal (segmento B)
-- Animaciones:
-  - Pulso lento: 1.5 s
-  - Parpadeo rapido: 200 ms
-- Error critico: sin GPS y sin Wi-Fi por > 10 min
-- Segmento B: si no hay GPS fix, mostrar rainbow animado; con GPS OK, usar rangos de velocidad
-- Segmento A (LED_STATUS_COUNT=2): LED0 Wi-Fi/AP, LED1 GPS; en modo homogeneo los LEDs de estado usan el mismo efecto del segmento B
+| Field | Default | Validation / notes |
+| --- | --- | --- |
+| `mode` | `speed` | `speed`, `geofence`, `show`, or `simple` |
+| `led.brightness` | `77` | `1..255`; higher values require physical current/thermal validation |
+| `day_mode.enabled` | `false` | Boolean; window/timezone remain compile-time constants |
+| `fence_max_m` | `300` | `50..5000` m; divided into ten equal bands |
+| `speed_ranges_kph` | `2,4,6,8,10,12,14,16,18` | Nine positive strictly increasing thresholds |
+| `effects.rangeN.a/b` | `7` (`JUGGLE`) | Effect IDs `0..11` |
+| `effects.rangeN.speed` | `40..200` | `0..255`, increasing defaults by range |
+| `effects.rangeN.intensity` | `80..200` | `0..255`, increasing defaults by range |
+| `single.effect` | `0` (`SOLID`) | `0..11` |
+| `single.speed` | `80` | `0..255` |
+| `single.intensity` | `140` | `0..255` |
+| `single.rgb` | `(0,60,60)` | Each channel `0..255` |
+| `wifi.ap_ssid` | `DogRGB` | 1–32 bytes |
+| `wifi.ap_pass` | `Dog12345` | Empty only for explicit open AP; otherwise 8–63 characters |
+| `wifi.mdns` | `dog-collar` | 1–32 letters/digits/hyphens |
+| `gps.min_fix_quality` | `1` | `0..8` |
+| `gps.min_sats` | `6` | `3..12` |
+| `gps.max_hdop` | `2.5` | `0.5..20.0` |
+| `gps.max_gga_age_ms` | `2000` | `500..10000` ms |
+| `gps.min_segment_m` | `3.0` | `0.5..20.0` m |
+| `gps.hdop_factor` | `2.0` | `0.0..5.0` |
+| `gps.max_min_segment_m` | `10.0` | `1.0..50.0` m |
 
----
+The effective minimum distance segment adapts with HDOP, bounded by `min_segment_m` and `max_min_segment_m`. Speed above `SPEED_MAX_VALID_KPH` (40 km/h) is rejected independently.
 
-## 3) Velocidad -> Color (Segmento B)
+## Fixed behavior constants
 
-- SPEED_RANGE_1_KPH: 2.0
-- SPEED_RANGE_2_KPH: 4.0
-- SPEED_RANGE_3_KPH: 6.0
-- SPEED_RANGE_4_KPH: 8.0
-- SPEED_RANGE_5_KPH: 10.0
-- SPEED_RANGE_6_KPH: 12.0
-- SPEED_RANGE_7_KPH: 14.0
-- SPEED_RANGE_8_KPH: 16.0
-- SPEED_RANGE_9_KPH: 18.0
+| Group | Current values |
+| --- | --- |
+| Day Mode | 06:00 inclusive to 16:00 exclusive; UTC-5; trusted time stale after 300 s |
+| Show Mode | 12 effects; 30 s per effect; base speed 150; intensity 200 |
+| Geofence | auto-Home after 10 s stable fix; 3% hysteresis with 5 m minimum |
+| AP boot | channel 1 when not constrained by STA; max 2 clients; 3 boot attempts |
+| Station retry | 10 s initial/watchdog interval, bounded to 5 minutes |
+| AP retry | 1 s initial exponential backoff, bounded to 30 s |
+| AP holds | 15 min after start; 5 min after portal activity; 10 min no-client idle timeout |
+| Stationary trigger | enter at `<=2.0 km/h` for 2 min; leave at `>=2.5 km/h` |
+| Homogeneous LEDs | after an explicit Wi-Fi-OFF state + stable GNSS for 5 min; automatic AP idle shutdown does not enter Wi-Fi OFF |
+| Critical status | no trusted GNSS and no station success for 10 min |
 
-Efectos por rango (motor actual, ver `docs/led_effects.md`):
-- RANGE_1_EFFECT_A / RANGE_1_EFFECT_B
-- RANGE_2_EFFECT_A / RANGE_2_EFFECT_B
-- RANGE_3_EFFECT_A / RANGE_3_EFFECT_B
-- RANGE_4_EFFECT_A / RANGE_4_EFFECT_B
-- RANGE_5_EFFECT_A / RANGE_5_EFFECT_B
-- RANGE_6_EFFECT_A / RANGE_6_EFFECT_B
-- RANGE_7_EFFECT_A / RANGE_7_EFFECT_B
-- RANGE_8_EFFECT_A / RANGE_8_EFFECT_B
-- RANGE_9_EFFECT_A / RANGE_9_EFFECT_B
-- RANGE_10_EFFECT_A / RANGE_10_EFFECT_B
-  - Defaults: A y B usan el mismo efecto (JUGGLE) en todos los rangos.
+## Diagnostic compile-time switches
 
-Velocidad e intensidad por rango:
-- RANGE_1_SPEED / RANGE_1_INTENSITY
-- RANGE_2_SPEED / RANGE_2_INTENSITY
-- RANGE_3_SPEED / RANGE_3_INTENSITY
-- RANGE_4_SPEED / RANGE_4_INTENSITY
-- RANGE_5_SPEED / RANGE_5_INTENSITY
-- RANGE_6_SPEED / RANGE_6_INTENSITY
-- RANGE_7_SPEED / RANGE_7_INTENSITY
-- RANGE_8_SPEED / RANGE_8_INTENSITY
-- RANGE_9_SPEED / RANGE_9_INTENSITY
-- RANGE_10_SPEED / RANGE_10_INTENSITY
+- `LED_DEBUG_BRIGHTNESS_ENABLED` overrides persisted brightness with the low diagnostic value.
+- `DEBUG_AP_ONLY_MINIMAL` starts only AP + portal, excluding GNSS, LEDs, BLE, and station mode.
+- `DOG_RGB_WOKWI_SIM` selects simulation UART routing/console speed and transport behavior through the `wokwi` PlatformIO environment.
 
-Mapeo de color:
-- 0.0 - 2.0 km/h: Cian (muy baja) (0, 60, 60)
-- 2.0 - 4.0 km/h: Verde-cian (0, 60, 35)
-- 4.0 - 6.0 km/h: Verde (0, 60, 0)
-- 6.0 - 8.0 km/h: Verde-lima (25, 60, 0)
-- 8.0 - 10.0 km/h: Amarillo (60, 60, 0)
-- 10.0 - 12.0 km/h: Ambar (60, 45, 0)
-- 12.0 - 14.0 km/h: Naranja (60, 30, 0)
-- 14.0 - 16.0 km/h: Naranja intenso (60, 20, 0)
-- 16.0 - 18.0 km/h: Rojo-naranja (60, 10, 0)
-- > 18.0 km/h: Rojo (critico) (60, 0, 0)
+These switches are for isolation/testing and should not become hidden runtime product modes.
 
----
+## Separately persisted state
 
-## 4) Wi-Fi
+The following are not part of the runtime configuration record and are not erased by `/api/config/reset`:
 
-- AP_SSID: DogRGB
-- AP_PASS: Dog12345
-- MDNS_NAME: dog-collar
-- AP_CHANNEL: 1
-- AP_MAX_CLIENTS: 2
-- STA_CONNECT_TIMEOUT_MS: 10000
-- WIFI_RETRY_INTERVAL_MS: 10000
-- STA_RETRY_BACKOFF_MAX_MS: 300000
-- AP_SETUP_HOLD_MS: 900000 (AP visible por al menos 15 min tras arrancar/reiniciar)
-- AP_PORTAL_ACTIVITY_HOLD_MS: 300000 (actividad del portal extiende AP por 5 min)
-- AP_IDLE_TIMEOUT_MS: 600000 (AP off si no hay clientes/hold por 10 min)
-- AP_STATIONARY_MS: 120000 (AP on si velocidad baja por 2 min)
-- AP_CLIENT_POLL_MS: 1000
-- AP_STATIONARY_ON_KPH: 2.0
-- AP_STATIONARY_OFF_KPH: 2.5
-- WIFI_OFF_GPS_FIX_MS: 300000 (modo homogeneo tras GPS OK estable)
-- AP_OFF_PULSE_PERIOD_MS: 3000
-- AP_OFF_PULSE_MS: 200
+- station SSID/password;
+- Home/geofence coordinate and source;
+- optional portal PIN;
+- daily metrics and completed-day journal;
+- current/completed session summaries;
+- route history.
 
----
-
-## 5) GNSS
-
-- GPS_BAUD: 9600
-- GPS_SAMPLE_MS: 1000
-- SPEED_ACTIVE_KPH: 0.7
-- SPEED_MAX_VALID_KPH: 40.0
-
----
-
-## 6) Persistencia
-
-- SAVE_INTERVAL_MS: 60000
-  - Guarda metricas a NVS cada 60 s.
-
----
-
-## Notas
-
-- Este documento debe mantenerse sincronizado con `Platformio/Dog-RGB/src/main.cpp`.
-- Estos parametros ya se exponen en el portal web y se guardan en NVS.
-- Detalles de estados y prioridades: `docs/led_ui_spec.md`.
-- Portal Wi-Fi: `docs/wifi_portal_spec.md`.
+See [Runtime configuration](portal_config.md) for JSON and [Architecture](architecture.md#persistence-model) for storage/recovery.

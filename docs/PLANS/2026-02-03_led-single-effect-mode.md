@@ -1,5 +1,7 @@
 # Plan Final — Modo SIMPLE (Un Solo Efecto) + Tema Extra (Compatibilidad Actual)
 
+> **Document status:** Historical implementation plan (Spanish). Simple mode is implemented; the optional preset system is not. See [LED UI](../led_ui_spec.md) and [preset proposal](../portal_config_presets.md).
+
 Este documento propone un modo **SIMPLE** para el firmware LED: un solo efecto configurable que se aplica de forma uniforme, con control total desde el portal AP y un **tema extra** como preset visual. **No implementa cambios**.
 
 ---

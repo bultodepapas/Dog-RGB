@@ -1,5 +1,7 @@
 # Plan — Rediseño estético del portal AP/STA (DOG-RGB)
 
+> **Document status:** Historical visual direction (Spanish). The current portal uses a later retro-console design and tested embedded pages; see [Web portal specification](../web_portal_spec.md).
+
 Fecha: 2026-02-03
 Autor: Codex (plan solicitado)
 

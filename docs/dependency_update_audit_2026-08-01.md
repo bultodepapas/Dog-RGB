@@ -1,5 +1,7 @@
 # Auditoría de dependencias y plan de actualización
 
+> **Document status:** Historical dependency audit snapshot (Spanish). Verify current pins in `Platformio/Dog-RGB/platformio.ini`, `package.json`, and CI rather than treating recommendations below as a live upgrade queue.
+
 **Proyecto:** Dog-RGB / collar RGB DIY
 
 **Fecha:** 2026-08-01

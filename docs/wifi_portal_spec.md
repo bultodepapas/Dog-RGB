@@ -1,148 +1,99 @@
-# Portal Wi-Fi (AP + STA) - Especificacion (Fase 1)
+# Wi-Fi, Access Point, and Captive Portal
 
-Este documento describe el portal web local del collar y su comportamiento en AP/STA.
+**Status:** Current firmware behavior, verified 2026-08-12.
 
----
+Dog-RGB supports SoftAP, station mode, and AP+STA. The AP is both the first-run setup surface and the recovery path when the home network or GNSS state is unavailable.
 
-## Objetivo
+## Defaults
 
-- Mostrar 3 metricas basicas del collar:
-  - Distancia recorrida (hoy)
-  - Velocidad promedio (hoy)
-  - Velocidad maxima (hoy)
-- Configuracion minima de conectividad.
+| Setting | Default |
+| --- | --- |
+| AP SSID | `DogRGB` |
+| AP password | `Dog12345` (change before normal use) |
+| AP address | `192.168.4.1` |
+| AP channel | 1 when station mode does not constrain it |
+| AP clients | Maximum 2 |
+| mDNS name | `dog-collar.local` |
+| Station connect timeout | 10 seconds |
 
----
+AP name/password/mDNS are runtime configuration. Station credentials are a separate persisted record.
 
-## Modo 1: AP (Wi-Fi Direct)
+## Boot behavior
 
-### Flujo de usuario
-1) El collar crea una red Wi-Fi local.
-2) Usuario se conecta desde el telefono.
-3) Abre `http://192.168.4.1`.
-4) Ve la pagina con las metricas y boton "Actualizar".
+1. Reset the radio to OFF without framework credential persistence and wait 200 ms.
+2. Register the event callback and load the project's CRC-protected station credential record.
+3. If credentials exist, try to start AP directly in AP+STA mode (up to three boot attempts), then begin station connection.
+4. Without credentials, start AP-only with the same bounded boot retry.
+5. If AP start still fails, continue running and expose serial/diagnostic failure evidence; runtime retry is scheduled rather than attempted every loop.
 
-### Defaults (runtime)
-- SSID: `DogRGB`
-- Password: `Dog12345`
-- IP portal: `http://192.168.4.1/`
-- Canal AP por defecto: `AP_CHANNEL` (canal 1 mientras STA no esta conectado)
-- Clientes AP maximos: `AP_MAX_CLIENTS` (2)
-- AP abierto: opcional via `/config` (sin password)
+`DEBUG_AP_ONLY_MINIMAL` is a compile-time isolation build that starts AP + portal only.
 
-Los valores por defecto vienen de `config.h`, pero se pueden cambiar en runtime desde `/config`.
+## Station behavior
 
-### Portal cautivo
+- A successful station connection starts mDNS and records IP/RSSI/events.
+- A 10-second connect timeout preserves/starts AP fallback and schedules station retry.
+- Retries use exponential/backoff scheduling up to five minutes and never run from every loop iteration.
+- A connected AP client delays station retry to avoid disrupting the setup session.
+- Wi-Fi callbacks only enqueue events. The main-loop owner drains them and reconciles driver state on queue overflow.
 
-El firmware levanta `DNSServer` mientras el AP esta activo y responde DNS wildcard hacia `WiFi.softAPIP()`.
-Tambien redirige rutas desconocidas hacia `/` y atiende endpoints comunes de deteccion de portal cautivo
-(`/generate_204`, `/gen_204`, `/hotspot-detect.html`, `/ncsi.txt`, `/connecttest.txt`).
+Station SSIDs support 1–32 bytes. Passwords may be empty for an open network; validation intentionally differs from the collar's own WPA AP rules.
 
-Esto no garantiza que todos los sistemas abran el portal automaticamente, pero mejora el flujo en telefonos
-que detectan redes Wi-Fi sin Internet. El fallback manual sigue siendo `http://192.168.4.1/`.
+## AP availability policy
 
----
+| Condition | Result |
+| --- | --- |
+| No trusted GNSS fix | AP is forced on and idle time is refreshed |
+| Trusted fix at `<=2.0 km/h` for about 2 minutes | AP is requested on |
+| Speed reaches `>=2.5 km/h` | Stationary accumulation resets |
+| AP just started/restarted | 15-minute hold prevents immediate idle shutdown |
+| Portal request received | Five-minute hold extends availability |
+| AP has a client | Last-client activity is refreshed |
+| Hold expired and no client for 10 minutes | SoftAP stops |
+| AP stops while station credentials exist | Radio remains in station mode |
+| AP stops without station credentials | SoftAP stops, but current policy deliberately does not force the whole Wi-Fi subsystem OFF; this keeps recovery/retry possible |
 
-## Modo 2: STA (Wi-Fi normal)
+The code retains a Wi-Fi-OFF state and corresponding LED/homogeneous-mode behavior for explicit/future power control, but automatic AP idle shutdown no longer enters it. Documentation that says “idle AP always powers down the radio” is historical.
 
-### Flujo de usuario (setup inicial)
-1) Usuario entra al AP del collar.
-2) Pagina de configuracion solicita SSID y password.
-3) Collar guarda credenciales y se conecta al router.
-4) Portal accesible por mDNS (ej: `http://dog-collar.local`).
+AP client count is maintained from connect/disconnect events with a slower 60-second driver reconciliation. This avoids synchronous radio queries in the hot loop while still recovering from drift.
 
-Mientras conecta, el firmware usa modo `AP+STA`. El AP puede apagarse despues por politica de energia.
+## On-demand network scan
 
-### Fallback
-- Si STA no conecta en `STA_CONNECT_TIMEOUT_MS`, vuelve a AP.
+The `/wifi` page starts a scan only on user request because channel hopping can disturb the AP session.
 
----
+1. `POST /api/wifi/scan` requests the asynchronous scan.
+2. `GET /api/wifi/scan` reports `idle`, `scanning`, `failed`, or `ready`.
+3. A ready response returns up to 20 unique, visible networks with RSSI/open state and reports the original total.
+4. The ready response releases the driver result buffer.
 
-## UI (Portal Web)
+Open-network selection is explicitly warned in the UI. Hidden SSIDs can still be typed manually.
 
-### Pagina principal
-- Titulo: "Dog Collar"
-- Estado: GPS OK / Sin GPS / Sin datos
-- Cards:
-  - Distancia (km)
-  - Velocidad promedio (km/h)
-  - Velocidad maxima (km/h)
-- Boton: "Actualizar"
-- Footer: "Ultima lectura: HH:MM"
+## Captive portal
 
-### Pagina de configuracion Wi-Fi
-- Ruta: `/wifi`
-- Campo SSID
-- Campo Password
-- Boton "Guardar y conectar"
+While AP is active, a wildcard DNS server maps queried names to the AP address. Common OS probes are served:
 
----
+- `/generate_204` and `/gen_204`;
+- `/hotspot-detect.html`;
+- `/library/test/success.html`;
+- `/ncsi.txt` and `/connecttest.txt`.
 
-## Endpoints
+Unknown page paths redirect relatively to `/`; API paths return JSON 404/405 instead of dashboard HTML. Captive portal auto-launch varies by phone, so `http://192.168.4.1/` remains the documented fallback.
 
-- `GET /` pagina principal
-- `GET /api/summary` JSON con metricas
-- `GET /wifi` pagina de setup Wi-Fi
-- `POST /api/wifi` guardar SSID/password (form-data, respuesta texto "saved, connecting")
-- `GET /config` UI de configuracion runtime
-- `GET /api/config` leer config runtime (JSON)
-- `POST /api/config` guardar config runtime (JSON)
-- `POST /api/config/reset` restaurar defaults
+## AP configuration
 
----
+- AP SSID: 1–32 bytes.
+- Protected AP password: 8–63 characters.
+- Open AP: explicit opt-in that persists an empty password and presents a warning.
+- mDNS: 1–32 ASCII letters/digits/hyphens.
+- Changing AP SSID/password schedules a restart after the response and disconnects the current AP client.
 
-## Datos (JSON ejemplo)
+The config read API exposes only `has_ap_pass`/`has_sta_pass`, never password content.
 
-```
-{
-  "date": 20260202,
-  "distance_m": 12400,
-  "avg_speed_cmps": 480,
-  "max_speed_cmps": 1820,
-  "last_update_min": 1115,
-  "gps_fix": true,
-  "has_data": true
-}
-```
+## Diagnostics
 
----
+`GET /api/dev` exposes current mode/address/channel/client state, credential A/B slot/generation/failures, AP start/stop/restart counters, retry schedules/remaining delays, event-queue high water/overflow, station events/failures, hold time, last transition reasons, DNS counters, and maximum radio-query timing.
 
-## Politica AP/Wi-Fi (auto)
+Use those fields instead of assuming that a missing SSID means a single cause.
 
-- Sin GPS fix: AP forzado ON.
-- Con GPS OK: si velocidad <= `AP_STATIONARY_ON_KPH` por `AP_STATIONARY_MS`, AP ON.
-- Cada arranque/reinicio del AP mantiene el AP visible al menos `AP_SETUP_HOLD_MS`.
-- La actividad HTTP del portal extiende el hold por `AP_PORTAL_ACTIVITY_HOLD_MS`.
-- AP ON sin clientes, sin hold activo y sin actividad por `AP_IDLE_TIMEOUT_MS`: AP OFF.
-- Si AP OFF y no hay STA conectado, Wi-Fi OFF para ahorrar bateria.
-- Si Wi-Fi OFF y se cumple "sin GPS" o "estacionario", se reactiva AP.
-- Si STA falla, los reintentos usan backoff hasta `STA_RETRY_BACKOFF_MAX_MS` y se posponen mientras hay clientes AP.
-- Si el driver no puede iniciar SoftAP, no se reintenta en cada loop: usa backoff
-  wrap-safe de 1, 2, 4, 8, 16 y 30 s (maximo), y vuelve a 1 s tras recuperarse.
+## Security boundary
 
-## Diagnostico
-
-`GET /api/dev` expone diagnostico Wi-Fi/AP:
-
-- Resultado del ultimo `WiFi.softAP()`.
-- Deadline/delay del retry AP, numero de schedules y etapa fallida
-  (`mode`, `config` o `softap`).
-- Contadores de AP start/stop/restart/fail.
-- Contadores de eventos AP station connect/disconnect y STA got IP/disconnect.
-- Timestamps de ultimo evento, proximo retry STA y hold AP.
-- Canal AP, MAC AP/STA y estado del DNS cautivo.
-
----
-
-## Persistencia
-
-- Credenciales STA se guardan en NVS (`wifi_ssid`, `wifi_pass`, namespace `dogrgb`).
-- Resumen diario y metricas tambien se guardan en NVS (`dogrgb`).
-
----
-
-## Seguridad basica
-
-- AP con password configurable (opcionalmente abierto).
-- `GET /api/config` no expone el password del AP.
-- Limitar endpoints a LAN.
+The portal is HTTP on a local network. The AP password limits casual network access; optional PIN + CSRF intent header protect writes. Read-only telemetry and diagnostics are visible to connected clients. See [Local HTTP API](api-reference.md#write-guards) for the exact guard contract.

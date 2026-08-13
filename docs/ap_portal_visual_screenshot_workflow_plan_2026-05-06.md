@@ -1,5 +1,7 @@
 # AP Portal Visual Screenshot Workflow Plan
 
+> **Document status:** Historical implementation plan. The workflow now exists; use [AP Portal Visual Verification](ap_portal_visual_screenshot_workflow_guide.md) for current commands and baseline policy.
+
 Date: 2026-05-06
 
 ## Objective

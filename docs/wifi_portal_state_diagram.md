@@ -1,41 +1,41 @@
-# Portal Wi-Fi - Diagrama de Estados (AP/STA/Fallback)
+# Wi-Fi/AP State and Policy Diagram
 
+**Status:** Current simplified behavior. For timing and edge cases, see [Wi-Fi, Access Point, and Captive Portal](wifi_portal_spec.md).
+
+```mermaid
+flowchart TD
+    BOOT[Boot: hard-reset radio] --> CREDS{Stored station credentials?}
+    CREDS -- no --> AP[Start AP, up to 3 attempts]
+    CREDS -- yes --> APSTA[Start AP+STA, up to 3 AP attempts]
+    APSTA --> STAWAIT[Station connecting]
+    STAWAIT -- got IP --> STAOK[Station connected + mDNS]
+    STAWAIT -- 10 s timeout --> FALLBACK[Keep/start AP; schedule STA retry]
+    FALLBACK --> RETRY{Retry deadline and no AP client?}
+    RETRY -- yes --> STAWAIT
+    RETRY -- no --> FALLBACK
+
+    AP --> POLICY[AP policy]
+    APSTA --> POLICY
+    STAOK --> POLICY
+    FALLBACK --> POLICY
+
+    POLICY --> FIX{Trusted GNSS fix?}
+    FIX -- no --> FORCE[Force AP on]
+    FIX -- yes --> STILL{At/below 2.0 km/h for 2 min?}
+    STILL -- yes --> REQUEST[Request AP on]
+    STILL -- no --> HOLD{AP active and hold/client idle window expired?}
+    HOLD -- no --> POLICY
+    HOLD -- yes --> STOP[Stop SoftAP; keep STA/recovery capability]
+    STOP --> POLICY
+    FORCE --> POLICY
+    REQUEST --> POLICY
 ```
-+----------------------+
-|        Boot          |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Hay credenciales?    |
-+----+-----------+-----+
-     |           |
-    no          si
-     |           |
-     v           v
-+---------+  +--------------------+
-|  AP ON  |  | STA + AP ON        |
-+----+----+  +---------+----------+
-     |                 |
-     |     STA ok?     | no
-     |                 v
-     |        +-------------------+
-     |        |  AP fallback      |
-     |        +-------------------+
-     |
-     v
-+----------------------+
-| Politica AP/Wi-Fi     |
-+----------------------+
-```
 
-Politica AP/Wi-Fi (loop):
-- Sin GPS fix: AP forzado ON.
-- Con GPS OK y estacionario: AP ON.
-- AP sin clientes por `AP_IDLE_TIMEOUT_MS`: AP OFF.
-- Si AP OFF y no hay STA conectado: Wi-Fi OFF.
-- Wi-Fi OFF se reactiva si vuelve a faltar GPS o se detecta estacionario.
+Additional rules:
 
-Notas:
-- STA se intenta cuando hay credenciales.
-- Si STA falla en `STA_CONNECT_TIMEOUT_MS`, se queda en AP.
+- A new/restarted AP has a 15-minute hold.
+- Any portal request adds a five-minute hold.
+- No-client idle timeout is ten minutes after holds expire.
+- `>=2.5 km/h` clears stationary accumulation.
+- AP/STA callbacks enqueue into a 16-entry fixed queue; the main loop owns transitions.
+- Automatic idle shutdown stops SoftAP, not the entire Wi-Fi subsystem.

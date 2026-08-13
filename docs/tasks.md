@@ -1,92 +1,53 @@
-# Tareas Pendientes (Plan Detallado)
+# Dog-RGB Work Queue
 
-Este documento lista tareas por fase y el estado actual del MVP.
+**Status:** Open work derived from the current repository on 2026-08-12. Completed implementation history lives in audits/plans and Git; this page lists actionable remaining work.
 
----
+## P0 — Safe physical prototype
 
-## Fase 1 - GPS-First MVP (Sin App, Portal Wi-Fi)
+- [ ] Record exact manufacturer/part numbers and ratings for the 21700 cell, holder, charger/BMS, boost, 3.3 V regulator, level shifter, connectors, wire, and strips.
+- [ ] Draw and review the final schematic, including charging/power-path behavior, fusing/protection, decoupling, ground distribution, and test points.
+- [ ] Measure 5 V/3.3 V rails and cell current at boot, GNSS acquisition, AP traffic, representative effects, and maximum intended brightness.
+- [ ] Confirm converter/connector/wire temperature and voltage-drop margin during a sustained worst-intended-load test.
+- [ ] Define a numeric skin-contact/surface-temperature limit and stop criteria.
+- [ ] Validate strain relief, flex, diffuser edges, cell restraint, serviceability, and charging isolation.
+- [ ] Run controlled ingress checks before any weather-resistance claim.
 
-### Hardware Base (pendiente)
-- Confirmar cableado final: XIAO ESP32-S3 + EBYTE E108-GN02.
-- Revisar alimentacion GNSS (3.3 V estable) y GND comun.
-- Definir LED de estado externo y resistencia.
-- Validar disipacion y consumo real del boost 5V.
+## P0 — Field behavior
 
-### Firmware (implementado)
-- Parser NMEA RMC + GGA con filtros.
-- Calculo distancia, promedio y maxima.
-- Reset diario por fecha GPS.
-- Persistencia NVS de metricas.
-- Portal Wi-Fi AP/STA con `/api/summary`.
-- Config runtime via `/config` + `/api/config`.
-- Reset de config via `/api/config/reset`.
-- BLE daily summary (read-only).
+- [ ] Compare distance and route against a reference track for stationary, 200–500 m walk, longer walk, and short run.
+- [ ] Record time-to-first-fix, satellites, HDOP, rejected segments, and recovery in representative environments.
+- [ ] Verify the final enclosure/boost/LED wiring does not degrade GNSS quality.
+- [ ] Test AP discovery, captive portal, station setup/scan, mDNS fallback, idle shutdown, and retry recovery on at least two phone platforms.
+- [ ] Measure runtime with a documented cell, brightness, LED mode, GNSS, AP/STA, and Day Mode profile.
 
-### Portal Wi-Fi (implementado)
-- Pagina principal con 3 metricas.
-- Pagina de setup Wi-Fi `/wifi`.
-- mDNS en STA (`dog-collar.local`).
-- Politica AP/Wi-Fi automatica (GPS/estacionario).
+## P1 — Firmware and diagnostics
 
-### UX y Copys (pendiente)
-- Revisar textos finales para estados y errores.
-- Ajustar mensajes para usuario final.
+- [ ] Add native PlatformIO/Unity tests for extracted pure C++ logic; keep Python contracts as complementary regression tests.
+- [ ] Define physical-device loop-latency, UART-overflow, heap, and radio-retry acceptance thresholds.
+- [ ] Exercise slow/aborted route exports against a real phone while recording GNSS overflow and loop diagnostics.
+- [ ] Decide whether the three completed session slots should be presented chronologically or by storage slot in the public API contract.
+- [ ] Document and test the supported upgrade path for partition-table changes and future schema migrations.
 
-### Validacion (pendiente)
-- Prueba estatica (distancia cercana a 0).
-- Prueba caminata corta (200-500 m) comparando con GPS telefono.
-- Prueba trote (velocidad maxima coherente).
-- Verificar portal carga en <2 s.
+## P1 — Documentation and release hygiene
 
----
+- [ ] Add automated internal-link and canonical-document checks to CI.
+- [ ] Add a measured-results template for hardware revision, instruments, ambient conditions, firmware commit, and pass/fail values.
+- [ ] Add a release checklist only after a repeatable physical flash/bench/field workflow exists.
+- [ ] Keep Spanish user/build translations aligned when user-visible behavior changes.
 
-## Fase 2 - Motion (IMU)
+## P2 — Optional experiments
 
-### Hardware
-- Seleccion final IMU (BMI270 / ICM-42688).
-- Integracion fisica y alimentacion.
+- [ ] Calibrate and prototype a per-frame LED current estimator/limiter against measured SK6812 RGBW current.
+- [ ] Design one effect metadata registry before adding more effects or portal controls.
+- [ ] Prototype RGBW-aware palettes/crossfades and a small semantic segment model without turning the collar into a general WLED clone.
+- [ ] Measure whether generated/compressed portal assets provide enough flash/maintenance benefit to justify a build step.
+- [ ] Evaluate BLE in STA-only and AP-transition matrices before enabling `BLE_ENABLED` in normal builds.
+- [ ] Prototype IMU current/noise/mechanical impact before choosing a sensor.
+- [ ] Revisit portal presets if real users need repeatable profiles.
+- [ ] Revisit companion/cloud work only with explicit privacy, retention, authentication, cost, and offline-recovery requirements.
 
-### Firmware
-- Driver IMU y calibracion basica.
-- Clasificacion de movimiento.
-- Fusion GPS + IMU.
+## Completed baseline (reference)
 
----
+The repository already contains modular firmware, trusted GNSS metrics/date rollover, route/session persistence, Wi-Fi event ownership/retries/scanning, local portal security/UX remediation, four LED modes, Day Mode, optional portal PIN, host/Wokwi/Playwright tests, and visual regression baselines. Do not duplicate those items as open tasks without a concrete regression or enhancement.
 
-## Fase 3 - Heart Rate
-
-### Hardware
-- Seleccion de sensor HR y montaje.
-
-### Firmware
-- Driver HR + validacion de senal.
-- Integrar HR en perfiles de actividad.
-
----
-
-## Fase 4 - Miniaturizacion
-
-### Mecanico
-- Reduccion de tamano y peso.
-- Carcasa compacta.
-
-### Electrico
-- PCB mas pequeno y optimizado.
-- Reduccion de consumo.
-
----
-
-## Documentacion y Especificaciones
-
-- BLE spec: `docs/ble_spec.md`
-- Portal Wi-Fi: `docs/wifi_portal_spec.md`
-- Web portal: `docs/web_portal_spec.md`
-- App MVP (futuro): `docs/app_mvp_spec.md`
-
----
-
-## Gestion y Riesgos
-
-- Riesgo: GPS sin fix en interiores.
-- Riesgo: portal no accesible por cambio de red.
-- Mitigacion: modo AP siempre disponible y politica de auto-encendido.
+See [Roadmap](roadmap.md) for milestone ordering and [Requirements](requirements.md) for acceptance context.

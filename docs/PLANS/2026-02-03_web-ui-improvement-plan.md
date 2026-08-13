@@ -1,5 +1,7 @@
 # Plan — Mejora integral del portal web (AP/STA) con pseudocodigo
 
+> **Document status:** Historical implementation plan (Spanish). It predates the modular page/HTTP source and current Playwright suite. See [Web portal specification](../web_portal_spec.md).
+
 Este plan actualiza la interfaz web embebida del collar para que sea mas clara, util y estable. Esta basado en el firmware actual y deja la implementacion casi directa.
 
 ---

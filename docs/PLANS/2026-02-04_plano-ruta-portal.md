@@ -1,5 +1,7 @@
 # Plan: Plano de ruta GPS en portal AP/STA (3 sesiones, 2 horas, export)
 
+> **Document status:** Historical implementation plan (Spanish). Route capture, the rolling two-hour window, three completed sessions, and JSON/CSV/GeoJSON exports are now implemented in evolved form; see [HTTP API](../api-reference.md).
+
 ## Objetivo
 Mostrar un **plano simple de la ruta** recorrida por el perro dentro del portal Wi‑Fi (AP/STA), sin depender de Internet, con estas reglas:
 - **Últimas 3 sesiones** (sesión = ciclo de encendido).

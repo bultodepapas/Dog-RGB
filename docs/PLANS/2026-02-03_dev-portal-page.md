@@ -1,5 +1,7 @@
 # Plan — Pagina de Desarrolladores (/dev) con diagnosticos
 
+> **Document status:** Historical implementation plan (Spanish). `/dev` and `/api/dev` now exist in an evolved form; use the [HTTP API reference](../api-reference.md) for the current surface.
+
 Fecha: 2026-02-03
 
 ## 1) Objetivo

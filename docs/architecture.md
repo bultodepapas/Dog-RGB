@@ -1,106 +1,179 @@
-# Architecture
+# Dog-RGB Architecture
 
-## System Blocks
+**Status:** Current architecture, verified against the active firmware on 2026-08-12.
 
-- Power: 21700 cell -> BMS/charger -> 5V boost -> LEDs -> 3.3V regulator -> MCU/GNSS
-- Control: ESP32-S3 (XIAO) manages GNSS parsing, LEDs, Wi-Fi portal, BLE summary
-- GNSS: EBYTE E108-GN02 on UART (RMC + GGA for fix and satellites)
-- LED UI: SK6812 RGBW strips driven by Adafruit NeoPixel with runtime effects
-- Connectivity: Wi-Fi AP/STA portal + mDNS in STA, BLE read-only summary
-- Storage: NVS for daily metrics, sessions, Wi-Fi creds, home geofence, and runtime config
+Dog-RGB is a local-first embedded system. The ESP32-S3 owns GNSS acquisition, metrics, route/session persistence, LED rendering, Wi-Fi policy, the HTTP portal, and an optional BLE summary. No backend is required for normal operation.
 
-## Firmware Layout (PlatformIO)
+## System context
 
-| Module | Files | Responsibilities |
+```mermaid
+flowchart TB
+    CELL[21700 cell] --> SAFE[1S protection / charger]
+    SAFE --> BOOST[5 V boost]
+    BOOST --> STRIPS[Two SK6812 RGBW strips]
+    SAFE --> REG[3.3 V rail]
+    REG --> MCU[XIAO ESP32-S3]
+    REG --> GNSS[EBYTE E108-GN02]
+    GNSS -->|UART RMC + GGA| MCU
+    MCU -->|two level-shifted data lines| STRIPS
+    PHONE[Phone or laptop] <-->|SoftAP or LAN HTTP| MCU
+    BLECLIENT[BLE reader] -. read-only, disabled by default .-> MCU
+```
+
+The power drawing is conceptual. The real charger/BMS/boost/regulator topology must be validated for the selected modules; do not infer a safe current path solely from this diagram.
+
+## Repository boundaries
+
+- [`Platformio/Dog-RGB`](../Platformio/Dog-RGB/) is the active embedded project.
+- [`tests`](../tests/) and [`tools`](../tools/) exercise/extract the embedded portal on a host browser.
+- [`docs`](.) contains current references plus dated design history.
+- [`software`](../software/) is only a placeholder for optional future companion/cloud work.
+- [`hardware`](../hardware/) is a hardware-area entry point; the authoritative pin/default values are currently in firmware headers.
+
+## Firmware modules
+
+| Module | Primary files | Responsibility |
 | --- | --- | --- |
-| Entry | `Platformio/Dog-RGB/src/main.cpp` | Orchestrates setup/loop, heartbeat LED, periodic logs |
-| GPS + Metrics + Sessions | `Platformio/Dog-RGB/include/gps/gps.h`, `Platformio/Dog-RGB/src/gps/gps.cpp` | NMEA parsing, daily metrics, session history, BLE/JSON summaries |
-| Geofence/Home | `Platformio/Dog-RGB/include/geofence/home.h`, `Platformio/Dog-RGB/src/geofence/home.cpp` | Home persistence, auto-home, distance, hysteresis |
-| Wi-Fi/AP Policy | `Platformio/Dog-RGB/include/wifi/wifi_mgr.h`, `Platformio/Dog-RGB/src/wifi/wifi_mgr.cpp` | AP/STA mode, retry policy, AP idle shutdown, Wi-Fi creds |
-| Web Portal (HTTP) | `Platformio/Dog-RGB/include/web/portal_http.h`, `Platformio/Dog-RGB/src/web/portal_http.cpp` | API handlers, portal routes, config updates |
-| Web Pages (HTML) | `Platformio/Dog-RGB/include/web/pages.h`, `Platformio/Dog-RGB/src/web/pages.cpp` | HTML templates for `/`, `/wifi`, `/config` |
-| BLE Summary | `Platformio/Dog-RGB/include/ble/summary_ble.h`, `Platformio/Dog-RGB/src/ble/summary_ble.cpp` | BLE service and summary characteristic updates |
-| LED UI | `Platformio/Dog-RGB/include/led/led_ui.h`, `Platformio/Dog-RGB/src/led/led_ui.cpp` | Effects, status LEDs, mode rendering, welcome animation |
-| Runtime Config | `Platformio/Dog-RGB/include/config/runtime_config.h`, `Platformio/Dog-RGB/src/config/runtime_config.cpp` | Defaults, validation, load/save, apply brightness + mDNS |
-| NVS Storage | `Platformio/Dog-RGB/include/storage/nvs_store.h`, `Platformio/Dog-RGB/src/storage/nvs_store.cpp` | Opens namespaces and exposes `Preferences` instances |
-| Geo Utils | `Platformio/Dog-RGB/include/util/geo.h`, `Platformio/Dog-RGB/src/util/geo.cpp` | Haversine distance |
-| Hardware Config | `Platformio/Dog-RGB/include/config.h`, `Platformio/Dog-RGB/include/pins.h` | Constants and pin mapping |
+| Orchestrator | `src/main.cpp` | Boot order, bounded cooperative loop, heartbeat, periodic diagnostics, serial log queue |
+| GNSS/metrics/sessions/routes | `include/gps/gps.h`, `src/gps/gps.cpp` | UART/NMEA, trust gates, distance/activity/speed, date rollover, current/completed sessions, two-hour route ring, JSON/BLE summaries |
+| Geofence/Home | `include/geofence/home.h`, `src/geofence/home.cpp` | Home A/B persistence, auto/manual Home, distance, ten ranges, hysteresis |
+| Wi-Fi policy | `include/wifi/wifi_mgr.h`, `src/wifi/wifi_mgr.cpp` | AP/STA transitions, credentials, event queue, retry/backoff, idle/hold policy, scan lifecycle, mDNS |
+| HTTP portal | `include/web/portal_http.h`, `src/web/portal_http.cpp` | Route registration, request validation, response headers, bounded exports, DNS/captive helpers |
+| Embedded pages | `include/web/pages.h`, `src/web/pages.cpp` | Dashboard, Wi-Fi, configuration, and diagnostics HTML/CSS/JavaScript |
+| Portal write lock | `include/web/portal_lock.h`, `src/web/portal_lock.cpp` | Optional 4–8 digit PIN, CRC record, constant-work comparison |
+| Runtime configuration | `include/config/runtime_config.h`, `src/config/runtime_config.cpp` | Defaults, schema migration, validation, A/B persistence, hot application |
+| LED UI | `include/led/led_ui.h`, `src/led/led_ui.cpp` | Status pixels, 12 effects, Speed/Geofence/Show/Simple renderers, welcome animation |
+| Day Mode | `include/power/day_mode.h`, `src/power/day_mode.cpp` | Pure evaluation of enabled/trusted-time/day-window state |
+| BLE summary | `include/ble/summary_ble.h`, `src/ble/summary_ble.cpp` | Read-only 16-byte characteristic and AP-aware advertising; compile-time disabled by default |
+| Storage handles | `include/storage/nvs_store.h`, `src/storage/nvs_store.cpp` | Opens the default NVS namespaces and dedicated route partition |
+| Utilities | `include/util/{geo,crc32,time_utils}.h`, `src/util/geo.cpp` | Haversine, CRC-32/IEEE, and wrap-safe time primitives |
+| Wokwi control | `include/sim/wokwi_control.h`, `src/sim/wokwi_control.cpp` | Simulation-only command channel and fault/profile controls |
+| Hardware/defaults | `include/pins.h`, `include/config.h` | Compile-time pin assignment, limits, timing, hardware layout, and fallback defaults |
 
-## State Strategy
+Domain state is module-local (`static`/namespace scope) and exposed through narrow functions. There is no shared global `AppState` object.
 
-- Opcion B: cada modulo mantiene su estado interno `static`.
-- El estado compartido se expone mediante getters/setters para evitar dependencias directas.
-- No hay `AppState` global; el acoplamiento ocurre via APIs del modulo.
+## Boot sequence
 
-## Runtime Flow
+Production boot follows this order:
 
-Setup (orden real en `Platformio/Dog-RGB/src/main.cpp`):
-- `storage::begin()` abre NVS (`dogrgb` y `dogrgb_cfg`).
-- `config::load()` carga configuracion (y aplica defaults si hace falta).
-- `gps::begin()` configura UART GNSS y restaura métricas/historial.
-- `geofence::begin()` restaura home geofence.
-- `led_ui::begin()` + `led_ui::start_welcome()` si `LED_UI_ENABLED`.
-- `wifi_mgr::begin()` inicia AP/STA segun credenciales.
-- `portal_http::begin()` registra rutas HTTP.
-- `summary_ble::begin()` inicia BLE.
+1. Start the console and external status GPIO.
+2. Open NVS handles with `storage::begin()`.
+3. Load and validate runtime configuration; select the newest valid A/B generation or migrate/fall back to defaults.
+4. If `DEBUG_AP_ONLY_MINIMAL` is enabled, start only Wi-Fi + portal and return from setup.
+5. Start GNSS/metrics/routes, then restore Home/geofence state.
+6. Start the LED driver and welcome animation when `LED_UI_ENABLED` is true.
+7. If `BLE_ENABLED` is true, initialize BLE **before** Wi-Fi and wait the configured coexistence margin.
+8. Start Wi-Fi policy and register/start HTTP plus the optional portal lock.
+9. Start the simulation control channel (compiled to no-op behavior outside Wokwi as applicable).
 
-Loop (orden real):
-- `gps::tick()` lee UART y actualiza métricas.
-- `geofence::tick(now_ms)` actualiza estabilidad de fix y auto-home.
-- `gps::save_if_due(now_ms)` persiste métricas/sesión cada `SAVE_INTERVAL_MS`.
-- Heartbeat LED + logs seriales cada `HEARTBEAT_MS`/`LOG_MS`.
-- `summary_ble::tick()` refresca payload BLE.
-- `wifi_mgr::tick(now_ms)` mantiene política AP/STA y reintentos.
-- `led_ui::tick()` dibuja UI de LEDs.
-- `portal_http::handle_client()` atiende HTTP.
+BLE precedes Wi-Fi deliberately: initializing the Bluetooth controller after SoftAP can disrupt the shared RF scheduler. Normal production defaults avoid that path by keeping BLE off.
 
-## Data Flow
+## Cooperative loop
 
-1) GNSS -> NMEA parsing -> métricas (distancia, velocidad, tiempo activo)
-2) Métricas -> JSON `/api/summary` + BLE summary + LED UI (rangos de velocidad)
-3) Config runtime -> NVS -> apply (brillo LED, ranges/efectos, AP settings, mDNS)
-4) Geofence usa GPS para distancia + rangos con histéresis
+```mermaid
+flowchart LR
+    A[GNSS tick] --> B[Wokwi control]
+    B --> C[Geofence]
+    C --> D[Metric save + route tick]
+    D --> E[Heartbeat / periodic logs]
+    E --> F[Optional BLE + Wi-Fi tick]
+    F --> G[LED tick]
+    G --> H[HTTP + captive DNS]
+    H --> I[Drain bounded serial log queue]
+    I --> A
+```
 
-## NVS Namespaces and Keys
+Each phase records maximum observed time for `/api/dev`. There is no RTOS application task graph; the design relies on short cooperative ticks plus the framework's radio tasks.
 
-Namespace `dogrgb` (runtime + sesiones):
-- `date` (uint32) fecha YYYYMMDD
-- `dist_m` (float) distancia acumulada del día
-- `active_ms` (uint32) tiempo activo
-- `max_kph` (float) velocidad máxima
-- `upd_min` (uint16) última lectura (minutos del día)
-- `h0`/`h1`/`h2` (bytes) historial `SessionSummary`
-- `h_cnt` (uint8) cantidad de sesiones
-- `h_idx` (uint8) índice circular
-- `h_ver` (uint8) versión de sesión
-- `s_cur` (bytes) snapshot sesión actual
-- `s_open` (uint8) bandera sesión en curso
-- `wifi_ssid` (String) SSID STA
-- `wifi_pass` (String) password STA
+Two blocking risks receive special treatment:
 
-Namespace `dogrgb_cfg` (config + home):
-- `ver` (uint8) versión de config
-- `brightness` (uint8) brillo LED
-- `ranges` (float[9]) límites de velocidad
-- `effects` (RangeEffect[10]) mapping rango -> efecto
-- `single_eff`, `single_speed`, `single_intensity`, `single_r`, `single_g`, `single_b`
-- `ap_ssid` (String), `ap_pass` (String), `mdns` (String)
-- `mode` (uint8) modo UI
-- `fence_max` (uint16) distancia máxima geofence
-- `home_set` (uint8), `home_lat` (float), `home_lon` (float), `home_src` (uint8)
+- HTTP route export writes are synchronous, so data is coalesced into 768-byte chunks and GNSS is serviced on both sides of each socket write.
+- Serial output can block, so periodic logs format into a fixed queue and the loop reports application work separately from logging/drain time.
 
-## Key Public APIs
+## Concurrency ownership
 
-- `gps::begin()`, `gps::tick()`, `gps::save_if_due(now_ms)`
-- `geofence::begin()`, `geofence::tick(now_ms)`
-- `wifi_mgr::begin()`, `wifi_mgr::tick(now_ms)`
-- `portal_http::begin()`, `portal_http::handle_client()`
-- `summary_ble::begin()`, `summary_ble::tick()`
-- `led_ui::begin()`, `led_ui::start_welcome()`, `led_ui::tick()`
-- `config::load()`, `config::save()`, `config::apply(previous)`
+Arduino Wi-Fi callbacks execute outside the main application loop. They never mutate the Wi-Fi state machine directly. Instead, callbacks enqueue compact events into a fixed 16-entry queue; `wifi_mgr::tick()` drains them in order and owns transitions, retries, station counts, cached mode/channel/IP, and reconciliation.
 
-## Notes
+Queue high-water and overflow counters are exposed in diagnostics. On overflow, the next owner tick reconciles from the driver rather than trusting an incomplete event history.
 
-- AP policy is GPS-aware: AP stays on with no fix, auto-on when stationary, auto-off after idle.
-- Homogeneous LED mode is enabled after GPS fix is stable and Wi-Fi is off.
-- LED brightness defaults to ~30% for thermal and battery safety.
+## Data flow
+
+1. UART bytes are framed and checksum-validated as NMEA sentences.
+2. RMC provides status, position, speed, UTC time/date; GGA provides fix quality, satellites, and HDOP.
+3. A trusted fix requires current/acceptable evidence under runtime GNSS gates.
+4. Trusted observations update speed usability, Haversine segments, active time, maximum speed, route points, and date-transition state.
+5. Metrics feed the dashboard summary, sessions, LED range selection, geofence distance, optional BLE payload, and diagnostics.
+6. Runtime configuration is validated as a complete semantic record, persisted, then applied to LEDs/Wi-Fi/mDNS.
+
+Average speed is `distance / active_time`; it is not a mean of NMEA speed samples. Activity intervals require active evidence at both endpoints and reject gaps longer than the configured bound.
+
+## Persistence model
+
+| Store | Location | Contents |
+| --- | --- | --- |
+| `dogrgb` | Default `nvs` partition | Daily metric records/journal, session store, station credentials, migration marker |
+| `dogrgb_cfg` | Default `nvs` partition | Runtime config A/B records, Home A/B records, optional portal-lock record |
+| `dogrgb_trk` | Dedicated `tracknvs` partition | Route metadata and CRC-protected chunks |
+
+Critical multi-field state uses version/magic/size validation, semantic checks, CRC-32/IEEE, generation numbers with wrap-safe ordering, and alternating slots. A save becomes active only after a complete verified write. Failed portal persistence restores the previous in-memory configuration.
+
+Route storage is different because of volume:
+
+- dedicated 192 KiB partition (`0x30000`);
+- up to 1,440 points at a nominal 5-second interval (about two hours);
+- chunked ring with CRC-protected metadata/payload;
+- partial chunk rewritten every 15 seconds to bound reboot loss;
+- invalid chunks are skipped independently during export;
+- export iteration snapshots bounds so concurrent recording cannot expand the request indefinitely.
+
+The partition table also provides dual OTA-sized app slots, SPIFFS space, and coredump space, but the repository does not currently implement an OTA product workflow or use SPIFFS for the portal.
+
+## Wi-Fi and portal policy
+
+The Wi-Fi manager can operate in OFF, AP, STA, or AP+STA mode. AP availability depends on GNSS, stationary state, initial/recent portal hold windows, client presence, and station status. Retries use wrap-safe bounded backoff.
+
+The HTTP layer adds:
+
+- wildcard DNS while AP is active and common captive-portal probe routes;
+- relative redirects for unknown page paths;
+- JSON 404/405 behavior for API paths;
+- no-store and basic browser hardening headers;
+- `X-Dog-Portal` on every write as a same-origin intent/CSRF guard;
+- optional `X-Dog-Pin` validation for write routes;
+- output escaping in both server interpolation and client rendering.
+
+This is proportionate protection for a local DIY portal, not a claim of Internet-safe administration. There is no TLS, account system, encrypted application payload, or authorization on reads.
+
+## LED composition
+
+The default physical layout is two strips with 24 pixels each and two reserved status pixels per strip. Rendering order is mode-aware:
+
+- welcome animation runs first;
+- Day Mode can clear effect pixels while retaining status;
+- Simple intentionally fills all pixels;
+- Speed/Geofence/Show normally render the body then status;
+- after an explicit Wi-Fi-OFF state and five minutes of stable GNSS, the retained homogeneous-rendering path can use the full strip; automatic AP idle shutdown currently stops SoftAP without entering this state;
+- a critical status overrides normal status pixels where those pixels remain reserved.
+
+See [LED UI](led_ui_spec.md) for exact behavior.
+
+## Test architecture
+
+- Host Python models/contracts target persistence and timing failure modes.
+- Wokwi runs the production firmware image with a custom controllable NMEA chip and logic analyzer.
+- The portal extractor converts C++ raw literals into local pages served with fixture APIs.
+- Playwright tests mobile behavior, accessibility, degraded states, and visual baselines.
+- CI runs host contracts, portal behavior/a11y checks, pinned visual comparisons, and the production PlatformIO build with size/artifact evidence.
+
+See [Testing and simulation](testing.md) for commands and limitations.
+
+## Deliberate constraints
+
+- Local-first; no required cloud/backend.
+- BLE remains compile-time optional and off by default.
+- Advanced security/production provisioning remains optional for this DIY phase.
+- No battery percentage is invented without a gauge/divider and calibrated measurements.
+- No runtime, thermal, waterproofing, or pet-safety claim is accepted from simulation alone.
+- Cooperative loop and synchronous `WebServer` are retained while bounded work and diagnostics satisfy the prototype needs.
+
+Future modules should preserve these constraints or document an explicit architecture decision before changing them.

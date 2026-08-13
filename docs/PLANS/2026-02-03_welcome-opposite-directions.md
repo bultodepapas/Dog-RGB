@@ -1,5 +1,7 @@
 # Plan: Bienvenida con direcciones opuestas (cintas A/B)
 
+> **Document status:** Historical LED plan (Spanish). Treat the current `led_ui` implementation and [LED UI reference](../led_ui_spec.md) as authoritative.
+
 ## Resumen
 
 Se propone una nueva rutina de bienvenida que mantiene el efecto actual (CHASE), pero con movimiento en direcciones contrarias entre la cinta A y la cinta B. No hay cambios de UI ni de configuración; el cambio es solo en la animación de bienvenida.

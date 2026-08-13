@@ -1,127 +1,85 @@
-# LED UI Spec (Fase 1)
+# LED User-Interface Specification
 
-Esta especificacion define el uso de la tira LED como interfaz de estado del sistema.
+**Status:** Current implemented behavior, verified 2026-08-12.
 
----
+The LED system combines activity effects with an always-visible local health interface wherever the selected mode allows it.
 
-## Objetivo
+## Default layout
 
-- La tira LED comunica el estado del collar sin abrir el portal.
-- Estados claros, simples y consistentes.
-- Brillo bajo para notificaciones (30%).
+- Two independent strips (`LED_STRIP_MODE = 2`).
+- 24 SK6812 RGBW pixels per strip.
+- First two pixels per strip reserved for status.
+- Remaining 22 pixels per strip form the effect body.
+- Global brightness defaults to 77/255.
 
----
+## Status pixels
 
-## Segmentos
+| Pixel | State | Rendering |
+| --- | --- | --- |
+| 0 (Wi-Fi) | Station connected | Solid green |
+| 0 | Station connecting | Green pulse |
+| 0 | AP active, no client | Solid yellow |
+| 0 | AP active, client present | Yellow pulse |
+| 0 | Station failed with fallback | Solid red |
+| 0 | Explicit Wi-Fi-off state | Amber double pulse |
+| 1 (GNSS) | Trusted fix | Solid blue |
+| 1 | No trusted fix | Blue pulse |
+| 0 + 1 | Critical no-GNSS/no-station timeout | Fast red flash |
 
-- Segmento A (estado): LEDs 0..(LED_STATUS_COUNT-1)
-- Segmento B (cuerpo): LEDs LED_STATUS_COUNT..fin
-- Aplica por tira si se usan dos tiras independientes.
+The automatic AP idle policy currently stops SoftAP without forcing the whole Wi-Fi subsystem OFF, so the amber/off and homogeneous paths are retained capabilities rather than the common idle outcome.
 
----
+## Mode behavior
 
-## Configuracion base (defaults)
+| Mode | Range/input | Effect area | Status behavior |
+| --- | --- | --- | --- |
+| Speed | Trusted usable GNSS speed | Body; rainbow fallback without fix | Status pixels retained |
+| Geofence | Distance from Home with hysteresis | Body; rainbow without fix, amber breath without Home | Status pixels retained |
+| Show | Shuffled 12-effect demo | Body | Status pixels retained |
+| Simple | One configured effect/RGB | Full strip | Status hidden by design |
 
-- LED_STRIP_COUNT (por tira): 24 (min 10, max 50)
-- LED_STATUS_COUNT: 2
-- LED_STRIP_MODE: 1 (tira unica) o 2 (doble tira)
+Speed/Geofence use the same ten effect records. Geofence changes the range selector, not the effect engine.
 
----
+## Priority and composition
 
-## Tabla de estados (Segmento A)
+The practical render order is:
 
-LED0 = Wi-Fi/AP
-- STA conectado: verde fijo
-- STA intentando: verde pulsante (ciclo 1.5 s)
-- AP activo sin clientes: amarillo fijo
-- AP activo con clientes: amarillo pulsante suave
-- STA fallo con credenciales (fallback a AP): rojo fijo
-- Wi-Fi apagado por ahorro: ambar doble pulso (AP_OFF_PULSE_PERIOD_MS)
+1. **Welcome** owns the strips until its startup sequence completes.
+2. **Day Mode active** clears effect pixels and renders the normal status pixels, in every runtime mode.
+3. **Simple** fills the strips when Day Mode is not active.
+4. **Speed/Geofence/Show** render the body.
+5. **Homogeneous state**, when Wi-Fi is explicitly OFF and GNSS has been stable for five minutes, can extend the selected effect to all pixels.
+6. Otherwise status rendering paints the reserved pixels, including the critical red override.
 
-LED1 = GPS
-- GPS OK: azul fijo
-- GPS buscando: azul pulsante (ciclo 1.5 s)
+The critical override has priority within the status layer; it cannot appear while Simple owns the full strip, but Day Mode restores status rendering.
 
-Override critico:
-- Sin GPS y sin STA por >10 min: LED0 y LED1 rojo parpadeo rapido (200 ms)
+## Day Mode
 
----
+Day Mode is a power-saving gate, not a fifth visual mode. It is off by default. During 06:00–16:00 local (fixed UTC-5) with recent trusted GNSS time:
 
-## Modo normal (Segmento B)
+- effect pixels are black;
+- Wi-Fi/GNSS/critical status remains visible;
+- GNSS, metrics, route recording, Wi-Fi, storage, HTTP, and BLE configuration state continue;
+- the boot welcome remains visible before the gate is evaluated.
 
-- Si no hay GPS fix: rainbow animado
-- Con GPS OK: efecto por rango de velocidad (configurable)
+Without trusted recent time, the state is `waiting_time` and effects remain active.
 
-## Modo SHOW (demo)
+## Range colors
 
-- Recorre todos los efectos (IDs 0..11) cada 30 s usando una bolsa barajada interna.
-- No repite efectos dentro de la misma bolsa y evita repetir el ultimo efecto anterior al iniciar una bolsa nueva.
-- Usa paleta interna curada, color base aleatorio por efecto y mezcla gradual hacia un segundo color.
-- Aplica fade-in/fade-out corto al cambiar de efecto.
-- Ambas cintas mantienen siempre el mismo efecto SHOW.
-- Segmento B siempre en demo.
-- Segmento A sigue mostrando estado Wi‑Fi/GPS, **excepto** si se activa modo homogeneo.
+Default Speed colors progress from cyan at the lowest range to red at the highest. Geofence uses the same palette from near to far. Runtime thresholds and effects can change, while palette values are compiled in. See [Color reference](color-reference.md).
 
----
+## Timing
 
-## Homogeneo
+| Behavior | Timing |
+| --- | ---: |
+| LED state update | 50 ms |
+| Slow status pulse | About 1.5 s cycle |
+| Critical flash | 200 ms phases |
+| AP-off double pulse | 3 s period, 200 ms pulse width |
+| Show effect | 30 s |
+| Show transition | 500 ms |
+| Homogeneous eligibility | 5 min stable GNSS while Wi-Fi-off state is true |
+| Critical health timeout | 10 min |
 
-- Si Wi-Fi esta OFF y GPS OK estable por >5 min, toda la tira usa el mismo efecto del rango (incluye LEDs de estado).
-- En SHOW, el homogeneo **pisa todo** con el efecto SHOW actual.
+## Diagnostics and testing
 
----
-
-## Modo simple
-
-- Aplica **un solo efecto** configurado por el usuario a toda la tira.
-- El modo simple **pisa** LEDs de estado (no muestra Wi‑Fi/GPS mientras está activo).
-- RAINBOW, GRADIENT_WAVE y FIRE **ignoran** el color base.
-
----
-
-## Prioridad de estados
-
-1) Error critico (LED0/LED1 rojo rapido)
-2) Homogeneo (Wi-Fi OFF + GPS OK estable)
-3) Wi-Fi/AP (LED0)
-4) GPS (LED1)
-5) Modo normal (Segmento B)
-
----
-
-## Colores base (RGB) - 30% aprox
-
-- Blanco suave: 60, 60, 60
-- Azul: 0, 0, 60
-- Verde: 0, 60, 0
-- Amarillo: 60, 45, 0
-- Rojo: 60, 0, 0
-
----
-
-## Parametros de animacion
-
-- Pulso lento: 1.5 s (0.75 s subida, 0.75 s bajada)
-- Parpadeo rapido: 200 ms on/off
-- Rainbow idle: avance de hue cada tick de `LED_UPDATE_MS`
-
----
-
-## Condiciones (firmware)
-
-- GPS OK: `has_gps_fix = true`
-- GPS buscando: `has_gps_fix = false`
-- STA conectado: `wifi_sta_connected = true` y `WL_CONNECTED`
-- STA intentando: `wifi_sta_connecting = true`
-- AP activo: `ap_enabled = true`
-- AP con clientes: `softAPgetStationNum() > 0`
-- Wi-Fi OFF: `wifi_off = true`
-- Error critico: sin GPS y sin STA por `CRITICAL_NO_OK_MS`
-
----
-
-## Notas
-
-- Un solo estado activo a la vez en Segmento A.
-- Segmento A siempre reservado a estados (salvo modo homogeneo).
-- Segmento B no se sobreescribe por estados.
+`/api/dev` exposes current mode, brightness, speed/geofence range, chosen effects/base color, Simple configuration, and current Show effect. The Wokwi `modes` scenario and host Day Mode contracts validate mode selection/persistence and status preservation; physical strips still require current/temperature/visual checks.

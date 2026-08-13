@@ -1,100 +1,79 @@
-# LED Effects (Runtime Engine)
+# LED Effect Catalog
 
-Este documento describe los efectos disponibles y su uso actual en el firmware.
+**Status:** Current runtime engine, verified against `src/led/led_ui.cpp` on 2026-08-12.
 
----
+Dog-RGB uses Adafruit NeoPixel with custom non-blocking effect state. The physical pixel type is configured as SK6812 RGBW (`NEO_GRBW + NEO_KHZ800`), while the effect API currently supplies RGB base values.
 
-## Motor actual
+## Effect IDs
 
-- Libreria: Adafruit NeoPixel
-- Implementacion: efectos custom en `Platformio/Dog-RGB/src/led/led_ui.cpp`
-- Cada rango de velocidad define:
-  - effect_A (tira A)
-  - effect_B (tira B)
-  - speed (0-255)
-  - intensity (0-255)
-- SHOW usa el mismo motor de efectos con constantes internas (`SHOW_SPEED`, `SHOW_INTENSITY`, `SHOW_EFFECT_MS`).
+| ID | Name | Behavior | Uses base RGB directly? |
+| ---: | --- | --- | --- |
+| 0 | `SOLID` | Constant color | Yes |
+| 1 | `PULSE` | Repeating intensity pulse | Yes |
+| 2 | `BREATH` | Smooth breathing curve | Yes |
+| 3 | `CHASE` | Moving point/pattern | Yes |
+| 4 | `COMET` | Moving head with fading tail | Yes |
+| 5 | `SINELON` | Oscillating point/bar | Yes |
+| 6 | `CONFETTI` | Random sparkles | Yes |
+| 7 | `JUGGLE` | Multiple moving points | Yes |
+| 8 | `BPM` | Beat-modulated brightness | Yes |
+| 9 | `RAINBOW` | Internal HSV rainbow | No |
+| 10 | `FIRE` | Heat-cell fire simulation | No; uses heat palette |
+| 11 | `GRADIENT_WAVE` | Internal HSV gradient wave | No |
 
----
+Unknown IDs are rejected by runtime validation and reported as `UNKNOWN` only by the diagnostic name helper.
 
-## Catalogo de efectos (IDs)
+## Inputs
 
-- 0: SOLID (color fijo)
-- 1: PULSE (pulso suave)
-- 2: BREATH (respiracion)
-- 3: CHASE (carrera de un pixel)
-- 4: COMET (cometa con cola)
-- 5: SINELON (barra oscilante)
-- 6: CONFETTI (destellos aleatorios)
-- 7: JUGGLE (varios puntos en movimiento)
-- 8: BPM (latido con brillo)
-- 9: RAINBOW (arco iris animado)
-- 10: FIRE (fuego procedimental)
-- 11: GRADIENT_WAVE (onda con gradiente)
+- `speed` (`0..255`) controls animation timing/motion according to the effect.
+- `intensity` (`0..255`) controls effect energy/density/brightness according to the effect.
+- `base` is the mode/range RGB tint where supported.
+- Global runtime brightness (`1..255`) is applied by the strip driver.
 
----
+`speed` and `intensity` do not have identical perceptual meaning across every effect. Treat them as effect parameters, not physical units.
 
-## Rango de velocidad -> efecto
+## Range defaults
 
-- Se usan 10 rangos (1..10) definidos por 9 umbrales en km/h.
-- Cada rango tiene efecto A/B + speed/intensity.
-- El color base por rango esta en `docs/manual_de_colores.md`.
+Speed and Geofence modes share ten effect records, independently selecting strips A and B. The current compile-time defaults use `JUGGLE` on both strips for all ranges, with increasing tuning:
 
-Defaults actuales (ver `Platformio/Dog-RGB/include/config.h`):
-- R1 (<=2.0 km/h): JUGGLE / JUGGLE (speed 40, intensity 80)
-- R2 (<=4.0 km/h): JUGGLE / JUGGLE (58, 95)
-- R3 (<=6.0 km/h): JUGGLE / JUGGLE (76, 110)
-- R4 (<=8.0 km/h): JUGGLE / JUGGLE (94, 125)
-- R5 (<=10.0 km/h): JUGGLE / JUGGLE (112, 140)
-- R6 (<=12.0 km/h): JUGGLE / JUGGLE (130, 155)
-- R7 (<=14.0 km/h): JUGGLE / JUGGLE (148, 170)
-- R8 (<=16.0 km/h): JUGGLE / JUGGLE (166, 180)
-- R9 (<=18.0 km/h): JUGGLE / JUGGLE (184, 190)
-- R10 (>18.0 km/h): JUGGLE / JUGGLE (200, 200)
+| Range | Speed | Intensity |
+| ---: | ---: | ---: |
+| 1 | 40 | 80 |
+| 2 | 58 | 95 |
+| 3 | 76 | 110 |
+| 4 | 94 | 125 |
+| 5 | 112 | 140 |
+| 6 | 130 | 155 |
+| 7 | 148 | 170 |
+| 8 | 166 | 180 |
+| 9 | 184 | 190 |
+| 10 | 200 | 200 |
 
----
+Colors and default speed thresholds are in [LED color reference](color-reference.md).
 
-## Modo SHOW
+## Show mode
 
-- Recorre los 12 efectos disponibles.
-- Duracion por efecto: `SHOW_EFFECT_MS` (default 30 s).
-- Usa un color base aleatorio por efecto cuando el efecto lo permite.
-- El orden actual usa una bolsa barajada interna: no repite efectos hasta recorrer los 12.
-- Al reiniciar la bolsa, evita que el primer efecto nuevo sea igual al ultimo efecto mostrado.
-- Al entrar a SHOW, se baraja la bolsa y el primer efecto ya no esta fijado a SOLID.
-- El color base sale de una paleta interna curada con variacion leve por canal.
-- Durante cada efecto, el color base se interpola hacia un segundo color interno.
-- Cada cambio de efecto usa fade-in/fade-out corto (`SHOW_TRANSITION_MS`, 500 ms).
-- `speed` e `intensity` tienen variacion interna segura por efecto; FIRE usa una ventana propia.
-- Ambas cintas reciben siempre el mismo efecto SHOW y los mismos parametros internos.
-- Segmento B muestra la demo; Segmento A conserva Wi-Fi/GPS salvo modo homogeneo.
-- En modo homogeneo, SHOW se aplica a toda la tira.
+- Shuffles all 12 IDs into a bag and consumes each once before reshuffling.
+- Avoids using the previous bag's last effect as the next bag's first effect.
+- Selects a curated random base/target color and interpolates between them when the effect supports base RGB.
+- Applies safe internal variation to speed/intensity; Fire uses its own range.
+- Changes effect every 30 seconds with a 500 ms transition fade.
+- Keeps the same effect/parameters on both strips.
+- Normally renders the body while status pixels remain active.
+- Day Mode clears effects and keeps status; a Wi-Fi-off homogeneous state can render the effect across the full strips.
 
----
+`RAINBOW`, `FIRE`, and `GRADIENT_WAVE` will not visibly follow Show's chosen base color; this is intentional engine behavior.
 
-## Parametros
+## Simple mode
 
-- `speed`: controla la velocidad del efecto (0-255)
-- `intensity`: controla brillo/energia interna del efecto (0-255)
-- `base`: color RGB base del efecto cuando aplica.
+Simple mode stores one effect, speed, intensity, and RGB value. It normally fills the entire physical strip, including status pixels. Day Mode has higher priority and restores status-only rendering during its active window.
 
-Notas sobre color base:
-- SOLID, PULSE, BREATH, CHASE, COMET, SINELON, CONFETTI, JUGGLE y BPM usan el color base.
-- RAINBOW y GRADIENT_WAVE generan color desde HSV interno y no respetan directamente el color base.
-- FIRE usa `heat_color()` y no respeta directamente el color base.
+## Runtime API
 
----
+Use `/config` or `POST /api/config`. If the `effects` object is supplied, all ten range objects must be present; `single` may be partial. Effect IDs outside `0..11` and parameter values outside `0..255` are rejected before persistence.
 
-## Configuracion runtime
+## Performance and safety
 
-- UI: `/config`
-- API: `GET /api/config` y `POST /api/config`
-- Validacion: effect id 0..11, speed/intensity 0..255
-
----
-
-## Notas
-
-- Segmento A (estado) es independiente del Segmento B.
-- En modo homogeneo, el efecto se aplica a toda la tira.
-- Para auditar SHOW en vivo, usar `/dev`; actualmente expone el efecto actual, pero no el color base ni el temporizador.
+- Effect state updates at 50 ms (20 Hz).
+- The production transport updates both strips; Wokwi caps only expensive virtual pixel transport while preserving the 50 ms effect-state cadence.
+- Software brightness is not a current limiter with a guaranteed electrical ceiling. Measure the physical strip, boost, wiring, and temperature for every allowed brightness profile.

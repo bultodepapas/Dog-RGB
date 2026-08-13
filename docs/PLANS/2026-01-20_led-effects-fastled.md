@@ -1,5 +1,7 @@
 # 2026-01-20_led-effects-fastled.md
 
+> **Document status:** Historical alternative (Spanish). It was not adopted; the current engine uses Adafruit NeoPixel and custom non-blocking effects. See the [plan index](README.md).
+
 ## Estado
 
 - **Superseded**: El firmware actual implementa un motor de efectos custom usando Adafruit NeoPixel.

@@ -1,5 +1,7 @@
 # Plan - Historial de las ultimas 3 sesiones en memoria (XIAO ESP32-S3)
 
+> **Document status:** Historical implementation plan (Spanish). Three completed session summaries are implemented with transactional persistence; see [GNSS and metrics](../gps_analysis.md).
+
 Este plan define como guardar las ultimas 3 sesiones de estadisticas del collar usando la memoria disponible del XIAO ESP32-S3. No implementa cambios.
 
 ---

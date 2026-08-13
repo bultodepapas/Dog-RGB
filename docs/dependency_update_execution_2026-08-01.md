@@ -1,5 +1,7 @@
 # Ejecución de la actualización de dependencias
 
+> **Document status:** Historical execution record (Spanish). It records evidence from 2026-08-01; use [Testing and simulation](testing.md) and the active manifests for current validation.
+
 **Fecha:** 2026-08-01
 
 **Estado:** actualización de repositorio completada y validada en build, pruebas host, navegador y Wokwi. Queda como validación externa la prueba sobre el collar físico.

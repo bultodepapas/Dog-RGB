@@ -1,80 +1,41 @@
-Refactor de `main.cpp` (estado actual)
+# `main.cpp` Modularization — Result
 
-Resumen
-- El refactor ya esta implementado con la **Opcion B**: cada modulo mantiene su estado interno `static`.
-- `Platformio/Dog-RGB/src/main.cpp` ahora solo orquesta `setup()` y `loop()`.
-- La funcionalidad se separo en modulos por dominio (GPS, Wi-Fi, BLE, LED, geofence, config, storage, web).
+**Status:** Completed design note. This is no longer an implementation plan.
 
-Estructura real del firmware
-```
-Platformio/Dog-RGB/
-  include/
-    ble/summary_ble.h
-    config/runtime_config.h
-    geofence/home.h
-    gps/gps.h
-    led/led_ui.h
-    storage/nvs_store.h
-    util/geo.h
-    web/pages.h
-    web/portal_http.h
-    wifi/wifi_mgr.h
-    config.h
-    pins.h
-  src/
-    main.cpp
-    ble/summary_ble.cpp
-    config/runtime_config.cpp
-    geofence/home.cpp
-    gps/gps.cpp
-    led/led_ui.cpp
-    storage/nvs_store.cpp
-    util/geo.cpp
-    web/pages.cpp
-    web/portal_http.cpp
-    wifi/wifi_mgr.cpp
+The refactor moved domain logic out of `Platformio/Dog-RGB/src/main.cpp`. The entry point now owns boot/loop orchestration, heartbeat, serial diagnostics, and phase timing; modules own their internal state.
+
+## Resulting boundaries
+
+```text
+include/                     src/
+├── ble/summary_ble.h        ├── ble/summary_ble.cpp
+├── config/runtime_config.h  ├── config/runtime_config.cpp
+├── geofence/home.h          ├── geofence/home.cpp
+├── gps/gps.h                ├── gps/gps.cpp
+├── led/led_ui.h             ├── led/led_ui.cpp
+├── power/day_mode.h         ├── power/day_mode.cpp
+├── sim/wokwi_control.h      ├── sim/wokwi_control.cpp
+├── storage/nvs_store.h      ├── storage/nvs_store.cpp
+├── util/*.h                 ├── util/geo.cpp
+├── web/{pages,portal_*}.h   ├── web/{pages,portal_*}.cpp
+├── wifi/wifi_mgr.h          └── wifi/wifi_mgr.cpp
+├── config.h
+└── pins.h
 ```
 
-Mapa de responsabilidades (implementado)
-- `gps/gps.*`: parsing NMEA (RMC + GGA), métricas diarias, sesiones, historial, JSON summary y payload BLE.
-- `geofence/home.*`: home persistente, auto-home, distancia a home, histéresis.
-- `wifi/wifi_mgr.*`: AP/STA policy, reintentos, credenciales STA.
-- `web/pages.*`: HTML de `/`, `/wifi`, `/config`.
-- `web/portal_http.*`: handlers `/api/*`, validaciones de config y endpoints de home.
-- `ble/summary_ble.*`: BLE read-only summary.
-- `led/led_ui.*`: efectos, estados, status LEDs y rendering por modo.
-- `config/runtime_config.*`: defaults, validacion, load/save, apply (brillo + mDNS).
-- `storage/nvs_store.*`: apertura de namespaces NVS.
-- `util/geo.*`: Haversine.
+## Decisions retained
 
-Decisiones clave
-- Sin `AppState` global. Los modulos se acoplan solo via getters/setters.
-- Los “tipos de dominio” (sesiones, rangos, etc.) viven en el modulo que los usa.
-- `main.cpp` no contiene logica de negocio, solo orquestacion y logging.
+- Module-local namespace state instead of one global `AppState`.
+- Narrow getters/actions instead of direct cross-module variable access.
+- Wi-Fi callbacks enqueue events; `wifi_mgr::tick()` owns state transitions.
+- `main.cpp` calls bounded domain ticks in a stable order and records phase maxima.
+- Hardware/default constants remain centralized in `config.h` and `pins.h`.
+- Simulation-only behavior is compile-time isolated.
 
-Orden real de ejecucion
-Setup (orden real):
-- `storage::begin()`
-- `config::load()`
-- `gps::begin()`
-- `geofence::begin()`
-- `led_ui::begin()`
-- `led_ui::start_welcome()` (si `LED_UI_ENABLED`)
-- `wifi_mgr::begin()`
-- `portal_http::begin()`
-- `summary_ble::begin()`
+## Current boot and loop
 
-Loop (orden real):
-- `gps::tick()`
-- `geofence::tick(now_ms)`
-- `gps::save_if_due(now_ms)`
-- heartbeat + logs
-- `summary_ble::tick()`
-- `wifi_mgr::tick(now_ms)`
-- `led_ui::tick()`
-- `portal_http::handle_client()`
+BLE, when explicitly enabled, initializes before Wi-Fi for coexistence reasons. The normal boot order is storage → config → GNSS → geofence → LEDs/welcome → optional BLE → Wi-Fi → portal → Wokwi control.
 
-Pendientes opcionales (si quieres mas limpieza)
-- Separar utilidades de LED a `util/` (hsv, pulsos, clamp, etc.).
-- Dividir `gps/gps.cpp` en `nmea.*` y `metrics/session.*`.
-- Actualizar ArduinoJson a `JsonDocument` para eliminar warnings de deprecacion.
+The loop is GNSS → simulation control → geofence → persistence/route → heartbeat/logging → optional BLE + Wi-Fi → LEDs → HTTP/DNS → serial drain.
+
+The full rationale, concurrency model, persistence design, and current module table live in [Architecture](architecture.md). Future file splits should be driven by an actual change/testing seam, not module count alone.

@@ -1,32 +1,35 @@
-# Portal Config (Runtime) - Referencia
+# Runtime Configuration Reference
 
-Esta documentacion describe el JSON, validaciones, UI y persistencia tal como esta implementado en el firmware actual.
+**Status:** Current schema and validation, verified against firmware on 2026-08-12.
 
----
+The configuration UI is available at `/config`. The corresponding API is `GET/POST /api/config`; `POST /api/config/reset` restores compile-time runtime defaults. All writes require `X-Dog-Portal` and, when enabled, `X-Dog-Pin` as described in the [HTTP API reference](api-reference.md#write-guards).
 
-## Endpoints
+## Read schema
 
-- `GET /config` (HTML UI)
-- `GET /api/config`
-- `POST /api/config` (JSON)
-- `POST /api/config/reset`
-- `GET /api/home`
-- `POST /api/home/set`
-- `POST /api/home/clear`
+`GET /api/config` never returns a password. Presence flags distinguish “stored but hidden” from “not configured.” The current schema version is `5`.
 
----
-
-## JSON (GET /api/config)
-
-```
+```json
 {
-  "version": 4,
+  "version": 5,
   "mode": "speed",
   "fence_max_m": 300,
-  "led": {
-    "brightness": 77
+  "led": {"brightness": 77},
+  "day_mode": {
+    "enabled": false,
+    "start_min": 360,
+    "end_min": 960,
+    "tz_offset_min": -300
   },
-  "speed_ranges_kph": [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0],
+  "gps": {
+    "min_fix_quality": 1,
+    "min_sats": 6,
+    "max_hdop": 2.5,
+    "max_gga_age_ms": 2000,
+    "min_segment_m": 3.0,
+    "hdop_factor": 2.0,
+    "max_min_segment_m": 10.0
+  },
+  "speed_ranges_kph": [2, 4, 6, 8, 10, 12, 14, 16, 18],
   "effects": {
     "range1": {"a": 7, "b": 7, "speed": 40, "intensity": 80},
     "range2": {"a": 7, "b": 7, "speed": 58, "intensity": 95},
@@ -48,25 +51,57 @@ Esta documentacion describe el JSON, validaciones, UI y persistencia tal como es
   "wifi": {
     "ap_ssid": "DogRGB",
     "has_ap_pass": true,
+    "sta_ssid": "",
+    "has_sta_pass": false,
     "mdns": "dog-collar"
   }
 }
 ```
 
-Notas:
-- `has_ap_pass` indica si hay password configurado. No se devuelve el password.
+`start_min`, `end_min`, and `tz_offset_min` are informational compile-time values. Only `day_mode.enabled` is persisted through this schema.
 
----
+## Update semantics
 
-## JSON (POST /api/config)
+`POST /api/config` accepts a JSON object and starts from the current configuration. Top-level sections are optional; omitted fields keep their current values.
 
+Important nested rules:
+
+- If `speed_ranges_kph` is present, it must contain all nine thresholds.
+- If `effects` is present, it must contain `range1` through `range10`; fields inside each range may use current values as fallbacks.
+- `single` and `single.rgb` may be partial.
+- If `day_mode` is present, `enabled` must be an actual JSON boolean.
+- `gps` may be partial, but the resulting group must pass all cross-field rules.
+- `wifi.ap_pass` is write-only. Omit/leave it empty to retain an existing protected password; set `ap_open: true` to clear it explicitly.
+- `version` is returned for clients but ignored as an update selector; compatibility is controlled by the firmware's stored schema.
+
+Minimal example:
+
+```http
+POST /api/config
+Content-Type: application/json
+X-Dog-Portal: 1
+
+{"mode":"show","led":{"brightness":64}}
 ```
+
+Full writable shape:
+
+```json
 {
-  "version": 4,
   "mode": "speed",
   "fence_max_m": 300,
   "led": {"brightness": 77},
-  "speed_ranges_kph": [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0],
+  "day_mode": {"enabled": false},
+  "gps": {
+    "min_fix_quality": 1,
+    "min_sats": 6,
+    "max_hdop": 2.5,
+    "max_gga_age_ms": 2000,
+    "min_segment_m": 3.0,
+    "hdop_factor": 2.0,
+    "max_min_segment_m": 10.0
+  },
+  "speed_ranges_kph": [2, 4, 6, 8, 10, 12, 14, 16, 18],
   "effects": {
     "range1": {"a": 7, "b": 7, "speed": 40, "intensity": 80},
     "range2": {"a": 7, "b": 7, "speed": 58, "intensity": 95},
@@ -94,137 +129,67 @@ Notas:
 }
 ```
 
-Notas:
-- `ap_pass` es opcional. Si no se envia, se mantiene el valor actual.
-- Si `ap_open` es `true`, el AP se guarda sin password.
-- `mode`: `"speed"` (default), `"geofence"`, `"show"` o `"simple"`.
-- `fence_max_m`: distancia maxima en metros (se divide en 10 rangos iguales).
-- `mode: "show"` habilita demo de efectos en Segmento B (homogeneous puede pisar todo). El modo Show recorre los 12 efectos y usa color base aleatorio por efecto cuando el efecto lo permite; RAINBOW, GRADIENT_WAVE y FIRE no reflejan directamente ese color base.
-- `mode: "simple"` aplica un solo efecto a toda la tira (incluye LEDs de estado).
-- `single`: parametros del modo simple (effect/speed/intensity/rgb).
+## Validation
 
----
+| Field | Rule |
+| --- | --- |
+| `mode` | `speed`, `geofence`, `show`, or `simple` |
+| `led.brightness` | Integer `1..255` |
+| `day_mode.enabled` | JSON boolean |
+| `fence_max_m` | Integer `50..5000` |
+| `speed_ranges_kph` | Exactly nine positive, strictly increasing numbers |
+| Effect `a` / `b` | Integer ID `0..11` |
+| Effect `speed` / `intensity` | Integer `0..255` |
+| `single.effect` | Integer ID `0..11` |
+| `single.speed`, `single.intensity`, RGB channels | Integer `0..255` |
+| `gps.min_fix_quality` | `0..8` |
+| `gps.min_sats` | `3..12` |
+| `gps.max_hdop` | `0.5..20.0` |
+| `gps.max_gga_age_ms` | `500..10000` |
+| `gps.min_segment_m` | `0.5..20.0` |
+| `gps.hdop_factor` | `0.0..5.0` |
+| `gps.max_min_segment_m` | `1.0..50.0` and not below `min_segment_m` |
+| `wifi.ap_ssid` | 1–32 bytes |
+| `wifi.ap_pass` | Empty only for explicit open AP; otherwise 8–63 characters |
+| `wifi.mdns` | 1–32 ASCII letters, digits, or hyphens |
 
-## API Home
+Common `400` reasons include `no body`, `bad json`, `brightness`, `mode`, `fence_max`, `day_mode`, `gps`, `ranges`, `ranges value`, `ranges order`, `effects`, `effect values`, `effect id`, `single`, `single values`, `ssid`, `pass required`, `pass`, and `mdns`.
 
-`GET /api/home`:
-```
-{
-  "home_set": true,
-  "home_source": "auto",
-  "home_lat": -34.6037,
-  "home_lon": -58.3816,
-  "gps_fix": true,
-  "current_lat": -34.6037,
-  "current_lon": -58.3816,
-  "distance_m": 12.5
-}
-```
+## Apply and persistence
 
-`POST /api/home/set`:
-- Usa el GPS actual para setear home.
-- Error si no hay fix: `{"status":"error","reason":"no_gps"}`.
+On a valid update, firmware:
 
-`POST /api/home/clear`:
-- Borra el home guardado.
+1. builds a candidate from current state plus supplied fields;
+2. validates the complete candidate;
+3. writes it to the inactive A/B slot with magic/version/size/generation and CRC-32;
+4. reads/commits the new generation as the active runtime state;
+5. restores the previous in-memory state and returns `500 storage` if persistence fails;
+6. applies brightness and mDNS changes;
+7. schedules an AP restart only if AP SSID/password changed.
 
----
+Success is `{"status":"ok","wifi_restart":true|false}`.
 
-## Validaciones y errores
+The Home coordinate, station credentials, portal PIN, metrics, sessions, and route history are separate records. They do not become part of the config blob.
 
-Validaciones:
-- `brightness`: 1..255
-- `mode`: `speed` | `geofence` | `show` | `simple`
-- `fence_max_m`: 50..5000
-- `speed_ranges_kph`: 9 valores > 0, estrictamente ascendentes
-- `effects`: `range1..range10` presentes
-- `effect a/b`: 0..11
-- `speed/intensity`: 0..255
-- `single.effect`: 0..11
-- `single.speed`: 0..255
-- `single.intensity`: 0..255
-- `single.rgb`: 0..255 por canal
-- `ap_ssid`: 1..32
-- `ap_pass`: >= 8 si se envia y `ap_open` es `false`
-- `mdns`: 1..32, solo letras, numeros y guiones
+## Restore defaults
 
-Errores (400) con `{"status":"error","reason":"..."}`:
-- `no body`
-- `bad json`
-- `brightness`
-- `mode`
-- `fence_max`
-- `ranges`
-- `ranges value`
-- `ranges order`
-- `effects`
-- `effect values`
-- `effect id`
-- `single`
-- `single values`
-- `ssid`
-- `pass`
-- `mdns`
+`POST /api/config/reset` takes no body. It persists the compile-time runtime defaults through the same transactional path and returns `{"status":"ok"}`.
 
-Respuesta OK:
-- `{"status":"ok","wifi_restart":true/false}`
+It resets LED/GNSS/mode/AP/mDNS fields only. It does **not** erase:
 
----
+- station credentials;
+- Home;
+- portal PIN;
+- metrics or completed sessions;
+- route history.
 
-## Aplicacion y persistencia
+If the restored AP credentials differ, the AP restart is scheduled after the response.
 
-- Namespace NVS: `dogrgb_cfg`
-- Claves:
-  - `ver` (uint8)
-  - `brightness` (uint8)
-  - `ranges` (9 floats)
-- `effects` (10 entradas: effect_a, effect_b, speed, intensity)
-- `single_eff` (uint8)
-- `single_speed` (uint8)
-- `single_intensity` (uint8)
-- `single_r` (uint8)
-- `single_g` (uint8)
-- `single_b` (uint8)
-  - `mode` (uint8)
-  - `fence_max` (uint16)
-  - `ap_ssid` (string)
-  - `ap_pass` (string, puede estar vacio)
-  - `mdns` (string)
-  - `home_set` (uint8)
-  - `home_lat` (float)
-  - `home_lon` (float)
-  - `home_src` (uint8, 1=auto, 2=manual)
+## Related endpoints
 
-Al guardar:
-- Se valida, se guarda en NVS y se aplica en caliente.
-- Si cambian `ap_ssid` o `ap_pass`, se reinicia el AP (respuesta `wifi_restart=true`).
-- Si cambia `mdns` y hay STA conectado, se reinicia mDNS.
+- Home: `GET /api/home`, `POST /api/home/set`, `POST /api/home/clear`.
+- AP-only settings may also be updated through `POST /api/wifi/ap`.
+- Station credentials and scan lifecycle live under `/api/wifi` and `/api/wifi/scan`.
+- Portal write lock lives under `/api/lock`.
 
-Reset:
-- `POST /api/config/reset` borra `dogrgb_cfg` y vuelve a defaults.
-- Nota: el reset actual borra tambien `home_*`.
-
----
-
-## UI (/config)
-
-Campos:
-- Brightness (1..255)
-- Modo (Speed / Geofence / Show / Simple)
-- Modo Simple (effect, speed, intensity, RGB, tema)
-- 9 rangos de velocidad (km/h)
-- Distancia maxima geofence (m)
-- Efectos por rango (A/B, speed, intensity)
-- AP SSID
-- AP password (opcional)
-- Checkbox "AP abierto (sin password)"
-- mDNS
-- Home: botones "Nuevo Home (GPS actual)" y "Clear Home"
-
-Acciones:
-- Guardar
-- Restaurar defaults
-
-Notas:
-- Si cambias SSID/password/mDNS, el AP puede reiniciarse y desconectar la sesion.
-- El firmware valida todo el JSON aunque el frontend haga validacion basica.
+See [Local HTTP API](api-reference.md) for request formats and [Configuration parameters](config_params.md) for compile-time values.

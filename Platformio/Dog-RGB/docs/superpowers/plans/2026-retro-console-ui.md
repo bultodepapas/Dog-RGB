@@ -1,5 +1,7 @@
 # Plan de Implementación: Retro Console UI — DOG-RGB Portal
 
+> **Document status:** Historical implementation plan (Spanish). The retro-console portal is implemented and has since received accessibility, security, Wi-Fi scan, and visual-regression improvements. Use the [current portal specification](../../../../../docs/web_portal_spec.md).
+
 > **Objetivo:** Transformar el portal web del collar DOG-RGB de tema moderno claro a una interfaz retro-console (fondo negro, texto verde neón fosforescente, efectos CRT), sin comprometer la estabilidad del ESP32-S3 XIAO ni superar los límites de memoria.
 
 ---

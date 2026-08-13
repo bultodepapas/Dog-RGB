@@ -1,51 +1,28 @@
-# Checklist manual del modo SHOW
+# Show Mode Manual Test Checklist
 
-Fecha base: 2026-05-06
-Objetivo: validar el comportamiento actual de SHOW despues de Fase 1.
+> **Document status:** Historical/manual validation artifact refreshed for the current interface on 2026-08-12. Automated contracts cover structure; the physical visual result still requires human judgment.
 
----
+## Setup
 
-## Preparacion
+- Flash the active `seeed_xiao_esp32s3` environment.
+- Connect the configured one- or two-strip layout with a safe, measured brightness.
+- Make `/config` and `/dev` reachable through AP or STA.
+- Record build metadata, LED count, initial mode, GNSS state, Wi-Fi state, and AP clients.
 
-- Firmware cargado desde `Platformio/Dog-RGB`.
-- LED UI habilitado (`LED_UI_ENABLED = true`).
-- Tiras conectadas segun `LED_STRIP_MODE` y `LED_STRIP_COUNT`.
-- Portal accesible por AP (`http://192.168.4.1`) o STA (`http://dog-collar.local`).
-- Brillo configurado en un valor seguro para prueba continua.
+## 1. Enter Show mode
 
-Registrar antes de empezar:
-- Build visible en `/dev`.
-- Modo inicial.
-- Estado GPS: fix / sin fix.
-- Estado Wi-Fi: AP, STA, AP+STA u OFF.
-- Numero de clientes AP.
+1. Select **Show** on `/config` and save.
+2. Open `/dev` and confirm the reported LED mode is `show`.
+3. Confirm that the current Show effect exposes a valid name and ID.
 
----
+Expected: the effect segment starts a demo while status pixels continue to show Wi-Fi/GNSS. Simple mode is the only normal mode that intentionally claims the entire strip.
 
-## Prueba 1: entrada a SHOW
+## 2. Observe one complete shuffled bag
 
-1. Abrir `/config`.
-2. Cambiar modo a `Show`.
-3. Guardar.
-4. Abrir `/dev`.
-5. Confirmar que `LED > Modo` muestra `show`.
-6. Confirmar que `LED > Show effect` muestra nombre e ID.
+Allow at least six minutes because each of the 12 effects normally runs for about 30 seconds.
 
-Resultado esperado:
-- La demo inicia en Segmento B.
-- LED0/LED1 siguen mostrando estado Wi-Fi/GPS salvo modo homogeneo.
-- El primer efecto no esta fijado a SOLID; depende de la bolsa barajada interna.
-
----
-
-## Prueba 2: ciclo completo de efectos
-
-Mantener SHOW activo por al menos 3 minutos.
-
-Registrar cada cambio de efecto:
-
-| Cambio | Tiempo aproximado | Efecto observado | ID observado | Notas |
-| --- | --- | --- | --- | --- |
+| Sequence | Approximate time | Effect | ID | Transition/color notes |
+| ---: | --- | --- | ---: | --- |
 | 1 | 00:00 |  |  |  |
 | 2 | 00:30 |  |  |  |
 | 3 | 01:00 |  |  |  |
@@ -59,70 +36,39 @@ Registrar cada cambio de efecto:
 | 11 | 05:00 |  |  |  |
 | 12 | 05:30 |  |  |  |
 
-Resultado esperado:
-- Los 12 IDs aparecen una vez antes de repetir bolsa.
-- Al iniciar una bolsa nueva, el primer efecto no debe ser igual al ultimo efecto de la bolsa anterior.
-- Cada efecto dura aproximadamente 30 s.
-- Cada cambio de efecto tiene una transicion breve, sin corte brusco.
-- En efectos que usan color base, debe notarse evolucion de color dentro de los 30 s.
-- El color base cambia al pasar de efecto, aunque RAINBOW, FIRE y GRADIENT_WAVE no lo reflejan directamente.
+Expected:
 
----
+- all IDs `0..11` occur once before the bag repeats;
+- the first item of the next bag differs from the previous bag's last item;
+- transitions are brief and do not produce an obvious blank/frozen strip;
+- base color evolves where the effect supports it;
+- `RAINBOW`, `GRADIENT_WAVE`, and `FIRE` need not reflect the random base color directly.
 
-## Prueba 3: status activo
+## 3. Status and Day Mode
 
-Con SHOW activo y Wi-Fi/GPS en estados conocidos:
+- Change AP/client and GNSS states and confirm the two status pixels remain readable.
+- Enable Day Mode and test with trusted GNSS time inside/outside the 06:00–16:00 UTC-5 window.
 
-- Confirmar LED0 segun estado Wi-Fi/AP.
-- Confirmar LED1 segun estado GPS.
-- Confirmar que el resto de la tira sigue en demo.
+Expected: Day Mode turns off effect pixels during its window but preserves status indicators. Missing/stale time leaves effects on.
 
-Resultado esperado:
-- Segmento A no se mezcla con SHOW mientras no haya modo homogeneo.
-- Segmento B mantiene el efecto actual.
+## 4. Two-strip behavior
 
----
+When two strips are configured, confirm that both use the same Show effect and parameters at each transition. Their physical orientation may make the pattern look mirrored or repetitive; record that as a design observation unless the data streams actually diverge.
 
-## Prueba 4: modo homogeneo
+## Optional explicit Wi-Fi-OFF test
 
-Condicion: Wi-Fi OFF y GPS OK estable por mas de `WIFI_OFF_GPS_FIX_MS` (default 5 min).
+The firmware retains homogeneous rendering after an explicit Wi-Fi-OFF state plus stable GNSS. Automatic idle AP shutdown currently stops SoftAP without forcing that state, so this case is not part of the normal field policy. If tested through an experimental control path, confirm the Show effect covers the status pixels only after the documented stability delay.
 
-Pasos:
-1. Activar SHOW.
-2. Dejar que el sistema cumpla la condicion de homogeneo.
-3. Observar LED0/LED1 y Segmento B.
+## Pass record
 
-Resultado esperado:
-- SHOW se aplica a toda la tira.
-- Los LEDs de estado quedan pisados por el efecto actual.
+- [ ] Show is selectable and persists.
+- [ ] `/dev` reports the current mode/effect correctly.
+- [ ] All 12 effects appear once per bag.
+- [ ] Bag-boundary non-repeat behavior passes.
+- [ ] Transitions and supported color evolution look acceptable.
+- [ ] Status pixels survive normal Show operation.
+- [ ] Day Mode preserves status and controls only the effect segment.
+- [ ] Both strips stay synchronized.
+- [ ] Current, voltage, and temperature remain within the build's measured limits.
 
----
-
-## Prueba 5: doble tira
-
-Si `LED_STRIP_MODE = 2`:
-
-- Confirmar que tira A y tira B muestran el mismo efecto.
-- Confirmar que no hay una tira congelada o desfasada por error.
-- Registrar si la simetria visual parece pobre o repetitiva.
-
-Resultado esperado:
-- Ambas tiras usan el mismo efecto SHOW en todo momento.
-- Ambas tiras usan los mismos parametros internos de SHOW; no debe aparecer un efecto distinto en una sola tira.
-- La simetria actual es comportamiento esperado, no fallo.
-
----
-
-## Criterio de cierre
-
-La Fase 1 queda validada si:
-
-- El modo SHOW puede activarse desde `/config`.
-- `/dev` muestra `mode = show` y el efecto actual.
-- Se observan 12 efectos sin repeticion dentro de la bolsa.
-- Se observan transiciones breves entre efectos.
-- Se observa variacion de color dentro de efectos que usan color base.
-- Ambas cintas mantienen el mismo efecto en todo momento.
-- Status LEDs se conservan fuera de homogeneo.
-- Homogeneo pisa toda la tira cuando corresponde.
-- Cualquier diferencia visual se registra como hallazgo, no como cambio aplicado.
+Link any failure to logs, firmware revision, configuration export, and photos/video. See [LED UI](led_ui_spec.md) and [LED effects](led_effects.md) for the canonical behavior.

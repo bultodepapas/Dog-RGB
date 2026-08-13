@@ -200,11 +200,19 @@ class WifiCredentialsPersistenceTests(unittest.TestCase):
         self.assertNotIn('putString("wifi_ssid"', wifi_cpp)
         self.assertNotIn('putString("wifi_pass"', wifi_cpp)
         self.assertIn("bool save_creds", wifi_h)
-        self.assertIn("if (!wifi_mgr::save_creds(ssid, pass))", portal)
-        self.assertIn(r'{\"ok\":false,\"reason\":\"storage\"}', portal)
+        handler_start = portal.index("void handle_wifi_save()")
+        handler_end = portal.index("void begin()", handler_start)
+        wifi_save_handler = portal[handler_start:handler_end]
+        self.assertIn("if (!wifi_mgr::save_creds(ssid, pass))", wifi_save_handler)
+        # All portal errors share the status/reason envelope; keep the Wi-Fi
+        # storage failure consistent with the other write endpoints.
+        self.assertIn(
+            r'{\"status\":\"error\",\"reason\":\"storage\"}',
+            wifi_save_handler,
+        )
         self.assertLess(
-            portal.index("if (!wifi_mgr::save_creds(ssid, pass))"),
-            portal.index('wifi_mgr::start_sta_mode();', portal.index("void handle_wifi_save()")),
+            wifi_save_handler.index("if (!wifi_mgr::save_creds(ssid, pass))"),
+            wifi_save_handler.index("wifi_mgr::start_sta_mode();"),
         )
         self.assertIn('wifiStorage["generation"]', portal)
         self.assertIn('wifiStorage["save_failures"]', portal)

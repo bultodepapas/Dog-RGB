@@ -1,82 +1,49 @@
-# Portal Config Presets (Profiles)
+# Portal Configuration Presets
 
-Este documento define un sistema de presets para guardar combinaciones de rangos, efectos y brillo.
+> **Document status:** Proposed optional feature. No preset storage, API, or selector is implemented in the active firmware as of 2026-08-12.
 
-Estado: no implementado en el firmware actual.
+Presets would let a user apply a named group of existing configuration fields without editing ten ranges individually. They should remain an optional convenience layer over the versioned configuration schema, not a second configuration system.
 
----
+## Proposed scope
 
-## Objetivo
+- Ship a small set of built-in profiles such as **Calm**, **Active**, and **Sport**.
+- Allow preview, apply, and subsequent manual editing.
+- Reuse existing `POST /api/config` validation and transactional persistence.
+- Keep Home, station credentials, AP credentials, lock PIN, metrics, sessions, and routes outside a visual preset.
+- Avoid custom user-preset persistence in the first iteration; hard-coded defaults are easier to recover and migrate.
 
-- Permitir al usuario seleccionar perfiles predefinidos.
-- Cambiar rapidamente el comportamiento visual sin editar cada campo.
+## Candidate model
 
----
-
-## Presets base
-
-1) Calm
-- Brillo bajo
-- Efectos suaves (SOLID/BREATH)
-- Colores frios
- - Modo: speed
-
-2) Active
-- Brillo medio
-- Efectos dinamicos (CHASE/COMET)
-- Colores mixtos
- - Modo: speed
-
-3) Sport
-- Brillo medio-alto
-- Efectos rapidos (JUGGLE/BPM)
-- Colores calidos
- - Modo: speed
-
-4) Geofence (ejemplo)
-- Brillo medio
-- Modo: geofence
-- `fence_max_m` definido por el usuario (default 300)
-
----
-
-## Estructura (JSON)
-
-```
+```json
 {
-  "name": "Calm",
+  "id": "calm",
+  "label": "Calm",
   "mode": "speed",
-  "fence_max_m": 300,
   "brightness": 60,
-  "speed_ranges_kph": [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0],
-  "effects": {
-    "range1": {"a": 0, "b": 2, "speed": 30, "intensity": 60},
-    "range2": {"a": 1, "b": 2, "speed": 40, "intensity": 70},
-    "range3": {"a": 2, "b": 2, "speed": 50, "intensity": 80},
-    "range4": {"a": 3, "b": 3, "speed": 60, "intensity": 90},
-    "range5": {"a": 3, "b": 4, "speed": 70, "intensity": 100},
-    "range6": {"a": 4, "b": 4, "speed": 80, "intensity": 110},
-    "range7": {"a": 4, "b": 5, "speed": 90, "intensity": 120},
-    "range8": {"a": 5, "b": 5, "speed": 100, "intensity": 130},
-    "range9": {"a": 5, "b": 6, "speed": 110, "intensity": 140},
-    "range10": {"a": 6, "b": 6, "speed": 120, "intensity": 150}
-  }
+  "ranges": [2, 4, 6, 8, 10, 12, 14, 16, 18],
+  "effects": [
+    {"a": 2, "b": 2, "speed": 30, "intensity": 60}
+  ]
 }
 ```
 
----
+The example abbreviates the `effects` array. An applied Speed preset must provide all ten entries because the current API validates that collection atomically. Effect IDs and input ranges must come from [LED effects](led_effects.md) and [Portal configuration](portal_config.md).
 
-## UI
+## Candidate built-ins
 
-- Dropdown "Perfil" con presets.
-- Boton "Aplicar perfil".
-- Permitir editar manualmente despues.
-- Preset default: "Velocidad" (speed).
+| Preset | Intent | Likely choices |
+| --- | --- | --- |
+| Calm | Low brightness and gentle motion | `SOLID`, `PULSE`, `BREATH` |
+| Active | Medium brightness and clear movement | `CHASE`, `COMET`, `SINELON` |
+| Sport | Faster, high-energy output | `JUGGLE`, `BPM`, `RAINBOW` |
 
----
+Geofence can be a mode shortcut, but `fence_max_m` should be confirmed by the user instead of hidden in a generic visual profile.
 
-## Notas
+## Acceptance criteria for a future implementation
 
-- Presets se almacenan en firmware (hardcoded) o en NVS.
-- Cambiar perfil aplica igual que POST /api/config.
-- `home` no forma parte de presets (solo se cambia en la seccion Home del AP).
+- Applying a preset uses the same validation, rollback, and error envelope as other configuration writes.
+- The UI shows exactly which fields will change before saving.
+- Applying a preset is reversible through the normal defaults/reset workflow.
+- Unknown preset IDs fail without mutating configuration.
+- Existing schema-version migration and A/B storage recovery continue to work.
+- Firmware size and portal-source smoke limits remain green.

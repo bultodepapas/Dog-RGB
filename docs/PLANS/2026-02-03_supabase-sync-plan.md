@@ -1,5 +1,7 @@
 # Plan — Sync automatico a Supabase cuando conecta Wi-Fi (STA)
 
+> **Document status:** Proposed historical plan (Spanish), not implemented. Cloud sync remains optional and must not become a requirement for local collar operation.
+
 Este plan describe como subir estadisticas a Supabase al conectar a internet de casa y como capturar credenciales desde el portal AP. No implementa cambios.
 
 ---

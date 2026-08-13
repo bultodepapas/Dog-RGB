@@ -1,5 +1,7 @@
 # Dog-RGB Home Terminal: plan maestro del portal cloud
 
+> **Document status:** Optional long-range proposal (Spanish), not implemented. The supported product remains local-first and fully usable without a backend. Review [Roadmap](../roadmap.md) before expanding scope.
+
 > Estado: propuesta detallada, lista para revisión técnica antes de implementar  
 > Fecha de investigación y redacción: 2026-08-01  
 > Alcance: firmware ESP32-S3, portal AP local, API de ingestión, Supabase, Vercel, mapas, estadísticas, seguridad, pruebas y despliegue  

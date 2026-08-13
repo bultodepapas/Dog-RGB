@@ -1,92 +1,94 @@
 # Dog-RGB Firmware
 
-Firmware GPS-first para collar Dog-RGB en Seeed Studio XIAO ESP32-S3.
+**Active PlatformIO project** for the Seeed Studio XIAO ESP32-S3 collar. Repository-wide onboarding and hardware cautions are in the [root README](../../README.md).
 
-## Objetivo
+## Implemented subsystems
 
-- Leer GNSS por UART y calcular distancia, tiempo activo, velocidad promedio y velocidad maxima.
-- Guardar resumen diario, historial corto de sesiones y puntos de ruta GPS.
-- Servir portal local por Wi-Fi para dashboard, configuracion, diagnostico y export de rutas.
-- Manejar tiras SK6812 RGBW como UI visual, con LEDs reservados para estado/alertas.
+- RMC/GGA GNSS parsing with runtime quality gates, distance, active time, daily metrics, trusted date rollover, and diagnostics.
+- Transactional current session, three completed summaries, completed-day journal, and two-hour route ring.
+- JSON/CSV/GeoJSON route streaming that services GNSS around bounded socket writes.
+- Two SK6812 RGBW strips with reserved status pixels, 12 effects, four modes, welcome animation, and optional Day Mode.
+- AP/STA Wi-Fi with captive DNS/probes, network scan, event-queue ownership, bounded retry/backoff, AP hold/idle policy, and mDNS.
+- Embedded dashboard, Wi-Fi/configuration/diagnostic pages, CSRF-intent header, output escaping, response headers, and optional write PIN.
+- A/B + CRC persistence for config, metrics, sessions, Home, and station credentials; dedicated route NVS partition.
+- Read-only BLE summary code, disabled by default for radio coexistence.
+- Wokwi production-image simulation with custom controllable NMEA chip and eight scenarios.
 
-## Hardware
-
-- MCU: Seeed Studio XIAO ESP32-S3.
-- GNSS: EBYTE E108-GN02 a 9600 baud.
-- LEDs: SK6812 RGBW.
-- LED A data: D0 / GPIO1.
-- LED B data: D1 / GPIO2.
-- Status LED placa: D2 / GPIO3.
-- GNSS TX/RX: D6/GPIO43 y D7/GPIO44.
-
-## Modos LED
-
-El modo visual principal se configura desde el portal:
-
-- `speed`: efectos por rango de velocidad GPS.
-- `geofence`: efectos por distancia al Home.
-- `simple`: un efecto fijo para toda la tira.
-- `show`: demo automatica de efectos.
-
-Los primeros `LED_STATUS_COUNT` LEDs de cada tira estan reservados para estado Wi-Fi/GPS/error. Con `LED_STRIP_MODE = 2` y `LED_STATUS_COUNT = 2`, esto equivale a 4 LEDs fisicos de alerta.
-
-## Modo DIA
-
-Modo DIA es una compuerta de ahorro de bateria activable desde `/config`. No reemplaza `speed`, `geofence`, `simple` ni `show`.
-
-Cuando esta activado y hay hora GPS confiable:
-
-- De 06:00 a antes de 16:00 hora local, apaga solo los LEDs de efectos del cuerpo.
-- Los 4 LEDs de alerta/estado siguen funcionando.
-- El rastreo GPS, metricas, rutas, Wi-Fi y portal siguen funcionando.
-- Las luces de bienvenida de arranque siguen funcionando antes de aplicar la compuerta DIA.
-
-Si no hay fecha/hora GPS confiable, Modo DIA queda en `waiting_time` y no apaga efectos para evitar apagados falsos.
-
-La hora local se calcula desde RMC GPS, asumiendo `DAY_MODE_TZ_OFFSET_MIN = -300` para America/Bogota. Los detalles tecnicos estan en [docs/modo-dia.md](docs/modo-dia.md).
-
-## Portal HTTP
-
-Endpoints principales:
-
-- `GET /`: dashboard.
-- `GET /config`: configuracion de modo, brillo, Modo DIA, GPS, geocerca y efectos.
-- `GET /dev`: diagnostico tecnico.
-- `GET /api/status`: estado resumido para dashboard.
-- `GET /api/config`: configuracion persistente actual.
-- `POST /api/config`: guarda configuracion.
-- `POST /api/mode`: cambia solo el modo visual.
-- `GET /api/summary`: resumen diario/sesiones.
-- `GET /api/track.json`, `/api/track.csv`, `/api/track.geojson`: export de ruta.
-
-Los callbacks asincronos de Wi-Fi solo publican eventos en una cola estatica de 16 posiciones. `wifi_mgr::tick()` procesa la cola en orden y es el unico propietario del estado de conexion, reintentos, clientes AP y mDNS. `/api/dev` muestra `event_queue_high_water` y `event_queue_overflow_count`; si la cola se satura, el mismo tick fuerza una reconciliacion con el estado real del driver.
-
-## Build Y Verificacion
+## Build
 
 ```powershell
-$env:USERPROFILE\.platformio\penv\Scripts\pio.exe run -e seeed_xiao_esp32s3
+pio run -e seeed_xiao_esp32s3
+```
+
+Pinned environment:
+
+- pioarduino `55.03.311`;
+- Arduino-ESP32 3.3.11 / ESP-IDF 5.5.5;
+- ArduinoJson 7.4.3;
+- Adafruit NeoPixel 1.15.5.
+
+Flash and monitor:
+
+```powershell
+pio run -e seeed_xiao_esp32s3 -t upload
+pio device monitor -e seeed_xiao_esp32s3
+```
+
+The complete upload installs `partitions_dog_rgb.csv`. Do not distribute only `firmware.bin` as a first-time upgrade path: the route store needs the dedicated `tracknvs` partition.
+
+## Host tests
+
+```powershell
 python -m unittest discover -s test -p "test_*.py" -v
 ```
 
-`platformio.ini` define el entorno `seeed_xiao_esp32s3` con Arduino framework, ArduinoJson y Adafruit NeoPixel.
+These tests cover timing/date rules, A/B recovery, routes/streaming, Wi-Fi queue/retry behavior, and simulation assets. See [repository testing guide](../../docs/testing.md).
 
-## Simulacion Wokwi
-
-La simulacion local incluye la XIAO ESP32-S3, ambas tiras LED, el LED de estado,
-un GNSS NMEA interactivo y un analizador logico. Para preparar firmware, chip
-WASM y diagrama con un solo comando:
+## Wokwi
 
 ```powershell
 .\tools\wokwi.ps1 -Action prepare
+.\tools\wokwi.ps1 -Action suite -TimeoutMs 90000
 ```
 
-La instalacion, los perfiles GNSS, las pruebas automatizadas y el acceso al
-portal estan documentados en [docs/wokwi.md](docs/wokwi.md).
+Copy `.env.example` to ignored `.env` and provide `WOKWI_CLI_TOKEN`. Full controls/scenarios/limitations: [docs/wokwi.md](docs/wokwi.md).
 
-## Notas De Persistencia
+## Portal
 
-La configuracion runtime se guarda en NVS mediante `Preferences`. La version actual de configuracion es `5`; la migracion desde versiones anteriores conserva modos, rangos, efectos, Wi-Fi y GPS, y deja Modo DIA desactivado por defecto.
+Default AP: `DogRGB` / `Dog12345`, portal `http://192.168.4.1/`. Change the password before normal use.
 
-El historial de ruta usa la particion NVS dedicada `tracknvs` (192 KiB). Conserva las ultimas 2 horas (1.440 puntos a intervalos de 5 s) y reescribe el chunk parcial cada 15 s para limitar la perdida ante un reinicio. El formato v2 protege metadata y chunks con CRC-32/IEEE; al exportar se rechazan chunks truncados, alterados o con coordenadas/horas invalidas sin perder los otros chunks validos. La primera carga del esquema/formato dedicado inicia un historial de ruta nuevo; la configuracion y las credenciales permanecen en la particion NVS principal.
+Pages:
 
-Para instalar esta version usa el upload completo de PlatformIO (`pio run -e seeed_xiao_esp32s3 -t upload`) para grabar tambien `partitions_dog_rgb.csv`; copiar solamente `firmware.bin` no instala la nueva particion de historial.
+- `/` dashboard, sessions, route preview/export;
+- `/wifi` scan and AP/STA settings;
+- `/config` runtime settings, Home, Day Mode, optional PIN;
+- `/dev` health and detailed diagnostics.
+
+API routes and write headers are documented in [HTTP API reference](../../docs/api-reference.md). A custom client must send `X-Dog-Portal` for every POST and `X-Dog-Pin` when the optional lock is enabled.
+
+## Key defaults
+
+- Pins: A GPIO1, B GPIO2, status GPIO3, GNSS TX→ESP RX GPIO44, optional ESP TX GPIO43.
+- Two × 24 pixels, two reserved status pixels per strip, brightness 77/255.
+- GNSS 9,600 baud, 1-second metric sample, 0.7 km/h active threshold, 40 km/h valid-speed ceiling.
+- Day Mode off, 06:00–16:00 fixed UTC-5 when enabled.
+- BLE off.
+
+Authoritative values: `include/config.h`, `include/pins.h`, and `platformio.ini`.
+
+## Code map
+
+| Area | Implementation |
+| --- | --- |
+| Orchestration | `src/main.cpp` |
+| GNSS, metrics, sessions, routes | `src/gps/gps.cpp` |
+| Config | `src/config/runtime_config.cpp` |
+| Wi-Fi | `src/wifi/wifi_mgr.cpp` |
+| HTTP and pages | `src/web/portal_http.cpp`, `src/web/pages.cpp` |
+| Optional PIN | `src/web/portal_lock.cpp` |
+| LEDs / Day Mode | `src/led/led_ui.cpp`, `src/power/day_mode.cpp` |
+| Home/geofence | `src/geofence/home.cpp` |
+| BLE | `src/ble/summary_ble.cpp` |
+| Storage/utilities | `src/storage/nvs_store.cpp`, `src/util/geo.cpp`, `include/util/*` |
+
+Detailed boot/loop/storage/concurrency design: [Architecture](../../docs/architecture.md).

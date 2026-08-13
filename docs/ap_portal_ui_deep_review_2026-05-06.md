@@ -1,5 +1,7 @@
 # DOG-RGB Access Point Portal UI Deep Review
 
+> **Document status:** Historical UI review snapshot. The embedded portal and its automated tests have changed since 2026-05-06. See the [current portal specification](web_portal_spec.md) and [visual workflow](ap_portal_visual_screenshot_workflow_guide.md).
+
 Prepared: 2026-05-06  
 Scope: Access Point web portal UI/UX, mobile behavior, embedded web constraints, and redesign direction.  
 Primary source of truth: firmware code in `Platformio/Dog-RGB/src/web/pages.cpp`, `Platformio/Dog-RGB/src/web/portal_http.cpp`, `Platformio/Dog-RGB/src/wifi/wifi_mgr.cpp`, runtime config code, and project README.

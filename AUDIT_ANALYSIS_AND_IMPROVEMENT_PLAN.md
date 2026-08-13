@@ -1,5 +1,7 @@
 # Dog-RGB Firmware and Electronics Audit
 
+> **Document status:** Historical audit snapshot. It preserves findings from 2026-07-31/2026-08-01; the firmware and documentation have evolved since then. Use the [current documentation index](docs/README.md) and active source before acting on a finding.
+
 **Audit date:** 2026-07-31  
 **Scope:** repository at `C:\DEVELOPMENT\Dog-RGB`, with the active firmware under `Platformio/Dog-RGB`  
 **Role:** electronics/embedded-systems engineering review  

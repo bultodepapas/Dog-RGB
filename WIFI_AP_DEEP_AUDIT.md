@@ -1,5 +1,7 @@
 # Auditoria profunda de AP, Wi-Fi y portal local
 
+> **Document status:** Historical audit snapshot (Spanish). Several recommendations were implemented or superseded. Use the [current Wi-Fi reference](docs/wifi_portal_spec.md) for present behavior.
+
 Fecha original: 2026-07-31; actualizada: 2026-08-01  
 Proyecto auditado: Dog-RGB, rama `main`, commit `c5b77be`  
 Objetivo real: collar DIY configurable desde el telefono, con acceso local simple, GPS, LEDs y funcionamiento util con o sin router domestico.

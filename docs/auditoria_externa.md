@@ -1,5 +1,7 @@
 # Informe de Auditoría de Código - Dog-RGB Firmware
 
+> **Document status:** Historical audit snapshot from 2026-02-02 (Spanish). Paths, line references, risks, and recommendations may no longer match the active firmware. Start with the [documentation index](README.md).
+
 **Fecha:** 02 de Febrero de 2026
 **Auditor:** Agente Senior de Ingeniería (AI)
 **Repositorio:** Dog-RGB

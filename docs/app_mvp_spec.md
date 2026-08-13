@@ -1,99 +1,45 @@
-# App Puente MVP - Especificacion (Fase futura)
+# Proposed BLE Companion App MVP
 
-Esta especificacion define la app puente minimalista para leer el resumen diario del collar via BLE y mostrar 3 metricas. Se implementara en una fase posterior.
+**Document status:** Proposed and not implemented. The firmware's BLE summary exists but `BLE_ENABLED` is false in normal builds because SoftAP/BLE coexistence is unreliable on the shared ESP32-S3 antenna.
 
----
+## Objective
 
-## Objetivo
+Build a deliberately small companion that reads one validated 16-byte daily summary and presents three metrics without an account or backend.
 
-- Conectar por BLE al collar.
-- Leer el bloque de 16 bytes.
-- Mostrar distancia, velocidad promedio y velocidad maxima.
+## Scope
 
----
+Included:
 
-## Alcance
+- discover/select one Dog-RGB collar;
+- connect and read the documented characteristic;
+- verify payload checksum and decode little-endian fields;
+- show distance, average active speed, maximum speed, GNSS/data flags, and reading time;
+- persist only the last successful reading locally;
+- accessible loading, permission, error, stale, and retry states.
 
-Incluye:
-- 1 pantalla (dashboard).
-- 1 boton de sincronizacion.
-- Estados basicos de conexion.
-- Persistencia local de la ultima lectura.
+Excluded:
 
-No incluye:
-- Login o cuentas.
-- Multi-dispositivo.
-- Historico o mapas.
+- cloud sync, login, analytics, maps, route transfer, background tracking, multi-collar fleet, configuration writes, OTA, and notifications.
 
----
+## User flow
 
-## Flujo de Usuario
+1. Open the app and grant the minimum Bluetooth permission required by the platform.
+2. Tap **Sync from collar**.
+3. Select/connect to `Dog-Collar` and discover the summary service.
+4. Read exactly 16 bytes, validate XOR checksum, then decode.
+5. Display the new result or retain the prior result with an explicit error/stale label.
+6. Disconnect; the MVP does not need a persistent BLE session.
 
-1) Abrir app.
-2) Tocar "Sincronizar".
-3) Conectar por BLE.
-4) Leer bloque de datos.
-5) Mostrar metricas.
+## Acceptance criteria
 
----
+- Reject payloads with the wrong length/checksum.
+- Decode fields and flags exactly as specified in [BLE summary](ble_spec.md).
+- Never present `date=0` as a valid day.
+- Convert centimeters per second to the displayed unit without changing stored wire values.
+- State whether GNSS fix/data were current at read time.
+- Work without an Internet permission or account.
+- Expose connection/permission state in text, not color alone.
 
-## UX (pantalla unica)
+## Gate before implementation
 
-Componentes:
-- Titulo: "Dog Collar"
-- Estado: Conectado/Desconectado, GPS OK/Sin GPS
-- Boton: "Sincronizar"
-- Cards:
-  - Distancia (km)
-  - Velocidad promedio (km/h)
-  - Velocidad maxima (km/h)
-- Footer: "Ultima lectura: HH:MM"
-
----
-
-## Estados
-
-- Sin conexion: "Acercate al collar"
-- Sin GPS: "Esperando GPS"
-- Datos invalidos: "Datos no validos, reintenta"
-
----
-
-## BLE
-
-- Escaneo por nombre "Dog-Collar" o UUID del servicio.
-- Conectar y leer characteristic READ.
-- Validar checksum XOR.
-- Decodificar payload (ver `docs/ble_spec.md`).
-
----
-
-## Conversiones
-
-- distance_m -> km = m / 1000
-- speed_cmps -> km/h = cmps * 0.036
-
----
-
-## Persistencia Local
-
-Guardar:
-- ultima lectura decodificada
-- timestamp local de lectura
-
----
-
-## Errores y Reintentos
-
-- Timeout conexion: 10 s
-- 1 reintento automatico
-- Mensajes simples para el usuario
-
----
-
-## Checklist de entrega
-
-- Conecta y lee en <10 s
-- Checksum validado
-- UI muestra datos coherentes
-- Estados claros sin soporte tecnico
+Define a supported firmware radio mode (for example STA-only while advertising), then validate AP/STA/BLE transitions on the XIAO and representative phones. Until that gate passes, the local Wi-Fi portal remains the supported interface.

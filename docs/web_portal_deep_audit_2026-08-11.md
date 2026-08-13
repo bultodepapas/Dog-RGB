@@ -1,5 +1,7 @@
 # Auditoría profunda del portal web — Dog-RGB
 
+> **Document status:** Historical audit snapshot (Spanish), tied to the commit named below. Use the [current portal specification](web_portal_spec.md), [HTTP API](api-reference.md), and active tests for the present contract.
+
 **Fecha:** 2026-08-11
 **Alcance:** subsistema web completo — `src/web/portal_http.cpp` (1098 L), `src/web/pages.cpp` (1876 L), harness de preview (`tools/ap_portal_preview/`), suite Playwright (`tests/ap-portal-visual/`), smoke estático (`tools/web_pages_smoke.py`).
 **Commit auditado:** `56a18bd` (rama `main`, árbol limpio)

@@ -1,5 +1,7 @@
 # Auditoria del modo SHOW
 
+> **Document status:** Historical Show-mode audit (Spanish). Use [LED UI](led_ui_spec.md), [LED effects](led_effects.md), and the refreshed [manual checklist](show_mode_manual_test_checklist.md) for current behavior.
+
 Fecha de revision: 2026-05-06  
 Alcance: firmware activo en `Platformio/Dog-RGB`, documentacion local y referencias tecnicas externas.  
 Objetivo: auditar por que el modo SHOW puede sentirse poco aleatorio, y proponer fases de mejora sin aumentar el numero de funciones visibles al usuario.

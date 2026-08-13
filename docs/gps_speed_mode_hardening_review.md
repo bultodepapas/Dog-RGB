@@ -1,5 +1,7 @@
 # Informe: GPS, Modo Velocidad y Plan de Hardening
 
+> **Document status:** Historical hardening review (Spanish). The active GNSS, metric, persistence, and simulation implementations have evolved. Use [GNSS, Metrics, and Route Processing](gps_analysis.md) for the current contract.
+
 Fecha: 2026-05-06  
 Proyecto: Dog-RGB / ESP32-S3 / XIAO ESP32-S3  
 Firmware revisado: `Platformio/Dog-RGB`
