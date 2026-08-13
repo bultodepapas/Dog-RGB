@@ -40,3 +40,13 @@ Para detalles actualizados usa la documentación principal en inglés:
 - [Hardware y cableado](docs/manual_de_construccion.en.md)
 
 Los planes y auditorías fechados se conservan como historial; no representan automáticamente el estado actual.
+
+## Agradecimientos
+
+Dog-RGB se desarrolla con el apoyo de [Codex for Open Source](https://developers.openai.com/community/codex-for-oss). Un agradecimiento especial a **OpenAI** y al **equipo de Codex** por proporcionar acceso a **ChatGPT Pro con Codex** para apoyar a quienes mantienen proyectos de código abierto.
+
+Dog-RGB es un proyecto comunitario independiente y no está afiliado ni respaldado oficialmente por OpenAI.
+
+## Licencia
+
+Salvo que un archivo indique lo contrario, el código, las herramientas y la documentación originales de Dog-RGB se distribuyen bajo la licencia permisiva [MIT](LICENSE). El material de terceros conserva sus propias condiciones y licencias.

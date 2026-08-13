@@ -8,7 +8,7 @@ Dog-RGB is a DIY electronics and firmware project. Small, understandable changes
 2. Treat `Platformio/Dog-RGB` as the active firmware project.
 3. Keep commercial-grade security, cloud infrastructure, and advanced developer tooling optional unless the issue explicitly requires them.
 4. Preserve unrelated local changes; do not commit generated reports, local tokens, or `.env` files.
-5. Follow [ADR-0001](docs/adr/0001-wled-clean-room-y-licencia-del-proyecto.md) for WLED-inspired work: design from concepts and observable behavior; do not copy source or assets while project licensing/provenance remains unresolved.
+5. Follow [ADR-0001](docs/adr/0001-wled-clean-room-y-licencia-del-proyecto.md) for WLED-inspired work: design from concepts and observable behavior; the Dog-RGB MIT license does not grant permission to copy third-party source or assets.
 
 ## Verification
 
@@ -75,4 +75,5 @@ See [Testing and simulation](docs/testing.md) for prerequisites and narrower com
 - [ ] New write endpoints use the portal CSRF header and optional PIN guard.
 - [ ] Documentation distinguishes current behavior from future ideas.
 - [ ] No secret, token, generated evidence, build output, or local `.env` file is included.
-- [ ] External inspiration has traceable provenance and follows the provisional clean-room policy.
+- [ ] External inspiration has traceable provenance and follows the clean-room policy.
+- [ ] New project-authored material is compatible with the repository's [MIT License](LICENSE), and third-party material retains all required notices.

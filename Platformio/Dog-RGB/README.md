@@ -92,3 +92,7 @@ Authoritative values: `include/config.h`, `include/pins.h`, and `platformio.ini`
 | Storage/utilities | `src/storage/nvs_store.cpp`, `src/util/geo.cpp`, `include/util/*` |
 
 Detailed boot/loop/storage/concurrency design: [Architecture](../../docs/architecture.md).
+
+## License
+
+Dog-RGB's original firmware and accompanying project documentation are available under the repository's [MIT License](../../LICENSE). Third-party libraries and externally authored material retain their own license terms.

@@ -30,7 +30,8 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Runtime configuration](portal_config.md) | Current | Config schema, defaults, validation, application, and recovery |
 | [Testing and simulation](testing.md) | Current | Firmware, portal, visual, CI, and Wokwi verification |
 | [WLED Phase 0 baseline](baselines/fase-0-2026-08-12.md) | Current evidence | Host-test result, CI capture, software status, and pending physical measurements |
-| [ADR-0001: WLED clean-room and licensing](adr/0001-wled-clean-room-y-licencia-del-proyecto.md) | Current interim policy | Prevents literal reuse until project licensing and provenance are reviewed |
+| [ADR-0001: WLED clean-room and provenance](adr/0001-wled-clean-room-y-licencia-del-proyecto.md) | Current policy, amended | Prevents unreviewed literal reuse of WLED material; its former license-selection prerequisite is resolved |
+| [ADR-0002: MIT project license](adr/0002-project-license-mit.md) | Current decision | Licenses original project material under MIT and defines the third-party boundary |
 | [Requirements](requirements.md) | Current | Functional, safety, and quality requirements with verification state |
 | [Roadmap](roadmap.md) | Current | Implemented baseline and optional next phases |
 | [Work queue](tasks.md) | Current | Concrete remaining validation and engineering tasks |

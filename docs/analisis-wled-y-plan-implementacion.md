@@ -106,7 +106,7 @@ Hay pruebas host de contratos y lógica, smoke test HTML, Playwright, regresión
 | Contrato documentado desalineado | `architecture.md` describe BLE después del portal; el código inicia BLE antes de Wi-Fi por coexistencia | Un mantenedor puede cambiar el orden y reintroducir un fallo | Corregir documentación en la primera fase |
 | Suite host no está en CI | Los jobs cubren portal, visuales y firmware, pero no ejecutan `unittest discover` | Una regresión lógica puede entrar aunque el build pase | Añadir job obligatorio y rápido |
 | OTA particionado, pero no implementado | `app0`/`app1` existen; no se encontró updater | Capacidad tentadora pero seguridad/rollback sin cerrar | Mantener como fase opcional, local y con desbloqueo físico |
-| No se encontró licencia del proyecto | No hay `LICENSE`/`COPYING` en raíz | Ambigüedad al reutilizar código externo | Elegir licencia antes de copiar código de WLED |
+| Licencia del proyecto resuelta después de este análisis | Se añadió la licencia [MIT](../LICENSE), documentada en [ADR-0002](adr/0002-project-license-mit.md) | La licencia propia no concede derechos sobre material externo | Mantener trazabilidad y revisar compatibilidad antes de copiar código de WLED |
 
 Los cinco archivos C++ activos más grandes concentran aproximadamente 8.807 de 11.205 líneas, cerca del 79 %. Esto no exige partir todo de inmediato: sí indica dónde evitar agregar la próxima capa de comportamiento.
 
@@ -327,11 +327,11 @@ Debe compilarse por flags, sin carga dinámica ni gestor de plugins. La funciona
 
 En el tag analizado, `FX.cpp` supera 11.000 líneas y otros archivos centrales también son muy grandes. Funciones de deserialización y el loop coordinan numerosas responsabilidades y dependen de mucho estado global. Es deuda asumible para un proyecto con años de compatibilidad, pero no una plantilla deseable para RGB Dog.
 
-### 3.2 No copiar código antes de resolver licencias
+### 3.2 No copiar código externo sin resolver procedencia y compatibilidad
 
-WLED se distribuye bajo [EUPL-1.2](https://github.com/wled/WLED/blob/v16.0.1/LICENSE). RGB Dog no tiene una licencia visible en raíz. Por ahora se recomienda una implementación **clean-room de los patrones**, apoyada en comportamiento y documentación, no copiar y pegar `FX.cpp`, `bus_manager.cpp`, assets o efectos.
+WLED se distribuye bajo [EUPL-1.2](https://github.com/wled/WLED/blob/v16.0.1/LICENSE). RGB Dog adoptó posteriormente la licencia [MIT](../LICENSE), pero esa decisión no concede permiso para relicenciar material de WLED. Se mantiene una implementación **clean-room de los patrones**, apoyada en comportamiento y documentación, sin copiar y pegar `FX.cpp`, `bus_manager.cpp`, assets o efectos.
 
-Antes de reutilizar código literal se debe escoger la licencia de RGB Dog y revisar las obligaciones de compatibilidad, atribución y distribución. Este punto es una alerta de ingeniería, no asesoría legal.
+Antes de reutilizar código literal se deben revisar procedencia, compatibilidad, atribución y obligaciones de distribución. Este punto es una alerta de ingeniería, no asesoría legal.
 
 ### 3.3 No adoptar toda su superficie de integraciones
 

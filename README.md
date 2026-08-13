@@ -160,10 +160,14 @@ Contributions are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Acknowledgements
 
-Dog-RGB grows through curiosity, experimentation, and the open-source spirit of sharing what we learn along the way.
+Dog-RGB is proudly developed with support from [Codex for Open Source](https://developers.openai.com/community/codex-for-oss).
 
-A heartfelt and explicit thank-you to **OpenAI for providing a Pro account in support of open-source projects**. That support gives this project more room to explore ambitious ideas, improve its engineering and documentation, and keep pushing a wonderfully simple concept far beyond what it strictly needs to be.
+A heartfelt thank-you to **OpenAI** and the **Codex team** for providing access to **ChatGPT Pro with Codex** in support of open-source maintainers. Their generosity gives this delightfully over-engineered DIY project more room to explore ambitious ideas, strengthen its engineering and documentation, and share what we learn with the community.
 
-## License and external inspiration
+Dog-RGB is an independent community project and is not affiliated with or endorsed by OpenAI.
 
-This repository does not yet contain a root `LICENSE` file, so do not assume redistribution terms. Work inspired by WLED must follow the provisional [clean-room and provenance decision](docs/adr/0001-wled-clean-room-y-licencia-del-proyecto.md): learn from public concepts and behavior, but do not copy code or assets unless provenance, license compatibility, attribution, and owner approval are explicitly resolved.
+## License
+
+Unless a file states otherwise, the original source code, tooling, and project documentation in this repository are available under the permissive [MIT License](LICENSE). You may use, copy, modify, merge, publish, distribute, sublicense, and sell copies, provided that the copyright and license notice are preserved.
+
+Third-party dependencies, vendor datasheets, referenced projects, trademarks, and other externally authored material remain subject to their respective owners and license terms. In particular, work inspired by WLED must follow the [clean-room and provenance decision](docs/adr/0001-wled-clean-room-y-licencia-del-proyecto.md); Dog-RGB's MIT license does not grant rights to WLED code or assets.
