@@ -15,5 +15,6 @@ Files in this directory are retained as design history. They are **not** the cur
 | [Welcome opposite directions — 2026-02-03](2026-02-03_welcome-opposite-directions.md) | Historical LED implementation plan |
 | [Route portal — 2026-02-04](2026-02-04_plano-ruta-portal.md) | Implemented in evolved form with bounded JSON/CSV/GeoJSON streaming |
 | [Cloud portal master plan — 2026-08-01](2026-08-01_cloud-portal-master-plan.md) | Not implemented; optional long-range architecture proposal |
+| [Cloud web platform and bidirectional sync — 2026-08-13](2026-08-13_web-platform-bidirectional-sync-plan.md) | Proposed; current replacement for the cloud/sync/map decisions in the older cloud plans |
 
 When a plan is completed, keep the dated file as a snapshot and document the resulting behavior in a current reference page.

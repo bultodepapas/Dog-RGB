@@ -89,7 +89,8 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Portal configuration presets](portal_config_presets.md) | Proposed | Whole-runtime profiles distinct from implemented visual scenes; no selector/config-preset persistence |
 | [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–5 implemented in software; physical-HIL acceptance remains separate, Spanish | Current-limiting, effect-registry, palette, segment, scene, and web-asset roadmap |
 | [App wireframe and data flow](flow_wireframe.md) | Proposed | Companion-app concept, separate from the implemented local portal |
-| [Cloud portal master plan](PLANS/2026-08-01_cloud-portal-master-plan.md) | Proposed snapshot | Large optional plan; no cloud application exists in this repository |
+| [Cloud platform and bidirectional sync plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) | Proposed | Current detailed implementation plan; no cloud application exists yet |
+| [Cloud portal master plan](PLANS/2026-08-01_cloud-portal-master-plan.md) | Superseded proposed snapshot | Older upload-oriented design retained for history |
 | [Software area](../software/README.md) | Proposed | Placeholder and boundaries for future companion/cloud software |
 
 ## Repository entry points
