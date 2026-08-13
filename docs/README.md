@@ -34,6 +34,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | [WLED Phase 2 baseline](baselines/fase-2-2026-08-13.md) | Current evidence | Effect registry, deterministic characterization, LED state/policy split, capabilities-driven portal, APIs, and verification |
 | [WLED Phase 3 baseline](baselines/fase-3-2026-08-13.md) | Current software evidence; physical checks pending | Semantic LED layout, RGBW palettes, mirror, crossfade, alert priority, resource delta, and verification |
 | [WLED Phase 4 baseline](baselines/fase-4-2026-08-13.md) | Current software evidence; HTTP live/HIL/physical checks pending | Scene model/catalog/player, A/B store, strict API/import/export, resource delta, verification, and remaining gates |
+| [WLED Phase 5 baseline](baselines/fase-5-2026-08-13.md) | Current software evidence; device/captive-view checks pending | Source-owned portal, deterministic cross-platform gzip/C++ generation, direct flash transport, scene workspace, resource budgets, and verification |
 | [ADR-0001: WLED clean-room and provenance](adr/0001-wled-clean-room-y-licencia-del-proyecto.md) | Current policy, amended | Prevents unreviewed literal reuse of WLED material; its former license-selection prerequisite is resolved |
 | [ADR-0002: MIT project license](adr/0002-project-license-mit.md) | Current decision | Licenses original project material under MIT and defines the third-party boundary |
 | [ADR-0003: LED scene model and store](adr/0003-scene-model-and-store.md) | Current decision | Freezes scene authority, IDs/wire, A/B recovery, player semantics, API limits and accepted resource budget |
@@ -76,7 +77,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Web portal product spec](web_portal_spec.md) | Current | User-facing pages, states, accessibility, and offline constraints |
 | [Wi-Fi/AP behavior](wifi_portal_spec.md) | Current | AP/STA policy, scanning, captive portal, retries, and persistence |
 | [Wi-Fi state diagram](wifi_portal_state_diagram.md) | Current | Simplified state and policy flow |
-| [Portal preview tool](../tools/ap_portal_preview/README.md) | Current | Extract and serve embedded pages locally |
+| [Portal preview tool](../tools/ap_portal_preview/README.md) | Current | Build and serve the same generated bundles represented by the firmware arrays |
 | [Visual screenshot workflow](ap_portal_visual_screenshot_workflow_guide.md) | Current | Playwright workflow and baseline rules |
 | [Wokwi guide](../Platformio/Dog-RGB/docs/wokwi.md) | Current | Simulation assets, scenarios, controls, and limitations |
 

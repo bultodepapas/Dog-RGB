@@ -10,7 +10,7 @@ The ESP32-S3 serves a synchronous, local-only HTTP API on port 80. There is no T
 - Station/mDNS default: `http://dog-collar.local`
 - Station IP: available from `/api/status`, `/api/dev`, or the Wi-Fi page
 
-All normal responses include `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`.
+Every response includes `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`. API, redirect, probe, and other dynamic responses use `Cache-Control: no-store`. The four immutable HTML pages instead use `Cache-Control: no-cache` with a content-derived ETag so a browser may store bytes but must revalidate them after a firmware change.
 
 ## Write guards
 
@@ -34,10 +34,22 @@ The CSRF header is required regardless of whether the PIN is enabled. Missing in
 | --- | --- | --- |
 | GET | `/` | Dashboard, session list, route preview, and export controls |
 | GET | `/wifi` | AP/STA setup and on-demand nearby-network scan |
-| GET | `/config` | Runtime configuration, Home, and optional write-lock UI |
+| GET | `/config` | Runtime configuration, Home, optional write lock, and capabilities-driven scene/palette workspace |
 | GET | `/dev` | Human-readable diagnostics and raw diagnostic JSON |
 
 Unknown non-API paths redirect relatively to `/`. Captive probes at `/generate_204`, `/gen_204`, `/hotspot-detect.html`, `/library/test/success.html`, `/ncsi.txt`, and `/connecttest.txt` return a small portal link/redirect page.
+
+The four HTML routes are pre-minified and gzip-compressed at build time, then served directly from flash with a known compressed length. A successful page response includes:
+
+```http
+Content-Type: text/html; charset=utf-8
+Content-Encoding: gzip
+Cache-Control: no-cache
+Vary: Accept-Encoding
+ETag: "sha256-<compressed-content-sha256>"
+```
+
+`If-None-Match` accepts the current strong tag, its weak form, a comma-separated tag list, or `*` and returns `304` without the page body. A missing `Accept-Encoding` is treated as compatible for captive views. An explicitly empty value, `gzip;q=0`, or an equivalent explicit rejection returns `406 text/plain`; firmware deliberately stores no second uncompressed copy.
 
 ## API route summary
 

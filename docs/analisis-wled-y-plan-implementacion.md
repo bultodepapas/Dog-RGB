@@ -1470,7 +1470,9 @@ Baseline reproducible de esta implementación:
 | Playwright funcional/a11y/responsive | 84/84 |
 | Comparación visual Linux fijada | 18/18 |
 
-Las decisiones de toolchain, artefactos tracked, transporte y divergencias conscientes respecto a WLED quedan registradas en [ADR-0004](adr/0004-generated-flash-web-portal.md).
+Las decisiones de toolchain, artefactos tracked, transporte y divergencias conscientes respecto a WLED quedan registradas en [ADR-0004](adr/0004-generated-flash-web-portal.md). La evidencia reproducible, tamaños, contratos y gates pendientes se consolidan en el [baseline de Fase 5](baselines/fase-5-2026-08-13.md).
+
+Antes de etiquetar `v2.0.0` se endureció además la reproducibilidad entre sistemas operativos: CRLF/LF se canoniza para fingerprints y el byte OS del header gzip se fija en `0xff`, evitando arrays distintos entre Windows y Unix. Generator unit y smoke también quedaron independientes de `.ap-portal-preview`, de modo que validan un checkout limpio directamente contra los arrays versionados.
 
 Esto todavía **no cierra la Fase 5 en producto**. Permanecen abiertos los gates físicos: matriz AP/STA y captive portal en navegadores/dispositivos reales, recuperación de credenciales, heap mínimo tras navegación y ciclos de escenas, latencia de respuestas y escrituras NVS, cadencia LED durante tráfico/guardado, y validación visual, térmica y eléctrica sobre el collar. Esos resultados deben añadirse al baseline antes de declarar cerrado el criterio de salida completo.
 

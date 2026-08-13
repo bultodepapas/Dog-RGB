@@ -21,7 +21,7 @@ Dog-RGB uses several layers because no single test environment can validate firm
 
 - Python 3.13 for parity with CI (the host suite uses the standard library).
 - PlatformIO Core.
-- Node.js 24, matching [`.node-version`](../.node-version).
+- Node.js 24.18.0, exactly matching [`.node-version`](../.node-version), whenever portal assets are regenerated or browser tests run.
 - `npm ci` from the repository root for Playwright 1.62.1 and Chromium.
 - Optional: Wokwi CLI 0.26.x and a personal CI token for simulator automation.
 
@@ -76,7 +76,9 @@ npm run smoke
 npx playwright test --project=iphone-13-pro-max-chromium
 ```
 
-`webui:check` proves that the tracked manifest and flash arrays match `webui/src`; `webui:unit` covers deterministic gzip/array generation; and `npm run smoke` verifies source, manifest, gzip, C++ arrays and HTTP-serving contracts. The full Playwright command starts the generated-bundle preview automatically and runs tests under `tests/`.
+`webui:check` regenerates expected tracked outputs in memory and proves that the manifest and flash arrays match `webui/src`. `webui:unit` contains four tests for canonical gzip metadata, CRLF/LF fingerprints, binary C++ array rendering, and complete manifest/array/decoded-byte equivalence. `npm run smoke` verifies source contracts, capability-driven UI, input/output hashes, gzip payloads, budgets, generated arrays, and the HTTP-serving contract.
+
+Both `webui:unit` and smoke are clean-checkout safe: they validate authoritative tracked arrays directly and do not require `.ap-portal-preview/` to exist. When preview files do exist, smoke additionally compares them byte-for-byte. The gzip unit test fixes timestamp and OS metadata, so the same sources generate identical compressed bytes on Windows and Unix.
 
 The default preview port is 4173. If another project already owns it, select an isolated port instead of stopping an unrelated process:
 
@@ -95,7 +97,7 @@ npm run ap-portal:screenshots
 npm run ap-portal:ui
 ```
 
-The preview serves the exact decompressed production bundles generated from `webui/src`. Disposable HTML lives in `.ap-portal-preview/`; the manifest and C++ gzip arrays are tracked so an offline PlatformIO build can verify and embed them without running npm.
+The preview serves the exact decompressed production bundles generated from `webui/src`. Disposable HTML lives in `.ap-portal-preview/`; the manifest and C++ gzip arrays are tracked so an offline PlatformIO build can verify and embed them without running npm. The PlatformIO pre-script uses only Python's standard library to validate canonical input sizes/hashes, the aggregate source fingerprint, and generated-output hashes before compilation.
 
 ## Visual regression
 
@@ -165,7 +167,7 @@ For interactive controls, GNSS profiles, GDB, VCD channels, and portal-network l
 `.github/workflows/ci.yml` runs on pushes to `main` and pull requests:
 
 - **Host tests:** the complete Python firmware contract suite;
-- **Portal:** static smoke plus Playwright behavior/a11y tests;
+- **Portal:** stale-asset check, four deterministic generator unit tests, clean-checkout static smoke, and Playwright behavior/a11y tests;
 - **Visual:** screenshot comparison in the pinned Playwright container;
 - **Firmware:** pinned PlatformIO production build, size report, environment/package inventory, hashes, and downloadable binary/ELF/partition evidence.
 

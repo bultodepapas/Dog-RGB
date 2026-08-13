@@ -38,7 +38,7 @@ Los efectos usan el cuerpo semántico y no ocultan los indicadores. Day Mode con
 | --- | --- |
 | `/` | Métricas del día, sesión actual, tres sesiones terminadas y ruta/exportación |
 | `/wifi` | Escaneo manual, credenciales STA, nombre/password del AP y estado |
-| `/config` | Modo LED, brillo, potencia LED avanzada, Day Mode, filtros GNSS, Home, efectos y PIN opcional |
+| `/config` | Modo/brillo LED, escenas y paletas, vista aproximada del collar, potencia LED avanzada, Day Mode, filtros GNSS, Home y PIN opcional |
 | `/dev` | Diagnóstico técnico, estimación de corriente, store/player de escenas, storage, parser GNSS, tiempos de loop y JSON |
 
 Cuando STA está conectado, abre `http://dog-collar.local/` o la IP indicada por el portal. mDNS puede no funcionar en algunas redes.

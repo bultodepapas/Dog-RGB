@@ -25,7 +25,7 @@ The power drawing is conceptual. The real charger/BMS/boost/regulator topology m
 ## Repository boundaries
 
 - [`Platformio/Dog-RGB`](../Platformio/Dog-RGB/) is the active embedded project.
-- [`tests`](../tests/) and [`tools`](../tools/) exercise/extract the embedded portal on a host browser.
+- [`webui`](../webui/) owns the editable portal sources and deterministic generator; [`tests`](../tests/) and [`tools`](../tools/) exercise the generated bundles in a host browser.
 - [`docs`](.) contains current references plus dated design history.
 - [`software`](../software/) is only a placeholder for optional future companion/cloud work.
 - [`hardware`](../hardware/) is a hardware-area entry point; the authoritative pin/default values are currently in firmware headers.
@@ -154,12 +154,27 @@ The HTTP layer adds:
 - wildcard DNS while AP is active and common captive-portal probe routes;
 - relative redirects for unknown page paths;
 - JSON 404/405 behavior for API paths;
-- no-store and basic browser hardening headers;
+- `no-store` for APIs/dynamic responses, while immutable HTML uses `no-cache` plus a content-derived ETag for safe revalidation;
 - `X-Dog-Portal` on every write as a same-origin intent/CSRF guard;
 - optional `X-Dog-Pin` validation for write routes;
-- output escaping in both server interpolation and client rendering.
+- browser hardening headers on every response and client-side escaping before untrusted values enter the DOM.
 
 This is proportionate protection for a local DIY portal, not a claim of Internet-safe administration. There is no TLS, account system, encrypted application payload, or authorization on reads.
+
+### Generated portal pipeline
+
+The portal has no runtime template engine and does not interpolate configuration into HTML. `webui/src/pages/*.html` plus the shared CSS are the only editable sources. With the exact Node version from `.node-version`, `webui/build.mjs`:
+
+1. validates UTF-8/LF inputs and rejects remote runtime resources;
+2. inlines the shared CSS and minifies conservatively;
+3. creates level-9 gzip with zero timestamp and a canonical `0xff` OS byte, so Windows and Unix produce identical payloads;
+4. records input/output SHA-256 values, ETags, decoded/gzip sizes and budgets in `webui/generated/manifest.json`;
+5. emits one aligned `PROGMEM` byte array and descriptor per page in `generated_assets.cpp`;
+6. optionally writes decompressed `.ap-portal-preview/*.html` for local inspection.
+
+The generated manifest and C++ arrays are versioned. Preview HTML is disposable and ignored. A PlatformIO pre-script verifies manifest/input/output hashes using only Python's standard library; it never runs Node, npm or the network. Therefore a clean checkout can compile firmware offline, while a developer changing portal sources must explicitly regenerate the tracked artifacts.
+
+At runtime, `PortalAssetServer` selects the descriptor for `/`, `/wifi`, `/config` or `/dev`, negotiates gzip, attaches `Vary`, `ETag` and cache headers, handles `If-None-Match`, and calls `send_P` with the compressed byte length. It never constructs a `String` proportional to the decoded page. An absent `Accept-Encoding` is accepted for captive-view compatibility; an explicit gzip rejection returns `406` because no second raw representation is stored.
 
 ## LED composition
 
@@ -198,8 +213,9 @@ See [LED UI](led_ui_spec.md) for exact behavior.
 
 - Host Python contracts and native C++ harnesses target persistence, timing, LED state, scene wire/player/store and strict JSON failure modes.
 - Wokwi runs the production firmware image with a custom controllable NMEA chip and logic analyzer.
-- The portal extractor converts C++ raw literals into local pages served with fixture APIs.
-- Playwright tests mobile behavior, accessibility, degraded states, and visual baselines.
+- The web generator produces the tracked flash arrays and, when requested, disposable decompressed preview pages from the same source/build path.
+- Generator unit tests and smoke checks compare source fingerprints, manifest metadata, gzip hashes, decoded bytes, C++ arrays, size budgets and HTTP-serving contracts; they also work in a clean checkout without preview residue.
+- Playwright serves generated bundles with fixture APIs and tests mobile behavior, accessibility, degraded states, scene workflows and visual baselines.
 - CI runs host contracts, portal behavior/a11y checks, pinned visual comparisons, and the production PlatformIO build with size/artifact evidence.
 
 See [Testing and simulation](testing.md) for commands and limitations.

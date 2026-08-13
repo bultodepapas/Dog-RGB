@@ -26,9 +26,9 @@ Fases 3 y 4 añadieron metadatos descubribles de effects, paletas, layout y esce
 
 ### Toolchain determinista, fuera del build normal de firmware
 
-Node queda fijado en `.node-version`; `html-minifier-terser` queda fijado en `package.json` y `package-lock.json`. El generador exige la versión exacta de Node, normaliza UTF-8/LF, usa un orden explícito de inputs y páginas y produce gzip nivel 9 con metadata temporal igual a cero.
+Node queda fijado en `.node-version`; `html-minifier-terser` queda fijado en `package.json` y `package-lock.json`. El generador exige la versión exacta de Node, rechaza BOM/CR sueltos, normaliza CRLF a LF, usa un orden explícito de inputs y páginas y produce gzip nivel 9 con timestamp cero. Como zlib escribe un identificador de sistema operativo distinto en Unix y Windows, el byte OS del header se canoniza a `0xff` (`unknown`), que no cambia la semántica de descompresión y hace el payload byte-idéntico entre plataformas.
 
-El manifest registra hashes de inputs y outputs, tamaños, rutas, MIME, ETag y presupuestos. `webui:check` regenera en memoria y falla si los artefactos tracked están stale. Un pre-script de PlatformIO escrito solo con la biblioteca estándar de Python verifica esos hashes sin ejecutar npm, instalar paquetes ni usar red.
+El manifest registra hashes y tamaños canónicos de inputs, fingerprint agregado, hashes de outputs, tamaños, rutas, MIME, ETag y presupuestos. `webui:check` regenera en memoria y falla si los artefactos tracked están stale. Un pre-script de PlatformIO escrito solo con la biblioteca estándar de Python verifica esos hashes sin ejecutar npm, instalar paquetes ni usar red.
 
 Por tanto, editar la UI sí requiere la toolchain web; compilar un checkout limpio del firmware no.
 
@@ -93,7 +93,8 @@ Los gates gzip iniciales son 12 KiB `/`, 13 KiB `/wifi`, 23 KiB `/config`, 10 Ki
 ## Verificación
 
 - unit tests de gzip canónico, arrays binarios y equivalencia manifest/preview;
-- smoke de fuentes, hashes, presupuestos, descompresión, C++ y contrato HTTP;
+- unit test explícito de equivalencia CRLF/LF y byte OS canónico para reproducibilidad Windows/Unix;
+- smoke de fuentes, hashes, presupuestos, descompresión, C++ y contrato HTTP, independiente de residuos de preview en un checkout limpio;
 - Playwright funcional, accesibilidad/auditoría y snapshots Linux fijados;
 - pre-script offline y build PlatformIO de producción;
 - pruebas físicas de captive portal, memoria, latencia y estabilidad antes de declarar cerrada toda la aceptación de Fase 5.

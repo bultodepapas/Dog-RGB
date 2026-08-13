@@ -24,6 +24,8 @@ The terms **must**, **should**, and **may** indicate required, recommended, and 
 | FR-14 | A compact daily summary may be read over BLE when explicitly compiled in. | Implemented wire format; disabled by default due SoftAP/BLE coexistence. |
 | FR-15 | Both LED buses must share one configurable estimated-current ceiling so their combined logical frame cannot exceed the configured model budget. | Implemented in `LedBus`/`PowerLimiter`, enabled by default with provisional coefficients; physical calibration remains required. |
 | FR-16 | Normal visual changes must preserve reserved status, avoid a forced black inter-frame, and allow a new System/Geofence alert to preempt decoration on the next LED tick. | Implemented through semantic layout and buffer crossfade; native-tested. Physical visual/timing acceptance remains required. |
+| FR-17 | The user must be able to apply built-in visual recipes and manage a bounded user-scene bank without changing the persisted LED mode accidentally. | Implemented with four immutable built-ins, four A/B-protected user slots, volatile apply/cancel, generation-aware save/delete/import/export, and Show-by-scenes. Live HTTP/reboot acceptance remains pending. |
+| FR-18 | Portal controls for effects, palettes, layout, and scenes must derive their supported values from firmware capabilities rather than a duplicate JavaScript catalog. | Implemented in the `/config` workspace and enforced by smoke/Playwright contracts. |
 
 ## Quality and resource requirements
 
@@ -34,13 +36,14 @@ The terms **must**, **should**, and **may** indicate required, recommended, and 
 | QR-03 | Wi-Fi callbacks must not mutate owner-loop state directly. | Implemented through a fixed event queue with overflow recovery. |
 | QR-04 | Runtime configuration must be semantically validated before persistence/application. | Implemented with field/range/order validation. |
 | QR-05 | The embedded portal should remain usable at a 320 CSS-pixel viewport, support keyboard focus, reduced motion, semantic labels, and adequate contrast. | Covered by Playwright/a11y review and mobile baselines; continue testing after UI changes. |
-| QR-06 | Portal pages must fit explicit embedded page-size/reserve budgets. | Enforced by static smoke checks. |
+| QR-06 | Generated portal pages must fit explicit per-route and total gzip budgets. | Enforced during generation and by manifest/array smoke checks: 12/13/23/10 KiB by route and 55 KiB total. |
 | QR-07 | Production builds must use pinned framework/library versions. | Implemented in `platformio.ini`; dependency changes require build + regression evidence. |
 | QR-08 | The collar should provide at least five hours of typical operation. | **Not yet verified.** Requires a defined brightness/effect/radio profile and measured cell-side energy. |
 | QR-09 | The enclosure and surfaces must remain within a safe, comfortable thermal range. | **Not yet specified or verified.** Establish numeric limits and test points before field use. |
 | QR-10 | The finished assembly should resist expected splashes/weather. | **Not yet verified.** No IP rating may be claimed without enclosure validation. |
 | QR-11 | LED limiting must reduce immediately, release gradually, preserve one common scale across buses, and expose requested/final estimates and limiter activity. | Implemented and covered by deterministic host vectors plus portal/API tests; visible behavior still requires strip-level inspection. |
 | QR-12 | LED orientation, mirror, palettes and transitions must be allocation-free in the hot path and discoverable through the versioned LED API. | Implemented and native/static-tested; A-forward/B-reverse still requires final mounting validation. |
+| QR-13 | A clean checkout must build firmware offline from tracked portal assets, while regenerating those assets with the pinned web toolchain must be byte-reproducible across Windows and Unix. | Implemented with a locked Node/minifier build, canonical text/gzip, manifest hashes, PlatformIO pre-build guard, generator unit tests, and clean-checkout-safe smoke. |
 
 ## Hardware safety requirements
 

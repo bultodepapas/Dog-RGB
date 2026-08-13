@@ -50,7 +50,7 @@ See [LED UI](led_ui_spec.md) and [Color reference](color-reference.md) for the c
 | --- | --- |
 | `/` | Daily metrics, current/completed sessions, and route preview/export |
 | `/wifi` | Nearby-network scan, home-network credentials, AP name/password, and connection state |
-| `/config` | LED mode, brightness, advanced LED power profile, Day Mode, GNSS gates, geofence home, effects, and optional write PIN |
+| `/config` | LED mode/brightness, scene and palette workspace, approximate collar preview, advanced LED power profile, Day Mode, GNSS gates, geofence Home, and optional write PIN |
 | `/dev` | Technical health, LED current estimate, scene store/player counters, storage state, loop timing, GNSS parser statistics, and raw JSON |
 
 When station mode is connected, use `http://<configured-mdns>.local/` (default `http://dog-collar.local/`) or the station IP shown by the portal. mDNS support depends on the client operating system and network.

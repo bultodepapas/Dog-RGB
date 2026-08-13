@@ -42,7 +42,7 @@ The complete upload installs `partitions_dog_rgb.csv`. Do not distribute only `f
 python -m unittest discover -s test -p "test_*.py" -v
 ```
 
-These tests cover timing/date rules, A/B recovery, routes/streaming, Wi-Fi queue/retry behavior, and simulation assets. See [repository testing guide](../../docs/testing.md).
+These tests cover timing/date rules, A/B recovery, routes/streaming, Wi-Fi queue/retry behavior, the LED policy/layout/compositor, scene model/player/store/JSON contracts, and simulation assets. See [repository testing guide](../../docs/testing.md).
 
 ## Wokwi
 

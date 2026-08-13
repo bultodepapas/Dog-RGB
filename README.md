@@ -90,6 +90,8 @@ Run portal checks from the repository root with Node.js 24:
 
 ```powershell
 npm ci
+npm run webui:check
+npm run webui:unit
 npm run smoke
 npx playwright test --project=iphone-13-pro-max-chromium
 ```
@@ -142,7 +144,8 @@ Dog-RGB-1/
 ├── Platformio/Dog-RGB/   active ESP32-S3 firmware and Wokwi project
 ├── docs/                 current guides, specifications, audits, and plans
 ├── tests/                portal behavior, accessibility, and visual tests
-├── tools/                portal extraction, preview, and smoke tooling
+├── webui/                editable portal sources, generator, and manifest
+├── tools/                generated-bundle preview, smoke, and support tooling
 ├── hardware/             hardware-area entry point
 ├── firmware/             firmware-area entry point
 ├── software/             future companion/cloud software placeholder
