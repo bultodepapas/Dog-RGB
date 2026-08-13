@@ -29,6 +29,7 @@ The XIAO outputs 3.3 V logic while a 5 V pixel may require a higher guaranteed i
 - Consider far-end injection after measuring voltage drop on the real harness.
 - Do not feed the full strips through the XIAO regulator or assume USB/board traces can carry their load.
 - Size the cell, protection, boost, switch, connectors, and wire from measured peak/continuous current. The theoretical 48-pixel ceiling can exceed 3 A at 5 V.
+- Schema 6 enables a provisional whole-device estimated-current limit. Keep it on during bring-up and compare `/dev` with the bench reading, but never treat it as a replacement for an external current limit or measured component margins.
 
 ## Bring-up order
 

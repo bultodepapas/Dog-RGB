@@ -82,6 +82,20 @@
   "led": {
     "mode": "speed",
     "brightness": 96,
+    "power": {
+      "enabled": true,
+      "budget_ma": 1000,
+      "base_current_ma": 200,
+      "rgb_channel_ma": 20,
+      "white_channel_ma": 20,
+      "requested_ma": 1620,
+      "estimated_ma": 998,
+      "peak_requested_ma": 1900,
+      "scale": 126,
+      "scale_percent": 49,
+      "frames_limited": 234,
+      "estimate_only": true
+    },
     "range": 3,
     "base_rgb": {
       "r": 0,

@@ -82,6 +82,20 @@
   "led": {
     "mode": "speed",
     "brightness": 96,
+    "power": {
+      "enabled": true,
+      "budget_ma": 1000,
+      "base_current_ma": 200,
+      "rgb_channel_ma": 20,
+      "white_channel_ma": 20,
+      "requested_ma": 612,
+      "estimated_ma": 612,
+      "peak_requested_ma": 780,
+      "scale": 255,
+      "scale_percent": 100,
+      "frames_limited": 0,
+      "estimate_only": true
+    },
     "range": 3,
     "base_rgb": { "r": 0, "g": 120, "b": 40 },
     "effect_a": { "id": 4, "name": "COMET", "speed": 84, "intensity": 95 },

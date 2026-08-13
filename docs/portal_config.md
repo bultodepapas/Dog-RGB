@@ -6,14 +6,23 @@ The configuration UI is available at `/config`. The corresponding API is `GET/PO
 
 ## Read schema
 
-`GET /api/config` never returns a password. Presence flags distinguish “stored but hidden” from “not configured.” The current schema version is `5`.
+`GET /api/config` never returns a password. Presence flags distinguish “stored but hidden” from “not configured.” The current schema version is `6`.
 
 ```json
 {
-  "version": 5,
+  "version": 6,
   "mode": "speed",
   "fence_max_m": 300,
-  "led": {"brightness": 77},
+  "led": {
+    "brightness": 77,
+    "power": {
+      "enabled": true,
+      "budget_ma": 1000,
+      "base_current_ma": 200,
+      "rgb_channel_ma": 20,
+      "white_channel_ma": 20
+    }
+  },
   "day_mode": {
     "enabled": false,
     "start_min": 360,
@@ -69,6 +78,7 @@ Important nested rules:
 - If `speed_ranges_kph` is present, it must contain all nine thresholds.
 - If `effects` is present, it must contain `range1` through `range10`; fields inside each range may use current values as fallbacks.
 - `single` and `single.rgb` may be partial.
+- `led.power` may be partial. If `enabled` is present it must be a JSON boolean; the resulting budget/base/profile must pass all cross-field rules.
 - If `day_mode` is present, `enabled` must be an actual JSON boolean.
 - `gps` may be partial, but the resulting group must pass all cross-field rules.
 - `wifi.ap_pass` is write-only. Omit/leave it empty to retain an existing protected password; set `ap_open: true` to clear it explicitly.
@@ -90,7 +100,16 @@ Full writable shape:
 {
   "mode": "speed",
   "fence_max_m": 300,
-  "led": {"brightness": 77},
+  "led": {
+    "brightness": 77,
+    "power": {
+      "enabled": true,
+      "budget_ma": 1000,
+      "base_current_ma": 200,
+      "rgb_channel_ma": 20,
+      "white_channel_ma": 20
+    }
+  },
   "day_mode": {"enabled": false},
   "gps": {
     "min_fix_quality": 1,
@@ -135,6 +154,11 @@ Full writable shape:
 | --- | --- |
 | `mode` | `speed`, `geofence`, `show`, or `simple` |
 | `led.brightness` | Integer `1..255` |
+| `led.power.enabled` | JSON boolean |
+| `led.power.budget_ma` | Integer `250..5000` |
+| `led.power.base_current_ma` | Integer `0..1500`, strictly below `budget_ma` |
+| `led.power.rgb_channel_ma` | Integer `1..40` per full R/G/B channel |
+| `led.power.white_channel_ma` | Integer `1..40` per full white channel |
 | `day_mode.enabled` | JSON boolean |
 | `fence_max_m` | Integer `50..5000` |
 | `speed_ranges_kph` | Exactly nine positive, strictly increasing numbers |
@@ -153,7 +177,7 @@ Full writable shape:
 | `wifi.ap_pass` | Empty only for explicit open AP; otherwise 8–63 characters |
 | `wifi.mdns` | 1–32 ASCII letters, digits, or hyphens |
 
-Common `400` reasons include `no body`, `bad json`, `brightness`, `mode`, `fence_max`, `day_mode`, `gps`, `ranges`, `ranges value`, `ranges order`, `effects`, `effect values`, `effect id`, `single`, `single values`, `ssid`, `pass required`, `pass`, and `mdns`.
+Common `400` reasons include `no body`, `bad json`, `brightness`, `led_power`, `mode`, `fence_max`, `day_mode`, `gps`, `ranges`, `ranges value`, `ranges order`, `effects`, `effect values`, `effect id`, `single`, `single values`, `ssid`, `pass required`, `pass`, and `mdns`.
 
 ## Apply and persistence
 
@@ -164,12 +188,14 @@ On a valid update, firmware:
 3. writes it to the inactive A/B slot with magic/version/size/generation and CRC-32;
 4. reads/commits the new generation as the active runtime state;
 5. restores the previous in-memory state and returns `500 storage` if persistence fails;
-6. applies brightness and mDNS changes;
+6. applies brightness, the LED power model, and mDNS changes;
 7. schedules an AP restart only if AP SSID/password changed.
 
 Success is `{"status":"ok","wifi_restart":true|false}`.
 
 The Home coordinate, station credentials, portal PIN, metrics, sessions, and route history are separate records. They do not become part of the config blob.
+
+Schema-5 CRC-valid A/B records are decoded with their original packed layout, receive conservative defaults for the new power fields, and are rewritten as the next schema-6 generation. Existing owner settings are retained.
 
 ## Restore defaults
 

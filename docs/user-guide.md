@@ -49,8 +49,8 @@ See [LED UI](led_ui_spec.md) and [Color reference](color-reference.md) for the c
 | --- | --- |
 | `/` | Daily metrics, current/completed sessions, and route preview/export |
 | `/wifi` | Nearby-network scan, home-network credentials, AP name/password, and connection state |
-| `/config` | LED mode, brightness, Day Mode, GNSS gates, geofence home, effects, and optional write PIN |
-| `/dev` | Technical health, counters, storage state, loop timing, GNSS parser statistics, and raw JSON |
+| `/config` | LED mode, brightness, advanced LED power profile, Day Mode, GNSS gates, geofence home, effects, and optional write PIN |
+| `/dev` | Technical health, LED current estimate, counters, storage state, loop timing, GNSS parser statistics, and raw JSON |
 
 When station mode is connected, use `http://<configured-mdns>.local/` (default `http://dog-collar.local/`) or the station IP shown by the portal. mDNS support depends on the client operating system and network.
 
@@ -61,7 +61,7 @@ When station mode is connected, use `http://<configured-mdns>.local/` (default `
 - **Show** runs all 12 effects in shuffled order, without repeats within one bag, changing roughly every 30 seconds.
 - **Simple** applies one effect and RGB base color to the complete strip.
 
-Brightness is 1–255 and defaults to 77 (about 30% of the software range). Higher values can materially increase peak current and surface temperature; validate them on the physical build.
+Brightness is 1–255 and defaults to 77 (about 30% of the software range). A global estimated-current limit is enabled by default at 1,000 mA total, with a provisional 200 mA base and 20/20 mA RGB/W channel profile. It scales both strips uniformly. This is a model rather than a sensor: higher budgets and profile changes still require physical current, rail, and temperature validation.
 
 ### Day Mode
 

@@ -42,7 +42,9 @@ The power drawing is conceptual. The real charger/BMS/boost/regulator topology m
 | Embedded pages | `include/web/pages.h`, `src/web/pages.cpp` | Dashboard, Wi-Fi, configuration, and diagnostics HTML/CSS/JavaScript |
 | Portal write lock | `include/web/portal_lock.h`, `src/web/portal_lock.cpp` | Optional 4–8 digit PIN, CRC record, constant-work comparison |
 | Runtime configuration | `include/config/runtime_config.h`, `src/config/runtime_config.cpp` | Defaults, schema migration, validation, A/B persistence, hot application |
-| LED UI | `include/led/led_ui.h`, `src/led/led_ui.cpp` | Status pixels, 12 effects, Speed/Geofence/Show/Simple renderers, welcome animation |
+| LED UI/render | `include/led/led_ui.h`, `src/led/led_ui.cpp` | Status pixels, 12 effects, Speed/Geofence/Show/Simple renderers, welcome animation, logical `LedFrame` |
+| LED transport | `include/led/led_bus.h`, `src/led/led_bus.cpp` | NeoPixel ownership, centralized RGB→RGBW conversion, dual-strip output |
+| LED power model | `include/led/power_limiter.h`, `src/led/power_limiter.cpp` | Two-bus current estimate, global scale, slow release, diagnostics |
 | Day Mode | `include/power/day_mode.h`, `src/power/day_mode.cpp` | Pure evaluation of enabled/trusted-time/day-window state |
 | BLE summary | `include/ble/summary_ble.h`, `src/ble/summary_ble.cpp` | Read-only 16-byte characteristic and AP-aware advertising; compile-time disabled by default |
 | Storage handles | `include/storage/nvs_store.h`, `src/storage/nvs_store.cpp` | Opens the default NVS namespaces and dedicated route partition |

@@ -17,8 +17,11 @@ PAGES = ROOT / "Platformio" / "Dog-RGB" / "src" / "web" / "pages.cpp"
 PAGE_BUDGETS = {
     "html_page": 33_000,
     "html_wifi_page": 36_000,
-    "html_config_page": 53_500,
-    "html_dev_page": 33_000,
+    # Fase 1 adds persisted electrical calibration controls and live limiter
+    # diagnostics. Keep explicit ceilings, with headroom below each C++
+    # reserve, rather than silently dropping the guard as the pages grow.
+    "html_config_page": 58_000,
+    "html_dev_page": 35_000,
 }
 
 REQUIRED_SNIPPETS = [
@@ -36,11 +39,14 @@ REQUIRED_SNIPPETS = [
     'id="scan_btn"',
     'id="scan_results"',
     'id="brightness_slider"',
+    'id="led_power_block"',
+    'id="led_power_budget"',
     'data-mode-card="speed"',
     'data-theme="calm"',
     'id="color_swatches"',
     "Diagnostico AP",
     'id="diag-ap-start"',
+    'id="led-power-estimated"',
     "<summary>JSON crudo</summary>",
     'id="sta_pass_hint"',
     'id="mdns_preview"',

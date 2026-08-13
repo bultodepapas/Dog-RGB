@@ -16,11 +16,46 @@ uint32_t g_record_generation = 0;
 uint32_t g_save_failure_count = 0;
 
 static const uint32_t CONFIG_RECORD_MAGIC = 0x43475244UL; // "DRGC" on little-endian storage.
-static const uint16_t CONFIG_RECORD_VERSION = 1;
+static const uint16_t CONFIG_RECORD_VERSION = 2;
+static const uint16_t CONFIG_RECORD_VERSION_V5 = 1;
+static const uint8_t CONFIG_SCHEMA_VERSION_V5 = 5;
 static const char *CONFIG_RECORD_KEYS[2] = {"cfg_a", "cfg_b"};
 static const char *CONFIG_BLOB_MIGRATED_KEY = "cfg_blob";
 
 struct __attribute__((packed)) ConfigRecord {
+  uint32_t magic;
+  uint16_t record_version;
+  uint16_t record_size;
+  uint32_t generation;
+  uint8_t schema_version;
+  uint8_t brightness;
+  uint8_t led_power_limit_enabled;
+  uint16_t led_power_budget_ma;
+  uint16_t led_base_current_ma;
+  uint8_t led_rgb_channel_ma;
+  uint8_t led_white_channel_ma;
+  float ranges[9];
+  RangeEffect effects[10];
+  SingleEffectConfig single;
+  char ap_ssid[33];
+  char ap_pass[64];
+  char mdns[33];
+  uint8_t mode;
+  uint8_t day_mode_enabled;
+  uint16_t fence_max_m;
+  uint8_t gps_min_fix_quality;
+  uint8_t gps_min_sats;
+  float gps_max_hdop;
+  uint16_t gps_max_gga_age_ms;
+  float gps_min_segment_m;
+  float gps_hdop_factor;
+  float gps_max_min_segment_m;
+  uint32_t crc32;
+};
+
+// Exact schema-5 layout. Keep this decoder so a firmware update migrates both
+// CRC-protected A/B records instead of treating valid owner settings as damage.
+struct __attribute__((packed)) ConfigRecordV5 {
   uint32_t magic;
   uint16_t record_version;
   uint16_t record_size;
@@ -47,6 +82,8 @@ struct __attribute__((packed)) ConfigRecord {
 };
 
 static_assert(sizeof(ConfigRecord) < 512, "Runtime config record must remain a small NVS blob");
+static_assert(sizeof(ConfigRecordV5) < sizeof(ConfigRecord),
+              "Schema-5 config record must remain the legacy layout");
 
 void set_default_single_config(SingleEffectConfig &cfg) {
   cfg.effect_id = SINGLE_EFFECT_DEFAULT;
@@ -65,6 +102,14 @@ void set_default_gps_config(RuntimeConfig &cfg) {
   cfg.gps_min_segment_m = GPS_MIN_SEGMENT_M_DEFAULT;
   cfg.gps_hdop_factor = GPS_HDOP_FACTOR_DEFAULT;
   cfg.gps_max_min_segment_m = GPS_MAX_MIN_SEGMENT_M_DEFAULT;
+}
+
+void set_default_led_power_config(RuntimeConfig &cfg) {
+  cfg.led_power_limit_enabled = LED_POWER_LIMIT_ENABLED_DEFAULT;
+  cfg.led_power_budget_ma = LED_POWER_BUDGET_MA_DEFAULT;
+  cfg.led_base_current_ma = LED_BASE_CURRENT_MA_DEFAULT;
+  cfg.led_rgb_channel_ma = LED_RGB_CHANNEL_MA_DEFAULT;
+  cfg.led_white_channel_ma = LED_WHITE_CHANNEL_MA_DEFAULT;
 }
 
 bool validate_single_config(const SingleEffectConfig &cfg) {
@@ -141,6 +186,7 @@ bool migrate_legacy_ap_defaults(RuntimeConfig &cfg) {
 
 bool validate_runtime_config(const RuntimeConfig &cfg) {
   return cfg.brightness >= 1 &&
+         validate_led_power(cfg) &&
          validate_ranges(cfg.ranges) &&
          validate_effects(cfg.effects) &&
          validate_single_config(cfg.single) &&
@@ -167,8 +213,9 @@ bool record_string_terminated(const char *value, size_t capacity) {
   return memchr(value, '\0', capacity) != nullptr;
 }
 
-uint32_t config_record_crc(const ConfigRecord &record) {
-  return util::crc32_ieee(&record, offsetof(ConfigRecord, crc32));
+template <typename Record>
+uint32_t config_record_crc(const Record &record) {
+  return util::crc32_ieee(&record, offsetof(Record, crc32));
 }
 
 bool encode_config_record(const RuntimeConfig &cfg, uint32_t generation, ConfigRecord &record) {
@@ -182,6 +229,11 @@ bool encode_config_record(const RuntimeConfig &cfg, uint32_t generation, ConfigR
   record.generation = generation;
   record.schema_version = version();
   record.brightness = cfg.brightness;
+  record.led_power_limit_enabled = cfg.led_power_limit_enabled ? 1 : 0;
+  record.led_power_budget_ma = cfg.led_power_budget_ma;
+  record.led_base_current_ma = cfg.led_base_current_ma;
+  record.led_rgb_channel_ma = cfg.led_rgb_channel_ma;
+  record.led_white_channel_ma = cfg.led_white_channel_ma;
   memcpy(record.ranges, cfg.ranges, sizeof(record.ranges));
   memcpy(record.effects, cfg.effects, sizeof(record.effects));
   record.single = cfg.single;
@@ -209,6 +261,7 @@ bool decode_config_record(const ConfigRecord &record, RuntimeConfig &cfg) {
       record.record_version != CONFIG_RECORD_VERSION ||
       record.record_size != sizeof(record) ||
       record.schema_version != version() ||
+      record.led_power_limit_enabled > 1 ||
       record.day_mode_enabled > 1 ||
       record.crc32 != config_record_crc(record) ||
       !record_string_terminated(record.ap_ssid, sizeof(record.ap_ssid)) ||
@@ -217,6 +270,51 @@ bool decode_config_record(const ConfigRecord &record, RuntimeConfig &cfg) {
     return false;
   }
 
+  RuntimeConfig next = cfg;
+  next.brightness = record.brightness;
+  next.led_power_limit_enabled = record.led_power_limit_enabled != 0;
+  next.led_power_budget_ma = record.led_power_budget_ma;
+  next.led_base_current_ma = record.led_base_current_ma;
+  next.led_rgb_channel_ma = record.led_rgb_channel_ma;
+  next.led_white_channel_ma = record.led_white_channel_ma;
+  memcpy(next.ranges, record.ranges, sizeof(next.ranges));
+  memcpy(next.effects, record.effects, sizeof(next.effects));
+  next.single = record.single;
+  next.ap_ssid = record.ap_ssid;
+  next.ap_pass = record.ap_pass;
+  next.mdns = record.mdns;
+  next.mode = record.mode;
+  next.day_mode_enabled = record.day_mode_enabled != 0;
+  next.fence_max_m = record.fence_max_m;
+  next.gps_min_fix_quality = record.gps_min_fix_quality;
+  next.gps_min_sats = record.gps_min_sats;
+  next.gps_max_hdop = record.gps_max_hdop;
+  next.gps_max_gga_age_ms = record.gps_max_gga_age_ms;
+  next.gps_min_segment_m = record.gps_min_segment_m;
+  next.gps_hdop_factor = record.gps_hdop_factor;
+  next.gps_max_min_segment_m = record.gps_max_min_segment_m;
+  if (!validate_runtime_config(next)) {
+    return false;
+  }
+  cfg = next;
+  return true;
+}
+
+bool decode_config_record_v5(const ConfigRecordV5 &record, RuntimeConfig &cfg) {
+  if (record.magic != CONFIG_RECORD_MAGIC ||
+      record.record_version != CONFIG_RECORD_VERSION_V5 ||
+      record.record_size != sizeof(record) ||
+      record.schema_version != CONFIG_SCHEMA_VERSION_V5 ||
+      record.day_mode_enabled > 1 ||
+      record.crc32 != config_record_crc(record) ||
+      !record_string_terminated(record.ap_ssid, sizeof(record.ap_ssid)) ||
+      !record_string_terminated(record.ap_pass, sizeof(record.ap_pass)) ||
+      !record_string_terminated(record.mdns, sizeof(record.mdns))) {
+    return false;
+  }
+
+  // cfg starts from schema-6 defaults, so the new power fields are populated
+  // conservatively while every schema-5 owner setting is retained.
   RuntimeConfig next = cfg;
   next.brightness = record.brightness;
   memcpy(next.ranges, record.ranges, sizeof(next.ranges));
@@ -242,13 +340,33 @@ bool decode_config_record(const ConfigRecord &record, RuntimeConfig &cfg) {
   return true;
 }
 
-bool load_config_record(Preferences &prefs, uint8_t slot, ConfigRecord &record, RuntimeConfig &cfg) {
+bool load_config_record(Preferences &prefs, uint8_t slot, ConfigRecord &record,
+                        RuntimeConfig &cfg, bool *migrated_v5 = nullptr) {
   const char *key = CONFIG_RECORD_KEYS[slot];
-  if (prefs.getBytesLength(key) != sizeof(record) ||
-      prefs.getBytes(key, &record, sizeof(record)) != sizeof(record)) {
+  const size_t stored_size = prefs.getBytesLength(key);
+  if (stored_size == sizeof(record)) {
+    if (prefs.getBytes(key, &record, sizeof(record)) != sizeof(record)) {
+      return false;
+    }
+    if (migrated_v5 != nullptr) {
+      *migrated_v5 = false;
+    }
+    return decode_config_record(record, cfg);
+  }
+  if (stored_size != sizeof(ConfigRecordV5)) {
     return false;
   }
-  return decode_config_record(record, cfg);
+  ConfigRecordV5 legacy = {};
+  if (prefs.getBytes(key, &legacy, sizeof(legacy)) != sizeof(legacy) ||
+      !decode_config_record_v5(legacy, cfg)) {
+    return false;
+  }
+  record = ConfigRecord{};
+  record.generation = legacy.generation;
+  if (migrated_v5 != nullptr) {
+    *migrated_v5 = true;
+  }
+  return true;
 }
 
 bool generation_is_newer(uint32_t candidate, uint32_t reference) {
@@ -266,7 +384,7 @@ RuntimeConfig &get_mut() {
 }
 
 uint8_t version() {
-  return 5;
+  return 6;
 }
 
 int8_t storage_slot() {
@@ -283,6 +401,7 @@ uint32_t storage_save_failures() {
 
 void set_defaults() {
   g_cfg.brightness = LED_BRIGHTNESS;
+  set_default_led_power_config(g_cfg);
   g_cfg.ranges[0] = SPEED_RANGE_1_KPH;
   g_cfg.ranges[1] = SPEED_RANGE_2_KPH;
   g_cfg.ranges[2] = SPEED_RANGE_3_KPH;
@@ -364,8 +483,11 @@ void load() {
 
   ConfigRecord records[2] = {};
   RuntimeConfig candidates[2] = {g_cfg, g_cfg};
-  const bool valid_a = load_config_record(prefs_cfg, 0, records[0], candidates[0]);
-  const bool valid_b = load_config_record(prefs_cfg, 1, records[1], candidates[1]);
+  bool migrated_v5[2] = {false, false};
+  const bool valid_a = load_config_record(prefs_cfg, 0, records[0], candidates[0],
+                                          &migrated_v5[0]);
+  const bool valid_b = load_config_record(prefs_cfg, 1, records[1], candidates[1],
+                                          &migrated_v5[1]);
   if (valid_a || valid_b) {
     uint8_t selected = 0;
     if (!valid_a || (valid_b && generation_is_newer(records[1].generation, records[0].generation))) {
@@ -374,7 +496,9 @@ void load() {
     g_cfg = candidates[selected];
     g_active_record = selected;
     g_record_generation = records[selected].generation;
-    if (migrate_legacy_ap_defaults(g_cfg)) {
+    const bool needs_save = migrated_v5[selected] ||
+                            migrate_legacy_ap_defaults(g_cfg);
+    if (needs_save) {
       save();
     }
     if (!prefs_cfg.getBool(CONFIG_BLOB_MIGRATED_KEY, false)) {
@@ -402,7 +526,7 @@ void load() {
   };
 
   const uint8_t ver = prefs_cfg.getUChar("ver", 0);
-  if (ver == version()) {
+  if (ver == version() || ver == CONFIG_SCHEMA_VERSION_V5) {
     RuntimeConfig next = g_cfg;
     if (!read_common_config(next)) {
       set_defaults();
@@ -492,6 +616,11 @@ void load() {
 
 void apply(const RuntimeConfig &previous) {
   led_ui::apply_brightness(g_cfg.brightness);
+  led_ui::apply_power_config(g_cfg.led_power_limit_enabled,
+                             g_cfg.led_power_budget_ma,
+                             g_cfg.led_base_current_ma,
+                             g_cfg.led_rgb_channel_ma,
+                             g_cfg.led_white_channel_ma);
   wifi_mgr::apply_mdns(previous.mdns, g_cfg.mdns);
 }
 
@@ -565,6 +694,17 @@ bool validate_effects(const RangeEffect *effects) {
     }
   }
   return true;
+}
+
+bool validate_led_power(const RuntimeConfig &cfg) {
+  return cfg.led_power_budget_ma >= LED_POWER_BUDGET_MA_MIN &&
+         cfg.led_power_budget_ma <= LED_POWER_BUDGET_MA_MAX &&
+         cfg.led_base_current_ma <= LED_BASE_CURRENT_MA_MAX &&
+         cfg.led_base_current_ma < cfg.led_power_budget_ma &&
+         cfg.led_rgb_channel_ma >= LED_CHANNEL_MA_MIN &&
+         cfg.led_rgb_channel_ma <= LED_CHANNEL_MA_MAX &&
+         cfg.led_white_channel_ma >= LED_CHANNEL_MA_MIN &&
+         cfg.led_white_channel_ma <= LED_CHANNEL_MA_MAX;
 }
 
 bool validate_gps(const RuntimeConfig &cfg) {

@@ -37,8 +37,8 @@ Simple usa toda la tira. Day Mode conserva los indicadores aunque apaga los píx
 | --- | --- |
 | `/` | Métricas del día, sesión actual, tres sesiones terminadas y ruta/exportación |
 | `/wifi` | Escaneo manual, credenciales STA, nombre/password del AP y estado |
-| `/config` | Modo LED, brillo, Day Mode, filtros GNSS, Home, efectos y PIN opcional |
-| `/dev` | Diagnóstico técnico, storage, parser GNSS, tiempos de loop y JSON |
+| `/config` | Modo LED, brillo, potencia LED avanzada, Day Mode, filtros GNSS, Home, efectos y PIN opcional |
+| `/dev` | Diagnóstico técnico, estimación de corriente, storage, parser GNSS, tiempos de loop y JSON |
 
 Cuando STA está conectado, abre `http://dog-collar.local/` o la IP indicada por el portal. mDNS puede no funcionar en algunas redes.
 
@@ -49,7 +49,7 @@ Cuando STA está conectado, abre `http://dog-collar.local/` o la IP indicada por
 - **Show:** recorre los 12 efectos en orden barajado, aproximadamente cada 30 segundos.
 - **Simple:** aplica un efecto y color base a toda la tira.
 
-El brillo por defecto es `77/255`. Un brillo mayor puede aumentar mucho la corriente y la temperatura; mídelo en el hardware real.
+El brillo por defecto es `77/255`. El limitador estimado viene activo con 1.000 mA totales, 200 mA base y perfil RGB/W de 20/20 mA. Está oculto en **Potencia LED (avanzado)** y protege ambas tiras con el mismo factor. Sigue siendo obligatorio medir el hardware real: no es un sensor ni certifica batería, boost, cableado o temperatura.
 
 Day Mode es opcional y viene apagado. Si se activa, usa hora GNSS confiable y UTC-5 para apagar solo los píxeles de efecto entre 06:00 y 16:00. Si la hora falta o está stale, deja los efectos encendidos.
 

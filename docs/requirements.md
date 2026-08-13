@@ -22,6 +22,7 @@ The terms **must**, **should**, and **may** indicate required, recommended, and 
 | FR-12 | A user may enable a simple local PIN for write actions without making first boot dependent on setup. | Implemented, optional/off by default. Reads remain unguarded. |
 | FR-13 | Day Mode may turn off effect pixels during a configured daylight window without stopping tracking or status alerts. | Implemented, optional/off by default; fixed 06:00–16:00 America/Bogota window. |
 | FR-14 | A compact daily summary may be read over BLE when explicitly compiled in. | Implemented wire format; disabled by default due SoftAP/BLE coexistence. |
+| FR-15 | Both LED buses must share one configurable estimated-current ceiling so their combined logical frame cannot exceed the configured model budget. | Implemented in `LedBus`/`PowerLimiter`, enabled by default with provisional coefficients; physical calibration remains required. |
 
 ## Quality and resource requirements
 
@@ -37,11 +38,13 @@ The terms **must**, **should**, and **may** indicate required, recommended, and 
 | QR-08 | The collar should provide at least five hours of typical operation. | **Not yet verified.** Requires a defined brightness/effect/radio profile and measured cell-side energy. |
 | QR-09 | The enclosure and surfaces must remain within a safe, comfortable thermal range. | **Not yet specified or verified.** Establish numeric limits and test points before field use. |
 | QR-10 | The finished assembly should resist expected splashes/weather. | **Not yet verified.** No IP rating may be claimed without enclosure validation. |
+| QR-11 | LED limiting must reduce immediately, release gradually, preserve one common scale across buses, and expose requested/final estimates and limiter activity. | Implemented and covered by deterministic host vectors plus portal/API tests; visible behavior still requires strip-level inspection. |
 
 ## Hardware safety requirements
 
 - Use a protected, known-good 1S Li-ion cell and charger/BMS appropriate for the cell.
 - The 5 V converter, connectors, wiring, and power distribution must tolerate measured peak load with margin.
+- The software current estimate must never replace an external bench current limit, correctly rated protection, or measured electrical/thermal evidence.
 - LED data should use a 5 V-compatible HCT/AHCT level shifter, series resistor, common ground, and local bulk capacitance.
 - The GNSS supply and antenna should be kept away from noisy converter/LED wiring and checked under active animations.
 - Charging must not occur while worn.

@@ -7,6 +7,7 @@
 - [ ] Record exact manufacturer/part numbers and ratings for the 21700 cell, holder, charger/BMS, boost, 3.3 V regulator, level shifter, connectors, wire, and strips.
 - [ ] Draw and review the final schematic, including charging/power-path behavior, fusing/protection, decoupling, ground distribution, and test points.
 - [ ] Measure 5 V/3.3 V rails and cell current at boot, GNSS acquisition, AP traffic, representative effects, and maximum intended brightness.
+- [ ] Compare those measurements with `/api/dev` requested/estimated current, tune the base/RGB/W coefficients conservatively, and freeze a safe budget for the exact hardware revision.
 - [ ] Confirm converter/connector/wire temperature and voltage-drop margin during a sustained worst-intended-load test.
 - [ ] Define a numeric skin-contact/surface-temperature limit and stop criteria.
 - [ ] Validate strain relief, flex, diffuser edges, cell restraint, serviceability, and charging isolation.
@@ -37,7 +38,7 @@
 
 ## P2 — Optional experiments
 
-- [ ] Calibrate and prototype a per-frame LED current estimator/limiter against measured SK6812 RGBW current.
+- [ ] Evaluate voltage/temperature compensation or a physical current sensor only if bench evidence shows that the delivered schema-6 estimator cannot remain conservative enough.
 - [ ] Design one effect metadata registry before adding more effects or portal controls.
 - [ ] Prototype RGBW-aware palettes/crossfades and a small semantic segment model without turning the collar into a general WLED clone.
 - [ ] Measure whether generated/compressed portal assets provide enough flash/maintenance benefit to justify a build step.
@@ -48,6 +49,6 @@
 
 ## Completed baseline (reference)
 
-The repository already contains modular firmware, trusted GNSS metrics/date rollover, route/session persistence, Wi-Fi event ownership/retries/scanning, local portal security/UX remediation, four LED modes, Day Mode, optional portal PIN, host/Wokwi/Playwright tests, and visual regression baselines. Do not duplicate those items as open tasks without a concrete regression or enhancement.
+The repository already contains modular firmware, trusted GNSS metrics/date rollover, route/session persistence, Wi-Fi event ownership/retries/scanning, local portal security/UX remediation, four LED modes, Day Mode, a global estimated-current limiter with advanced calibration/diagnostics, optional portal PIN, host/Wokwi/Playwright tests, and visual regression baselines. Do not duplicate those items as open tasks without a concrete regression or enhancement.
 
 See [Roadmap](roadmap.md) for milestone ordering and [Requirements](requirements.md) for acceptance context.

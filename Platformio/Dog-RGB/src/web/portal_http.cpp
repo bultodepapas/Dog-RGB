@@ -506,6 +506,21 @@ void handle_dev_get() {
   JsonObject led = doc["led"].to<JsonObject>();
   led["mode"] = config::mode_name(cfg.mode);
   led["brightness"] = cfg.brightness;
+  const auto &power_diag = led_ui::power_diagnostics();
+  JsonObject power = led["power"].to<JsonObject>();
+  power["enabled"] = cfg.led_power_limit_enabled;
+  power["budget_ma"] = cfg.led_power_budget_ma;
+  power["base_current_ma"] = cfg.led_base_current_ma;
+  power["rgb_channel_ma"] = cfg.led_rgb_channel_ma;
+  power["white_channel_ma"] = cfg.led_white_channel_ma;
+  power["requested_ma"] = power_diag.requested_ma;
+  power["estimated_ma"] = power_diag.estimated_ma;
+  power["peak_requested_ma"] = power_diag.peak_requested_ma;
+  power["scale"] = power_diag.scale;
+  power["scale_percent"] =
+      (static_cast<uint16_t>(power_diag.scale) * 100U) / 255U;
+  power["frames_limited"] = power_diag.frames_limited;
+  power["estimate_only"] = true;
   int range = -1;
   if (cfg.mode == MODE_SPEED && gps::has_fix()) {
     range = static_cast<int>(led_ui::speed_range(gps::last_speed_kph()));
@@ -707,7 +722,14 @@ void handle_config_get() {
   doc["version"] = config::version();
   doc["mode"] = config::mode_name(cfg.mode);
   doc["fence_max_m"] = cfg.fence_max_m;
-  doc["led"]["brightness"] = cfg.brightness;
+  JsonObject led_cfg = doc["led"].to<JsonObject>();
+  led_cfg["brightness"] = cfg.brightness;
+  JsonObject power_cfg = led_cfg["power"].to<JsonObject>();
+  power_cfg["enabled"] = cfg.led_power_limit_enabled;
+  power_cfg["budget_ma"] = cfg.led_power_budget_ma;
+  power_cfg["base_current_ma"] = cfg.led_base_current_ma;
+  power_cfg["rgb_channel_ma"] = cfg.led_rgb_channel_ma;
+  power_cfg["white_channel_ma"] = cfg.led_white_channel_ma;
   JsonObject day_cfg = doc["day_mode"].to<JsonObject>();
   day_cfg["enabled"] = cfg.day_mode_enabled;
   day_cfg["start_min"] = DAY_MODE_START_MIN;
@@ -778,6 +800,42 @@ void handle_config_post() {
     return;
   }
   next.brightness = static_cast<uint8_t>(brightness);
+
+  if (!doc["led"]["power"].isNull()) {
+    JsonObject power_cfg = doc["led"]["power"].as<JsonObject>();
+    if (power_cfg.isNull() ||
+        (!power_cfg["enabled"].isNull() &&
+         !power_cfg["enabled"].is<bool>())) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"led_power\"}");
+      return;
+    }
+    const bool enabled = power_cfg["enabled"] | next.led_power_limit_enabled;
+    const int budget_ma = power_cfg["budget_ma"] |
+                          static_cast<int>(next.led_power_budget_ma);
+    const int base_current_ma = power_cfg["base_current_ma"] |
+                                static_cast<int>(next.led_base_current_ma);
+    const int rgb_channel_ma = power_cfg["rgb_channel_ma"] |
+                               static_cast<int>(next.led_rgb_channel_ma);
+    const int white_channel_ma = power_cfg["white_channel_ma"] |
+                                 static_cast<int>(next.led_white_channel_ma);
+    if (budget_ma < LED_POWER_BUDGET_MA_MIN ||
+        budget_ma > LED_POWER_BUDGET_MA_MAX ||
+        base_current_ma < 0 ||
+        base_current_ma > LED_BASE_CURRENT_MA_MAX ||
+        base_current_ma >= budget_ma ||
+        rgb_channel_ma < LED_CHANNEL_MA_MIN ||
+        rgb_channel_ma > LED_CHANNEL_MA_MAX ||
+        white_channel_ma < LED_CHANNEL_MA_MIN ||
+        white_channel_ma > LED_CHANNEL_MA_MAX) {
+      server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"led_power\"}");
+      return;
+    }
+    next.led_power_limit_enabled = enabled;
+    next.led_power_budget_ma = static_cast<uint16_t>(budget_ma);
+    next.led_base_current_ma = static_cast<uint16_t>(base_current_ma);
+    next.led_rgb_channel_ma = static_cast<uint8_t>(rgb_channel_ma);
+    next.led_white_channel_ma = static_cast<uint8_t>(white_channel_ma);
+  }
 
   if (!doc["mode"].isNull()) {
     const char *mode_str = doc["mode"];

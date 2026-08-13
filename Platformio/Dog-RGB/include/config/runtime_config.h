@@ -20,6 +20,11 @@ struct SingleEffectConfig {
 
 struct RuntimeConfig {
   uint8_t brightness;
+  bool led_power_limit_enabled;
+  uint16_t led_power_budget_ma;
+  uint16_t led_base_current_ma;
+  uint8_t led_rgb_channel_ma;
+  uint8_t led_white_channel_ma;
   float ranges[9];
   RangeEffect effects[10];
   SingleEffectConfig single;
@@ -60,6 +65,7 @@ uint16_t clamp_fence_max(int value);
 bool validate_ranges(const float *ranges);
 bool validate_effects(const RangeEffect *effects);
 bool validate_gps(const RuntimeConfig &cfg);
+bool validate_led_power(const RuntimeConfig &cfg);
 
 bool valid_ap_ssid(const String &value);
 // The rules for an AP you create are not the rules for a network you join:

@@ -45,7 +45,7 @@ Unknown non-API paths redirect relatively to `/`. Captive probes at `/generate_2
 | --- | --- | --- | --- |
 | GET | `/api/summary` | Read-only | Daily metrics, current session, last completed day, and up to three completed sessions |
 | GET | `/api/status` | Read-only | Compact Wi-Fi, GNSS, Home, mode, and Day Mode state |
-| GET | `/api/dev` | Read-only | Detailed health, counters, storage recovery, and loop timing |
+| GET | `/api/dev` | Read-only | Detailed health, counters, storage recovery, LED power estimate, and loop timing |
 | GET | `/api/track` | Read-only | Stream route snapshot as JSON |
 | GET | `/api/track.csv` | Read-only | Stream route snapshot as CSV |
 | GET | `/api/track.geojson` | Read-only | Stream route snapshot as GeoJSON |
@@ -138,6 +138,29 @@ Known API paths called with the wrong method return `405`; unknown `/api/*` path
 
 `hdop`, `distance_m`, and `local_min` use `-1` when unavailable. `/api/dev` is intentionally larger and intended for humans/test tooling rather than frequent polling.
 
+### LED power diagnostics
+
+`/api/dev` includes the current model under `led.power`:
+
+```json
+{
+  "enabled": true,
+  "budget_ma": 1000,
+  "base_current_ma": 200,
+  "rgb_channel_ma": 20,
+  "white_channel_ma": 20,
+  "requested_ma": 1160,
+  "estimated_ma": 999,
+  "peak_requested_ma": 1160,
+  "scale": 212,
+  "scale_percent": 83,
+  "frames_limited": 42,
+  "estimate_only": true
+}
+```
+
+`requested_ma` is the pre-limit estimate and `estimated_ma` is the post-limit estimate for the last transported frame. `peak_requested_ma` and `frames_limited` accumulate since boot. These values are not sensor readings.
+
 ## Route exports
 
 All three endpoints accept:
@@ -177,7 +200,7 @@ No route returns `{"count":0,"status":"no_data"}` for JSON, a header-only CSV, o
 
 ## Runtime configuration
 
-`GET /api/config` and `POST /api/config` are documented in [Runtime configuration](portal_config.md). The current schema version is `5`. Password values are never returned; boolean `has_ap_pass` and `has_sta_pass` fields report their presence.
+`GET /api/config` and `POST /api/config` are documented in [Runtime configuration](portal_config.md). The current schema version is `6`. Password values are never returned; boolean `has_ap_pass` and `has_sta_pass` fields report their presence.
 
 ## Home
 

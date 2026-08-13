@@ -6,8 +6,8 @@ import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 MAGIC = 0x43475244
-RECORD_VERSION = 1
-SCHEMA_VERSION = 5
+RECORD_VERSION = 2
+SCHEMA_VERSION = 6
 HEADER = struct.Struct("<IHHIB")
 CRC = struct.Struct("<I")
 
@@ -132,6 +132,9 @@ class ConfigPersistenceTests(unittest.TestCase):
         for required in (
             'CONFIG_RECORD_KEYS[2] = {"cfg_a", "cfg_b"}',
             "struct __attribute__((packed)) ConfigRecord",
+            "struct __attribute__((packed)) ConfigRecordV5",
+            "CONFIG_SCHEMA_VERSION_V5 = 5",
+            "migrated_v5[selected]",
             "record.record_size != sizeof(record)",
             "record.crc32 != config_record_crc(record)",
             "prefs_cfg.putBytes(key, &record, sizeof(record)) != sizeof(record)",

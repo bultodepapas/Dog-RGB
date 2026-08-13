@@ -11,6 +11,7 @@ The LED system combines activity effects with an always-visible local health int
 - First two pixels per strip reserved for status.
 - Remaining 22 pixels per strip form the effect body.
 - Global brightness defaults to 77/255.
+- Global estimated-current limit defaults to 1,000 mA including a provisional 200 mA base load.
 
 ## Status pixels
 
@@ -82,4 +83,10 @@ Default Speed colors progress from cyan at the lowest range to red at the highes
 
 ## Diagnostics and testing
 
-`/api/dev` exposes current mode, brightness, speed/geofence range, chosen effects/base color, Simple configuration, and current Show effect. The Wokwi `modes` scenario and host Day Mode contracts validate mode selection/persistence and status preservation; physical strips still require current/temperature/visual checks.
+`/api/dev` exposes current mode, brightness, speed/geofence range, chosen effects/base color, Simple configuration, current Show effect, requested/limited current estimate, scale, peak, and frames limited. The Wokwi `modes` scenario and host Day Mode/power contracts validate mode selection, persistence, status preservation, RGBW conversion, and budget saturation; physical strips still require current/temperature/visual checks.
+
+## Frame, transport, and power boundary
+
+Effects render RGB into a fixed `LedFrame` containing buses A/B. `LedBus` owns Adafruit NeoPixel and is the only layer that converts RGB to physical RGBW or writes GPIO. Before transport, `PowerLimiter` evaluates both active buses as one load and applies the same scale to every RGBW channel.
+
+The limit is enabled by default. Its runtime profile is advanced configuration: total budget, non-LED base current, full R/G/B channel current, and full white-channel current. Reduction is immediate; recovery is gradual to reduce visible pumping. The estimate is intentionally rounded upward but remains a model rather than a current sensor.

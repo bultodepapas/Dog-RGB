@@ -15,6 +15,11 @@ Dog-RGB has two configuration classes:
 | `LED_STRIP_COUNT` | `24` | Pixels per strip |
 | `LED_STATUS_COUNT` | `2` | Reserved leading status pixels per strip |
 | `LED_BRIGHTNESS` | `77` | Fallback/runtime default, about 30% of 255 |
+| `LED_POWER_LIMIT_ENABLED_DEFAULT` | `true` | Enable the global two-bus estimated-current ceiling |
+| `LED_POWER_BUDGET_MA_DEFAULT` | `1000` | Provisional whole-device budget until bench calibration |
+| `LED_BASE_CURRENT_MA_DEFAULT` | `200` | Provisional non-LED current included in the model |
+| `LED_RGB_CHANNEL_MA_DEFAULT` | `20` | Estimated current at 255 for each R/G/B channel |
+| `LED_WHITE_CHANNEL_MA_DEFAULT` | `20` | Estimated current at 255 for the white channel |
 | `LED_UPDATE_MS` | `50` | Effect-state update cadence |
 | `GPS_BAUD` | `9600` | GNSS UART baud rate |
 | `GPS_RX_BUFFER_SIZE` | `16384` | UART margin for slow synchronous HTTP/storage work |
@@ -35,12 +40,17 @@ Change hardware constants only when the assembled design changes, then update th
 
 ## Runtime defaults
 
-The current runtime schema version is `5`.
+The current runtime schema version is `6`.
 
 | Field | Default | Validation / notes |
 | --- | --- | --- |
 | `mode` | `speed` | `speed`, `geofence`, `show`, or `simple` |
 | `led.brightness` | `77` | `1..255`; higher values require physical current/thermal validation |
+| `led.power.enabled` | `true` | Boolean; advanced lab override may disable the model ceiling |
+| `led.power.budget_ma` | `1000` | `250..5000`; whole-device estimate |
+| `led.power.base_current_ma` | `200` | `0..1500` and strictly below budget |
+| `led.power.rgb_channel_ma` | `20` | `1..40` mA at channel value 255 |
+| `led.power.white_channel_ma` | `20` | `1..40` mA at channel value 255 |
 | `day_mode.enabled` | `false` | Boolean; window/timezone remain compile-time constants |
 | `fence_max_m` | `300` | `50..5000` m; divided into ten equal bands |
 | `speed_ranges_kph` | `2,4,6,8,10,12,14,16,18` | Nine positive strictly increasing thresholds |
@@ -63,6 +73,8 @@ The current runtime schema version is `5`.
 | `gps.max_min_segment_m` | `10.0` | `1.0..50.0` m |
 
 The effective minimum distance segment adapts with HDOP, bounded by `min_segment_m` and `max_min_segment_m`. Speed above `SPEED_MAX_VALID_KPH` (40 km/h) is rejected independently.
+
+The LED current values are a conservative software model, not measurements or component ratings. Schema-5 records are retained and migrated with these defaults; calibrate them against the exact physical revision before increasing the budget.
 
 ## Fixed behavior constants
 

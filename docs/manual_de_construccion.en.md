@@ -95,6 +95,7 @@ Important details:
 
 1. Connect the level shifter, its decoupling, one data resistor, and strip A.
 2. Start with global brightness near the default `77/255` or lower.
+   Keep the schema-6 estimated-current limiter enabled at its provisional 1,000 mA budget; use `/dev` to compare its estimate with the bench reading before changing the model or ceiling.
 3. Confirm data direction (`DIN`, not `DOUT`), stable 5 V, correct RGBW output, and acceptable temperature.
 4. If pixels flicker or the controller resets, stop and inspect signal level, ground return, voltage drop, and converter headroom.
 
@@ -103,6 +104,7 @@ Important details:
 1. Add strip B on its own data line and parallel power branch.
 2. Repeat voltage and temperature measurements at both strip inputs.
 3. Run the brightest intended configuration long enough to expose thermal or voltage-drop problems.
+   The software estimate is not a substitute for the bench supply limit, rail measurements, or component ratings.
 
 ### 6. Finish the mechanical assembly
 

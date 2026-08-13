@@ -57,8 +57,8 @@ async function mockApis(page: Page) {
       const effects: Record<string, unknown> = {};
       for (let i = 1; i <= 10; i++) effects[`range${i}`] = { a: 1, b: 2, speed: 128, intensity: 200 };
       return send({
-        version: 3, mode: 'speed', fence_max_m: 300,
-        led: { brightness: 180 },
+        version: 6, mode: 'speed', fence_max_m: 300,
+        led: { brightness: 180, power: { enabled: true, budget_ma: 1000, base_current_ma: 200, rgb_channel_ma: 20, white_channel_ma: 20 } },
         day_mode: { enabled: true, start_min: 480, end_min: 1200, tz_offset_min: 120 },
         gps: { min_fix_quality: 1, min_sats: 5, max_hdop: 3.5, max_gga_age_ms: 3000, min_segment_m: 2.5, hdop_factor: 1.5, max_min_segment_m: 12 },
         speed_ranges_kph: [1, 2, 3, 5, 8, 12, 18, 25, 35],
@@ -83,7 +83,7 @@ async function mockApis(page: Page) {
         wifi: { mode: 'AP+STA', sta_connected: true, sta_connecting: false, ap_enabled: true, ap_stations: 1, wifi_off: false, ap_ssid: 'DOG-RGB', mdns: 'dogrgb', sta_ip: '192.168.1.42', ap_ip: '192.168.4.1', rssi: -58, ap_mac: 'AA:BB:CC:DD:EE:01', sta_mac: 'AA:BB:CC:DD:EE:00', storage: { slot: 0, generation: 3, save_failures: 0 }, diagnostics: {} },
         gps: { fix: true, sats: 9, hdop: 1.1, metrics_storage: {}, session_storage: {}, daily_journal: {} },
         geofence: { set: true, source: 'manual', home_lat: 40.4168, home_lon: -3.7038, storage: {}, distance_m: 120.5, range: 2 },
-        led: { mode: 'speed', brightness: 180, range: 2, simple: { rgb: {} }, show: {} },
+        led: { mode: 'speed', brightness: 180, power: { enabled: true, budget_ma: 1000, base_current_ma: 200, rgb_channel_ma: 20, white_channel_ma: 20, requested_ma: 640, estimated_ma: 640, peak_requested_ma: 720, scale: 255, scale_percent: 100, frames_limited: 0, estimate_only: true }, range: 2, simple: { rgb: {} }, show: {} },
         day_mode: { enabled: true, active: false, state: 'night' },
       });
     }

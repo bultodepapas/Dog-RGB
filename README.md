@@ -14,10 +14,10 @@ The active implementation is local-first. The collar records activity, drives tw
 | --- | --- |
 | GNSS | NMEA RMC/GGA parsing, fix-quality gates, Haversine distance, active time, average/max speed, spike rejection, trusted date rollover |
 | Route history | Latest two hours at a nominal 5-second interval, plus the current and three completed session summaries; JSON, CSV, and GeoJSON streaming exports |
-| LEDs | Two 24-pixel SK6812 RGBW strips by default, reserved status pixels, 12 effects, and Speed, Geofence, Show, and Simple modes |
+| LEDs | Two 24-pixel SK6812 RGBW strips by default, reserved status pixels, 12 effects, Speed/Geofence/Show/Simple modes, and a global estimated-current limiter for both buses |
 | Power saving | Optional Day Mode turns off effect pixels from 06:00 to 16:00 in America/Bogota while keeping status LEDs, GNSS, storage, and the portal active |
 | Wi-Fi | SoftAP + station mode, captive-portal helpers, on-demand network scan, mDNS, bounded retry/backoff, and automatic AP availability policy |
-| Portal | Dashboard, route preview, Wi-Fi setup, runtime configuration, diagnostics, optional write PIN, and safe configuration reset |
+| Portal | Dashboard, route preview, Wi-Fi setup, runtime configuration (including optional LED power calibration), diagnostics, optional write PIN, and safe configuration reset |
 | Persistence | CRC-protected A/B records for runtime config, metrics, sessions, home, and Wi-Fi credentials; dedicated NVS partition for route points |
 | BLE | A read-only 16-byte daily summary is implemented but **disabled by default** because SoftAP/BLE coexistence is unreliable on the shared ESP32-S3 antenna |
 | Verification | PlatformIO build, Python host tests, static portal checks, Playwright behavior/a11y tests, committed visual baselines, and eight Wokwi scenarios |

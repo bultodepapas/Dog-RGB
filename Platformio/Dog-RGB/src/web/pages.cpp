@@ -38,7 +38,7 @@ h2{font-size:16px;letter-spacing:0.04em;}
 .value{font-size:24px;font-weight:700;text-shadow:var(--glow-md);}
 .data{font-size:14px;font-weight:600;color:var(--text);}
 .mono{font-family:var(--font-mono);}
-.code{background:#000;color:var(--text);padding:12px;border-radius:var(--radius);overflow-x:auto;white-space:pre;font-size:12px;border:1px solid var(--border);}
+.code{max-width:100%;background:#000;color:var(--text);padding:12px;border-radius:var(--radius);overflow-x:auto;white-space:pre;font-size:12px;border:1px solid var(--border);}
 .metric .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
 .metric .value{font-size:28px;font-weight:700;line-height:1.1;text-shadow:var(--glow-md);}
 .metric .unit{font-size:12px;color:var(--muted);}
@@ -58,6 +58,8 @@ h2{font-size:16px;letter-spacing:0.04em;}
    the page for no gain. auto-fit keeps two columns where they fit and falls
    back to one on very narrow screens. */
 .grid-kv{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
+.grid-kv > .field{min-width:0;}
+.grid-kv .data{overflow-wrap:anywhere;}
 .health-ok{color:var(--accent);}
 .health-warn{color:var(--accent-2);}
 .health-bad{color:var(--danger);text-shadow:0 0 6px rgba(255,0,85,0.5);}
@@ -1227,6 +1229,37 @@ String web_pages::html_config_page() {
       </div>
     </details>
 
+    <details class="card section" id="led_power_block">
+      <summary>Potencia LED (avanzado)</summary>
+      <div class="section-body">
+        <div class="field">
+          <label><input id="led_power_enabled" type="checkbox"> Limitar corriente estimada</label>
+          <div class="help">Protege ambas tiras con un unico factor de brillo y conserva el color.</div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field">
+            <label for="led_power_budget">Presupuesto total (mA)</label>
+            <input id="led_power_budget" type="number" min="250" max="5000" step="50">
+          </div>
+          <div class="field">
+            <label for="led_base_current">Consumo base del collar (mA)</label>
+            <input id="led_base_current" type="number" min="0" max="1500" step="10">
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field">
+            <label for="led_rgb_channel_ma">Canal R/G/B a 255 (mA)</label>
+            <input id="led_rgb_channel_ma" type="number" min="1" max="40">
+          </div>
+          <div class="field">
+            <label for="led_white_channel_ma">Canal blanco a 255 (mA)</label>
+            <input id="led_white_channel_ma" type="number" min="1" max="40">
+          </div>
+        </div>
+        <div class="help">El modelo es una estimacion conservadora, no un sensor. Los defaults de 1000/200/20/20 mA son provisionales hasta medir bateria, regulador, cableado y el lote real de SK6812.</div>
+      </div>
+    </details>
+
     <details class="card section" id="speed_lanes_block" open>
       <summary>Zonas de velocidad</summary>
       <div class="section-body">
@@ -1433,6 +1466,11 @@ String web_pages::html_config_page() {
     const simpleB = $('simple_b');
     const brightness = $('brightness');
     const brightnessSlider = $('brightness_slider');
+    const ledPowerEnabled = $('led_power_enabled');
+    const ledPowerBudget = $('led_power_budget');
+    const ledBaseCurrent = $('led_base_current');
+    const ledRgbChannelMa = $('led_rgb_channel_ma');
+    const ledWhiteChannelMa = $('led_white_channel_ma');
     const dayModeEnabled = $('day_mode_enabled');
     const statusEl = $('status');
     const errorsEl = $('errors');
@@ -1494,6 +1532,7 @@ String web_pages::html_config_page() {
 
     const ERROR_MAP = {
       brightness:{field:'brightness',msg:'Brillo fuera de rango (1..255).'},
+      led_power:{field:'led_power_block',msg:'Parametros de potencia LED invalidos.'},
       mode:{field:'mode',msg:'Modo invalido.'},
       fence_max:{field:'fence_max',msg:'Distancia de geocerca fuera de rango (50..5000 m).'},
       ranges:{field:'speed_lanes_block',msg:'Rangos requeridos.'},
@@ -1710,6 +1749,13 @@ String web_pages::html_config_page() {
       }
 
       if (cfg.led.brightness < 1 || cfg.led.brightness > 255) addError('brightness','Brillo fuera de rango (1..255).');
+      const p = cfg.led.power || {};
+      if (typeof p.enabled !== 'boolean') addError('led_power_enabled','Estado del limitador LED invalido.');
+      if (p.budget_ma < 250 || p.budget_ma > 5000) addError('led_power_budget','Presupuesto LED fuera de rango (250..5000 mA).');
+      if (p.base_current_ma < 0 || p.base_current_ma > 1500) addError('led_base_current','Corriente base fuera de rango (0..1500 mA).');
+      if (p.base_current_ma >= p.budget_ma) addError('led_base_current','La corriente base debe ser menor que el presupuesto total.');
+      if (p.rgb_channel_ma < 1 || p.rgb_channel_ma > 40) addError('led_rgb_channel_ma','Corriente RGB fuera de rango (1..40 mA).');
+      if (p.white_channel_ma < 1 || p.white_channel_ma > 40) addError('led_white_channel_ma','Corriente blanca fuera de rango (1..40 mA).');
       if (!cfg.day_mode || typeof cfg.day_mode.enabled !== 'boolean') addError('day_mode_enabled','Modo DIA invalido.');
 
       const ranges = cfg.speed_ranges_kph;
@@ -1784,10 +1830,19 @@ String web_pages::html_config_page() {
 
     function buildPayload(){
       const cfg = {
-        version:5,
+        version:6,
         mode: modeEl.value,
         fence_max_m: intVal(fenceMax,300),
-        led:{brightness: intVal(brightness,1)},
+        led:{
+          brightness: intVal(brightness,1),
+          power:{
+            enabled: !!ledPowerEnabled.checked,
+            budget_ma: intVal(ledPowerBudget,1000),
+            base_current_ma: intVal(ledBaseCurrent,200),
+            rgb_channel_ma: intVal(ledRgbChannelMa,20),
+            white_channel_ma: intVal(ledWhiteChannelMa,20)
+          }
+        },
         day_mode:{enabled: !!dayModeEnabled.checked},
         gps:{
           min_fix_quality: intVal(gpsMinFix,1),
@@ -1971,6 +2026,12 @@ String web_pages::html_config_page() {
     function applyConfig(c){
       brightness.value = c.led.brightness;
       brightnessSlider.value = c.led.brightness;
+      const p = c.led.power || {};
+      ledPowerEnabled.checked = p.enabled !== undefined ? !!p.enabled : true;
+      ledPowerBudget.value = p.budget_ma !== undefined ? p.budget_ma : 1000;
+      ledBaseCurrent.value = p.base_current_ma !== undefined ? p.base_current_ma : 200;
+      ledRgbChannelMa.value = p.rgb_channel_ma !== undefined ? p.rgb_channel_ma : 20;
+      ledWhiteChannelMa.value = p.white_channel_ma !== undefined ? p.white_channel_ma : 20;
       modeEl.value = c.mode || 'speed';
       const day = c.day_mode || {};
       dayModeEnabled.checked = !!day.enabled;
@@ -2153,6 +2214,14 @@ String web_pages::html_dev_page() {
       <div class="grid grid-kv">
         <div class="field"><span>Modo</span><div class="data mono" id="led-mode">--</div></div>
         <div class="field"><span>Brillo</span><div class="data mono" id="led-brightness">--</div></div>
+        <div class="field"><span>Limitador</span><div class="data mono" id="led-power-enabled">--</div></div>
+        <div class="field"><span>Presupuesto</span><div class="data mono" id="led-power-budget">--</div></div>
+        <div class="field"><span>Corriente solicitada</span><div class="data mono" id="led-power-requested">--</div></div>
+        <div class="field"><span>Corriente estimada</span><div class="data mono" id="led-power-estimated">--</div></div>
+        <div class="field"><span>Factor aplicado</span><div class="data mono" id="led-power-scale">--</div></div>
+        <div class="field"><span>Pico solicitado</span><div class="data mono" id="led-power-peak">--</div></div>
+        <div class="field"><span>Frames limitados</span><div class="data mono" id="led-power-frames">--</div></div>
+        <div class="field"><span>Perfil RGB/W</span><div class="data mono" id="led-power-profile">--</div></div>
         <div class="field"><span>Rango actual</span><div class="data mono" id="led-range">--</div></div>
         <div class="field"><span>Base RGB</span><div class="data mono" id="led-base">--</div></div>
         <div class="field"><span>Efecto A</span><div class="data mono" id="led-effect-a">--</div></div>
@@ -2310,6 +2379,17 @@ String web_pages::html_dev_page() {
         const led = d.led || {};
         setText('led-mode', led.mode);
         setText('led-brightness', led.brightness);
+        const power = led.power || {};
+        setText('led-power-enabled', power.enabled ? 'activo' : 'desactivado');
+        setText('led-power-budget', power.budget_ma !== undefined ? power.budget_ma + ' mA' : '--');
+        setText('led-power-requested', power.requested_ma !== undefined ? power.requested_ma + ' mA' : '--');
+        setHealth('led-power-estimated', power.estimated_ma !== undefined ? power.estimated_ma + ' mA' : '--',
+          power.estimated_ma === undefined || power.budget_ma === undefined ? null :
+            (power.estimated_ma <= power.budget_ma ? 'ok' : 'bad'));
+        setText('led-power-scale', power.scale_percent !== undefined ? power.scale_percent + '% (' + power.scale + '/255)' : '--');
+        setText('led-power-peak', power.peak_requested_ma !== undefined ? power.peak_requested_ma + ' mA' : '--');
+        setText('led-power-frames', power.frames_limited);
+        setText('led-power-profile', power.rgb_channel_ma !== undefined ? power.rgb_channel_ma + '/' + power.white_channel_ma + ' mA' : '--');
         setText('led-range', led.range);
         if (led.base_rgb){
           setText('led-base', led.base_rgb.r + ',' + led.base_rgb.g + ',' + led.base_rgb.b);

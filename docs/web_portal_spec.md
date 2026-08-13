@@ -18,8 +18,8 @@ The Dog-RGB portal is embedded as C++ raw-string HTML/CSS/JavaScript and served 
 | --- | --- |
 | Dashboard `/` | Current daily metrics, GNSS/Wi-Fi state, current/previous sessions, route preview, and JSON/CSV/GeoJSON export |
 | Wi-Fi `/wifi` | AP/STA explanation, connection state, explicit network scan, home-network save, AP identity/password/open state, mDNS |
-| Configuration `/config` | Mode/brightness, Day Mode, Simple/Speed/Geofence/Show controls, GNSS gates, Home, restore defaults, optional write PIN |
-| Diagnostics `/dev` | Overall health, degraded explanations, system/Wi-Fi/GNSS/storage/geofence/LED counters, collapsible AP details, raw JSON |
+| Configuration `/config` | Mode/brightness, Day Mode, Simple/Speed/Geofence/Show controls, advanced LED current model/ceiling, GNSS gates, Home, restore defaults, optional write PIN |
+| Diagnostics `/dev` | Overall health, degraded explanations, system/Wi-Fi/GNSS/storage/geofence/LED power counters, collapsible AP details, raw JSON |
 
 The dashboard remains the user entry point. Diagnostics should not leak into the primary hierarchy unless a fault needs a concise action.
 
@@ -41,6 +41,7 @@ The UI does not auto-poll route data. Lightweight status/summary refreshes use e
 - Password inputs do not echo stored values; presence indicators explain that blank means “keep current” where applicable.
 - Day Mode shows fixed local window/timezone and current active/waiting state.
 - Home can be set only from the current trusted GNSS coordinate or explicitly cleared.
+- Advanced LED power controls persist the estimated-current ceiling, base load, and per-channel coefficients; they remain collapsed by default because bench calibration is optional.
 - The write PIN is optional and clearly described as a write guard, not encryption or read privacy.
 
 ## Wi-Fi scan behavior
@@ -55,7 +56,7 @@ The page derives a concise healthy/degraded state from API evidence and exposes 
 - runtime, metric, session, Home, credential, and route-storage slot/generation/failure/recovery state;
 - Wi-Fi mode, addresses, RSSI, event queue, retry/backoff, AP holds/transitions, DNS, and reasons;
 - GNSS fix layers, quality, coordinates/date/time, byte/sentence/parser/rejection counters and observation ages;
-- current LED mode/range/effect and loop-phase maximum timing;
+- current LED mode/range/effect, configured current-model inputs, requested/estimated/peak current, applied scale, estimate-only notice, and loop-phase maximum timing;
 - raw `/api/dev` JSON for support/reproducibility.
 
 Unknown/unavailable values must be labeled, not silently presented as healthy.

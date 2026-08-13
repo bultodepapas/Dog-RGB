@@ -1,9 +1,16 @@
 {
-  "version": 4,
+  "version": 6,
   "mode": "speed",
   "fence_max_m": 300,
   "led": {
-    "brightness": 96
+    "brightness": 96,
+    "power": {
+      "enabled": true,
+      "budget_ma": 1000,
+      "base_current_ma": 200,
+      "rgb_channel_ma": 20,
+      "white_channel_ma": 20
+    }
   },
   "gps": {
     "min_fix_quality": 1,

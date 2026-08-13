@@ -7,7 +7,7 @@
 - RMC/GGA GNSS parsing with runtime quality gates, distance, active time, daily metrics, trusted date rollover, and diagnostics.
 - Transactional current session, three completed summaries, completed-day journal, and two-hour route ring.
 - JSON/CSV/GeoJSON route streaming that services GNSS around bounded socket writes.
-- Two SK6812 RGBW strips with reserved status pixels, 12 effects, four modes, welcome animation, and optional Day Mode.
+- Two SK6812 RGBW strips with reserved status pixels, 12 effects, four modes, welcome animation, optional Day Mode, and one estimated-current limiter across both buses.
 - AP/STA Wi-Fi with captive DNS/probes, network scan, event-queue ownership, bounded retry/backoff, AP hold/idle policy, and mDNS.
 - Embedded dashboard, Wi-Fi/configuration/diagnostic pages, CSRF-intent header, output escaping, response headers, and optional write PIN.
 - A/B + CRC persistence for config, metrics, sessions, Home, and station credentials; dedicated route NVS partition.
@@ -61,8 +61,8 @@ Pages:
 
 - `/` dashboard, sessions, route preview/export;
 - `/wifi` scan and AP/STA settings;
-- `/config` runtime settings, Home, Day Mode, optional PIN;
-- `/dev` health and detailed diagnostics.
+- `/config` runtime settings, Home, Day Mode, advanced LED power calibration, optional PIN;
+- `/dev` health, LED power-model telemetry, and detailed diagnostics.
 
 API routes and write headers are documented in [HTTP API reference](../../docs/api-reference.md). A custom client must send `X-Dog-Portal` for every POST and `X-Dog-Pin` when the optional lock is enabled.
 
@@ -70,6 +70,7 @@ API routes and write headers are documented in [HTTP API reference](../../docs/a
 
 - Pins: A GPIO1, B GPIO2, status GPIO3, GNSS TX→ESP RX GPIO44, optional ESP TX GPIO43.
 - Two × 24 pixels, two reserved status pixels per strip, brightness 77/255.
+- Estimated-current limit enabled at a provisional 1,000 mA whole-device budget (200 mA base, 20 mA per RGB/W channel); calibrate on physical hardware.
 - GNSS 9,600 baud, 1-second metric sample, 0.7 km/h active threshold, 40 km/h valid-speed ceiling.
 - Day Mode off, 06:00–16:00 fixed UTC-5 when enabled.
 - BLE off.
@@ -86,7 +87,7 @@ Authoritative values: `include/config.h`, `include/pins.h`, and `platformio.ini`
 | Wi-Fi | `src/wifi/wifi_mgr.cpp` |
 | HTTP and pages | `src/web/portal_http.cpp`, `src/web/pages.cpp` |
 | Optional PIN | `src/web/portal_lock.cpp` |
-| LEDs / Day Mode | `src/led/led_ui.cpp`, `src/power/day_mode.cpp` |
+| LEDs / current limiting / Day Mode | `src/led/led_ui.cpp`, `src/led/led_bus.cpp`, `src/led/power_limiter.cpp`, `src/power/day_mode.cpp` |
 | Home/geofence | `src/geofence/home.cpp` |
 | BLE | `src/ble/summary_ble.cpp` |
 | Storage/utilities | `src/storage/nvs_store.cpp`, `src/util/geo.cpp`, `include/util/*` |

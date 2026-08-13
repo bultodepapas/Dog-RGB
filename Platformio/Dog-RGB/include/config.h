@@ -83,6 +83,19 @@ static const int LED_STATUS_COUNT = 2; // First N LEDs reserved for status.
 static const uint8_t LED_BRIGHTNESS = 77; // ~30% brightness (0-255).
 static const bool LED_DEBUG_BRIGHTNESS_ENABLED = false; // Diagnostic: override runtime brightness.
 static const uint8_t LED_DEBUG_BRIGHTNESS = 30; // Low-brightness debug value.
+// Provisional whole-device current model. These defaults deliberately leave
+// headroom until the actual battery, regulator, wiring and SK6812 batch are
+// characterized on the bench.
+static const bool LED_POWER_LIMIT_ENABLED_DEFAULT = true;
+static const uint16_t LED_POWER_BUDGET_MA_DEFAULT = 1000;
+static const uint16_t LED_BASE_CURRENT_MA_DEFAULT = 200;
+static const uint8_t LED_RGB_CHANNEL_MA_DEFAULT = 20;
+static const uint8_t LED_WHITE_CHANNEL_MA_DEFAULT = 20;
+static const uint16_t LED_POWER_BUDGET_MA_MIN = 250;
+static const uint16_t LED_POWER_BUDGET_MA_MAX = 5000;
+static const uint16_t LED_BASE_CURRENT_MA_MAX = 1500;
+static const uint8_t LED_CHANNEL_MA_MIN = 1;
+static const uint8_t LED_CHANNEL_MA_MAX = 40;
 static const bool DEBUG_AP_ONLY_MINIMAL = false; // Diagnostic: boot only AP + portal, no GPS/LED/BLE/STA.
 
 // LED UI timing.

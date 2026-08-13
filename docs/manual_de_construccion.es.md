@@ -49,10 +49,12 @@ GND         -> retorno común de baja impedancia
 1. Dibuja la topología de potencia y revisa polaridades.
 2. Prueba únicamente los reguladores con fuente limitada en corriente.
 3. Conecta XIAO y GNSS; flashea y confirma actividad GNSS al aire libre.
-4. Añade una tira con brillo `77/255` o menor y mide tensión, corriente y temperatura.
-5. Añade la segunda tira con rama de alimentación propia y repite las mediciones.
+4. Añade una tira con brillo `77/255` o menor, conserva activo el limitador estimado provisional de 1.000 mA y mide tensión, corriente y temperatura.
+5. Añade la segunda tira con rama de alimentación propia, repite las mediciones y compara la lectura con `/dev` antes de cambiar el modelo o el techo.
 6. Ejecuta el efecto más brillante que pretendas usar durante una prueba sostenida.
 7. Aísla conductores, añade alivio de tensión y cierra el enclosure solo después de aprobar todas las pruebas.
+
+El limitador es un cálculo, no un sensor ni un reemplazo del límite externo de la fuente, las mediciones de rail o los ratings de los componentes.
 
 ## Compilar y flashear
 

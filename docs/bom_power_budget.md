@@ -41,7 +41,9 @@ LED power = 14.4–19.2 W
 
 MCU/GNSS/radio and conversion loss are additional. Therefore a nominal “3 A boost” may be acceptable only with an enforced/verified animation and brightness envelope; it is not automatically sufficient for unrestricted full-white output.
 
-The current firmware defaults to roughly 30% brightness and animated content, but that does not create a calibrated hard current limit.
+The current firmware defaults to roughly 30% brightness and enables a provisional 1,000 mA whole-device software budget (200 mA base plus a 20 mA full-channel RGB/W profile). It is a hard ceiling for the **estimate**, not yet a calibrated hard limit for physical current. Keep the default conservative until measurements establish a safe budget for the exact hardware revision.
+
+The limiter converts the logical frame to RGBW, evaluates both 24-pixel buses together, and applies one color-preserving scale. `/api/dev` reports pre/post estimates and the applied factor. Use those values as comparison points in the measurement matrix, never as replacements for the cell-side and 5 V instruments.
 
 ## Battery-side calculation
 

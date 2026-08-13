@@ -44,7 +44,7 @@ The older statement “firmware runs GNSS at 10 Hz” is not the current product
 - Recommended AHCT/HCT level shifting at 5 V.
 - 330–470 Ω series resistor at each strip DIN.
 - Common/star ground and local bulk capacitance near each strip input.
-- Default brightness 77/255, but software brightness is not a guaranteed electrical current limit.
+- Default brightness is 77/255. The schema-6 firmware also enables a provisional 1.000 mA whole-device estimated-current limit; it is a model to calibrate, not a measured or guaranteed hardware limit.
 - Never power the full strips through the XIAO USB/5 V board path without a separately validated design.
 
 ## Storage decision

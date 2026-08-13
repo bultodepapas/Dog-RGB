@@ -55,6 +55,56 @@ const canvasHasInk = (page: Page) =>
     return false;
   });
 
+test.describe('P1 · electrical safety stays advanced but observable', () => {
+  test('power calibration loads and is saved as one LED profile', async ({ page }) => {
+    const posted = await mockPortal(page);
+    await page.goto('/config');
+    await expect(page.locator('#led_power_enabled')).toBeChecked();
+    await expect(page.locator('#led_power_budget')).toHaveValue('1000');
+    await expect(page.locator('#led_base_current')).toHaveValue('200');
+    await page.locator('#led_power_block summary').click();
+
+    await page.locator('#led_power_budget').fill('1200');
+    await page.locator('#led_base_current').fill('250');
+    await page.locator('#led_rgb_channel_ma').fill('18');
+    await page.locator('#led_white_channel_ma').fill('22');
+    await page.locator('.action-bar button', { hasText: 'Guardar cambios' }).first().click();
+    await expect(page.locator('#status')).toContainText('Guardado');
+
+    const request = posted.find((item) => item.url === '/api/config');
+    expect(request).toBeDefined();
+    expect(JSON.parse(request!.body).led.power).toEqual({
+      enabled: true,
+      budget_ma: 1200,
+      base_current_ma: 250,
+      rgb_channel_ma: 18,
+      white_channel_ma: 22,
+    });
+  });
+
+  test('base current cannot consume the entire configured budget', async ({ page }) => {
+    const posted = await mockPortal(page);
+    await page.goto('/config');
+    await page.locator('#led_power_block summary').click();
+    await page.locator('#led_power_budget').fill('500');
+    await page.locator('#led_base_current').fill('500');
+    await page.locator('.action-bar button', { hasText: 'Guardar cambios' }).first().click();
+
+    await expect(page.locator('#led_base_current')).toHaveClass(/invalid/);
+    await expect(page.locator('#errors')).toContainText('menor que el presupuesto');
+    expect(posted.filter((item) => item.url === '/api/config')).toHaveLength(0);
+  });
+
+  test('developer diagnostics expose the live estimate and limiter factor', async ({ page }) => {
+    await mockPortal(page, { dev: 'dev.healthy.json' });
+    await page.goto('/dev');
+    await expect(page.locator('#led-power-estimated')).toHaveText('612 mA');
+    await expect(page.locator('#led-power-estimated')).toHaveClass(/health-ok/);
+    await expect(page.locator('#led-power-scale')).toContainText('100%');
+    await expect(page.locator('#led-power-frames')).toHaveText('0');
+  });
+});
+
 test.describe('D1 · the GPS track survives a rotation', () => {
   test('canvas still has ink after the viewport changes', async ({ page }) => {
     await mockPortal(page);

@@ -76,4 +76,4 @@ Use `/config` or `POST /api/config`. If the `effects` object is supplied, all te
 
 - Effect state updates at 50 ms (20 Hz).
 - The production transport updates both strips; Wokwi caps only expensive virtual pixel transport while preserving the 50 ms effect-state cadence.
-- Software brightness is not a current limiter with a guaranteed electrical ceiling. Measure the physical strip, boost, wiring, and temperature for every allowed brightness profile.
+- The global limiter bounds the configured two-bus estimate and preserves RGBW ratios. It is not a sensor or proof of the physical ceiling: calibrate its base/channel profile and measure strip, boost, wiring, rails, battery, and temperature for every allowed budget.

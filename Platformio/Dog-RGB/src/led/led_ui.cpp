@@ -1,6 +1,5 @@
 #include "led/led_ui.h"
 
-#include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 #include <WiFi.h>
 
@@ -8,6 +7,7 @@
 #include "config.h"
 #include "geofence/home.h"
 #include "gps/gps.h"
+#include "led/led_bus.h"
 #include "pins.h"
 #include "power/day_mode.h"
 #include "wifi/wifi_mgr.h"
@@ -21,13 +21,14 @@ unsigned long last_ok_ms = 0;
 unsigned long gps_fix_ms = 0;
 unsigned long last_gps_fix_ms = 0;
 
-Rgb leds_a[LED_STRIP_COUNT];
-Rgb leds_b[LED_STRIP_COUNT];
+led::LedFrame led_frame = {};
+Rgb *const leds_a = led_frame.bus_a;
+Rgb *const leds_b = led_frame.bus_b;
 uint8_t heat_a[LED_STRIP_COUNT];
 uint8_t heat_b[LED_STRIP_COUNT];
 
-Adafruit_NeoPixel strip_a(LED_STRIP_COUNT, PIN_LED_A_DATA, NEO_GRBW + NEO_KHZ800);
-Adafruit_NeoPixel strip_b(LED_STRIP_COUNT, PIN_LED_B_DATA, NEO_GRBW + NEO_KHZ800);
+led::LedBus led_bus(LED_STRIP_COUNT, PIN_LED_A_DATA, PIN_LED_B_DATA,
+                    LED_STRIP_MODE == 2);
 
 struct EffectState {
   uint8_t hue = 0;
@@ -232,17 +233,17 @@ static uint8_t effective_brightness(uint8_t brightness) {
   return LED_DEBUG_BRIGHTNESS_ENABLED ? LED_DEBUG_BRIGHTNESS : brightness;
 }
 
+static led::PowerLimitConfig power_config_from(const RuntimeConfig &cfg) {
+  return led::PowerLimitConfig{cfg.led_power_limit_enabled,
+                               cfg.led_power_budget_ma,
+                               cfg.led_base_current_ma,
+                               cfg.led_rgb_channel_ma,
+                               cfg.led_white_channel_ma};
+}
+
 static void led_begin() {
-  strip_a.begin();
-  strip_a.setBrightness(effective_brightness(config::get().brightness));
-  strip_a.clear();
-  strip_a.show();
-  if (LED_STRIP_MODE == 2) {
-    strip_b.begin();
-    strip_b.setBrightness(effective_brightness(config::get().brightness));
-    strip_b.clear();
-    strip_b.show();
-  }
+  led_bus.configure_power(power_config_from(config::get()));
+  led_bus.begin(effective_brightness(config::get().brightness));
 }
 
 static void show_leds() {
@@ -258,24 +259,7 @@ static void show_leds() {
   }
   last_transport_ms = now_ms;
 #endif
-  for (int i = 0; i < LED_STRIP_COUNT; ++i) {
-    const uint8_t r = leds_a[i].r;
-    const uint8_t g = leds_a[i].g;
-    const uint8_t b = leds_a[i].b;
-    const uint8_t w = min(r, min(g, b));
-    strip_a.setPixelColor(i, strip_a.Color(r - w, g - w, b - w, w));
-  }
-  strip_a.show();
-  if (LED_STRIP_MODE == 2) {
-    for (int i = 0; i < LED_STRIP_COUNT; ++i) {
-      const uint8_t r = leds_b[i].r;
-      const uint8_t g = leds_b[i].g;
-      const uint8_t b = leds_b[i].b;
-      const uint8_t w = min(r, min(g, b));
-      strip_b.setPixelColor(i, strip_b.Color(r - w, g - w, b - w, w));
-    }
-    strip_b.show();
-  }
+  led_bus.show(led_frame);
 }
 
 static void fill_range(Rgb *leds, int start, int count, const Rgb &color) {
@@ -504,10 +488,7 @@ void start_welcome() {
   welcome.laps_done = 0;
   welcome_state_a = {};
   welcome_state_b = {};
-  strip_a.setBrightness(effective_brightness(255));
-  if (LED_STRIP_MODE == 2) {
-    strip_b.setBrightness(effective_brightness(255));
-  }
+  led_bus.set_brightness(effective_brightness(255));
   fill_range(leds_a, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
   if (LED_STRIP_MODE == 2) {
     fill_range(leds_b, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
@@ -552,10 +533,7 @@ static void update_welcome(unsigned long now_ms) {
     welcome.laps_done++;
     if (welcome.laps_done >= WELCOME_LAPS) {
       welcome.active = false;
-      strip_a.setBrightness(effective_brightness(config::get().brightness));
-      if (LED_STRIP_MODE == 2) {
-        strip_b.setBrightness(effective_brightness(config::get().brightness));
-      }
+      led_bus.set_brightness(effective_brightness(config::get().brightness));
       fill_range(leds_a, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
       if (LED_STRIP_MODE == 2) {
         fill_range(leds_b, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
@@ -1036,10 +1014,20 @@ void tick() {
 }
 
 void apply_brightness(uint8_t brightness) {
-  strip_a.setBrightness(effective_brightness(brightness));
-  if (LED_STRIP_MODE == 2) {
-    strip_b.setBrightness(effective_brightness(brightness));
-  }
+  led_bus.set_brightness(effective_brightness(brightness));
+}
+
+void apply_power_config(bool enabled, uint16_t budget_ma,
+                        uint16_t base_current_ma, uint8_t rgb_channel_ma,
+                        uint8_t white_channel_ma) {
+  led_bus.configure_power(led::PowerLimitConfig{enabled, budget_ma,
+                                                base_current_ma,
+                                                rgb_channel_ma,
+                                                white_channel_ma});
+}
+
+const led::PowerDiagnostics &power_diagnostics() {
+  return led_bus.power_diagnostics();
 }
 
 void set_transport_enabled(bool enabled) {

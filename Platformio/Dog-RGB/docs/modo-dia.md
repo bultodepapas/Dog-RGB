@@ -41,7 +41,7 @@ The fail-open `waiting_time` behavior avoids an incorrect/stale clock silently d
 - Toggle: `/config` or `day_mode.enabled` in `POST /api/config`.
 - Fixed window/offset: reported by `GET /api/config`.
 - Live state: `/api/status` and `/api/dev`.
-- Persistence: runtime config schema version 5, CRC-protected A/B record.
+- Persistence: runtime config schema version 6, CRC-protected A/B record with schema-5 migration.
 
 ## Rendering integration
 
