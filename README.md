@@ -158,6 +158,12 @@ Dog-RGB-1/
 
 Contributions are welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Acknowledgements
+
+Dog-RGB grows through curiosity, experimentation, and the open-source spirit of sharing what we learn along the way.
+
+A heartfelt and explicit thank-you to **OpenAI for providing a Pro account in support of open-source projects**. That support gives this project more room to explore ambitious ideas, improve its engineering and documentation, and keep pushing a wonderfully simple concept far beyond what it strictly needs to be.
+
 ## License and external inspiration
 
 This repository does not yet contain a root `LICENSE` file, so do not assume redistribution terms. Work inspired by WLED must follow the provisional [clean-room and provenance decision](docs/adr/0001-wled-clean-room-y-licencia-del-proyecto.md): learn from public concepts and behavior, but do not copy code or assets unless provenance, license compatibility, attribution, and owner approval are explicitly resolved.
