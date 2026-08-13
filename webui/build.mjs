@@ -156,6 +156,11 @@ export function canonicalGzip(input) {
     strategy: zlibConstants.Z_DEFAULT_STRATEGY,
   });
 
+  // zlib writes the host OS into byte 9 (0x03 on Unix, 0x0a on Windows).
+  // It has no decoding semantics, so fix it to "unknown" for byte-identical
+  // assets regardless of where the tracked firmware arrays are generated.
+  compressed[9] = 0xff;
+
   if (
     compressed[0] !== 0x1f ||
     compressed[1] !== 0x8b ||
@@ -166,6 +171,9 @@ export function canonicalGzip(input) {
   }
   if (compressed.subarray(4, 8).some((value) => value !== 0)) {
     throw new Error('gzip header contains a non-deterministic timestamp');
+  }
+  if (compressed[9] !== 0xff) {
+    throw new Error('gzip header contains a non-canonical OS identifier');
   }
   if (!gunzipSync(compressed).equals(source)) {
     throw new Error('gzip round-trip verification failed');

@@ -26,7 +26,10 @@ test('canonical gzip is deterministic and carries no variable metadata', () => {
   const first = canonicalGzip(source);
   const second = canonicalGzip(source);
   assert.deepEqual(first, second);
-  assert.deepEqual([...first.subarray(0, 8)], [0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0]);
+  assert.deepEqual(
+    [...first.subarray(0, 10)],
+    [0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0, 0x02, 0xff],
+  );
   assert.deepEqual(gunzipSync(first), source);
 });
 
