@@ -4,10 +4,11 @@
 #include <stdint.h>
 
 #include "led/led_color.h"
+#include "led/palette_registry.h"
 
 namespace led {
 
-static const uint8_t EFFECT_REGISTRY_VERSION = 1;
+static const uint8_t EFFECT_REGISTRY_VERSION = 2;
 static const uint8_t EFFECT_REGISTRY_COUNT = 12;
 
 enum EffectControl : uint8_t {
@@ -55,6 +56,7 @@ struct EffectDescriptor {
   EffectUsefulRange useful;
   EffectColorMode color_mode;
   EffectPaletteMode palette_mode;
+  uint8_t default_palette_id;
   EffectSafetyClass safety;
 };
 
@@ -69,6 +71,8 @@ struct EffectRenderContext {
   uint16_t start;
   uint16_t count;
   Rgb base;
+  Rgb accent;
+  uint8_t palette_id;
   uint8_t speed;
   uint8_t intensity;
   uint32_t now_ms;

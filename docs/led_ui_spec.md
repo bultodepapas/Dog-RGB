@@ -10,6 +10,8 @@ The LED system combines activity effects with an always-visible local health int
 - 24 SK6812 RGBW pixels per strip.
 - First two pixels per strip reserved for status.
 - Remaining 22 pixels per strip form the effect body.
+- Bus A body is declared `forward`; bus B body is declared `reverse`.
+- Equal A/B effects use layout-level mirror by default; different effects keep independent branches.
 - Global brightness defaults to 77/255.
 - Global estimated-current limit defaults to 1,000 mA including a provisional 200 mA base load.
 
@@ -25,7 +27,8 @@ The LED system combines activity effects with an always-visible local health int
 | 0 | Explicit Wi-Fi-off state | Amber double pulse |
 | 1 (GNSS) | Trusted fix | Solid blue |
 | 1 | No trusted fix | Blue pulse |
-| 0 + 1 | Critical no-GNSS/no-station timeout | Fast red flash |
+| 0 + 1 | Critical no-GNSS/no-station timeout | Red two-level flash (`System` alert) |
+| 0 + 1 | Valid Geofence distance at/above `fence_max_m` | Red pulse (`Geofence` alert) |
 
 The automatic AP idle policy currently stops SoftAP without forcing the whole Wi-Fi subsystem OFF, so the amber/off and homogeneous paths are retained capabilities rather than the common idle outcome.
 
@@ -36,7 +39,7 @@ The automatic AP idle policy currently stops SoftAP without forcing the whole Wi
 | Speed | Trusted usable GNSS speed | Body; rainbow fallback without fix | Status pixels retained |
 | Geofence | Distance from Home with hysteresis | Body; rainbow without fix, amber breath without Home | Status pixels retained |
 | Show | Shuffled 12-effect demo | Body | Status pixels retained |
-| Simple | One configured effect/RGB | Full strip | Status hidden by design |
+| Simple | One configured effect/RGB | Body | Status pixels retained |
 
 Speed/Geofence use the same ten effect records. Geofence changes the range selector, not the effect engine.
 
@@ -47,7 +50,7 @@ Speed/Geofence use the same ten effect records. Geofence changes the range selec
 | Priority | Intent/layer | Result |
 | ---: | --- | --- |
 | 100 | Welcome | Owns both complete strips during startup |
-| 90 | Critical alert | Sets the status override while preserving the underlying body intent where composition permits |
+| 90 | System or Geofence alert | Overrides only `alert`/status while preserving the underlying body intent |
 | 80 | Day status | Disables the body and keeps status pixels; a simultaneous critical alert reports priority 90 |
 | 30 | Range, Show, Simple | Normal configured scene |
 | 20 | Idle, Home missing | Fallback/guidance behavior |
@@ -55,13 +58,20 @@ Speed/Geofence use the same ten effect records. Geofence changes the range selec
 The practical render order is:
 
 1. **Welcome** owns the strips until its startup sequence completes.
-2. **Day Mode active** clears effect pixels and renders the normal status pixels, in every runtime mode.
-3. **Simple** fills the strips when Day Mode is not active.
-4. **Speed/Geofence/Show** render the body.
-5. **Homogeneous state**, when Wi-Fi is explicitly OFF and GNSS has been stable for five minutes, can extend the selected effect to all pixels.
-6. Otherwise status rendering paints the reserved pixels, including the critical red override.
+2. `LedPolicyEngine` produces body effects, palettes, mirror, transition and alert state.
+3. Effects render only logical body coordinates; status renders independently.
+4. `LedCompositor` maps A/B orientation, mirrors one logical branch when requested, and crossfades the body.
+5. The current status frame bypasses decorative fades.
+6. A System/Geofence alert interrupts an active fade and overwrites the two reserved status pixels on both buses.
+7. Day Mode clears only the body before this composition.
 
-The critical override has priority within the status layer; it cannot appear while Simple owns the full strip, but Day Mode restores status rendering. `critical_alert` is therefore a separate state flag rather than silently replacing `intent`.
+`critical_alert` and the typed `alert` field are separate from `intent`, so an alert does not silently destroy the current decorative scene. The retained `homogeneous` flag still reports Wi-Fi-off/GNSS eligibility for compatibility, but semantic status ownership is no longer surrendered to an effect.
+
+## Semantic regions and transitions
+
+`LedLayout` exposes `status`, `body_left`, `body_right`, `body_all`, and `alert`. `body_all` has 22 logical pixels in mirror mode and 44 in independent/continuous mode. Reverse applies to the body mapping; physical status indices remain fixed at `0..1`.
+
+A normal visual change starts a 500 ms buffer-to-buffer crossfade. The compositor snapshots the last requested physical frame, maps the new logical frame, and blends only body pixels. A change during an active transition starts again from the last composed frame, not from black. Alerts cancel the transition immediately at the next 50 ms LED tick.
 
 ## Day Mode
 
@@ -87,20 +97,20 @@ Default Speed colors progress from cyan at the lowest range to red at the highes
 | Critical flash | 200 ms phases |
 | AP-off double pulse | 3 s period, 200 ms pulse width |
 | Show effect | 30 s |
-| Show transition | 500 ms |
+| Normal body crossfade | 500 ms |
 | Homogeneous eligibility | 5 min stable GNSS while Wi-Fi-off state is true |
 | Critical health timeout | 10 min |
 
 ## Diagnostics and testing
 
-`/api/v1/led/state` exposes the retained policy result: mode, intent, priority, composition flags, range, effects, parameters, base RGB, brightness, and latest limiter snapshot. `/api/dev` uses that same state instead of recomputing a second range/effect decision. `/api/v1/led/capabilities` exposes the registry and hardware/control limits used by the configuration portal.
+`/api/v1/led/state` exposes mode, intent, typed alert, priority, mirror, effects/palettes, parameters, base/accent RGB, transition counters/progress, brightness, and the latest limiter snapshot. `/api/dev` uses that same state instead of recomputing a second range/effect decision. `/api/v1/led/capabilities` exposes effect/palette registries, semantic layout/orientation and hardware/control limits.
 
-The native Phase 2 harness validates policy boundaries for Welcome, Day Mode, critical overlay, missing GNSS, missing Home, Speed/Geofence ranges, Show, Simple, and null configuration. The Wokwi `modes` scenario and host Day Mode/power contracts continue validating integration, persistence, status preservation, RGBW conversion, and budget saturation; physical strips still require current/temperature/visual checks.
+The Phase 2 harness retains the 12 legacy effect goldens with no selected palette and validates policy boundaries. The Phase 3 harness adds exact layout maps, canonical RGBW palette round-trips, five palette-aware effects, mirror, status-preserving crossfade, no-black midpoint, and immediate alert interruption. Physical strips still require orientation, current, timing, temperature and perceptual checks.
 
 ## Frame, transport, and power boundary
 
-Effects render RGB into a fixed `LedFrame` containing buses A/B. `LedBus` owns Adafruit NeoPixel and is the only layer that converts RGB to physical RGBW or writes GPIO. Before transport, `PowerLimiter` evaluates both active buses as one load and applies the same scale to every RGBW channel.
+Effects render RGB into a logical `LedFrame` containing branches A/B. `LedCompositor` produces the orientation-aware physical frame, then `LedBus` owns Adafruit NeoPixel and is the only layer that writes GPIO. Before transport, `PowerLimiter` evaluates both active buses as one load and applies the same scale to every RGBW channel.
 
-The effect renderer itself is `effect_registry.cpp`. It consumes explicit time, PRNG state, effect runtime, base color, parameters, and a bounded pixel span. It does not import GPS, Wi-Fi, geofence, NVS, Arduino time/random, or the physical bus. `led_ui.cpp` is the integration adapter that snapshots those product domains, converts schema-6 `RangeEffect` records to `LedPolicyConfig`, and composes status/transport.
+The effect renderer itself is `effect_registry.cpp`. It consumes explicit time, PRNG state, effect runtime, base/accent color, palette ID, parameters, and a bounded pixel span. It does not import GPS, Wi-Fi, geofence, NVS, Arduino time/random, or the physical bus. `led_ui.cpp` snapshots product domains and converts schema-6 `RangeEffect` records to `LedPolicyConfig`; `LedLayout`/`LedCompositor` own physical composition.
 
 The limit is enabled by default. Its runtime profile is advanced configuration: total budget, non-LED base current, full R/G/B channel current, and full white-channel current. Reduction is immediate; recovery is gradual to reduce visible pumping. The estimate is intentionally rounded upward but remains a model rather than a current sensor.

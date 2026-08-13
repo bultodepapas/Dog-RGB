@@ -14,7 +14,7 @@ The active implementation is local-first. The collar records activity, drives tw
 | --- | --- |
 | GNSS | NMEA RMC/GGA parsing, fix-quality gates, Haversine distance, active time, average/max speed, spike rejection, trusted date rollover |
 | Route history | Latest two hours at a nominal 5-second interval, plus the current and three completed session summaries; JSON, CSV, and GeoJSON streaming exports |
-| LEDs | Two 24-pixel SK6812 RGBW strips by default, reserved status pixels, 12 effects, Speed/Geofence/Show/Simple modes, and a global estimated-current limiter for both buses |
+| LEDs | Two 24-pixel SK6812 RGBW strips by default, semantic status/body/alert layout, mirror-aware orientation, 12 effects, 8 RGBW palettes, status-preserving crossfades, four modes, and one global estimated-current limiter |
 | Power saving | Optional Day Mode turns off effect pixels from 06:00 to 16:00 in America/Bogota while keeping status LEDs, GNSS, storage, and the portal active |
 | Wi-Fi | SoftAP + station mode, captive-portal helpers, on-demand network scan, mDNS, bounded retry/backoff, and automatic AP availability policy |
 | Portal | Dashboard, route preview, Wi-Fi setup, runtime configuration (including optional LED power calibration), diagnostics, optional write PIN, and safe configuration reset |

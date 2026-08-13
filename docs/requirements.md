@@ -1,6 +1,6 @@
 # Dog-RGB Requirements
 
-**Status:** Current MVP requirements and verification state, reviewed 2026-08-12.
+**Status:** Current MVP requirements and verification state, reviewed 2026-08-13.
 
 The terms **must**, **should**, and **may** indicate required, recommended, and optional behavior. “Implemented” means present in source; it does not imply that the physical collar has passed field certification.
 
@@ -23,6 +23,7 @@ The terms **must**, **should**, and **may** indicate required, recommended, and 
 | FR-13 | Day Mode may turn off effect pixels during a configured daylight window without stopping tracking or status alerts. | Implemented, optional/off by default; fixed 06:00–16:00 America/Bogota window. |
 | FR-14 | A compact daily summary may be read over BLE when explicitly compiled in. | Implemented wire format; disabled by default due SoftAP/BLE coexistence. |
 | FR-15 | Both LED buses must share one configurable estimated-current ceiling so their combined logical frame cannot exceed the configured model budget. | Implemented in `LedBus`/`PowerLimiter`, enabled by default with provisional coefficients; physical calibration remains required. |
+| FR-16 | Normal visual changes must preserve reserved status, avoid a forced black inter-frame, and allow a new System/Geofence alert to preempt decoration on the next LED tick. | Implemented through semantic layout and buffer crossfade; native-tested. Physical visual/timing acceptance remains required. |
 
 ## Quality and resource requirements
 
@@ -39,6 +40,7 @@ The terms **must**, **should**, and **may** indicate required, recommended, and 
 | QR-09 | The enclosure and surfaces must remain within a safe, comfortable thermal range. | **Not yet specified or verified.** Establish numeric limits and test points before field use. |
 | QR-10 | The finished assembly should resist expected splashes/weather. | **Not yet verified.** No IP rating may be claimed without enclosure validation. |
 | QR-11 | LED limiting must reduce immediately, release gradually, preserve one common scale across buses, and expose requested/final estimates and limiter activity. | Implemented and covered by deterministic host vectors plus portal/API tests; visible behavior still requires strip-level inspection. |
+| QR-12 | LED orientation, mirror, palettes and transitions must be allocation-free in the hot path and discoverable through the versioned LED API. | Implemented and native/static-tested; A-forward/B-reverse still requires final mounting validation. |
 
 ## Hardware safety requirements
 

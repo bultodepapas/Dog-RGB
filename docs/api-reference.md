@@ -165,7 +165,7 @@ Known API paths called with the wrong method return `405`; unknown `/api/*` path
 
 ## LED API v1
 
-The v1 endpoints are additive read contracts. Runtime writes continue through schema-6 `/api/config`; there is deliberately no `PATCH /api/v1/led/state` in Phase 2.
+The v1 endpoints are additive read contracts. Runtime writes continue through schema-6 `/api/config`; there is deliberately no `PATCH /api/v1/led/state`. Phase 3 added layout, palette, transition and typed-alert fields without removing the Phase 2 shape.
 
 ### Current state
 
@@ -180,24 +180,42 @@ The v1 endpoints are additive read contracts. Runtime writes continue through sc
   "body_enabled": true,
   "status_enabled": true,
   "homogeneous": false,
+  "mirror": false,
+  "alert": "none",
   "critical_alert": false,
   "range": 3,
   "brightness": 180,
+  "transition_ms": 500,
   "effect_a": {
     "id": 1,
     "key": "pulse",
     "name": "PULSE",
     "speed": 128,
-    "intensity": 200
+    "intensity": 200,
+    "palette_id": -1,
+    "palette_key": "none",
+    "palette_name": "None"
   },
   "effect_b": {
     "id": 2,
     "key": "breath",
     "name": "BREATH",
     "speed": 128,
-    "intensity": 200
+    "intensity": 200,
+    "palette_id": 7,
+    "palette_key": "custom_ab",
+    "palette_name": "Custom A-B"
   },
   "base_rgb": {"r": 0, "g": 60, "b": 0},
+  "accent_rgb": {"r": 0, "g": 60, "b": 0},
+  "transition": {
+    "active": false,
+    "duration_ms": 500,
+    "progress": 255,
+    "started": 4,
+    "completed": 3,
+    "interrupted": 1
+  },
   "power": {
     "budget_ma": 1000,
     "requested_ma": 640,
@@ -208,9 +226,9 @@ The v1 endpoints are additive read contracts. Runtime writes continue through sc
 }
 ```
 
-`intent` is one of `welcome`, `day_status`, `idle`, `home_missing`, `range`, `show`, `simple`, or `critical_alert`; current composition normally represents a critical condition with `critical_alert:true` alongside the underlying body intent. `range` is `-1` when no Speed/Geofence range is active.
+`intent` is one of `welcome`, `day_status`, `idle`, `home_missing`, `range`, `show`, `simple`, or `critical_alert`; current composition represents an overlay through `alert` (`none`, `system`, or `geofence`) and `critical_alert:true` alongside the underlying body intent. `range` is `-1` when no Speed/Geofence range is active. Palette ID `-1` means that renderer has no selected registry palette.
 
-Priority values are part of schema 1: welcome `100`, critical overlay `90`, Day Mode `80`, active Range/Show/Simple scenes `30`, and idle/Home guidance `20`. Higher values win policy selection; consumers should still use the named fields instead of inferring the full scene from a number alone.
+Priority values are part of schema 1: welcome `100`, System/Geofence overlay `90`, Day Mode `80`, active Range/Show/Simple scenes `30`, and idle/Home guidance `20`. Higher values win policy selection; consumers should still use the named fields instead of inferring the full scene from a number alone.
 
 ### Capabilities and effect metadata
 
@@ -219,13 +237,21 @@ Priority values are part of schema 1: welcome `100`, critical overlay `90`, Day 
 ```json
 {
   "schema_version": 1,
-  "effect_registry_version": 1,
+  "effect_registry_version": 2,
+  "palette_registry_version": 1,
   "effect_count": 12,
+  "palette_count": 8,
   "persistent_effect_ids": true,
   "layout": {
     "buses": 2,
     "pixels_per_bus": 24,
     "status_pixels_per_bus": 2,
+    "body_pixels_per_bus": 22,
+    "bus_a_orientation": "forward",
+    "bus_b_orientation": "reverse",
+    "mirror_supported": true,
+    "mirror_default": true,
+    "regions": ["status", "body_left", "body_right", "body_all", "alert"],
     "physical_format": "RGBW",
     "logical_format": "RGB"
   },
@@ -236,14 +262,15 @@ Priority values are part of schema 1: welcome `100`, critical overlay `90`, Day 
     "speed_max": 255,
     "intensity_min": 0,
     "intensity_max": 255,
+    "transition_default_ms": 500,
     "current_budget_min_ma": 250,
     "current_budget_max_ma": 5000
   },
   "features": {
     "state_get": true,
     "state_patch": false,
-    "transitions": false,
-    "palettes": false
+    "transitions": true,
+    "palettes": true
   },
   "effects": [
     {
@@ -260,13 +287,27 @@ Priority values are part of schema 1: welcome `100`, critical overlay `90`, Day 
       },
       "color_mode": "base",
       "palette_mode": "none",
+      "default_palette_id": -1,
       "safety": "calm"
+    }
+  ],
+  "palettes": [
+    {
+      "id": 0,
+      "key": "safety_amber",
+      "name": "Safety Amber",
+      "cyclic": true,
+      "dynamic": false,
+      "stops_rgbw": [
+        {"r": 180, "g": 45, "b": 0, "w": 0},
+        {"r": 200, "g": 70, "b": 0, "w": 20}
+      ]
     }
   ]
 }
 ```
 
-The real `effects` array contains all 12 entries. `controls` says which stored parameters visibly affect that renderer, so clients should disable irrelevant inputs without deleting their persisted values. `color_mode` is `base` or `generated`; `palette_mode` is `none`, `internal`, or `selectable`. Phase 2 has one fixed internal heat palette (`FIRE`) and no user-selectable palette, hence `features.palettes:false`.
+The real response contains all 12 effects and all eight palettes with their complete RGBW stop arrays; the shortened example shows only part of each. `controls` says which stored parameters visibly affect a renderer, so clients should disable irrelevant inputs without deleting persisted values. `color_mode` is `base` or `generated`; `palette_mode` is `none`, `internal`, or `selectable`. `default_palette_id` is `-1` when no palette applies.
 
 ## Route exports
 

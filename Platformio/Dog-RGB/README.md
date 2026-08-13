@@ -87,7 +87,8 @@ Authoritative values: `include/config.h`, `include/pins.h`, and `platformio.ini`
 | Wi-Fi | `src/wifi/wifi_mgr.cpp` |
 | HTTP and pages | `src/web/portal_http.cpp`, `src/web/pages.cpp` |
 | Optional PIN | `src/web/portal_lock.cpp` |
-| LEDs / current limiting / Day Mode | `src/led/led_ui.cpp`, `src/led/led_bus.cpp`, `src/led/power_limiter.cpp`, `src/power/day_mode.cpp` |
+| LEDs / layout / palettes / composition | `src/led/led_ui.cpp`, `src/led/led_layout.cpp`, `src/led/palette_registry.cpp`, `src/led/led_compositor.cpp` |
+| LED transport / current limiting / Day Mode | `src/led/led_bus.cpp`, `src/led/power_limiter.cpp`, `src/power/day_mode.cpp` |
 | Home/geofence | `src/geofence/home.cpp` |
 | BLE | `src/ble/summary_ble.cpp` |
 | Storage/utilities | `src/storage/nvs_store.cpp`, `src/util/geo.cpp`, `include/util/*` |

@@ -56,10 +56,10 @@ The suite covers:
 - two-hour route retention and bounded streaming in three formats;
 - `millis()` rollover-safe intervals/deadlines;
 - Wi-Fi event queue ownership, saturation diagnostics, AP retry backoff, and reconciliation;
-- all 12 LED renderers at fixed times and seed, stable registry metadata, segment guards, and policy-priority boundaries;
+- all 12 LED renderers at fixed times and seed, stable effect/palette metadata, segment guards, policy-priority boundaries, semantic layout/orientation, mirror, RGBW round-trip, crossfade and alert preemption;
 - Wokwi diagrams, custom GNSS chip assets, scenarios, and analysis contracts.
 
-Most modules use source-contract assertions. Phase 2 additionally compiles `effect_registry`, `led_policy`, and `led_state` as native C++17 with warnings treated as errors, then executes their characterization harness. Neither layer replaces target execution or physical validation.
+Most modules use source-contract assertions. Phase 2 compiles `effect_registry`, `led_policy`, and `led_state` as native C++17 with warnings treated as errors. Phase 3 adds a second native harness for `led_color`, `palette_registry`, `led_layout`, and `led_compositor`; it proves a non-black crossfade midpoint and next-frame alert interruption. Neither layer replaces target execution or physical validation.
 
 ## Portal checks
 

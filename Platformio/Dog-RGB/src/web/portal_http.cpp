@@ -14,6 +14,7 @@
 #include "gps/gps.h"
 #include "led/led_ui.h"
 #include "led/effect_registry.h"
+#include "led/palette_registry.h"
 #include "power/day_mode.h"
 #include "storage/nvs_store.h"
 #include "util/time_utils.h"
@@ -315,7 +316,28 @@ void append_effect_descriptor(JsonObject out,
   out["color_mode"] = led::effect_color_mode_name(descriptor.color_mode);
   out["palette_mode"] =
       led::effect_palette_mode_name(descriptor.palette_mode);
+  out["default_palette_id"] =
+      led::palette_id_valid(descriptor.default_palette_id)
+          ? descriptor.default_palette_id
+          : -1;
   out["safety"] = led::effect_safety_name(descriptor.safety);
+}
+
+void append_palette_descriptor(JsonObject out,
+                               const led::PaletteDescriptor &descriptor) {
+  out["id"] = descriptor.id;
+  out["key"] = descriptor.key;
+  out["name"] = descriptor.label;
+  out["cyclic"] = descriptor.cyclic;
+  out["dynamic"] = descriptor.id == led::PALETTE_CUSTOM_AB;
+  JsonArray stops = out["stops_rgbw"].to<JsonArray>();
+  for (uint8_t i = 0; i < descriptor.stop_count; ++i) {
+    JsonObject stop = stops.add<JsonObject>();
+    stop["r"] = descriptor.stops[i].r;
+    stop["g"] = descriptor.stops[i].g;
+    stop["b"] = descriptor.stops[i].b;
+    stop["w"] = descriptor.stops[i].w;
+  }
 }
 
 void handle_led_capabilities_get() {
@@ -323,12 +345,29 @@ void handle_led_capabilities_get() {
   JsonDocument doc;
   doc["schema_version"] = 1;
   doc["effect_registry_version"] = led::EFFECT_REGISTRY_VERSION;
+  doc["palette_registry_version"] = led::PALETTE_REGISTRY_VERSION;
   doc["effect_count"] = led::effect_descriptor_count();
+  doc["palette_count"] = led::palette_descriptor_count();
   doc["persistent_effect_ids"] = true;
   JsonObject layout = doc["layout"].to<JsonObject>();
-  layout["buses"] = LED_STRIP_MODE == 2 ? 2 : 1;
-  layout["pixels_per_bus"] = LED_STRIP_COUNT;
-  layout["status_pixels_per_bus"] = LED_STATUS_COUNT;
+  const led::LedLayout &declared_layout = led_ui::layout();
+  layout["buses"] = declared_layout.dual_bus() ? 2 : 1;
+  layout["pixels_per_bus"] = declared_layout.pixels_per_bus();
+  layout["status_pixels_per_bus"] =
+      declared_layout.status_pixels_per_bus();
+  layout["body_pixels_per_bus"] = declared_layout.body_pixels_per_bus();
+  layout["bus_a_orientation"] = led::led_orientation_name(
+      declared_layout.orientation(led::LedBusId::A));
+  layout["bus_b_orientation"] = led::led_orientation_name(
+      declared_layout.orientation(led::LedBusId::B));
+  layout["mirror_supported"] = declared_layout.dual_bus();
+  layout["mirror_default"] =
+      declared_layout.dual_bus() && LED_LAYOUT_MIRROR_DEFAULT;
+  JsonArray regions = layout["regions"].to<JsonArray>();
+  for (uint8_t value = static_cast<uint8_t>(led::LedRegion::Status);
+       value <= static_cast<uint8_t>(led::LedRegion::Alert); ++value) {
+    regions.add(led::led_region_name(static_cast<led::LedRegion>(value)));
+  }
   layout["physical_format"] = "RGBW";
   layout["logical_format"] = "RGB";
   JsonObject limits = doc["limits"].to<JsonObject>();
@@ -338,31 +377,42 @@ void handle_led_capabilities_get() {
   limits["speed_max"] = 255;
   limits["intensity_min"] = 0;
   limits["intensity_max"] = 255;
+  limits["transition_default_ms"] = LED_TRANSITION_MS;
   limits["current_budget_min_ma"] = LED_POWER_BUDGET_MA_MIN;
   limits["current_budget_max_ma"] = LED_POWER_BUDGET_MA_MAX;
   JsonObject features = doc["features"].to<JsonObject>();
   features["state_get"] = true;
   features["state_patch"] = false;
-  features["transitions"] = false;
-  features["palettes"] = false;
+  features["transitions"] = true;
+  features["palettes"] = true;
   JsonArray effects = doc["effects"].to<JsonArray>();
   for (size_t i = 0; i < led::effect_descriptor_count(); ++i) {
     JsonObject item = effects.add<JsonObject>();
     append_effect_descriptor(item, led::effect_descriptor_at(i));
+  }
+  JsonArray palettes = doc["palettes"].to<JsonArray>();
+  for (size_t i = 0; i < led::palette_descriptor_count(); ++i) {
+    JsonObject item = palettes.add<JsonObject>();
+    append_palette_descriptor(item, led::palette_descriptor_at(i));
   }
   String out;
   serializeJson(doc, out);
   server.send(200, "application/json", out);
 }
 
-void append_state_effect(JsonObject out, uint8_t effect_id, uint8_t speed,
-                         uint8_t intensity) {
+void append_state_effect(JsonObject out, uint8_t effect_id, uint8_t palette_id,
+                         uint8_t speed, uint8_t intensity) {
   out["id"] = effect_id;
   const led::EffectDescriptor *descriptor = led::effect_descriptor(effect_id);
   out["key"] = descriptor == nullptr ? "unknown" : descriptor->key;
   out["name"] = descriptor == nullptr ? "UNKNOWN" : descriptor->label;
   out["speed"] = speed;
   out["intensity"] = intensity;
+  const led::PaletteDescriptor *palette =
+      led::palette_descriptor(palette_id);
+  out["palette_id"] = palette == nullptr ? -1 : palette_id;
+  out["palette_key"] = palette == nullptr ? "none" : palette->key;
+  out["palette_name"] = palette == nullptr ? "None" : palette->label;
 }
 
 void handle_led_state_get() {
@@ -377,17 +427,35 @@ void handle_led_state_get() {
   doc["body_enabled"] = state.body_enabled;
   doc["status_enabled"] = state.status_enabled;
   doc["homogeneous"] = state.homogeneous;
+  doc["mirror"] = state.mirror;
+  doc["alert"] = led::led_alert_name(state.alert);
   doc["critical_alert"] = state.critical_alert;
   doc["range"] = state.range;
   doc["brightness"] = state.brightness;
+  doc["transition_ms"] = state.transition_ms;
   JsonObject effect_a = doc["effect_a"].to<JsonObject>();
-  append_state_effect(effect_a, state.effect_a, state.speed, state.intensity);
+  append_state_effect(effect_a, state.effect_a, state.palette_a,
+                      state.speed, state.intensity);
   JsonObject effect_b = doc["effect_b"].to<JsonObject>();
-  append_state_effect(effect_b, state.effect_b, state.speed, state.intensity);
+  append_state_effect(effect_b, state.effect_b, state.palette_b,
+                      state.speed, state.intensity);
   JsonObject base = doc["base_rgb"].to<JsonObject>();
   base["r"] = state.base.r;
   base["g"] = state.base.g;
   base["b"] = state.base.b;
+  JsonObject accent = doc["accent_rgb"].to<JsonObject>();
+  accent["r"] = state.accent.r;
+  accent["g"] = state.accent.g;
+  accent["b"] = state.accent.b;
+  const led::TransitionDiagnostics &transition =
+      led_ui::transition_diagnostics();
+  JsonObject transition_json = doc["transition"].to<JsonObject>();
+  transition_json["active"] = transition.active;
+  transition_json["duration_ms"] = transition.duration_ms;
+  transition_json["progress"] = transition.progress;
+  transition_json["started"] = transition.started;
+  transition_json["completed"] = transition.completed;
+  transition_json["interrupted"] = transition.interrupted;
   const led::PowerDiagnostics &power = led_ui::power_diagnostics();
   JsonObject limiting = doc["power"].to<JsonObject>();
   limiting["budget_ma"] = cfg.led_power_budget_ma;
@@ -621,8 +689,11 @@ void handle_dev_get() {
   led["body_enabled"] = active_state.body_enabled;
   led["status_enabled"] = active_state.status_enabled;
   led["homogeneous"] = active_state.homogeneous;
+  led["mirror"] = active_state.mirror;
+  led["alert"] = led::led_alert_name(active_state.alert);
   led["critical_alert"] = active_state.critical_alert;
   led["brightness"] = active_state.brightness;
+  led["transition_ms"] = active_state.transition_ms;
   const auto &power_diag = led_ui::power_diagnostics();
   JsonObject power = led["power"].to<JsonObject>();
   power["enabled"] = cfg.led_power_limit_enabled;
@@ -638,13 +709,21 @@ void handle_dev_get() {
       (static_cast<uint16_t>(power_diag.scale) * 100U) / 255U;
   power["frames_limited"] = power_diag.frames_limited;
   power["estimate_only"] = true;
+  const auto &transition_diag = led_ui::transition_diagnostics();
+  JsonObject transition = led["transition"].to<JsonObject>();
+  transition["active"] = transition_diag.active;
+  transition["duration_ms"] = transition_diag.duration_ms;
+  transition["progress"] = transition_diag.progress;
+  transition["started"] = transition_diag.started;
+  transition["completed"] = transition_diag.completed;
+  transition["interrupted"] = transition_diag.interrupted;
   led["range"] = active_state.range;
   JsonObject effA = led["effect_a"].to<JsonObject>();
-  append_state_effect(effA, active_state.effect_a, active_state.speed,
-                      active_state.intensity);
+  append_state_effect(effA, active_state.effect_a, active_state.palette_a,
+                      active_state.speed, active_state.intensity);
   JsonObject effB = led["effect_b"].to<JsonObject>();
-  append_state_effect(effB, active_state.effect_b, active_state.speed,
-                      active_state.intensity);
+  append_state_effect(effB, active_state.effect_b, active_state.palette_b,
+                      active_state.speed, active_state.intensity);
   JsonObject baseRgb = led["base_rgb"].to<JsonObject>();
   baseRgb["r"] = active_state.base.r;
   baseRgb["g"] = active_state.base.g;

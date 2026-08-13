@@ -2,27 +2,6 @@
 
 namespace led {
 
-Rgbw rgb_to_rgbw(const Rgb &color) {
-  uint8_t white = color.r < color.g ? color.r : color.g;
-  if (color.b < white) {
-    white = color.b;
-  }
-  return Rgbw{static_cast<uint8_t>(color.r - white),
-              static_cast<uint8_t>(color.g - white),
-              static_cast<uint8_t>(color.b - white), white};
-}
-
-Rgbw scale_rgbw(const Rgbw &color, uint8_t scale) {
-  if (scale == 255) {
-    return color;
-  }
-  return Rgbw{
-      static_cast<uint8_t>((static_cast<uint16_t>(color.r) * scale) / 255U),
-      static_cast<uint8_t>((static_cast<uint16_t>(color.g) * scale) / 255U),
-      static_cast<uint8_t>((static_cast<uint16_t>(color.b) * scale) / 255U),
-      static_cast<uint8_t>((static_cast<uint16_t>(color.w) * scale) / 255U)};
-}
-
 LedBus::LedBus(uint16_t pixel_count, int16_t pin_a, int16_t pin_b,
                bool dual_bus)
     : pixel_count_(pixel_count),

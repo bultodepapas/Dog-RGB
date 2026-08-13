@@ -26,8 +26,10 @@ class LedPhase2Tests(unittest.TestCase):
                 str(ROOT / "include"),
                 str(ROOT / "test" / "led_phase2_characterization.cpp"),
                 str(ROOT / "src" / "led" / "effect_registry.cpp"),
+                str(ROOT / "src" / "led" / "led_color.cpp"),
                 str(ROOT / "src" / "led" / "led_policy.cpp"),
                 str(ROOT / "src" / "led" / "led_state.cpp"),
+                str(ROOT / "src" / "led" / "palette_registry.cpp"),
                 "-o",
                 str(executable),
             ]

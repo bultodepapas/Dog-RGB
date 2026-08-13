@@ -1,6 +1,6 @@
 # Dog-RGB User Guide
 
-**Status:** Current user-facing behavior, verified against the active firmware on 2026-08-12.
+**Status:** Current user-facing behavior, verified against the active firmware on 2026-08-13.
 
 Dog-RGB works without an app or cloud account. Use the LEDs for quick status and the collar's local Wi-Fi portal for metrics, route history, configuration, and diagnostics.
 
@@ -26,7 +26,7 @@ The E108-GN02 may take tens of seconds or longer for a first fix. Indoors, near 
 
 ## LED status
 
-With the default two-strip layout, the first two pixels of each strip are reserved for status in Speed, Geofence, and Show modes.
+With the default two-strip layout, the first two pixels of each strip are reserved for status in every normal mode, including Simple.
 
 | Pixel | Appearance | Meaning |
 | --- | --- | --- |
@@ -38,8 +38,9 @@ With the default two-strip layout, the first two pixels of each strip are reserv
 | GNSS (1) | Solid blue | Trusted GNSS fix is available |
 | GNSS (1) | Pulsing blue | Searching or current quality gates are not satisfied |
 | Both | Fast red flash | Neither trusted GNSS nor station connectivity has been healthy for the critical timeout |
+| Both | Red pulse | Valid Geofence distance is at or beyond the configured maximum boundary |
 
-Simple mode intentionally uses the whole strip and hides the reserved status display. The firmware also retains homogeneous rendering for an explicit Wi-Fi-OFF state after GNSS has remained stable; normal AP idle shutdown does not currently enter that state. Day Mode preserves the status pixels even while effect pixels are off.
+Effects now use only the semantic body region, so Simple and the retained homogeneous-eligibility state do not hide status. Day Mode preserves the same status pixels while the body is off. A new System/Geofence alert interrupts an in-progress body transition at the next LED update.
 
 See [LED UI](led_ui_spec.md) and [Color reference](color-reference.md) for the complete priority rules.
 
@@ -58,8 +59,8 @@ When station mode is connected, use `http://<configured-mdns>.local/` (default `
 
 - **Speed** maps ten speed ranges to a color and independently configurable effect for strips A and B.
 - **Geofence** maps distance from the stored Home point into ten ranges. Home is set automatically after a stable fix when none exists, or manually from the current trusted position.
-- **Show** runs all 12 effects in shuffled order, without repeats within one bag, changing roughly every 30 seconds.
-- **Simple** applies one effect and RGB base color to the complete strip.
+- **Show** runs all 12 effects in shuffled order, without repeats within one bag, changing roughly every 30 seconds with a 500 ms crossfade and curated palettes where supported.
+- **Simple** applies one effect and RGB base color to the body while retaining status.
 
 Brightness is 1–255 and defaults to 77 (about 30% of the software range). A global estimated-current limit is enabled by default at 1,000 mA total, with a provisional 200 mA base and 20/20 mA RGB/W channel profile. It scales both strips uniformly. This is a model rather than a sensor: higher budgets and profile changes still require physical current, rail, and temperature validation.
 

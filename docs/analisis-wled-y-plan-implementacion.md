@@ -489,6 +489,8 @@ Criterio de salida:
 
 **Esfuerzo:** 4–7 días. **Prioridad:** media-alta.
 
+**Estado 2026-08-13:** implementación de software completa; aceptación física pendiente. `LedLayout` declara cinco regiones, orientación A-forward/B-reverse y mirror; `PaletteRegistry` publica ocho paletas RGBW; cinco efectos consumen paletas sin alterar sus goldens cuando se usa `PALETTE_NONE`; y `LedCompositor` hace crossfade de cuerpo preservando status e interrumpiéndose para alertas System/Geofence. `/api/v1/led/state`, capabilities y `/api/dev` se ampliaron aditivamente, sin migrar NVS. Builds de producción/Wokwi, 127 pruebas host, smoke y 76 pruebas Playwright quedan verdes. Falta confirmar orientación y tiempo máximo sobre hardware o Wokwi runtime; véase el [registro de Fase 3](baselines/fase-3-2026-08-13.md).
+
 Trabajo:
 
 - Declarar orientación y mapeo de los dos buses en `LedLayout`.
@@ -529,24 +531,434 @@ Criterio de salida:
 
 ### Fase 5 — Portal generado desde fuentes web
 
-**Esfuerzo:** 4–7 días. **Prioridad:** media.
+**Esfuerzo revisado:** 9–15 días en dos entregas: 5A, infraestructura y paridad, 5–8 días; 5B, UX de paletas/escenas/preview, 4–7 días. **Prioridad:** media, pero conviene ejecutar 5A antes de seguir agrandando `pages.cpp`.
 
-Trabajo:
+**Revisión de planificación 2026-08-13:** la dirección es correcta y tiene retorno real. Lo que no es realista es tratar extracción, toolchain reproducible, cambio de transporte HTTP, migración de cuatro páginas, nuevas funciones visuales, accesibilidad y validación física como una sola tarea de 4–7 días. La fase se divide para que pueda entregar valor y detenerse de forma segura después de 5A, sin exigir que la Fase 4 esté lista.
 
-- Extraer progresivamente HTML, CSS y JS a `webui/src`.
-- Crear build determinista minify + gzip + header generado.
-- Servir assets con longitud conocida y `Content-Encoding: gzip`, evitando construir páginas grandes como `String` cuando sea posible.
-- Generar controles desde capabilities.
-- Agregar selector visual de escenas, swatches de paleta, transición y un preview simple del collar.
-- Mostrar presupuesto/corriente estimada solo en modo avanzado.
-- Conservar funcionamiento offline, responsive, teclado, contraste y pruebas visuales.
+#### 5.1 Veredicto: sí conviene, con un alcance más disciplinado
+
+Esta fase no es solo “ordenar el frontend”. Resuelve cuatro problemas distintos:
+
+1. **Mantenibilidad:** HTML, CSS y JavaScript dejan de editarse como literales C++ de miles de líneas.
+2. **Memoria de ejecución:** el servidor deja de reservar y ensamblar un `String` del tamaño de la página cada vez que alguien navega.
+3. **Flash y transferencia:** el navegador recibe bytes precomprimidos; el ESP32 no minifica, comprime ni descomprime nada en runtime.
+4. **Calidad:** preview local, Playwright y firmware consumen el mismo bundle, en vez de reconstruir una aproximación parseando `pages.cpp`.
+
+La idea deja de ser buena si se usa como excusa para introducir React/Vue, un servidor de desarrollo obligatorio para compilar firmware, un filesystem web mutable, un service worker, una dependencia de CDN o una segunda definición de efectos/paletas en JavaScript. El portal es una interfaz embebida para un collar, no una SPA de nube.
+
+#### 5.2 Línea base específica del portal actual
+
+El estado recuperado al planear esta fase es:
+
+- `pages.cpp` contiene `BASE_CSS` y cuatro builders que devuelven `String`: `/`, `/wifi`, `/config` y `/dev`.
+- Los handlers usan `server.send(..., web_pages::html_*())`, por lo que la página completa existe temporalmente en heap.
+- Los `reserve()` actuales son 36.000, 39.000, 62.000 y 36.000 bytes, respectivamente.
+- La única interpolación servidor → HTML encontrada es el SSID guardado en `/wifi`; `/api/config` ya publica `wifi.sta_ssid`, de modo que puede hidratarse desde la API sin inventar un endpoint ni exponer la contraseña.
+- `tools/ap_portal_preview/extract_pages.py` hace hoy el camino inverso: parsea C++ para volver a obtener HTML. Después de 5A debe desaparecer esa inversión y servir directamente el resultado del build web.
+- El smoke test actual inspecciona texto en `pages.cpp`; sus contratos útiles deben migrar a la fuente web o al bundle descomprimido.
+
+Medición local con SSID vacío, UTF-8/LF canónico y `gzip` nivel 9, **sin minificación**:
+
+| Ruta | HTML actual aproximado | `String.reserve()` | Gzip sin minificar | Relación gzip/raw |
+|---|---:|---:|---:|---:|
+| `/` | 31.672 B | 36.000 B | 8.821 B | 27,8 % |
+| `/wifi` | 35.508 B | 39.000 B | 9.653 B | 27,2 % |
+| `/config` | 59.863 B | 62.000 B | 15.520 B | 25,9 % |
+| `/dev` | 33.481 B | 36.000 B | 7.455 B | 22,3 % |
+| **Total** | **160.524 B** | — | **41.449 B** | **25,8 %** |
+
+La cifra no sustituye la medición del binario: los literales comparten `BASE_CSS` y el linker también influye. Sí demuestra que la compresión previa merece la pena aun antes de minificar. El delta de flash y el mínimo de heap deben medirse en un commit aislado de 5A para no mezclarlos con Fases 3–4.
+
+#### 5.3 Objetivos y no objetivos
+
+| En alcance obligatorio | Fuera de alcance de 5A/5B |
+|---|---|
+| Fuente web legible y única | Framework SPA o component runtime |
+| Build reproducible y verificable | CDN, fuentes remotas o analytics |
+| Assets gzip en flash y respuesta sin `String` grande | Comprimir o descomprimir en el ESP32 |
+| Paridad funcional de las cuatro rutas | Rediseño simultáneo de todas las APIs |
+| Controles derivados de capabilities | Catálogos duplicados en JavaScript |
+| Escenas/paletas si sus APIs existen | Implementar `SceneStore`, que pertenece a Fase 4 |
+| Preview local aproximado y explícito | Streaming pixel a pixel/WebSocket en esta fase |
+| Responsive, teclado, contraste y movimiento reducido | PWA, service worker o instalación como app |
+| Preservar CSRF, PIN y escaping | Sistema avanzado de autenticación obligatorio |
+
+#### 5.4 Dependencias reales y forma de no bloquearse
+
+La Fase 5 original mezcla piezas con dependencias distintas. Se planifican así:
+
+| Entrega | Dependencia | Comportamiento si aún no existe |
+|---|---|---|
+| Pipeline, gzip, manifest y transporte estático | Línea base verde de Fase 0 | No tiene dependencia de Fases 3–4 |
+| Selector de efectos desde capabilities | Fase 2, ya disponible | Falla cerrado y ofrece reintentar; nunca inventa una lista local |
+| Paletas, layout y transición | Contratos aditivos de Fase 3 | Oculta el control concreto si capability no está presente |
+| Selector/CRUD de escenas | Endpoints de Fase 4 | No se muestra hasta que el firmware lo anuncie |
+| Preview físico orientado | Layout de Fase 3 | Usa el layout publicado; no hardcodea A/B reverse en JS |
+| Aceptación de captive portal | Collar real y teléfonos objetivo | No se sustituye con preview local |
+
+Por ello, **5A puede comenzar después de Fase 2 y en paralelo con Fase 4**. La parte de escenas de 5B sí espera el contrato de Fase 4. Esto permite retirar deuda de `pages.cpp` sin adelantar almacenamiento ni APIs.
+
+#### 5.5 Decisiones propuestas antes de programar
+
+| Tema | Decisión recomendada | Razón |
+|---|---|---|
+| Fuente de verdad | `webui/src` | El firmware y las pruebas consumen el resultado; C++ deja de ser plantilla HTML |
+| Stack | HTML semántico + CSS + JavaScript clásico, sin framework | El portal actual no necesita virtual DOM, router ni runtime adicional |
+| Toolchain web | `html-minifier-terser` fijado por lockfile + `node:zlib` del Node fijado en `.node-version`; sin bundler | Resuelve minificación y gzip con pocas piezas, configuración auditable y cero runtime web en el ESP32 |
+| Forma de entrega inicial | Cuatro HTML autocontenidos: CSS y JS compartidos como fuentes, inlining al compilar | Una solicitud por página es simple y resistente en AP/captive portal |
+| Assets separados | Posponer; reevaluar si el ahorro medido justifica más solicitudes | Separar solo el CSS bajaría la estimación actual de 41,4 a ~31,7 KB, pero agrega rutas, caché y fallos parciales; hay flash suficiente |
+| Artefactos generados | Versionar declaraciones/arrays y un manifest pequeño | `pio run` sigue funcionando offline y sin Node instalado |
+| Integración PlatformIO | Un pre-script solo verifica hash/staleness; nunca ejecuta `npm ci` ni accede a red | Un build de firmware no debe instalar toolchains web silenciosamente |
+| Reproducibilidad | Node exacto desde `.node-version`, `package-lock.json`, orden y saltos canónicos, gzip sin timestamp, hash de contenido | Evita diffs causados por hora, ruta, SO u orden del filesystem |
+| Datos dinámicos | HTML estático + hidratación por API | Elimina interpolación, escaping servidor y ensamblaje de páginas |
+| Caché | `Cache-Control: no-cache` + ETag derivado del contenido; `no-store` solo en preview/debug | Reutiliza bytes pero obliga a validar después de cambiar firmware |
+| Preview | Simulación local aproximada, no live stream | Da feedback útil sin añadir WebSocket, CPU ni tráfico periódico |
+
+WLED demuestra el patrón útil en [`tools/cdata.js`](https://github.com/wled/WLED/blob/v16.0.1/tools/cdata.js): inline, minificación, gzip y arrays `PROGMEM`; y sirve el resultado con longitud, `Content-Encoding` y caché en [`wled_server.cpp`](https://github.com/wled/WLED/blob/v16.0.1/wled00/wled_server.cpp). RGB Dog debe copiar el **patrón**, no el script: el build de WLED invoca `npm ci` desde PlatformIO y genera un timestamp para caché. Aquí se recomienda que el build de firmware sea offline y que el ETag proceda del contenido, no del reloj.
+
+#### 5.6 Arquitectura objetivo del pipeline
+
+```mermaid
+flowchart LR
+    SRC["webui/src<br/>HTML · CSS · JS"] --> CHECK["validación estática<br/>rutas · no CDN · contratos"]
+    CHECK --> INLINE["ensamblar e inlinear<br/>shared + página"]
+    INLINE --> MIN["minificar conservadoramente"]
+    MIN --> GZIP["gzip determinista"]
+    GZIP --> CPP["generated_assets.h/.cpp<br/>arrays PROGMEM"]
+    GZIP --> MAN["manifest<br/>hashes y tamaños"]
+    MIN --> PREVIEW[".ap-portal-preview<br/>mismos bytes descomprimidos"]
+    CPP --> SERVE["PortalAssetServer<br/>headers + send_P"]
+    SERVE --> ROUTES["/ · /wifi · /config · /dev"]
+    PREVIEW --> TESTS["smoke · Playwright · visual · a11y"]
+    MAN --> CI["CI: regenerar y comparar"]
+    CPP --> CI
+```
+
+Estructura probable:
+
+```text
+webui/
+  src/
+    pages/
+      index.html
+      wifi.html
+      config.html
+      dev.html
+    styles/app.css
+    js/common.js
+    js/index.js
+    js/wifi.js
+    js/config.js
+    js/dev.js
+  build.mjs
+  README.md
+  generated/
+    manifest.json                        # generado y versionado; hashes, rutas y tamaños
+
+Platformio/Dog-RGB/
+  include/web/generated_assets.h       # generado, declaraciones + source hash
+  include/web/portal_assets.h          # escrito a mano, interfaz estable
+  src/web/generated_assets.cpp         # generado, una sola definición de arrays
+  src/web/portal_assets.cpp             # escrito a mano, headers/ETag/send_P
+
+.ap-portal-preview/                     # efímero, ignorado por git
+  index.html
+  wifi.html
+  config.html
+  dev.html
+```
+
+Separar declaración y definición evita un header gigante incluido por varios translation units y deja a `portal_http.cpp` conocer solo descriptores, no bytes generados.
+
+#### 5.7 Contrato del asset y de la respuesta HTTP
+
+La interfaz conceptual debe ser pequeña y agnóstica de páginas concretas:
+
+```cpp
+struct WebAsset {
+  const uint8_t *gzip_data;
+  uint32_t gzip_size;
+  uint32_t decoded_size;
+  const char *content_type;
+  const char *etag;
+};
+```
+
+Reglas del contrato:
+
+- `gzip_size` es la longitud HTTP; no usar `strlen()` sobre datos binarios.
+- Usar `uint32_t`/`size_t`, no `uint16_t`: una futura página mayor a 65.535 bytes no debe truncarse silenciosamente.
+- El array vive una sola vez en flash y el handler lo entrega con `WebServer::send_P(..., contentLength)`, API presente en el Arduino-ESP32 3.3.11 fijado por el proyecto.
+- `Content-Length` describe los bytes comprimidos; `decoded_size` solo sirve para manifest, pruebas y telemetría de build.
+- La respuesta declara `Content-Type: text/html; charset=utf-8` y `Content-Encoding: gzip`.
+- Si `Accept-Encoding` no está presente, gzip es aceptable según HTTP. Si el cliente lo rechaza explícitamente (`gzip;q=0` o valor vacío), responder `406` con un diagnóstico pequeño en texto plano; no conservar una segunda copia completa sin comprimir.
+- Añadir `Vary: Accept-Encoding`, aunque solo exista una representación útil, para no dejar una respuesta comprimida en una caché compartida incorrecta.
+- ETag fuerte a partir del hash de los bytes comprimidos. Con `If-None-Match` idéntico, responder `304` sin cuerpo.
+- `Cache-Control: no-cache` significa almacenar con revalidación; no es equivalente a `no-store`. Para el portal conviene revalidar, evitando UI vieja después de reflashear.
+- Añadir `X-Content-Type-Options: nosniff`; una CSP estricta queda como endurecimiento opcional después de eliminar handlers inline.
+- Los redirects y probes de captive portal siguen siendo respuestas pequeñas sin gzip; no deben pasar por el asset server.
+
+El [`WebServer.h` oficial de Arduino-ESP32 3.3.11](https://github.com/espressif/arduino-esp32/blob/3.3.11/libraries/WebServer/src/WebServer.h) confirma las variantes de `send_P` y `sendContent_P` con longitud conocida. Los significados de [`Content-Encoding` y `Accept-Encoding`](https://www.rfc-editor.org/rfc/rfc9110.html#section-12.5.3), y de [`no-cache`/`no-store`](https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2), deben guiar las pruebas, no suposiciones del navegador de escritorio.
+
+#### 5.8 Reproducibilidad y experiencia de desarrollo
+
+El generador debe cumplir, en este orden:
+
+1. Descubrir entradas desde una lista explícita y ordenada, nunca desde el orden accidental de `readdir`.
+2. Leer UTF-8, rechazar BOM inesperado y normalizar CRLF/CR a LF antes de procesar.
+3. Insertar CSS/JS mediante marcadores explícitos; no resolver recursos arbitrarios ni hacer requests de red.
+4. Minificar con opciones conservadoras. Al inicio: sin mangling de nombres globales, sin reordenamientos agresivos y preservando espacios significativos en texto español, `pre`, `textarea` y templates.
+5. Producir gzip nivel 9 con timestamp cero, sin filename/ruta del host en el header.
+6. Emitir arrays con formato estable, ancho fijo por línea y newline final.
+7. Emitir manifest con: versión de esquema, hash de fuentes+generador+config+lockfile, hash comprimido, tamaño raw/gzip y ruta HTTP. No incluir fecha actual.
+8. Escribir solo si cambian los bytes, para no recompilar firmware por tocar timestamps.
+9. Descomprimir cada asset recién creado y comparar con el bundle minificado antes de aceptar el output.
+10. Ejecutar el generador dos veces en CI y exigir hashes idénticos.
+
+La versión de Node no debe quedar como una recomendación blanda: `webui:build` y `webui:check` comparan `process.version` con `.node-version` y fallan **antes de escribir** si no coincide, mostrando la versión esperada y la detectada. Así, un entorno local desactualizado no puede regenerar artefactos distintos por accidente. La minificación parte de un preset conservador versionado —sin mangling de nombres globales— y cada relajación posterior exige prueba de paridad. `node:zlib` genera el gzip con opciones fijadas y una prueba inspecciona su header para impedir timestamp, nombre de archivo u otros metadatos variables.
+
+Comandos objetivo:
+
+```text
+npm run webui:build       # actualiza preview, manifest y C++ generado
+npm run webui:check       # genera en temporal y falla si el tracked está stale
+npm run webui:serve       # preview local con APIs mock existentes
+npm run webui:test        # smoke + Playwright + a11y
+pio run -e seeed_xiao_esp32s3
+```
+
+`npm ci` usa el lockfile como instalación congelada y debe vivir en preparación/CI, no dentro de `pio run`. PlatformIO sí admite pre-scripts, pero aquí el hook solo calcula el digest de fuentes con librería estándar y falla con un mensaje accionable: “ejecuta `npm run webui:build`”. Así, quien solo quiera compilar/flashear el collar puede hacerlo con los assets ya versionados y sin internet.
+
+#### 5.9 Plan incremental de ejecución
+
+##### 5A.0 — Congelar paridad y baseline (0,5–1 día)
+
+- Archivar tamaño raw, gzip, firmware, heap libre/mínimo y tiempo de respuesta por ruta.
+- Capturar las cuatro páginas actuales en móvil y desktop con las fixtures existentes.
+- Inventariar flujos: lectura, escritura, error HTTP, desconexión, PIN, CSRF, scan Wi-Fi y route preview.
+- Definir una fixture “capabilities mínima” y otra “completa Fase 3/4”.
+
+Gate: el baseline es repetible y cualquier cambio posterior puede compararse contra él.
+
+##### 5A.1 — Fuente web y generador determinista (1,5–2,5 días)
+
+- Crear la estructura `webui/src`, mover primero CSS y JavaScript compartido sin cambiar comportamiento.
+- Implementar ensamblado, minificación conservadora, gzip, manifest y arrays.
+- Mantener una salida de desarrollo no minificada para depuración, pero probar siempre también la salida de producción.
+- Añadir `webui:check` y el gate de CI que regenera y exige working tree limpio.
+- Reemplazar el extractor C++ por preview desde el bundle real.
+
+Gate: dos builds con el entorno fijado producen SHA-256 y C++ idénticos; todos los gzip descomprimen al contenido esperado.
+
+##### 5A.2 — Adaptador HTTP y piloto `/dev` (1–1,5 días)
+
+- Implementar `PortalAssetServer` y sus headers con una sola ruta de código.
+- Migrar `/dev` primero: es read-only, no cambia Wi-Fi y es la página de menor riesgo operativo.
+- Verificar `Content-Length`, gzip, ETag/304, cliente sin header y rechazo explícito de gzip.
+- Medir heap y cadencia LED mientras se solicita repetidamente.
+
+Gate: `/dev` ya no crea un `String` proporcional a la página y conserva paridad funcional/visual.
+
+##### 5A.3 — Migración ruta por ruta (2–3 días)
+
+Orden recomendado:
+
+1. `/`: principalmente lectura, track canvas y acciones ya cubiertas por mocks.
+2. `/config`: la más grande y la que prueba mejor el beneficio de heap/capabilities.
+3. `/wifi`: última porque un error aquí puede dejar al usuario sin el camino de recuperación del dispositivo.
+
+Para cada ruta:
+
+- mover markup y script sin rediseño simultáneo;
+- retirar interpolaciones del servidor;
+- cambiar handlers inline por `addEventListener` durante la extracción, conservando nombres/roles accesibles;
+- ejecutar smoke, Playwright, visuales y prueba de XSS/CSRF;
+- conmutar esa ruta al asset nuevo;
+- eliminar su builder legado solo cuando el gate queda verde.
+
+En `/wifi`, llenar `ssid` desde `GET /api/config`, nunca desde markup generado; si la API falla, dejar el campo vacío y mostrar reintento. No renderizar SSIDs escaneados con HTML no escapado.
+
+Gate: ninguna ruta de producción llama a `web_pages::html_*`; `pages.cpp` puede retirarse y el portal de recuperación Wi-Fi sigue operativo.
+
+##### 5B.1 — UX basada en capacidades (2,5–4 días)
+
+Esta parte comienza después de conseguir paridad, no mezclada con la extracción:
+
+- Construir effect controls exclusivamente desde `controls`, defaults, rangos y safety metadata publicados.
+- Mostrar paletas como swatches con nombre visible/accessible, ID estable y estado seleccionado; el color nunca es la única señal.
+- Mostrar transición solo cuando capability indique soporte y usar límites/defaults del firmware.
+- Mostrar escenas integradas/de usuario solo cuando existan endpoints de Fase 4; aplicar, guardar o borrar conserva estados pending/success/error independientes.
+- Mantener “uso normal” corto: modo, escena/efecto, paleta y brillo. Presupuesto, perfil eléctrico, corriente estimada y tuning viven en `details` Avanzado.
+- Añadir preview aproximado de dos ramas de 24 píxeles usando layout/paleta/estado, con etiqueta explícita de que no representa el limitador ni el frame físico exacto.
+- Si el schema de capabilities es desconocido, bloquear solo el editor LED con explicación; dashboard, Wi-Fi y diagnóstico deben seguir utilizables.
+
+Gate: cambiar el registro del firmware cambia la UI sin editar un catálogo JavaScript; una capability ausente degrada la interfaz, no rompe toda la página.
+
+##### 5B.2 — Aceptación, cutover y limpieza (1,5–3 días)
+
+- Ejecutar la matriz AP/STA en Chrome/Edge de escritorio, Android Chrome e iOS Safari/captive view disponibles.
+- Probar probes cautivos, PIN on/off, credenciales válidas/inválidas, pérdida de señal y reconexión.
+- Navegar repetidamente por la página grande y observar mínimo de heap, resets, watchdog y cadencia LED.
+- Comparar binarios/manifest/flash/RAM y archivar un baseline de Fase 5.
+- Eliminar extractor, builders, reserves y pruebas que inspeccionaban C++; reorientar sus contratos al source/bundle.
+- Retirar el flag temporal de portal legado de la build de producción.
+
+Gate: el collar físico conserva su vía de recuperación aunque JavaScript o una API falle parcialmente; la build solo contiene el portal nuevo.
+
+#### 5.10 Diseño funcional y estados de la UI
+
+La UI debe arrancar con un flujo explícito, no con controles vacíos que aparentan estar listos:
+
+```text
+HTML estático
+  → cargar capabilities y validar schema
+  → construir controles admitidos
+  → cargar config/state/scenes en paralelo donde sea seguro
+  → hidratar valores y habilitar acciones
+  → editar localmente
+  → validar en cliente para feedback
+  → enviar al firmware, que vuelve a validar
+  → reconciliar con la respuesta/estado real
+```
+
+Estados que deben tener presentación y prueba propias:
+
+| Estado | Comportamiento esperado |
+|---|---|
+| Loading | Skeleton/texto breve; acciones de escritura deshabilitadas |
+| Ready | Controles coherentes con capabilities y valores del dispositivo |
+| Dirty | Indicador de cambios y confirmación antes de abandonar |
+| Saving | Una sola escritura en curso; no doble submit |
+| Saved | Confirmación humana temporal, no el literal `ok` de la API |
+| Validation error | Foco en el primer campo, mensaje asociado y valor preservado |
+| API unavailable | Explicación + reintento; navegación y Wi-Fi no desaparecen |
+| Locked | Solicita PIN al escribir, no al consultar estado público permitido |
+| Schema incompatible | Deshabilita el panel afectado y muestra versiones esperada/recibida |
+| Reconnecting | En cambios Wi-Fi explica que la página puede perder conexión y dónde reabrirla |
+
+#### 5.11 Alcance exacto del preview del collar
+
+“Preview simple” necesita una definición para no terminar replicando el motor LED en JavaScript:
+
+- Representa dos ramas y regiones semánticas con orientación publicada.
+- Usa colores/paleta/brightness objetivo y una animación genérica de baja fidelidad para comunicar dirección y transición.
+- No promete reproducir PRNG, timing, compositor, RGB→RGBW ni `PowerLimiter` del firmware.
+- Se etiqueta como **vista aproximada** y muestra una alternativa textual de escena, efecto y paleta seleccionados.
+- Se pausa con `document.visibilityState`, se limita a una cadencia baja y se inmoviliza con `prefers-reduced-motion`.
+- No abre WebSocket ni hace polling de frames. Un live preview real queda como experimento posterior con presupuesto de CPU/red y caso de uso propio.
+
+#### 5.12 Seguridad básica y accesibilidad
+
+La migración no puede perder protecciones que el portal actual ya tiene:
+
+- Toda escritura conserva `X-Dog-Portal` y el flujo opcional `X-Dog-Pin`.
+- Ningún `<form>` hace POST nativo a `/api`; el wrapper común añade headers y maneja `401`.
+- Datos de APIs o redes vecinas entran por `textContent`, atributos seguros o escaping centralizado; reducir `innerHTML` dinámico al mínimo.
+- Los assets generados no contienen SSID, contraseña, home GPS, PIN ni valores de runtime.
+- El generador falla si encuentra `script`, stylesheet, font o imagen remotos no allowlisted.
+- CSP con hashes puede agregarse después de retirar `onclick`/styles inline; es endurecimiento opcional, no condición para que un usuario DIY compile el collar.
+
+Objetivo de accesibilidad: WCAG 2.2 AA en lo aplicable, sin afirmar conformidad solo por una herramienta. Como mínimo:
+
+- navegación completa por teclado y foco visible/no oculto por `sticky-actions`;
+- contraste de texto normal ≥ 4,5:1 y controles/estado no dependientes solo de color;
+- targets táctiles diseñados a 44×44 CSS px cuando sea razonable, nunca por debajo del mínimo AA sin separación/equivalente;
+- `label` y nombre accesible para inputs, swatches y scene chips; `aria-pressed`/`aria-selected` actualizados;
+- mensajes async en una región `aria-live` moderada;
+- reflow a 320 CSS px, zoom 200 % y movimiento reducido;
+- preview decorativo con `aria-hidden` o alternativa textual equivalente, no una cuadrícula de 48 elementos anunciada al lector.
+
+Las [WCAG 2.2](https://www.w3.org/TR/WCAG22/) fijan contraste, foco y target mínimo. La [guía de accesibilidad de Playwright](https://playwright.dev/docs/accessibility-testing) recomienda combinar análisis automatizado con evaluación manual; por eso ambos son gates.
+
+#### 5.13 Estrategia de pruebas
+
+| Capa | Qué verifica | Gate |
+|---|---|---|
+| Unit del generador | orden, LF, escaping de arrays, tamaños, hashes, mtime y build doble | Obligatorio |
+| Integridad | magic gzip, CRC/trailer, descompresión y equivalencia bundle↔array | Obligatorio |
+| Manifest | rutas únicas, MIME, raw/gzip, hash fuente y límites | Obligatorio |
+| Smoke HTML/JS | IDs/roles/rutas críticos, funciones/event listeners, cero recursos remotos | Obligatorio |
+| Contrato C++ host | `send_P`, longitud binaria, headers, 304/406 y ausencia de builder `String` | Obligatorio |
+| Playwright funcional | happy path, APIs fallidas, schema mínimo/completo, PIN, CSRF, XSS, dirty/save/retry | Obligatorio |
+| Playwright a11y | axe A/AA automatizable, roles/nombres, teclado, foco, reduced motion | Obligatorio, más revisión manual |
+| Visual | cuatro rutas, móvil/desktop y estados clave | Obligatorio en renderer fijado |
+| Firmware | producción + Wokwi, tamaño y stale-asset check | Obligatorio |
+| Hardware | AP/STA, captive views, heap mínimo, latencia y cadencia LED | Obligatorio para cerrar la fase |
+
+Las pruebas del portal deben abrir **el mismo HTML que está comprimido en los arrays**. Una prueba de equivalencia extrae o descomprime los bytes generados; no reconstruye la página desde una fuente paralela.
+
+#### 5.14 Presupuestos y métricas de aceptación
+
+Los límites iniciales parten de la medición anterior y dejan espacio para Fases 3–4:
+
+| Métrica | Baseline | Objetivo/gate de Fase 5 |
+|---|---:|---|
+| Gzip `/` | 8.821 B sin minificar | ≤ 12 KB |
+| Gzip `/wifi` | 9.653 B sin minificar | ≤ 13 KB |
+| Gzip `/config` | 15.520 B sin minificar | ≤ 20 KB |
+| Gzip `/dev` | 7.455 B sin minificar | ≤ 10 KB |
+| Total cuatro páginas | 41.449 B sin minificar | ≤ 55 KB con features 5B |
+| Reproducibilidad | No existe pipeline | Dos builds canónicos, mismos SHA-256 y bytes |
+| Heap temporal por página | Hasta `reserve(62.000)` más overhead | Cero asignación proporcional al HTML raw; objetivo de mejorar mínimo ≥ 30 KB en `/config` |
+| Flash de aplicación | Baseline del commit anterior a 5A | Objetivo de reducir ≥ 50 KB en commit aislado; cualquier incumplimiento se explica con map/manifest |
+| Integridad HTTP | `String` sin gzip | Longitud exacta, MIME+charset, gzip válido, ETag/304 y caso 406 probados |
+| Estabilidad | Sin prueba de navegación prolongada específica | 20 ciclos por las cuatro rutas sin reboot, watchdog ni caída progresiva de heap |
+| Cadencia LED durante portal | Baseline por capturar en 5A.0 | Sin regresión material; alertas conservan latencia de un frame |
+| Accesibilidad | Contratos parciales existentes | Cero violaciones A/AA automatizables sin justificar + checklist manual verde |
+
+Los presupuestos gzip son **soft budgets con gate explícito**: pueden cambiar mediante una decisión documentada, no subiendo silenciosamente el número cada vez que una página crece.
+
+#### 5.15 Riesgos y mitigaciones
+
+| Riesgo | Consecuencia | Mitigación planificada |
+|---|---|---|
+| Generated C++ stale | Firmware sirve UI distinta a la fuente | Source hash en header + `webui:check` + pre-script offline |
+| Minificador cambia semántica | Fallo solo en producción | Opciones conservadoras, bundle dev/prod y misma suite sobre ambos |
+| Timestamp/ruta entra al gzip | Diffs perpetuos | mtime 0, filename vacío, sin fecha, contenido ordenado |
+| Dependencia Node invade PlatformIO | Build deja de ser DIY/offline | Artefactos tracked; PlatformIO solo verifica hash |
+| `/wifi` pierde interpolación SSID | Campo aparece vacío o inseguro | Hidratar desde `/api/config`, test de API fallida y XSS |
+| Cliente cautivo no maneja gzip/caché | Portal no abre | Casos HTTP explícitos + teléfonos reales + rollback de ruta |
+| ETag deja UI vieja | Incompatibilidad después de flash | Hash de contenido, `no-cache`, sin service worker |
+| Assets separados fallan parcialmente | HTML sin estilo/script | HTML autocontenido en primera versión |
+| UI supone Fase 4 | Config completa deja de cargar | Feature detection y paneles independientes |
+| Preview promete demasiado | Usuario confunde simulación con salida real | Etiqueta aproximada y alcance limitado |
+| Hex arrays inflan repositorio | Diffs grandes y revisión difícil | `.cpp` generado aislado, manifest legible y review sobre `webui/src` |
+| Doble portal queda permanente | Flash y caminos de prueba duplicados | Fallback solo durante migración; gate exige retirarlo |
+
+#### 5.16 Rollout y rollback
+
+- Cada ruta migra en un cambio independiente y reversible.
+- Durante desarrollo puede existir `DOG_RGB_LEGACY_PORTAL`, deshabilitado por defecto; no debe llegar como coste permanente a producción.
+- El handler viejo de una ruta se elimina solo después de que esa ruta pase pruebas y collar físico.
+- `/wifi` se conmuta al final y conserva un camino de reflasheo USB documentado; OTA todavía no es una dependencia.
+- Si falla una ruta nueva, se revierte su tabla de routing/asset, no las APIs LED ni la persistencia.
+- Al cerrar 5A se etiqueta/archiva firmware anterior y posterior con tamaños, hashes y capturas para rollback verificable.
+
+#### 5.17 Entregables
+
+1. `webui/src` como fuente única y un README con flujo de edición.
+2. Generador fijado y tests de determinismo/integridad.
+3. `generated_assets.h/.cpp` y manifest reproducibles.
+4. `PortalAssetServer` con contrato HTTP probado.
+5. Cuatro rutas migradas sin builders `String`.
+6. Preview local alimentado por los mismos bundles del firmware.
+7. Smoke/Playwright/visual/a11y adaptados.
+8. UI de effects/palettes/transitions y escenas condicionada por capabilities.
+9. Baseline Fase 5 de flash, RAM/heap, tamaños web, respuesta AP y matriz física.
+10. ADR corto que registre toolchain, artefactos tracked, autocontenido, caché y divergencias conscientes respecto a WLED.
 
 Criterio de salida:
 
-- Un checkout limpio reproduce byte por byte los assets generados.
-- El portal no necesita CDN ni conexión externa.
-- Smoke, Playwright, visuales y auditoría básica de accesibilidad pasan.
-- Se mide flash y heap antes/después; cualquier regresión queda justificada.
+- `webui/src` es la única fuente editable; ningún catálogo LED se duplica en el frontend.
+- Un checkout limpio con las versiones fijadas reproduce byte por byte manifest y arrays; CI detecta staleness.
+- `pio run` funciona offline usando los assets versionados y nunca dispara una instalación npm.
+- Las cuatro páginas se sirven desde flash con longitud conocida, gzip válido y sin construir un `String` del tamaño del HTML.
+- El portal no necesita CDN, DNS público, WebSocket, service worker ni conexión externa.
+- `/wifi` y probes cautivos funcionan en el collar real; el cambio de credenciales conserva una vía de recuperación.
+- Capabilities mínimas/completas y schema incompatible tienen comportamientos probados.
+- Smoke, Playwright, visuales, build, auditoría automatizada y checklist manual de accesibilidad pasan.
+- Flash, heap mínimo, latencia y cadencia LED antes/después quedan archivados; las excepciones a budgets tienen justificación explícita.
+- No queda portal legado en la build de producción.
 
 ### Fase 6 — Extensibilidad DIY opcional
 
@@ -585,15 +997,18 @@ No debe bloquear las mejoras LED ni convertirse en requisito para usar el collar
 Fase 0: baseline verde
   ├─ Fase 1: bus + límite de potencia
   └─ Fase 2: estado + registro + política
-       └─ Fase 3: layout + paletas + crossfade
-            ├─ Fase 4: escenas
-            └─ Fase 5: nueva UI
-                 └─ Fase 6: módulos opcionales
+       ├─ Fase 3: layout + paletas + crossfade
+       │    └─ Fase 4: escenas
+       └─ Fase 5A: pipeline web + migración con paridad
+
+ Fases 3 + 4 + 5A
+       └─ Fase 5B: UI de paletas/transiciones/escenas + preview
+            └─ Fase 6: módulos opcionales
 
 Fase 7 (OTA) puede hacerse después de Fase 0, pero se recomienda al final.
 ```
 
-Una entrega útil no necesita esperar todas las fases. Las fases 0–3 ya darían un collar más seguro, modular y visualmente pulido.
+Fase 5A no necesita esperar escenas: puede retirar `pages.cpp` después de Fase 2. Fase 5B habilita cada panel según capabilities y solo cierra su flujo de escenas cuando Fase 4 entregue los endpoints. Una entrega útil tampoco necesita esperar todas las fases: 0–3 ya dan un collar más seguro, modular y visualmente pulido; 5A puede entregarse por separado como reducción de deuda y memoria.
 
 ## 7. Criterios transversales de aceptación
 
@@ -659,6 +1074,8 @@ Las primeras cinco aprovechan piezas ya propuestas. ESP-NOW y replay son experim
 
 Ninguna de estas decisiones impide comenzar la Fase 0. Las tres primeras sí deben cerrarse antes de terminar las fases 1–3.
 
+**Resolución provisional de Fase 3:** la política de software queda en A `forward`, B `reverse`, derivada de la bienvenida histórica, y las alertas System/Geofence usan prioridad 90 sobre la región status sin destruir el cuerpo. La orientación continúa abierta únicamente como validación física; los flags compile-time permiten corregirla sin reescribir efectos.
+
 ## 10. Conclusión
 
 El mejor resultado no es “RGB Dog con WLED adentro”. Es **RGB Dog con la madurez visual y operativa aprendida de WLED**, conservando su identidad de collar inteligente.
@@ -680,3 +1097,15 @@ Si solo se implementan cuatro cosas, deberían ser: baseline verde en CI, `Power
 - [Custom features y usermods](https://kno.wled.ge/advanced/custom-features/)
 - [WebSocket y live preview](https://kno.wled.ge/interfaces/websocket/)
 - [Licencia EUPL-1.2 de WLED](https://github.com/wled/WLED/blob/v16.0.1/LICENSE)
+- [Generador de assets web de WLED `cdata.js`](https://github.com/wled/WLED/blob/v16.0.1/tools/cdata.js)
+- [Hook de build UI de WLED](https://github.com/wled/WLED/blob/v16.0.1/pio-scripts/build_ui.py)
+- [Servidor de contenido estático de WLED](https://github.com/wled/WLED/blob/v16.0.1/wled00/wled_server.cpp)
+- [API `WebServer::send_P` de Arduino-ESP32 3.3.11](https://github.com/espressif/arduino-esp32/blob/3.3.11/libraries/WebServer/src/WebServer.h)
+- [PlatformIO 6.1: `extra_scripts`](https://docs.platformio.org/en/stable/projectconf/sections/env/options/advanced/extra_scripts.html)
+- [npm: instalación reproducible con `npm ci`](https://docs.npmjs.com/cli/v11/commands/npm-ci/)
+- [Node.js: API oficial `node:zlib`](https://nodejs.org/api/zlib.html)
+- [`html-minifier-terser`: minificación de HTML/CSS/JS](https://github.com/terser/html-minifier-terser)
+- [RFC 9110: Content-Encoding y Accept-Encoding](https://www.rfc-editor.org/rfc/rfc9110.html#section-12.5.3)
+- [RFC 9111: directivas de caché](https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2)
+- [WCAG 2.2](https://www.w3.org/TR/WCAG22/)
+- [Playwright: pruebas de accesibilidad](https://playwright.dev/docs/accessibility-testing)

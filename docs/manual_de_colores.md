@@ -1,8 +1,8 @@
 # Referencia de Colores LED
 
-**Estado:** traducción de conveniencia de [LED Color and Status Reference](color-reference.md), revisada el 2026-08-12.
+**Estado:** traducción de conveniencia de [LED Color and Status Reference](color-reference.md), revisada el 2026-08-13.
 
-La configuración por defecto usa dos tiras RGBW de 24 píxeles. En Speed, Geofence y Show, los píxeles `0..1` muestran estado y `2..23` muestran el efecto. Simple usa la tira completa. El brillo global inicial es `77/255`.
+La configuración por defecto usa dos tiras RGBW de 24 píxeles. En todos los modos normales los píxeles `0..1` muestran status y `2..23` muestran el efecto. El brillo global inicial es `77/255`.
 
 ## Indicadores
 
@@ -16,6 +16,7 @@ La configuración por defecto usa dos tiras RGBW de 24 píxeles. En Speed, Geofe
 | Azul fijo | Fix GNSS confiable |
 | Azul pulsante | Buscando o sin cumplir filtros GNSS |
 | Rojo rápido en ambos | Timeout crítico de conectividad/fix |
+| Pulso rojo en ambos | Límite máximo de Geofence alcanzado/superado |
 
 Day Mode apaga los píxeles de efecto, no los indicadores.
 
@@ -40,4 +41,4 @@ Velocidades reportadas por encima de 40 km/h se rechazan como picos y no cuentan
 
 Geofence divide `fence_max_m` en diez bandas y reutiliza la paleta de cian a rojo. Con el máximo inicial de 300 m, cada banda mide 30 m. Sin Home muestra respiración ámbar; sin fix confiable usa rainbow.
 
-La mayoría de efectos usa el RGB base. `RAINBOW`, `GRADIENT_WAVE` y `FIRE` generan su propia paleta, por lo que no reflejan directamente ese color. Consulta el [catálogo de efectos](led_effects.md).
+La mayoría de efectos usa el RGB base. `BREATH`, `CHASE`, `COMET`, `RAINBOW` y `GRADIENT_WAVE` pueden consumir una de ocho paletas RGBW curadas; `FIRE` conserva su calor interno. Consulta el [catálogo de efectos](led_effects.md).

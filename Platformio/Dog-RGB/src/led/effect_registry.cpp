@@ -9,56 +9,56 @@ namespace {
 static const EffectDescriptor EFFECTS[EFFECT_REGISTRY_COUNT] = {
     {0, "solid", "SOLID", EFFECT_CONTROL_COLOR,
      {80, 140}, {0, 255, 0, 255}, EffectColorMode::Base,
-     EffectPaletteMode::None,
+     EffectPaletteMode::None, PALETTE_NONE,
      EffectSafetyClass::Calm},
     {1, "pulse", "PULSE", EFFECT_CONTROL_SPEED | EFFECT_CONTROL_COLOR,
      {80, 140}, {10, 180, 0, 255}, EffectColorMode::Base,
-     EffectPaletteMode::None,
+     EffectPaletteMode::None, PALETTE_NONE,
      EffectSafetyClass::Active},
     {2, "breath", "BREATH", EFFECT_CONTROL_SPEED | EFFECT_CONTROL_COLOR,
      {60, 90}, {10, 140, 0, 255}, EffectColorMode::Base,
-     EffectPaletteMode::None,
+     EffectPaletteMode::Selectable, PALETTE_CUSTOM_AB,
      EffectSafetyClass::Calm},
     {3, "chase", "CHASE",
      EFFECT_CONTROL_SPEED | EFFECT_CONTROL_INTENSITY | EFFECT_CONTROL_COLOR,
      {120, 140}, {32, 224, 40, 240}, EffectColorMode::Base,
-     EffectPaletteMode::None,
+     EffectPaletteMode::Selectable, PALETTE_CUSTOM_AB,
      EffectSafetyClass::Active},
     {4, "comet", "COMET",
      EFFECT_CONTROL_SPEED | EFFECT_CONTROL_INTENSITY | EFFECT_CONTROL_COLOR,
      {120, 140}, {24, 216, 40, 240}, EffectColorMode::Base,
-     EffectPaletteMode::None,
+     EffectPaletteMode::Selectable, PALETTE_CUSTOM_AB,
      EffectSafetyClass::Active},
     {5, "sinelon", "SINELON",
      EFFECT_CONTROL_SPEED | EFFECT_CONTROL_INTENSITY | EFFECT_CONTROL_COLOR,
      {110, 150}, {20, 180, 40, 240}, EffectColorMode::Base,
-     EffectPaletteMode::None,
+     EffectPaletteMode::None, PALETTE_NONE,
      EffectSafetyClass::Active},
     {6, "confetti", "CONFETTI",
      EFFECT_CONTROL_INTENSITY | EFFECT_CONTROL_COLOR,
      {100, 150}, {0, 255, 40, 240}, EffectColorMode::Base,
-     EffectPaletteMode::None,
+     EffectPaletteMode::None, PALETTE_NONE,
      EffectSafetyClass::Active},
     {7, "juggle", "JUGGLE",
      EFFECT_CONTROL_SPEED | EFFECT_CONTROL_INTENSITY | EFFECT_CONTROL_COLOR,
      {150, 180}, {20, 200, 40, 240}, EffectColorMode::Base,
-     EffectPaletteMode::None,
+     EffectPaletteMode::None, PALETTE_NONE,
      EffectSafetyClass::Advanced},
     {8, "bpm", "BPM", EFFECT_CONTROL_SPEED | EFFECT_CONTROL_COLOR,
      {100, 150}, {10, 180, 0, 255}, EffectColorMode::Base,
-     EffectPaletteMode::None,
+     EffectPaletteMode::None, PALETTE_NONE,
      EffectSafetyClass::Active},
     {9, "rainbow", "RAINBOW", EFFECT_CONTROL_SPEED,
      {120, 180}, {16, 224, 0, 255}, EffectColorMode::Generated,
-     EffectPaletteMode::None,
+     EffectPaletteMode::Selectable, PALETTE_PRIDE,
      EffectSafetyClass::Active},
     {10, "fire", "FIRE", EFFECT_CONTROL_INTENSITY,
      {155, 200}, {80, 220, 80, 240}, EffectColorMode::Generated,
-     EffectPaletteMode::Internal,
+     EffectPaletteMode::Internal, PALETTE_HEAT,
      EffectSafetyClass::Advanced},
     {11, "gradient_wave", "GRADIENT_WAVE", EFFECT_CONTROL_SPEED,
      {120, 180}, {24, 224, 0, 255}, EffectColorMode::Generated,
-     EffectPaletteMode::None,
+     EffectPaletteMode::Selectable, PALETTE_OCEAN,
      EffectSafetyClass::Active},
 };
 
@@ -98,6 +98,16 @@ static void fade_range(EffectRenderContext &ctx, uint8_t amount) {
 static uint8_t step_from_speed(uint8_t speed, uint8_t divisor) {
   const uint8_t step = static_cast<uint8_t>(speed / divisor);
   return step < 1 ? 1 : step;
+}
+
+static bool has_selected_palette(const EffectRenderContext &ctx) {
+  return ctx.palette_id != PALETTE_NONE &&
+         palette_id_valid(ctx.palette_id);
+}
+
+static Rgb selected_palette_color(const EffectRenderContext &ctx,
+                                  uint8_t position) {
+  return palette_sample_rgb(ctx.palette_id, position, ctx.base, ctx.accent);
 }
 
 static uint32_t next_random(uint32_t &state) {
@@ -273,9 +283,14 @@ void render_effect(uint8_t id, EffectRenderContext &ctx) {
       const uint8_t high = id == 1 ? 255 : 200;
       const uint8_t amount = static_cast<uint8_t>(
           beat(bpm, low, high, ctx.now_ms));
-      fill(ctx, Rgb{scale8(ctx.base.r, amount),
-                    scale8(ctx.base.g, amount),
-                    scale8(ctx.base.b, amount)});
+      Rgb color = ctx.base;
+      if (id == 2 && has_selected_palette(ctx)) {
+        ctx.runtime->hue = static_cast<uint8_t>(
+            ctx.runtime->hue + step_from_speed(ctx.speed, 32));
+        color = selected_palette_color(ctx, ctx.runtime->hue);
+      }
+      fill(ctx, Rgb{scale8(color.r, amount), scale8(color.g, amount),
+                    scale8(color.b, amount)});
       break;
     }
     case 3:
@@ -284,7 +299,17 @@ void render_effect(uint8_t id, EffectRenderContext &ctx) {
       ctx.runtime->pos = static_cast<uint16_t>(
           (ctx.runtime->pos + step_from_speed(ctx.speed, id == 3 ? 32 : 24)) %
           ctx.count);
-      ctx.pixels[ctx.start + ctx.runtime->pos] = ctx.base;
+      if (has_selected_palette(ctx)) {
+        const uint8_t position = ctx.count <= 1U
+                                     ? 0U
+                                     : static_cast<uint8_t>(
+                                           (ctx.runtime->pos * 255U) /
+                                           (ctx.count - 1U));
+        ctx.pixels[ctx.start + ctx.runtime->pos] =
+            selected_palette_color(ctx, position);
+      } else {
+        ctx.pixels[ctx.start + ctx.runtime->pos] = ctx.base;
+      }
       break;
     case 5: {
       fade_range(ctx, fade_amount);
@@ -319,9 +344,11 @@ void render_effect(uint8_t id, EffectRenderContext &ctx) {
       ctx.runtime->hue = static_cast<uint8_t>(
           ctx.runtime->hue + step_from_speed(ctx.speed, 16));
       for (uint16_t i = 0; i < ctx.count; ++i) {
-        ctx.pixels[ctx.start + i] = hsv_to_rgb(
-            static_cast<uint8_t>(ctx.runtime->hue +
-                                 (ctx.start + i) * 7U), 255, 255);
+        const uint8_t position = static_cast<uint8_t>(
+            ctx.runtime->hue + (ctx.start + i) * 7U);
+        ctx.pixels[ctx.start + i] = has_selected_palette(ctx)
+                                          ? selected_palette_color(ctx, position)
+                                          : hsv_to_rgb(position, 255, 255);
       }
       break;
     case 10:
@@ -331,9 +358,11 @@ void render_effect(uint8_t id, EffectRenderContext &ctx) {
       ctx.runtime->hue = static_cast<uint8_t>(
           ctx.runtime->hue + step_from_speed(ctx.speed, 24));
       for (uint16_t i = 0; i < ctx.count; ++i) {
-        ctx.pixels[ctx.start + i] = hsv_to_rgb(
-            static_cast<uint8_t>(ctx.runtime->hue +
-                                 (ctx.start + i) * 8U), 200, 255);
+        const uint8_t position = static_cast<uint8_t>(
+            ctx.runtime->hue + (ctx.start + i) * 8U);
+        ctx.pixels[ctx.start + i] = has_selected_palette(ctx)
+                                          ? selected_palette_color(ctx, position)
+                                          : hsv_to_rgb(position, 200, 255);
       }
       break;
     default:

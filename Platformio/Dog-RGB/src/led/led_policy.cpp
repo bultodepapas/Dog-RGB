@@ -1,48 +1,77 @@
 #include "led/led_policy.h"
 
+#include "led/effect_registry.h"
+
 namespace led {
 namespace {
 
-static LedState base_state(LedMode mode, uint8_t brightness) {
-  return LedState{mode, LedIntent::Idle, 20, brightness, true, true, false,
-                  false, -1, 9, 9, 80, 140, {0, 60, 60}};
+static uint8_t default_palette(uint8_t effect_id) {
+  const EffectDescriptor *descriptor = effect_descriptor(effect_id);
+  return descriptor == nullptr ? PALETTE_NONE : descriptor->default_palette_id;
+}
+
+static void select_effects(LedState &state, uint8_t effect_a,
+                           uint8_t effect_b, bool mirror_equal_effects) {
+  state.effect_a = effect_a;
+  state.effect_b = effect_b;
+  state.palette_a = default_palette(effect_a);
+  state.palette_b = default_palette(effect_b);
+  state.mirror = mirror_equal_effects && effect_a == effect_b;
+}
+
+static LedState base_state(LedMode mode, const LedPolicyConfig *config) {
+  LedState state{};
+  state.mode = mode;
+  if (config != nullptr) {
+    state.brightness = config->brightness;
+    state.transition_ms = config->transition_ms;
+    state.mirror = config->mirror_equal_effects;
+  }
+  return state;
 }
 
 } // namespace
 
 LedState LedPolicyEngine::evaluate(const LedPolicyInput &input) const {
-  const uint8_t brightness =
-      input.config == nullptr ? 1 : input.config->brightness;
-  LedState state = base_state(input.mode, brightness);
+  LedState state = base_state(input.mode, input.config);
   if (input.welcome_active) {
     state.intent = LedIntent::Welcome;
     state.priority = 100;
     state.status_enabled = false;
     state.homogeneous = true;
+    state.mirror = true;
     return state;
   }
-  if (input.critical_error) {
+  if (input.critical_error || input.geofence_alert) {
     state.priority = 90;
     state.critical_alert = true;
+    state.alert = input.critical_error ? LedAlert::System
+                                       : LedAlert::Geofence;
   }
   if (input.day_mode_active) {
     state.intent = LedIntent::DayStatus;
-    state.priority = input.critical_error ? 90 : 80;
+    state.priority = state.critical_alert ? 90 : 80;
     state.body_enabled = false;
-    state.critical_alert = input.critical_error;
     return state;
   }
 
   state.homogeneous = input.wifi_off && input.homogeneous_ready;
-  state.critical_alert = input.critical_error;
   if (input.mode == LedMode::Show) {
     state.intent = LedIntent::Show;
-    state.priority = input.critical_error ? 90 : 30;
-    state.effect_a = input.show_effect;
-    state.effect_b = input.show_effect;
+    state.priority = state.critical_alert ? 90 : 30;
+    const bool mirror = state.mirror;
+    select_effects(state, input.show_effect, input.show_effect, mirror);
+    const EffectDescriptor *descriptor = effect_descriptor(input.show_effect);
+    if (descriptor != nullptr &&
+        descriptor->palette_mode == EffectPaletteMode::Selectable &&
+        palette_id_valid(input.show_palette)) {
+      state.palette_a = input.show_palette;
+      state.palette_b = input.show_palette;
+    }
     state.speed = input.show_speed;
     state.intensity = input.show_intensity;
     state.base = input.show_base;
+    state.accent = input.show_accent;
     return state;
   }
 
@@ -53,14 +82,14 @@ LedState LedPolicyEngine::evaluate(const LedPolicyInput &input) const {
 
   if (input.mode == LedMode::Simple) {
     state.intent = LedIntent::Simple;
-    state.priority = input.critical_error ? 90 : 30;
+    state.priority = state.critical_alert ? 90 : 30;
     state.homogeneous = true;
-    state.status_enabled = false;
-    state.effect_a = config.simple.effect_a;
-    state.effect_b = config.simple.effect_b;
+    select_effects(state, config.simple.effect_a, config.simple.effect_b,
+                   config.mirror_equal_effects);
     state.speed = config.simple.speed;
     state.intensity = config.simple.intensity;
     state.base = config.simple_base;
+    state.accent = config.simple_base;
     return state;
   }
 
@@ -73,11 +102,11 @@ LedState LedPolicyEngine::evaluate(const LedPolicyInput &input) const {
     }
     if (!input.home_set) {
       state.intent = LedIntent::HomeMissing;
-      state.effect_a = 2;
-      state.effect_b = 2;
+      select_effects(state, 2, 2, config.mirror_equal_effects);
       state.speed = 60;
       state.intensity = 120;
       state.base = {60, 45, 0};
+      state.accent = state.base;
       state.range = -1;
       return state;
     }
@@ -98,13 +127,15 @@ LedState LedPolicyEngine::evaluate(const LedPolicyInput &input) const {
 
   const uint8_t index = (range >= 1 && range <= 10) ? range - 1U : 0U;
   state.intent = LedIntent::Range;
-  state.priority = input.critical_error ? 90 : 30;
+  state.priority = state.critical_alert ? 90 : 30;
   state.range = range;
-  state.effect_a = config.range_effects[index].effect_a;
-  state.effect_b = config.range_effects[index].effect_b;
+  select_effects(state, config.range_effects[index].effect_a,
+                 config.range_effects[index].effect_b,
+                 config.mirror_equal_effects);
   state.speed = config.range_effects[index].speed;
   state.intensity = config.range_effects[index].intensity;
   state.base = policy_range_base_color(range);
+  state.accent = state.base;
   return state;
 }
 

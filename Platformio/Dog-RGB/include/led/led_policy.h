@@ -15,6 +15,8 @@ struct LedPolicyEffect {
 
 struct LedPolicyConfig {
   uint8_t brightness;
+  uint16_t transition_ms;
+  bool mirror_equal_effects;
   float speed_ranges_kph[9];
   LedPolicyEffect range_effects[10];
   LedPolicyEffect simple;
@@ -28,6 +30,7 @@ struct LedPolicyInput {
   bool day_mode_active;
   bool gps_ok;
   bool critical_error;
+  bool geofence_alert;
   bool wifi_off;
   bool home_set;
   bool geofence_distance_valid;
@@ -37,7 +40,9 @@ struct LedPolicyInput {
   uint8_t show_effect;
   uint8_t show_speed;
   uint8_t show_intensity;
+  uint8_t show_palette;
   Rgb show_base;
+  Rgb show_accent;
 };
 
 class LedPolicyEngine {

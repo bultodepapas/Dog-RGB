@@ -80,6 +80,11 @@ static const float GEOFENCE_HYSTERESIS_MIN_M = 5.0f;
 static const int LED_STRIP_MODE = 2; // 1 = single strip, 2 = dual strips.
 static const int LED_STRIP_COUNT = 24; // LEDs per strip (min 10, max 50).
 static const int LED_STATUS_COUNT = 2; // First N LEDs reserved for status.
+// Semantic mounting baseline. The old welcome chase already rendered branch B
+// in reverse; Phase 3 makes that physical assumption explicit and testable.
+static const bool LED_BUS_A_REVERSED = false;
+static const bool LED_BUS_B_REVERSED = true;
+static const bool LED_LAYOUT_MIRROR_DEFAULT = true;
 static const uint8_t LED_BRIGHTNESS = 77; // ~30% brightness (0-255).
 static const bool LED_DEBUG_BRIGHTNESS_ENABLED = false; // Diagnostic: override runtime brightness.
 static const uint8_t LED_DEBUG_BRIGHTNESS = 30; // Low-brightness debug value.
@@ -100,6 +105,7 @@ static const bool DEBUG_AP_ONLY_MINIMAL = false; // Diagnostic: boot only AP + p
 
 // LED UI timing.
 static const unsigned long LED_UPDATE_MS = 50; // Refresh interval for LED UI.
+static const uint16_t LED_TRANSITION_MS = 500; // Body-only crossfade duration.
 static const unsigned long CRITICAL_NO_OK_MS = 600000; // Error if no GPS/Wi-Fi for this long.
 static const bool LED_UI_ENABLED = true; // Disable to turn off LED UI logic.
 

@@ -14,6 +14,10 @@ Dog-RGB has two configuration classes:
 | `LED_STRIP_MODE` | `2` | One or two independently driven strips |
 | `LED_STRIP_COUNT` | `24` | Pixels per strip |
 | `LED_STATUS_COUNT` | `2` | Reserved leading status pixels per strip |
+| `LED_BUS_A_REVERSED` | `false` | Physical body orientation for bus A |
+| `LED_BUS_B_REVERSED` | `true` | Physical body orientation for bus B; inherited software baseline pending collar validation |
+| `LED_LAYOUT_MIRROR_DEFAULT` | `true` | Mirror one logical body across both buses when their effects match |
+| `LED_TRANSITION_MS` | `500` | Normal body crossfade duration; status/alerts bypass it |
 | `LED_BRIGHTNESS` | `77` | Fallback/runtime default, about 30% of 255 |
 | `LED_POWER_LIMIT_ENABLED_DEFAULT` | `true` | Enable the global two-bus estimated-current ceiling |
 | `LED_POWER_BUDGET_MA_DEFAULT` | `1000` | Provisional whole-device budget until bench calibration |
@@ -88,7 +92,7 @@ The LED current values are a conservative software model, not measurements or co
 | AP retry | 1 s initial exponential backoff, bounded to 30 s |
 | AP holds | 15 min after start; 5 min after portal activity; 10 min no-client idle timeout |
 | Stationary trigger | enter at `<=2.0 km/h` for 2 min; leave at `>=2.5 km/h` |
-| Homogeneous LEDs | after an explicit Wi-Fi-OFF state + stable GNSS for 5 min; automatic AP idle shutdown does not enter Wi-Fi OFF |
+| Homogeneous eligibility | retained after explicit Wi-Fi-OFF + stable GNSS for 5 min; semantic status remains reserved and automatic AP idle shutdown does not enter Wi-Fi OFF |
 | Critical status | no trusted GNSS and no station success for 10 min |
 
 ## Diagnostic compile-time switches

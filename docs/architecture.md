@@ -42,10 +42,12 @@ The power drawing is conceptual. The real charger/BMS/boost/regulator topology m
 | Embedded pages | `include/web/pages.h`, `src/web/pages.cpp` | Dashboard, Wi-Fi, configuration, and diagnostics HTML/CSS/JavaScript |
 | Portal write lock | `include/web/portal_lock.h`, `src/web/portal_lock.cpp` | Optional 4–8 digit PIN, CRC record, constant-work comparison |
 | Runtime configuration | `include/config/runtime_config.h`, `src/config/runtime_config.cpp` | Defaults, schema migration, validation, A/B persistence, hot application |
-| LED orchestration | `include/led/led_ui.h`, `src/led/led_ui.cpp` | Snapshot device-domain inputs, adapt schema-6 config, compose status/welcome/Show/Simple, retain current `LedState` |
+| LED orchestration | `include/led/led_ui.h`, `src/led/led_ui.cpp` | Snapshot device-domain inputs, adapt schema-6 config, render logical body/status, retain current `LedState` |
 | LED state and policy | `include/led/led_state.h`, `include/led/led_policy.h`, `src/led/{led_state,led_policy}.cpp` | Pure priority/intent selection from value-only inputs; no GPS, Wi-Fi, geofence, NVS, or pixel ownership |
 | Effect registry/renderer | `include/led/effect_registry.h`, `src/led/effect_registry.cpp` | Stable ID/key metadata plus allocation-free RGB generation from explicit time, seed, runtime, and pixel span |
-| LED transport | `include/led/led_bus.h`, `src/led/led_bus.cpp` | NeoPixel ownership, centralized RGB→RGBW conversion, dual-strip output |
+| LED palettes | `include/led/palette_registry.h`, `src/led/palette_registry.cpp` | Eight curated RGBW palettes, stable metadata and allocation-free sampling |
+| LED layout/compositor | `include/led/{led_layout,led_compositor}.h`, `src/led/{led_layout,led_compositor}.cpp` | Semantic regions, A/B orientation, mirror, body crossfade, status and alert overlay |
+| LED transport | `include/led/led_bus.h`, `src/led/{led_color,led_bus}.cpp` | Shared RGB↔RGBW conversion, NeoPixel ownership and dual-strip output |
 | LED power model | `include/led/power_limiter.h`, `src/led/power_limiter.cpp` | Two-bus current estimate, global scale, slow release, diagnostics |
 | Day Mode | `include/power/day_mode.h`, `src/power/day_mode.cpp` | Pure evaluation of enabled/trusted-time/day-window state |
 | BLE summary | `include/ble/summary_ble.h`, `src/ble/summary_ble.cpp` | Read-only 16-byte characteristic and AP-aware advertising; compile-time disabled by default |
@@ -107,7 +109,7 @@ Queue high-water and overflow counters are exposed in diagnostics. On overflow, 
 3. A trusted fix requires current/acceptable evidence under runtime GNSS gates.
 4. Trusted observations update speed usability, Haversine segments, active time, maximum speed, route points, and date-transition state.
 5. Metrics and device-domain snapshots feed `LedPolicyEngine`, which selects a value-only `LedState`; renderers consume that state without importing GNSS, Wi-Fi, or geofence modules.
-6. The selected effect descriptor and explicit render context produce logical RGB, then `LedBus` limits and converts the frame for physical RGBW transport.
+6. The selected effect/palette produce logical RGB; `LedCompositor` maps semantic regions, orientation, mirror, transition and alert; then `LedBus` limits and converts the physical frame for RGBW transport.
 7. Runtime configuration is validated as a complete semantic record, persisted, then applied to LEDs/Wi-Fi/mDNS.
 
 Average speed is `distance / active_time`; it is not a mean of NMEA speed samples. Activity intervals require active evidence at both endpoints and reject gaps longer than the configured bound.
@@ -151,28 +153,30 @@ This is proportionate protection for a local DIY portal, not a claim of Internet
 
 ## LED composition
 
-The default physical layout is two strips with 24 pixels each and two reserved status pixels per strip. Rendering order is mode-aware:
+The default physical layout is two strips with 24 pixels each and two reserved status pixels per strip. Bus A body is forward and bus B body reverse; those compile-time declarations still require confirmation on the final mounting. Rendering is semantic:
 
-- welcome animation runs first;
-- Day Mode can clear effect pixels while retaining status;
-- Simple intentionally fills all pixels;
-- Speed/Geofence/Show normally render the body then status;
-- after an explicit Wi-Fi-OFF state and five minutes of stable GNSS, the retained homogeneous-rendering path can use the full strip; automatic AP idle shutdown currently stops SoftAP without entering this state;
-- a critical status overrides normal status pixels where those pixels remain reserved.
+- welcome alone owns complete strips during startup;
+- normal effects, including Simple, render `body_left`/`body_right` or mirrored `body_all`;
+- normal status always owns the two reserved pixels;
+- a visual state change crossfades body buffers for 500 ms while status stays current;
+- Day Mode supplies a black body and normal status;
+- System and Geofence alerts interrupt a fade and override only the `alert`/status region.
 
 ```mermaid
 flowchart LR
     DOMAIN[GNSS · Wi-Fi · Home · Day Mode · runtime config] --> ADAPTER[led_ui adapter]
     ADAPTER --> POLICY[LedPolicyEngine]
     POLICY --> STATE[LedState]
-    STATE --> RENDER[EffectRegistry renderer]
-    RENDER --> FRAME[LedFrame RGB]
-    FRAME --> BUS[PowerLimiter + LedBus RGBW]
+    STATE --> RENDER[EffectRegistry + PaletteRegistry]
+    RENDER --> LOGICAL[Logical LedFrame RGB]
+    LOGICAL --> COMP[LedLayout + LedCompositor]
+    COMP --> PHYSICAL[Physical LedFrame RGB]
+    PHYSICAL --> BUS[PowerLimiter + LedBus RGBW]
 ```
 
-The policy priorities are explicit and native-tested: welcome `100`, critical status overlay `90`, Day Mode `80`, active scenes `30`, and idle/guidance `20`. A critical alert does not silently replace the decorative intent; it is a separate `critical_alert` flag so the status layer can override only the pixels it owns.
+The policy priorities are explicit and native-tested: welcome `100`, System/Geofence alert `90`, Day Mode `80`, active scenes `30`, and idle/guidance `20`. An alert does not silently replace the decorative intent; `LedAlert` and `critical_alert` let the compositor override only the pixels owned by the alert region.
 
-The schema-6 `RangeEffect` records remain the persistence contract. `led_ui` copies them into a temporary pure `LedPolicyConfig`; this adapter deliberately avoids an NVS migration in Phase 2.
+The schema-6 `RangeEffect` records remain the persistence contract. `led_ui` copies them into a temporary pure `LedPolicyConfig`; palette defaults and the 500 ms transition are runtime capabilities, so Phase 3 does not require an NVS migration.
 
 See [LED UI](led_ui_spec.md) for exact behavior.
 

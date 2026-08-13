@@ -50,8 +50,9 @@ class DayModeStaticTests(unittest.TestCase):
         self.assertIn('#include "power/day_mode.h"', led_cpp)
         self.assertIn("clear_body_leds()", led_cpp)
         self.assertIn("day_mode::active_now()", led_cpp)
-        self.assertIn("paint_status_leds(now_ms, gps_ok, sta_ok, sta_try, critical_error)", led_cpp)
-        self.assertIn("if (!active_led_state.body_enabled)", led_cpp)
+        self.assertIn("paint_status_leds(now_ms, gps_ok, sta_ok, sta_try)", led_cpp)
+        self.assertIn("if (!active_led_state.body_enabled || body_count <= 0)", led_cpp)
+        self.assertIn("compositor.compose(render_frame, led_frame", led_cpp)
         self.assertIn("if (input.day_mode_active)", policy_cpp)
         self.assertIn("state.intent = LedIntent::DayStatus", policy_cpp)
         self.assertIn("state.body_enabled = false", policy_cpp)
@@ -61,7 +62,9 @@ class DayModeStaticTests(unittest.TestCase):
 
         update_idx = led_cpp.index("static void update_led_ui()")
         welcome_idx = led_cpp.index("if (welcome.active)", update_idx)
-        policy_idx = led_cpp.index("active_led_state = evaluate_policy", welcome_idx)
+        policy_idx = led_cpp.index(
+            "const led::LedState next = evaluate_policy", welcome_idx
+        )
         self.assertLess(welcome_idx, policy_idx)
         self.assertIn(
             "update_welcome(now_ms);\n    return;",

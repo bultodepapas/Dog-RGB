@@ -45,7 +45,8 @@ uint64_t effect_digest(uint8_t id) {
 
   for (uint32_t now_ms : times) {
     led::EffectRenderContext context{pixels.data(), heat.data(), START, COUNT,
-                                     {91, 53, 17}, 137, 173, now_ms,
+                                     {91, 53, 17}, {17, 53, 91},
+                                     led::PALETTE_NONE, 137, 173, now_ms,
                                      &random_state, &runtime};
     led::render_effect(id, context);
 
@@ -124,7 +125,7 @@ void test_registry(bool print_goldens) {
       UINT64_C(0xf02214b60db1e9bc), UINT64_C(0x70d2087545139cd7),
   };
 
-  expect(led::EFFECT_REGISTRY_VERSION == 1, "unexpected registry version");
+  expect(led::EFFECT_REGISTRY_VERSION == 2, "unexpected registry version");
   expect(led::effect_descriptor_count() == led::EFFECT_REGISTRY_COUNT,
          "registry count differs from its public contract");
   expect(led::effect_descriptor(led::EFFECT_REGISTRY_COUNT) == nullptr,
@@ -179,13 +180,21 @@ void test_registry(bool print_goldens) {
       expect((descriptor->controls & led::EFFECT_CONTROL_COLOR) == 0,
              "generated-color effect must not advertise a color control");
     }
-    const led::EffectPaletteMode expected_palette =
-        id == 10 ? led::EffectPaletteMode::Internal
-                 : led::EffectPaletteMode::None;
+    const bool selectable = id == 2 || id == 3 || id == 4 || id == 9 ||
+                            id == 11;
+    const led::EffectPaletteMode expected_palette = selectable
+        ? led::EffectPaletteMode::Selectable
+        : (id == 10 ? led::EffectPaletteMode::Internal
+                    : led::EffectPaletteMode::None);
     expect(descriptor->palette_mode == expected_palette,
            "effect palette usage metadata changed");
-    expect(descriptor->palette_mode != led::EffectPaletteMode::Selectable,
-           "phase-2 effects unexpectedly claim selectable palette support");
+    static const uint8_t DEFAULT_PALETTES[led::EFFECT_REGISTRY_COUNT] = {
+        led::PALETTE_NONE, led::PALETTE_NONE, led::PALETTE_CUSTOM_AB,
+        led::PALETTE_CUSTOM_AB, led::PALETTE_CUSTOM_AB, led::PALETTE_NONE,
+        led::PALETTE_NONE, led::PALETTE_NONE, led::PALETTE_NONE,
+        led::PALETTE_PRIDE, led::PALETTE_HEAT, led::PALETTE_OCEAN};
+    expect(descriptor->default_palette_id == DEFAULT_PALETTES[id],
+           "effect default palette changed");
 
     const uint64_t actual = effect_digest(id);
     if (print_goldens) {
@@ -199,6 +208,8 @@ void test_registry(bool print_goldens) {
 led::LedPolicyConfig policy_config() {
   led::LedPolicyConfig config{};
   config.brightness = 123;
+  config.transition_ms = 500;
+  config.mirror_equal_effects = true;
   for (uint8_t i = 0; i < 9; ++i) {
     config.speed_ranges_kph[i] = static_cast<float>(i + 1U);
   }
@@ -225,7 +236,9 @@ led::LedPolicyInput policy_input(const led::LedPolicyConfig *config) {
   input.show_effect = 7;
   input.show_speed = 88;
   input.show_intensity = 99;
+  input.show_palette = led::PALETTE_OCEAN;
   input.show_base = led::Rgb{4, 5, 6};
+  input.show_accent = led::Rgb{6, 5, 4};
   return input;
 }
 
@@ -237,6 +250,8 @@ void test_policy() {
   led::LedState state = engine.evaluate(input);
   expect(state.brightness == 123,
          "policy state must retain the configured brightness");
+  expect(state.transition_ms == 500,
+         "policy state must retain the configured transition");
   expect(state.intent == led::LedIntent::Range && state.range == 1,
          "speed policy did not select range 1");
   expect(state.effect_a == 0 && state.effect_b == 1 && state.priority == 30,
@@ -294,6 +309,17 @@ void test_policy() {
   expect(state.intent == led::LedIntent::Range && state.range == 4 &&
              state.effect_a == 3,
          "geofence range did not use the shared effect policy");
+  input.geofence_alert = true;
+  state = engine.evaluate(input);
+  expect(state.priority == 90 && state.critical_alert &&
+             state.alert == led::LedAlert::Geofence,
+         "geofence boundary did not select the alert overlay");
+  input.critical_error = true;
+  state = engine.evaluate(input);
+  expect(state.alert == led::LedAlert::System,
+         "system fault did not retain precedence over geofence alert");
+  input.critical_error = false;
+  input.geofence_alert = false;
 
   input.mode = led::LedMode::Show;
   input.config = nullptr;
@@ -308,7 +334,7 @@ void test_policy() {
   state = engine.evaluate(input);
   expect(state.intent == led::LedIntent::Simple && state.effect_a == 9 &&
              state.speed == 66 && state.intensity == 77 && state.homogeneous &&
-             !state.status_enabled && state.base.r == 12,
+             state.status_enabled && state.mirror && state.base.r == 12,
          "simple policy contract changed");
 
   input.mode = led::LedMode::Speed;
@@ -327,6 +353,9 @@ void test_policy() {
   expect(std::strcmp(led::led_mode_name(led::LedMode::Geofence),
                      "geofence") == 0,
          "mode serialization contract changed");
+  expect(std::strcmp(led::led_alert_name(led::LedAlert::Geofence),
+                     "geofence") == 0,
+         "alert serialization contract changed");
 }
 
 }  // namespace

@@ -5,9 +5,9 @@
 ## Layout
 
 - Two strips by default, 24 RGBW pixels per strip.
-- Pixels `0..1` on each strip are reserved for system status in Speed, Geofence, and Show modes.
+- Pixels `0..1` on each strip are reserved for system status in every normal mode.
 - Pixels `2..23` show the selected activity effect.
-- Simple mode uses the full strip. Homogeneous mode may also extend the active effect across status pixels.
+- Simple and homogeneous eligibility keep the same semantic status/body split.
 - Default global brightness is `77/255` (about 30% of the software scale).
 
 ## System indicators
@@ -22,6 +22,7 @@
 | GNSS | Blue solid | Trusted fix and quality gates pass |
 | GNSS | Blue pulse | Searching or quality gates fail |
 | Both status pixels | Fast red flash | Critical no-GNSS/no-station timeout |
+| Both status pixels | Red pulse | Valid Geofence distance at/above `fence_max_m` |
 
 Day Mode turns off effect pixels only; status indicators continue to work.
 
@@ -48,8 +49,13 @@ The firmware rejects reported speed above 40 km/h as a spike and does not treat 
 
 Geofence mode divides `fence_max_m` into ten equal distance bands and reuses the cyan-to-red range palette. With the default maximum of 300 m, each band is 30 m. Farther distance maps toward red.
 
-- No trusted fix: animated rainbow fallback.
+- No trusted fix: palette-driven rainbow fallback.
 - No Home: amber breathing fallback.
+- At/above the configured maximum: red alert overlay on status while the body scene remains active.
+
+## Curated RGBW palettes
+
+The runtime registry provides Safety Amber, Night Red, Ocean, Forest, Pride, Heat, Ice, and Custom A-B. Breath, Chase, Comet, Rainbow and Gradient Wave can sample a selected palette; Fire retains internal heat behavior. The white values are intentional and use the same RGB↔RGBW conversion as power estimation and transport.
 - Boundaries use hysteresis to avoid flicker.
 
 ## Effect caveat

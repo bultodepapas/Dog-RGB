@@ -1,6 +1,6 @@
 # Guía de Uso de Dog-RGB
 
-**Estado:** traducción resumida, revisada el 2026-08-12. Para el detalle canónico consulta la [User guide](user-guide.md).
+**Estado:** traducción resumida, revisada el 2026-08-13. Para el detalle canónico consulta la [User guide](user-guide.md).
 
 Dog-RGB funciona de forma local, sin app ni cuenta cloud. Los LEDs muestran el estado rápido y el portal Wi-Fi permite ver métricas, rutas, configuración y diagnóstico.
 
@@ -16,7 +16,7 @@ No cargues el dispositivo mientras el perro lo usa. Revisa ajuste, temperatura, 
 
 ## Estado LED
 
-En Speed, Geofence y Show, los primeros dos píxeles de cada tira están reservados:
+En todos los modos normales, incluido Simple, los primeros dos píxeles de cada tira están reservados:
 
 | Indicador | Apariencia | Significado |
 | --- | --- | --- |
@@ -28,8 +28,9 @@ En Speed, Geofence y Show, los primeros dos píxeles de cada tira están reserva
 | GNSS | Azul fijo | Fix confiable |
 | GNSS | Azul pulsante | Buscando o sin cumplir filtros de calidad |
 | Ambos | Rojo rápido | Timeout crítico sin GNSS confiable ni STA |
+| Ambos | Pulso rojo | Distancia Geofence válida igual o superior al límite máximo |
 
-Simple usa toda la tira. Day Mode conserva los indicadores aunque apaga los píxeles de efecto. El modo homogéneo también existe para un estado Wi-Fi OFF explícito, pero el cierre automático del AP por inactividad actualmente no apaga todo el radio.
+Los efectos usan el cuerpo semántico y no ocultan los indicadores. Day Mode conserva status aunque apaga el cuerpo. Una alerta System/Geofence interrumpe el crossfade del cuerpo en el siguiente tick LED.
 
 ## Páginas del portal
 
@@ -46,8 +47,8 @@ Cuando STA está conectado, abre `http://dog-collar.local/` o la IP indicada por
 
 - **Speed:** diez rangos de velocidad, cada uno con efecto configurable para ambas tiras.
 - **Geofence:** diez bandas según distancia al punto Home.
-- **Show:** recorre los 12 efectos en orden barajado, aproximadamente cada 30 segundos.
-- **Simple:** aplica un efecto y color base a toda la tira.
+- **Show:** recorre los 12 efectos en orden barajado, aproximadamente cada 30 segundos, con crossfade de 500 ms y paletas curadas donde aplican.
+- **Simple:** aplica un efecto y color base al cuerpo y conserva status.
 
 El brillo por defecto es `77/255`. El limitador estimado viene activo con 1.000 mA totales, 200 mA base y perfil RGB/W de 20/20 mA. Está oculto en **Potencia LED (avanzado)** y protege ambas tiras con el mismo factor. Sigue siendo obligatorio medir el hardware real: no es un sensor ni certifica batería, boost, cableado o temperatura.
 
