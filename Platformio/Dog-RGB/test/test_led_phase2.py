@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = ROOT.parents[1]
 
 
 class LedPhase2Tests(unittest.TestCase):
@@ -80,7 +81,7 @@ class LedPhase2Tests(unittest.TestCase):
         portal = (ROOT / "src" / "web" / "portal_http.cpp").read_text(
             encoding="utf-8"
         )
-        pages = (ROOT / "src" / "web" / "pages.cpp").read_text(encoding="utf-8")
+        pages = (REPO_ROOT / "webui/src/pages/config.html").read_text(encoding="utf-8")
         config_source = (ROOT / "src" / "config" / "runtime_config.cpp").read_text(
             encoding="utf-8"
         )

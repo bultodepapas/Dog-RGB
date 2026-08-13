@@ -46,6 +46,12 @@ jobs:
 
       # Cheap, and catches the page-size, escaping and CSRF-header rules
       # without starting a browser.
+      - name: Verify generated portal assets
+        run: npm run webui:check
+
+      - name: Test deterministic portal generator
+        run: npm run webui:unit
+
       - name: Static portal checks
         run: python3 tools/web_pages_smoke.py
 
@@ -76,13 +82,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ensure python3 (needed by the preview extractor)
-        run: |
-          if ! command -v python3 >/dev/null; then
-            apt-get update -qq && apt-get install -y -qq python3
-          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
 
       - run: npm ci
+
+      - name: Verify generated portal assets
+        run: npm run webui:check
 
       - name: Visual comparison
         env:

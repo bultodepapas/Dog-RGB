@@ -85,7 +85,7 @@ Authoritative values: `include/config.h`, `include/pins.h`, and `platformio.ini`
 | GNSS, metrics, sessions, routes | `src/gps/gps.cpp` |
 | Config | `src/config/runtime_config.cpp` |
 | Wi-Fi | `src/wifi/wifi_mgr.cpp` |
-| HTTP and pages | `src/web/portal_http.cpp`, `src/web/pages.cpp` |
+| HTTP and pages | `src/web/portal_http.cpp`, `src/web/portal_assets.cpp`, `../../webui/src` |
 | Optional PIN | `src/web/portal_lock.cpp` |
 | LEDs / scenes / layout / composition | `src/led/led_ui.cpp`, `src/led/scene*.cpp`, `src/led/led_layout.cpp`, `src/led/palette_registry.cpp`, `src/led/led_compositor.cpp` |
 | LED transport / current limiting / Day Mode | `src/led/led_bus.cpp`, `src/led/power_limiter.cpp`, `src/power/day_mode.cpp` |

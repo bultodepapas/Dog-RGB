@@ -70,11 +70,13 @@ From the repository root:
 
 ```powershell
 npm ci
+npm run webui:check
+npm run webui:unit
 npm run smoke
 npx playwright test --project=iphone-13-pro-max-chromium
 ```
 
-`npm run smoke` runs `tools/web_pages_smoke.py`. The full Playwright command starts the local extracted-page server automatically and runs tests under `tests/`.
+`webui:check` proves that the tracked manifest and flash arrays match `webui/src`; `webui:unit` covers deterministic gzip/array generation; and `npm run smoke` verifies source, manifest, gzip, C++ arrays and HTTP-serving contracts. The full Playwright command starts the generated-bundle preview automatically and runs tests under `tests/`.
 
 The default preview port is 4173. If another project already owns it, select an isolated port instead of stopping an unrelated process:
 
@@ -87,13 +89,13 @@ Remove-Item Env:AP_PORTAL_PREVIEW_PORT
 Useful focused commands:
 
 ```powershell
-npm run ap-portal:extract
+npm run webui:build
 npm run ap-portal:serve
 npm run ap-portal:screenshots
 npm run ap-portal:ui
 ```
 
-The preview tool extracts the C++ raw HTML templates into generated files under `tools/ap_portal_preview/generated/`; that output is disposable and ignored by Git.
+The preview serves the exact decompressed production bundles generated from `webui/src`. Disposable HTML lives in `.ap-portal-preview/`; the manifest and C++ gzip arrays are tracked so an offline PlatformIO build can verify and embed them without running npm.
 
 ## Visual regression
 

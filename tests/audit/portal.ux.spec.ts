@@ -35,6 +35,18 @@ async function mockPortal(
       return route.fulfill({ json: opts.capabilities ?? fx('led.capabilities.json') });
     }
     if (p === '/api/v1/led/state') return route.fulfill({ json: fx('led.state.json') });
+    if (p === '/api/v1/led/scenes' && m === 'GET') return route.fulfill({ json: fx('led.scenes.json') });
+    if (p === '/api/v1/led/scenes/apply' || p === '/api/v1/led/scenes/cancel') {
+      const body = rq.postDataJSON() as { id?: number } | null;
+      return route.fulfill({ status: 202, json: { ok: true, code: 'pending', pending_id: body?.id ?? 0, store_generation: 7, store_health: 'healthy' } });
+    }
+    if (p === '/api/v1/led/scenes/save' || p === '/api/v1/led/scenes/delete') {
+      return route.fulfill({ json: { ok: true, code: 'ok', no_change: false, store_generation: 8, store_health: 'healthy' } });
+    }
+    if (p === '/api/v1/led/scenes/import') {
+      const body = rq.postDataJSON() as { dry_run?: boolean; document?: { scenes?: unknown[] } } | null;
+      return route.fulfill({ json: { ok: true, code: body?.dry_run ? 'valid' : 'ok', dry_run: !!body?.dry_run, scene_count: body?.document?.scenes?.length ?? 0, store_generation: body?.dry_run ? 7 : 8, store_health: 'healthy', warnings: [] } });
+    }
     if (p === '/api/config' && m === 'GET') {
       if (opts.failConfig) return route.fulfill({ status: 503, json: { status: 'error' } });
       return route.fulfill({ json: fx('config.speed.json') });
@@ -627,6 +639,138 @@ test.describe('Fase 2 · controls come from LED capabilities', () => {
     await expect(page.locator('#simple_intensity')).toBeEnabled();
     await expect(page.locator('#simple_r')).toBeDisabled();
     await expect(page.locator('#simple_effect_hint')).toContainText('seguridad advanced');
+  });
+});
+
+test.describe('Fase 5B · scenes and palettes use the firmware contract', () => {
+  test('catalog, named palette swatches and approximate collar preview load together', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/config');
+
+    await expect(page.locator('#scene_select option')).toHaveCount(8);
+    await expect(page.locator('#scene_select')).toHaveValue('3');
+    await expect(page.locator('#scene_active_name')).toHaveText('Activo');
+    await page.locator('#scene_editor > summary').click();
+    await expect(page.locator('#scene_palette_choices_a .palette-chip')).toHaveCount(8);
+    await expect(page.locator('#scene_palette_choices_a .palette-chip[aria-pressed="true"]')).toContainText('Forest');
+    const hasInk = await page.locator('#scene_preview').evaluate((canvas: HTMLCanvasElement) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return false;
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      for (let i = 3; i < data.length; i += 4) if (data[i] !== 0) return true;
+      return false;
+    });
+    expect(hasInk).toBe(true);
+    await expect(page.locator('#scene_preview_text')).toContainText('COMET');
+  });
+
+  test('apply sends the stable scene ID and the portal CSRF header', async ({ page }) => {
+    const posted = await mockPortal(page);
+    const headers: (string | undefined)[] = [];
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname === '/api/v1/led/scenes/apply') headers.push(request.headers()['x-dog-portal']);
+    });
+    await page.goto('/config');
+    await page.locator('#scene_select').selectOption('1');
+    await page.locator('#scene_apply_btn').click();
+    await expect(page.locator('#scene_status')).toContainText('encolada');
+
+    const request = posted.find(item=>item.url==='/api/v1/led/scenes/apply');
+    expect(request).toBeDefined();
+    expect(JSON.parse(request!.body)).toEqual({ id: 1 });
+    expect(headers).toEqual(['1']);
+  });
+
+  test('save carries expected generation plus matching effect and palette references', async ({ page }) => {
+    const posted = await mockPortal(page);
+    await page.goto('/config');
+    await page.locator('#scene_select').selectOption('128');
+    await page.locator('#scene_editor > summary').click();
+    await page.locator('#scene_name').fill('Paseo azul 2');
+    await page.locator('#scene_save_btn').click();
+    await expect(page.locator('#scene_status')).toContainText('guardada');
+
+    const request = posted.find(item=>item.url==='/api/v1/led/scenes/save');
+    expect(request).toBeDefined();
+    const payload = JSON.parse(request!.body);
+    expect(payload.expected_generation).toBe(7);
+    expect(payload.slot).toBe(1);
+    expect(payload.scene.id).toBeUndefined();
+    expect(payload.scene.name).toBe('Paseo azul 2');
+    expect(payload.scene.branch_a).toEqual({ effect: { id: 4, key: 'comet' }, palette: { id: 2, key: 'ocean' } });
+    expect(payload.scene.branch_b).toEqual(payload.scene.branch_a);
+  });
+
+  test('a generation conflict refreshes the bank without discarding the draft', async ({ page }) => {
+    await mockPortal(page);
+    await page.route('**/api/v1/led/scenes', (route) => {
+      const scenes = fx('led.scenes.json');
+      scenes.store.generation = 8;
+      return route.fulfill({ json: scenes });
+    });
+    await page.route('**/api/v1/led/scenes/save', (route) => route.fulfill({
+      status: 409,
+      json: { ok: false, code: 'generation_conflict', store_generation: 8, store_health: 'healthy' },
+    }));
+    await page.goto('/config');
+    await page.locator('#scene_select').selectOption('128');
+    await page.locator('#scene_editor > summary').click();
+    await page.locator('#scene_name').fill('Borrador conservado');
+    await page.locator('#scene_save_btn').click();
+
+    await expect(page.locator('#scene_status')).toContainText('sin perder este borrador');
+    await expect(page.locator('#scene_name')).toHaveValue('Borrador conservado');
+    await expect(page.locator('#scene_store_state')).toContainText('gen 8');
+    await expect(page.locator('#scene_save_btn')).toContainText('*');
+  });
+
+  test('import validates first and only then replaces all user slots', async ({ page }) => {
+    const posted = await mockPortal(page);
+    page.on('dialog', (dialog) => dialog.accept());
+    const catalog = fx('led.scenes.json');
+    const source = catalog.scenes.find((scene: { id: number }) => scene.id === 128);
+    const { key, origin, editable, occupied, ...exportedScene } = source;
+    const document = {
+      format: 'dog-rgb-scenes', schema_version: 1, store_generation: 7,
+      registry: { effects: 1, palettes: 1 }, scenes: [exportedScene],
+    };
+
+    await page.goto('/config');
+    await page.locator('#scene_editor > summary').click();
+    await page.locator('#scene_import_file').setInputFiles({
+      name: 'dog-rgb-scenes.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(document)),
+    });
+    await page.locator('#scene_import_btn').click();
+    await expect(page.locator('#scene_status')).toContainText('Importacion completada');
+
+    const imports = posted.filter(item=>item.url==='/api/v1/led/scenes/import').map(item=>JSON.parse(item.body));
+    expect(imports).toHaveLength(2);
+    expect(imports.map(item=>item.dry_run)).toEqual([true,false]);
+    expect(imports[1].expected_generation).toBe(7);
+    expect(imports[1].recover_corrupt).toBe(false);
+    expect(imports[1].document.scenes[0].id).toBe(128);
+  });
+
+  test('an advanced effect cannot be made eligible for Show', async ({ page }) => {
+    await mockPortal(page);
+    await page.goto('/config');
+    await page.locator('#scene_editor > summary').click();
+    await page.locator('#scene_effect_a').selectOption('10');
+    await expect(page.locator('#scene_show_eligible')).not.toBeChecked();
+    await expect(page.locator('#scene_show_eligible')).toBeDisabled();
+    await expect(page.locator('#scene_show_hint')).toContainText('Advanced');
+  });
+
+  test('missing scenes capability does not block the general config editor', async ({ page }) => {
+    const capabilities = fx('led.capabilities.json');
+    capabilities.features.scenes = false;
+    await mockPortal(page, { capabilities });
+    await page.goto('/config');
+    await expect(page.locator('#brightness')).toHaveValue('96');
+    await page.locator('#scenes_block').evaluate((details: HTMLDetailsElement) => { details.open = true; });
+    await expect(page.locator('#scene_unavailable_text')).toContainText('no publica escenas');
   });
 });
 

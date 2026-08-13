@@ -1,8 +1,9 @@
-import { spawnSync } from 'node:child_process';
 import { createReadStream, existsSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
+
+import { buildArtifacts } from '../../webui/build.mjs';
 
 // URL.pathname produces paths such as /C:/... on Windows. Convert the file
 // URL with Node's platform-aware helper before passing it to path.resolve().
@@ -12,14 +13,7 @@ const args = process.argv.slice(2);
 const portFlag = args.indexOf('--port');
 const port = portFlag >= 0 ? Number(args[portFlag + 1]) : 4173;
 
-const extract = spawnSync('python3', ['tools/ap_portal_preview/extract_pages.py'], {
-  cwd: root,
-  stdio: 'inherit',
-});
-
-if (extract.status !== 0) {
-  process.exit(extract.status ?? 1);
-}
+await buildArtifacts();
 
 const routes = new Map([
   ['/', 'index.html'],

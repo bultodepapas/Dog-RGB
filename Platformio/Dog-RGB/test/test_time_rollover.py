@@ -3,6 +3,7 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = PROJECT_ROOT.parents[1]
 MASK32 = 0xFFFFFFFF
 HALF_RANGE = 0x80000000
 
@@ -45,7 +46,7 @@ class TimeRolloverTests(unittest.TestCase):
         gps = (PROJECT_ROOT / "src/gps/gps.cpp").read_text(encoding="utf-8")
         main = (PROJECT_ROOT / "src/main.cpp").read_text(encoding="utf-8")
         portal = (PROJECT_ROOT / "src/web/portal_http.cpp").read_text(encoding="utf-8")
-        pages = (PROJECT_ROOT / "src/web/pages.cpp").read_text(encoding="utf-8")
+        pages = (REPO_ROOT / "webui/src/pages/dev.html").read_text(encoding="utf-8")
         wifi = (PROJECT_ROOT / "src/wifi/wifi_mgr.cpp").read_text(encoding="utf-8")
 
         self.assertIn("static_assert(time_utils::elapsed_ms", header)

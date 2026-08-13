@@ -1381,7 +1381,7 @@ Los límites iniciales parten de la medición anterior y dejan espacio para Fase
 |---|---:|---|
 | Gzip `/` | 8.821 B sin minificar | ≤ 12 KB |
 | Gzip `/wifi` | 9.653 B sin minificar | ≤ 13 KB |
-| Gzip `/config` | 15.520 B sin minificar | ≤ 20 KB |
+| Gzip `/config` | 15.520 B sin minificar | ≤ 23 KB desde 5B; el editor de escenas incluye validación, concurrencia, import/export y preview |
 | Gzip `/dev` | 7.455 B sin minificar | ≤ 10 KB |
 | Total cuatro páginas | 41.449 B sin minificar | ≤ 55 KB con features 5B |
 | Reproducibilidad | No existe pipeline | Dos builds canónicos, mismos SHA-256 y bytes |
@@ -1393,6 +1393,8 @@ Los límites iniciales parten de la medición anterior y dejan espacio para Fase
 | Accesibilidad | Contratos parciales existentes | Cero violaciones A/AA automatizables sin justificar + checklist manual verde |
 
 Los presupuestos gzip son **soft budgets con gate explícito**: pueden cambiar mediante una decisión documentada, no subiendo silenciosamente el número cada vez que una página crece.
+
+Decisión de implementación 5B (2026-08-13): el gate de `/config` sube de 20 a 23 KiB. El bundle completo con escenas, paletas accesibles, generación esperada, importación en dos pasos y preview aproximado mide 22.352 B gzip en la toolchain fijada; recortar esos flujos para conservar 20 KiB empeoraba la operación y la recuperación. Las cuatro páginas suman 45.886 B gzip y el gate conjunto permanece en 55 KiB, por lo que la excepción no se traslada al resto del portal.
 
 #### 5.15 Riesgos y mitigaciones
 
@@ -1445,6 +1447,32 @@ Criterio de salida:
 - Smoke, Playwright, visuales, build, auditoría automatizada y checklist manual de accesibilidad pasan.
 - Flash, heap mínimo, latencia y cadencia LED antes/después quedan archivados; las excepciones a budgets tienen justificación explícita.
 - No queda portal legado en la build de producción.
+
+#### 5.18 Estado de implementación (2026-08-13)
+
+La Fase 5 está **completa en software** para 5A y 5B. `webui/src` es la fuente editable de las cuatro páginas; el generador fijado en Node.js 24.18.0 produce HTML minificado, gzip canónico, manifest y arrays C++ reproducibles. PlatformIO consume únicamente esos artefactos versionados y verifica que sigan sincronizados sin ejecutar Node, npm ni acceder a la red. El firmware sirve los bytes directamente desde flash con `Content-Encoding: gzip`, longitud conocida, `ETag`, `Cache-Control` y negociación de `Accept-Encoding`; se retiraron `pages.cpp`, `pages.h` y el extractor legado.
+
+La entrega 5B consume el contrato real de capabilities y escenas. El usuario puede seleccionar y aplicar escenas por ID estable, copiar una escena incorporada a un slot editable, guardar con control de generación, eliminar, exportar e importar mediante validación previa, y configurar efectos, paletas, transición, velocidad, intensidad, cuerpo y elegibilidad para Show. La interfaz no mantiene catálogos paralelos: IDs, nombres, rangos, defaults, modos de paleta, límites, layout y restricciones de seguridad provienen del firmware. El preview del collar está identificado como aproximado, se detiene cuando no es visible y respeta movimiento reducido.
+
+Baseline reproducible de esta implementación:
+
+| Evidencia | Resultado |
+|---|---:|
+| `/` | 28.642 B raw / 7.865 B gzip |
+| `/wifi` | 31.408 B raw / 8.521 B gzip |
+| `/config` | 83.328 B raw / 22.352 B gzip |
+| `/dev` | 31.717 B raw / 7.148 B gzip |
+| Portal completo | 175.095 B raw / 45.886 B gzip |
+| Build `seeed_xiao_esp32s3` | 57.636 B RAM (17,6 %) / 1.151.859 B flash de aplicación (34,5 %) |
+| Imagen combinada | 1.175.791 B |
+| Suite host | 131/131 |
+| Generador + smoke | 3/3; 4/4 páginas |
+| Playwright funcional/a11y/responsive | 84/84 |
+| Comparación visual Linux fijada | 18/18 |
+
+Las decisiones de toolchain, artefactos tracked, transporte y divergencias conscientes respecto a WLED quedan registradas en [ADR-0004](adr/0004-generated-flash-web-portal.md).
+
+Esto todavía **no cierra la Fase 5 en producto**. Permanecen abiertos los gates físicos: matriz AP/STA y captive portal en navegadores/dispositivos reales, recuperación de credenciales, heap mínimo tras navegación y ciclos de escenas, latencia de respuestas y escrituras NVS, cadencia LED durante tráfico/guardado, y validación visual, térmica y eléctrica sobre el collar. Esos resultados deben añadirse al baseline antes de declarar cerrado el criterio de salida completo.
 
 ### Fase 6 — Extensibilidad DIY opcional
 

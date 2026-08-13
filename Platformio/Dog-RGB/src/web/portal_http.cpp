@@ -21,7 +21,8 @@
 #include "power/day_mode.h"
 #include "storage/nvs_store.h"
 #include "util/time_utils.h"
-#include "web/pages.h"
+#include "web/generated_assets.h"
+#include "web/portal_assets.h"
 #include "web/portal_lock.h"
 #include "web/scene_json.h"
 #include "wifi/wifi_mgr.h"
@@ -134,16 +135,19 @@ struct CsvStreamContext {
 static const char *CSRF_HEADER = "X-Dog-Portal";
 static const char *PIN_HEADER = "X-Dog-Pin";
 static const char *COLLECTED_HEADERS[] = {
-    "X-Dog-Portal", "X-Dog-Pin", "Content-Length", "Content-Type"};
+    "X-Dog-Portal", "X-Dog-Pin", "Content-Length", "Content-Type",
+    "Accept-Encoding", "If-None-Match"};
 
-void note_activity() {
+void note_activity(bool allow_revalidation = false) {
   wifi_mgr::note_portal_activity();
   // Every handler calls this first, so queueing the headers here attaches them
   // to that handler's response without touching each send site.
   server.sendHeader("X-Content-Type-Options", "nosniff");
   server.sendHeader("X-Frame-Options", "DENY");
   server.sendHeader("Referrer-Policy", "no-referrer");
-  server.sendHeader("Cache-Control", "no-store");
+  if (!allow_revalidation) {
+    server.sendHeader("Cache-Control", "no-store");
+  }
 }
 
 bool csrf_ok() {
@@ -305,18 +309,18 @@ uint32_t track_point_date(const gps::TrackView &view, const gps::TrackPoint &p) 
 }
 
 void handle_root() {
-  note_activity();
-  server.send(200, "text/html", web_pages::html_page());
+  note_activity(true);
+  portal_assets::send(server, web_assets::ROOT_PAGE);
 }
 
 void handle_wifi_page() {
-  note_activity();
-  server.send(200, "text/html", web_pages::html_wifi_page());
+  note_activity(true);
+  portal_assets::send(server, web_assets::WIFI_PAGE);
 }
 
 void handle_dev_page() {
-  note_activity();
-  server.send(200, "text/html", web_pages::html_dev_page());
+  note_activity(true);
+  portal_assets::send(server, web_assets::DEV_PAGE);
 }
 
 void handle_summary() {
@@ -410,6 +414,7 @@ void handle_led_capabilities_get() {
   doc["schema_version"] = 1;
   doc["effect_registry_version"] = led::EFFECT_REGISTRY_VERSION;
   doc["palette_registry_version"] = led::PALETTE_REGISTRY_VERSION;
+  doc["palette_none_id"] = led::PALETTE_NONE;
   doc["scene_registry_version"] = led::SCENE_REGISTRY_VERSION;
   doc["scene_schema_version"] = led::SCENE_SCHEMA_VERSION;
   doc["effect_count"] = led::effect_descriptor_count();
@@ -447,6 +452,7 @@ void handle_led_capabilities_get() {
   limits["scene_transition_max_ms"] = led::SCENE_TRANSITION_MAX_MS;
   limits["scene_name_bytes"] = led::SCENE_NAME_BYTES;
   limits["scene_user_slots"] = led::SCENE_USER_SLOT_COUNT;
+  limits["scene_user_id_first"] = led::SCENE_ID_USER_FIRST;
   limits["scene_import_max_bytes"] = scene_json::SCENE_JSON_BODY_MAX_BYTES;
   limits["scene_json_nesting"] = scene_json::SCENE_JSON_NESTING_LIMIT;
   limits["scene_record_bytes"] = storage::SCENE_RECORD_BYTES;
@@ -1830,8 +1836,8 @@ void handle_wifi_ap_save() {
 }
 
 void handle_config_page() {
-  note_activity();
-  server.send(200, "text/html", web_pages::html_config_page());
+  note_activity(true);
+  portal_assets::send(server, web_assets::CONFIG_PAGE);
 }
 
 void handle_home_get() {

@@ -40,7 +40,8 @@ The power drawing is conceptual. The real charger/BMS/boost/regulator topology m
 | Wi-Fi policy | `include/wifi/wifi_mgr.h`, `src/wifi/wifi_mgr.cpp` | AP/STA transitions, credentials, event queue, retry/backoff, idle/hold policy, scan lifecycle, mDNS |
 | HTTP portal | `include/web/portal_http.h`, `src/web/portal_http.cpp` | Route registration, request validation, response headers, bounded exports/scene bodies, DNS/captive helpers |
 | Scene JSON contract | `include/web/scene_json.h`, `src/web/scene_json.cpp` | Strict allowlist parser, canonical user-scene import/export and field-level errors |
-| Embedded pages | `include/web/pages.h`, `src/web/pages.cpp` | Dashboard, Wi-Fi, configuration, and diagnostics HTML/CSS/JavaScript |
+| Portal asset serving | `include/web/{generated_assets,portal_assets}.h`, `src/web/{generated_assets,portal_assets}.cpp` | Immutable gzip pages in flash, ETag/content negotiation and known-length responses |
+| Portal web source/build | `../../webui/src`, `../../webui/build.mjs`, `../../webui/generated/manifest.json` | Editable dashboard/Wi-Fi/config/diagnostic sources and deterministic HTML→gzip→C++ pipeline |
 | Portal write lock | `include/web/portal_lock.h`, `src/web/portal_lock.cpp` | Optional 4–8 digit PIN, CRC record, constant-work comparison |
 | Runtime configuration | `include/config/runtime_config.h`, `src/config/runtime_config.cpp` | Defaults, schema migration, validation, A/B persistence, hot application |
 | LED orchestration | `include/led/led_ui.h`, `src/led/led_ui.cpp` | Snapshot device-domain inputs, adapt schema-6 config, render logical body/status, retain current `LedState` |

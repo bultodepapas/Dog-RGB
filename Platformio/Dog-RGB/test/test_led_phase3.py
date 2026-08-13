@@ -93,6 +93,7 @@ class LedPhase3Tests(unittest.TestCase):
         self.assertIn('features["palettes"] = true', portal)
         self.assertIn('doc["palettes"]', portal)
         self.assertIn('doc["palette_count"]', portal)
+        self.assertIn('doc["palette_none_id"]', portal)
         self.assertIn('out["dynamic"]', portal)
         self.assertIn('layout["bus_a_orientation"]', portal)
         self.assertIn('layout["bus_b_orientation"]', portal)

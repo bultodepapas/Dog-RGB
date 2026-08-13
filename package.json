@@ -10,8 +10,13 @@
   "scripts": {
     "postinstall": "playwright install chromium",
     "smoke": "python3 tools/web_pages_smoke.py",
-    "ap-portal:extract": "python3 tools/ap_portal_preview/extract_pages.py",
-    "ap-portal:serve": "node tools/ap_portal_preview/server.mjs --port 4173",
+    "webui:build": "node webui/build.mjs",
+    "webui:check": "node webui/build.mjs --check",
+    "webui:unit": "node --test webui/*.test.mjs",
+    "webui:serve": "node tools/ap_portal_preview/server.mjs --port 4173",
+    "webui:test": "npm run webui:check && npm run webui:unit && npm run smoke && playwright test --project=iphone-13-pro-max-chromium",
+    "ap-portal:extract": "npm run webui:build",
+    "ap-portal:serve": "npm run webui:serve",
     "ap-portal:screenshots": "playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium",
     "ap-portal:visual": "AP_PORTAL_VISUAL=1 playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium",
     "ap-portal:visual:update": "AP_PORTAL_VISUAL=1 playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --update-snapshots",
@@ -19,6 +24,7 @@
     "ap-portal:ui": "playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --ui"
   },
   "devDependencies": {
-    "@playwright/test": "1.62.1"
+    "@playwright/test": "1.62.1",
+    "html-minifier-terser": "7.2.0"
   }
 }

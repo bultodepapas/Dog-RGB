@@ -1,6 +1,5 @@
 import { expect, test, type Page, type ConsoleMessage } from '@playwright/test';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -44,6 +43,20 @@ async function mockApis(page: Page) {
     }
     if (p === '/api/v1/led/state') {
       return send(fixtureJson('led.state.json'));
+    }
+    if (p === '/api/v1/led/scenes' && route.request().method() === 'GET') {
+      return send(fixtureJson('led.scenes.json'));
+    }
+    if (p === '/api/v1/led/scenes/apply' || p === '/api/v1/led/scenes/cancel') {
+      const body = route.request().postDataJSON() as { id?: number } | null;
+      return route.fulfill({ status: 202, json: { ok: true, code: 'pending', pending_id: body?.id ?? 0, store_generation: 7, store_health: 'healthy' } });
+    }
+    if (p === '/api/v1/led/scenes/save' || p === '/api/v1/led/scenes/delete') {
+      return send({ ok: true, code: 'ok', no_change: false, store_generation: 8, store_health: 'healthy' });
+    }
+    if (p === '/api/v1/led/scenes/import') {
+      const body = route.request().postDataJSON() as { dry_run?: boolean; document?: { scenes?: unknown[] } } | null;
+      return send({ ok: true, code: body?.dry_run ? 'valid' : 'ok', dry_run: !!body?.dry_run, scene_count: body?.document?.scenes?.length ?? 0, store_generation: body?.dry_run ? 7 : 8, store_health: 'healthy', warnings: [] });
     }
 
     if (p === '/api/summary') {
@@ -313,37 +326,26 @@ test.describe('AP portal audit', () => {
     expect(attempts[1], 'retry carries the PIN from the prompt').toBe('4321');
   });
 
-  // Regression guard for the stored-XSS sink at pages.cpp:579-612. The SSID is
-  // the only runtime value the firmware interpolates into markup; it reaches
-  // the page from NVS and is attacker-settable via the unauthenticated
-  // POST /api/wifi. Render it through the same escaping the firmware applies
-  // and assert the payload stays inert.
-  //
-  // Fidelity note: extract_pages.py mirrors html_escape_attr() in Python. The
-  // static rule in tools/web_pages_smoke.py is what guarantees the C++ side
-  // routes every interpolation through that helper.
+  // The generated page contains no runtime SSID. It is hydrated through
+  // input.value from /api/config, so even an attacker-controlled stored name
+  // must remain plain input data and round-trip without executing markup.
   for (const hostileSsid of [
     `" autofocus onfocus="window.__xss=1`,
     `"><img src=x onerror="window.__xss=1">`,
     `Casa "El Pino" & Cía`,
   ]) {
     test(`SSID reflection stays inert :: ${hostileSsid.slice(0, 28)}`, async ({ page }) => {
-      const repoRoot = path.join(__dirname, '..', '..');
-      execFileSync('python3', ['tools/ap_portal_preview/extract_pages.py'], {
-        cwd: repoRoot,
-        env: { ...process.env, AP_PORTAL_SUBST: JSON.stringify({ 'wifi_mgr::ssid()': hostileSsid }) },
-        stdio: 'pipe',
-      });
-      const injected = readFileSync(path.join(repoRoot, '.ap-portal-preview', 'wifi.html'), 'utf-8');
-
       await mockApis(page);
-      await page.route('**/wifi-xss', (route) => route.fulfill({ contentType: 'text/html; charset=utf-8', body: injected }));
-      await page.goto('/wifi-xss', { waitUntil: 'domcontentloaded' });
+      await page.route('**/api/config', (route) => {
+        if (route.request().method() !== 'GET') return route.fallback();
+        const config = fixtureJson('config.speed.json') as { wifi: { sta_ssid: string } };
+        config.wifi.sta_ssid = hostileSsid;
+        return route.fulfill({ json: config });
+      });
+      await page.goto('/wifi', { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(400);
 
       const executed = await page.evaluate(() => (window as unknown as { __xss?: number }).__xss === 1);
-      // The escaped entities must decode back to the exact SSID: the fix has to
-      // neutralise the payload without corrupting legitimate names.
       const ssidValue = await page.locator('input[name=ssid]').inputValue();
       record({ page: 'xss-regression', hostileSsid, scriptExecuted: executed, ssidInputValue: ssidValue });
 
@@ -351,14 +353,6 @@ test.describe('AP portal audit', () => {
       expect(ssidValue, 'escaped SSID must round-trip intact').toBe(hostileSsid);
     });
   }
-
-  test.afterAll(async () => {
-    // Leave the preview in its default state for the other suites.
-    execFileSync('python3', ['tools/ap_portal_preview/extract_pages.py'], {
-      cwd: path.join(__dirname, '..', '..'),
-      stdio: 'pipe',
-    });
-  });
 
   test.afterAll(async () => {
     writeFileSync(path.join(outDir, 'audit-report.json'), JSON.stringify(report, null, 2), 'utf-8');

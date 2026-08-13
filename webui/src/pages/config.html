@@ -1,0 +1,1824 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Config</title>
+  <!-- DOG_RGB_INCLUDE:styles/app.css -->
+</head>
+<body>
+  <noscript><div class="warn" style="padding:12px">Este portal necesita JavaScript activado para mostrar los datos del collar.</div></noscript>
+  <main class="container">
+    <div class="hero card">
+      <div class="hero-top">
+        <div>
+          <h1 class="brand">DOG-RGB</h1>
+          <div class="tagline">Modos y LEDs</div>
+        </div>
+      </div>
+      <div class="muted">Elige el comportamiento principal primero; la calibracion queda en avanzado.</div>
+    </div>
+
+    <a class="back-link" href="/">&#8592; Inicio</a>
+
+    <div id="errors" class="card error-box error section"></div>
+
+    <div class="card action-bar section sticky-actions">
+      <button class="btn" id="save_btn" type="button" onclick="saveCfg()">Guardar cambios</button>
+      <button class="btn danger" id="reset_btn" type="button" onclick="resetCfg()">Restaurar defaults</button>
+      <span id="status" class="muted"></span>
+    </div>
+
+    <details class="card section" id="common_block" open>
+      <summary>Modo y brillo</summary>
+      <div class="section-body">
+        <div class="mode-cards" id="mode_cards">
+          <button class="mode-card" type="button" data-mode-card="speed"><strong>Velocidad</strong><span>LEDs reaccionan al movimiento. Requiere GPS confiable.</span></button>
+          <button class="mode-card" type="button" data-mode-card="geofence"><strong>Geocerca</strong><span>LEDs reaccionan a distancia del Home. Requiere GPS y Home.</span></button>
+          <button class="mode-card" type="button" data-mode-card="simple"><strong>Simple</strong><span>Un efecto fijo para toda la tira.</span></button>
+          <button class="mode-card" type="button" data-mode-card="show"><strong>Show</strong><span>Demo automatica de efectos.</span></button>
+        </div>
+        <div class="grid grid-2 section-body">
+          <div class="field"><label for="brightness_slider">Brillo</label><input id="brightness_slider" type="range" min="1" max="255"></div>
+          <div class="field"><label for="brightness">Valor brillo</label><input id="brightness" type="number" min="1" max="255"></div>
+        </div>
+        <div class="field">
+          <label><input id="day_mode_enabled" type="checkbox"> Modo DIA</label>
+          <div class="help">Apaga efectos de 06:00 a 16:00; alertas y rastreo siguen activos.</div>
+        </div>
+        <div class="field" style="display:none">
+          <label for="mode">Modo</label>
+          <select id="mode">
+            <option value="speed">Velocidad</option>
+            <option value="geofence">Geocerca</option>
+            <option value="simple">Simple</option>
+            <option value="show">Show</option>
+          </select>
+        </div>
+        <div id="mode_help" class="help"></div>
+      </div>
+    </details>
+
+    <details class="card section" id="scenes_block" open>
+      <summary>Escenas y paletas</summary>
+      <div class="section-body">
+        <div id="scene_loading" class="notice" role="status" aria-live="polite">Cargando escenas del collar...</div>
+        <div id="scene_workspace" class="is-hidden">
+          <div class="scene-toolbar">
+            <div class="field scene-picker">
+              <label for="scene_select">Escena disponible</label>
+              <select id="scene_select"></select>
+            </div>
+            <button class="btn" id="scene_apply_btn" type="button" disabled>Aplicar ahora</button>
+            <button class="btn ghost" id="scene_cancel_btn" type="button">Cancelar escena activa</button>
+          </div>
+
+          <div class="scene-runtime" aria-live="polite">
+            <span class="scene-runtime-label">En el collar</span>
+            <strong id="scene_active_name">Politica normal</strong>
+            <span id="scene_store_state" class="muted"></span>
+          </div>
+
+          <div class="scene-preview-layout">
+            <canvas id="scene_preview" class="scene-preview" width="720" height="220" role="img" aria-labelledby="scene_preview_label scene_preview_text"></canvas>
+            <div class="scene-preview-copy">
+              <strong id="scene_preview_label">Vista aproximada</strong>
+              <div id="scene_preview_text" class="muted">Selecciona una escena para ver sus dos ramas.</div>
+              <div class="help">Comunica color, paleta y direccion. No reproduce el frame fisico, RGBW, consumo ni limitador de potencia.</div>
+            </div>
+          </div>
+
+          <details class="scene-editor" id="scene_editor">
+            <summary>Editar copia o slot de usuario</summary>
+            <div class="scene-editor-body">
+              <div class="grid grid-2">
+                <div class="field">
+                  <label for="scene_slot">Guardar en slot</label>
+                  <select id="scene_slot"></select>
+                </div>
+                <div class="field">
+                  <label for="scene_name">Nombre</label>
+                  <input id="scene_name" type="text" maxlength="23" autocomplete="off">
+                  <div id="scene_name_help" class="help">Maximo 23 bytes UTF-8.</div>
+                </div>
+              </div>
+
+              <div class="grid grid-2">
+                <div class="field scene-color-field">
+                  <label for="scene_base_color">Color base</label>
+                  <input id="scene_base_color" type="color" value="#005a19">
+                </div>
+                <div class="field scene-color-field">
+                  <label for="scene_accent_color">Color de acento</label>
+                  <input id="scene_accent_color" type="color" value="#64ffaa">
+                </div>
+              </div>
+
+              <div class="grid grid-2">
+                <div class="scene-branch" aria-labelledby="scene_branch_a_title">
+                  <h3 id="scene_branch_a_title">Rama A</h3>
+                  <div class="field">
+                    <label for="scene_effect_a">Efecto</label>
+                    <select id="scene_effect_a"></select>
+                  </div>
+                  <div class="field">
+                    <label for="scene_palette_a">Paleta</label>
+                    <select id="scene_palette_a"></select>
+                    <div id="scene_palette_choices_a" class="palette-rack" role="group" aria-label="Paletas para rama A"></div>
+                  </div>
+                </div>
+                <div class="scene-branch" aria-labelledby="scene_branch_b_title">
+                  <h3 id="scene_branch_b_title">Rama B</h3>
+                  <div class="field">
+                    <label for="scene_effect_b">Efecto</label>
+                    <select id="scene_effect_b"></select>
+                  </div>
+                  <div class="field">
+                    <label for="scene_palette_b">Paleta</label>
+                    <select id="scene_palette_b"></select>
+                    <div id="scene_palette_choices_b" class="palette-rack" role="group" aria-label="Paletas para rama B"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid grid-2 scene-numbers">
+                <div class="field"><label for="scene_speed">Velocidad</label><input id="scene_speed" type="number" min="0" max="255"></div>
+                <div class="field"><label for="scene_intensity">Intensidad</label><input id="scene_intensity" type="number" min="0" max="255"></div>
+                <div class="field"><label for="scene_body_level">Nivel del cuerpo</label><input id="scene_body_level" type="number" min="1" max="255"></div>
+                <div class="field" id="scene_transition_field"><label for="scene_transition">Transicion (ms)</label><input id="scene_transition" type="number" min="0" max="5000" step="50"></div>
+              </div>
+              <div id="scene_controls_hint" class="help"></div>
+
+              <div class="scene-flags">
+                <label><input id="scene_mirror" type="checkbox"> Reflejar A en B</label>
+                <label><input id="scene_show_eligible" type="checkbox"> Incluir en Show</label>
+              </div>
+              <div id="scene_show_hint" class="help"></div>
+
+              <div class="action-bar scene-actions">
+                <button class="btn" id="scene_save_btn" type="button">Guardar escena</button>
+                <button class="btn danger" id="scene_delete_btn" type="button">Borrar slot</button>
+              </div>
+
+              <div class="scene-transfer">
+                <div class="field scene-file">
+                  <label for="scene_import_file">Respaldo JSON</label>
+                  <input id="scene_import_file" type="file" accept="application/json,.json">
+                </div>
+                <button class="btn" id="scene_import_btn" type="button">Validar e importar</button>
+                <a class="btn ghost" id="scene_export_link" href="/api/v1/led/scenes/export" download="dog-rgb-scenes.json">Exportar escenas</a>
+              </div>
+            </div>
+          </details>
+
+          <div id="scene_status" class="notice" role="status" aria-live="polite"></div>
+        </div>
+        <div id="scene_unavailable" class="notice is-hidden">
+          <span id="scene_unavailable_text"></span>
+          <button class="btn" id="scene_retry_btn" type="button">Reintentar escenas</button>
+        </div>
+      </div>
+    </details>
+
+    <details class="card section" id="led_power_block">
+      <summary>Potencia LED (avanzado)</summary>
+      <div class="section-body">
+        <div class="field">
+          <label><input id="led_power_enabled" type="checkbox"> Limitar corriente estimada</label>
+          <div class="help">Protege ambas tiras con un unico factor de brillo y conserva el color.</div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field">
+            <label for="led_power_budget">Presupuesto total (mA)</label>
+            <input id="led_power_budget" type="number" min="250" max="5000" step="50">
+          </div>
+          <div class="field">
+            <label for="led_base_current">Consumo base del collar (mA)</label>
+            <input id="led_base_current" type="number" min="0" max="1500" step="10">
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field">
+            <label for="led_rgb_channel_ma">Canal R/G/B a 255 (mA)</label>
+            <input id="led_rgb_channel_ma" type="number" min="1" max="40">
+          </div>
+          <div class="field">
+            <label for="led_white_channel_ma">Canal blanco a 255 (mA)</label>
+            <input id="led_white_channel_ma" type="number" min="1" max="40">
+          </div>
+        </div>
+        <div class="help">El modelo es una estimacion conservadora, no un sensor. Los defaults de 1000/200/20/20 mA son provisionales hasta medir bateria, regulador, cableado y el lote real de SK6812.</div>
+      </div>
+    </details>
+
+    <details class="card section" id="speed_lanes_block" open>
+      <summary>Zonas de velocidad</summary>
+      <div class="section-body">
+        <div class="help">Cada zona es un tramo de velocidad con su propio efecto.
+        <strong>vel</strong> es la velocidad de la animacion y <strong>int</strong> su
+        intensidad, ambas de 0 a 255.</div>
+        <div id="lanes_container"></div>
+        <div class="help">Zona 10 activa cuando velocidad supera el umbral de Zona 9. Los efectos tambien aplican en modo Geocerca.</div>
+      </div>
+    </details>
+
+    <details class="card section" id="geofence_block" open>
+      <summary>Geocerca</summary>
+      <div class="section-body">
+        <div class="grid grid-2">
+          <div class="field">
+            <label for="fence_max">Distancia maxima (m)</label>
+            <input id="fence_max" type="number" min="50" max="5000">
+          </div>
+          <div class="field">
+            <span>Rangos</span>
+            <div id="fence_ranges" class="muted"></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" type="button" onclick="setHome()">Nuevo Home (GPS actual)</button>
+          <button class="btn danger" type="button" onclick="clearHome()">Borrar Home</button>
+        </div>
+        <div id="home_status" class="muted"></div>
+      </div>
+    </details>
+
+    <details class="card section" id="gps_block">
+      <summary>GPS calidad (avanzado)</summary>
+      <div class="section-body">
+        <div class="grid grid-2">
+          <div class="field">
+            <label for="gps_min_fix">Fix quality min (0..8)</label>
+            <input id="gps_min_fix" type="number" min="0" max="8">
+          </div>
+          <div class="field">
+            <label for="gps_min_sats">Satellites min (3..12)</label>
+            <input id="gps_min_sats" type="number" min="3" max="12">
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field">
+            <label for="gps_max_hdop">HDOP max (0.5..20)</label>
+            <input id="gps_max_hdop" type="number" step="0.1" min="0.5" max="20">
+          </div>
+          <div class="field">
+            <label for="gps_max_gga_age">Max age GGA (ms)</label>
+            <input id="gps_max_gga_age" type="number" step="100" min="500" max="10000">
+          </div>
+        </div>
+        <div class="grid grid-3">
+          <div class="field">
+            <label for="gps_min_segment">Min segment (m)</label>
+            <input id="gps_min_segment" type="number" step="0.1" min="0.5" max="20">
+          </div>
+          <div class="field">
+            <label for="gps_hdop_factor">HDOP factor</label>
+            <input id="gps_hdop_factor" type="number" step="0.1" min="0" max="5">
+          </div>
+          <div class="field">
+            <label for="gps_max_min_segment">Max min segment (m)</label>
+            <input id="gps_max_min_segment" type="number" step="0.1" min="1" max="50">
+          </div>
+        </div>
+        <div class="help">Solo se aceptan puntos con calidad suficiente para sumar distancia/tiempo.</div>
+      </div>
+    </details>
+
+    <details class="card section" id="simple_block" open>
+      <summary>Simple</summary>
+      <div class="section-body">
+        <div class="field">
+          <span id="lbl_preset">Preajuste</span>
+          <div class="preset-row" id="simple_preset_buttons" role="group" aria-labelledby="lbl_preset">
+            <button class="preset-btn" type="button" data-theme="calm">Calm</button>
+            <button class="preset-btn" type="button" data-theme="active">Active</button>
+            <button class="preset-btn" type="button" data-theme="sport">Sport</button>
+            <button class="preset-btn" type="button" data-theme="aurora">Aurora</button>
+            <button class="preset-btn" type="button" data-theme="manual">Manual</button>
+          </div>
+        </div>
+        <div class="field">
+          <span id="lbl_color">Color base</span>
+          <div class="swatch-row" id="color_swatches" role="group" aria-labelledby="lbl_color"></div>
+          <div class="help">RAINBOW, GRADIENT_WAVE y FIRE generan sus propios colores e ignoran esta eleccion.</div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field">
+            <label for="simple_theme">Tema</label>
+            <select id="simple_theme">
+              <option value="manual">Manual</option>
+              <option value="calm">Calm</option>
+              <option value="active">Active</option>
+              <option value="sport">Sport</option>
+              <option value="aurora">Aurora</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="simple_effect">Efecto</label>
+            <select id="simple_effect"></select>
+            <div class="help" id="simple_effect_hint"></div>
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="field"><label for="simple_speed">Velocidad (0..255)</label><input id="simple_speed" type="number" min="0" max="255"></div>
+          <div class="field"><label for="simple_intensity">Intensidad (0..255)</label><input id="simple_intensity" type="number" min="0" max="255"></div>
+        </div>
+        <details class="section">
+          <summary>RGB manual</summary>
+          <div class="grid grid-3 section-body">
+            <div class="field"><label for="simple_r">R</label><input id="simple_r" type="number" min="0" max="255"></div>
+            <div class="field"><label for="simple_g">G</label><input id="simple_g" type="number" min="0" max="255"></div>
+            <div class="field"><label for="simple_b">B</label><input id="simple_b" type="number" min="0" max="255"></div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <details class="card section" id="show_block" open>
+      <summary>Show</summary>
+      <div class="section-body">
+        <div class="help">Modo demo: rota efectos automaticamente. No hay parametros.</div>
+      </div>
+    </details>
+
+    <details class="card section" id="lock_section">
+      <summary>Bloqueo del portal (opcional)</summary>
+      <div class="section-body">
+        <div class="help">Desactivado de fabrica. Sirve si compartes la clave del Wi-Fi
+        y no quieres que se pueda cambiar la configuracion del collar. Ver el
+        dashboard nunca pide PIN.</div>
+        <label class="muted" for="lock_enabled"><input id="lock_enabled" type="checkbox"> Pedir un PIN para guardar cambios</label>
+        <div class="field" id="lock_pin_field" style="display:none">
+          <label for="lock_pin">PIN (4 a 8 digitos)</label>
+          <input id="lock_pin" type="password" inputmode="numeric" autocomplete="new-password" placeholder="(sin cambio)">
+        </div>
+        <div class="help">Se envia en claro por la red local. Protege de un
+        despiste, no de alguien decidido que ya este en tu Wi-Fi.</div>
+        <div class="warn">Apuntalo: si olvidas el PIN hay que reinstalar el
+        firmware por USB para quitarlo. "Restaurar defaults" no lo borra.</div>
+        <div class="actions">
+          <button class="btn" type="button" onclick="saveLock()">Guardar bloqueo</button>
+        </div>
+        <div id="lock_status" class="muted"></div>
+      </div>
+    </details>
+
+    <div class="section">
+      <div class="card action-bar">
+        <button class="btn" type="button" onclick="saveCfg()">Guardar cambios</button>
+        <button class="btn danger" type="button" onclick="resetCfg()">Restaurar defaults</button>
+      </div>
+      <a class="btn ghost" href="/">&#8592; Inicio</a>
+    </div>
+  </main>
+
+  <script>
+    // Every portal write goes through here. X-Dog-Portal is what the server's
+    // CSRF guard requires; X-Dog-Pin is empty unless the user turned on the
+    // optional lock, in which case a 401 prompts for it once per browser tab.
+    // Todo valor de cadena que acabe en innerHTML pasa por aqui. Hoy ninguno
+    // viene del dispositivo, pero el patron no debe depender de eso.
+    function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function dogPin(){try{return sessionStorage.getItem('dogPin')||'';}catch(e){return '';}}
+    async function dogPost(url,opts){
+      opts=opts||{};
+      const send=()=>fetch(url,Object.assign({},opts,{method:'POST',headers:Object.assign({'X-Dog-Portal':'1','X-Dog-Pin':dogPin()},opts.headers||{})}));
+      let r=await send();
+      if(r.status===401){
+        const pin=prompt('Portal bloqueado. Introduce el PIN:');
+        if(pin===null){return r;}
+        try{sessionStorage.setItem('dogPin',pin);}catch(e){}
+        r=await send();
+        if(r.status===401){try{sessionStorage.removeItem('dogPin');}catch(e){}}
+      }
+      return r;
+    }
+    const $ = (id) => document.getElementById(id);
+    const modeEl = $('mode');
+    const speedLanesBlock = $('speed_lanes_block');
+    const geofenceBlock = $('geofence_block');
+    const simpleBlock = $('simple_block');
+    const showBlock = $('show_block');
+    const fenceMax = $('fence_max');
+    const fenceRanges = $('fence_ranges');
+    const homeStatus = $('home_status');
+    const gpsMinFix = $('gps_min_fix');
+    const gpsMinSats = $('gps_min_sats');
+    const gpsMaxHdop = $('gps_max_hdop');
+    const gpsMaxGgaAge = $('gps_max_gga_age');
+    const gpsMinSegment = $('gps_min_segment');
+    const gpsHdopFactor = $('gps_hdop_factor');
+    const gpsMaxMinSegment = $('gps_max_min_segment');
+    const simpleTheme = $('simple_theme');
+    const simpleEffect = $('simple_effect');
+    const simpleEffectHint = $('simple_effect_hint');
+    const simpleSpeed = $('simple_speed');
+    const simpleIntensity = $('simple_intensity');
+    const simpleR = $('simple_r');
+    const simpleG = $('simple_g');
+    const simpleB = $('simple_b');
+    const brightness = $('brightness');
+    const brightnessSlider = $('brightness_slider');
+    const ledPowerEnabled = $('led_power_enabled');
+    const ledPowerBudget = $('led_power_budget');
+    const ledBaseCurrent = $('led_base_current');
+    const ledRgbChannelMa = $('led_rgb_channel_ma');
+    const ledWhiteChannelMa = $('led_white_channel_ma');
+    const dayModeEnabled = $('day_mode_enabled');
+    const statusEl = $('status');
+    const errorsEl = $('errors');
+    const saveBtn = $('save_btn');
+    const resetBtn = $('reset_btn');
+    const scenesBlock = $('scenes_block');
+
+    // Seventy inputs, two exit links and no autosave: without this, one stray
+    // tap on "Inicio" throws away everything the user just set up. The lock
+    // section is excluded because it has its own save button and its own state.
+    let dirty = false;
+    let sceneDirty = false;
+    function markDirty(){ dirty = true; }
+    function markClean(){ dirty = false; }
+    function markSceneDirty(){ sceneDirty = true; updateSceneActions(); }
+    function markSceneClean(){ sceneDirty = false; updateSceneActions(); }
+    function confirmLeave(){
+      return (!dirty && !sceneDirty) || confirm('Tienes cambios sin guardar. Si sales ahora se pierden.');
+    }
+    document.querySelector('main').addEventListener('input', (e)=>{
+      if (!e.target.closest('#lock_section') && !e.target.closest('#scenes_block')) markDirty();
+    });
+    document.querySelector('main').addEventListener('change', (e)=>{
+      if (!e.target.closest('#lock_section') && !e.target.closest('#scenes_block')) markDirty();
+    });
+    document.querySelectorAll('a[href="/"]').forEach(a=>{
+      a.addEventListener('click',(e)=>{ if(!confirmLeave()) e.preventDefault(); });
+    });
+    window.addEventListener('beforeunload',(e)=>{
+      if (!dirty && !sceneDirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
+    const ZONE_COLORS = ['#00F0F0','#00F08C','#00F000','#64F000','#F0F000','#F0B400','#F07800','#F05000','#F02800','#F00000'];
+    const ZONE_LABELS = ['Quieto','Paseo','Caminar','Ritmo','Trote','Carrera','Galope','Sprint','Sprint+','Maximo'];
+    let EFFECTS = [];
+    let PALETTES = [];
+    let LED_CAPABILITIES = null;
+    let PALETTE_NONE_ID = null;
+    let SCENE_DATA = null;
+    let selectedSceneId = 0;
+    let sceneBusy = false;
+    let previewTimer = null;
+
+    const SIMPLE_THEMES = {
+      manual:null,
+      calm:{effect:2,speed:60,intensity:90,r:0,g:60,b:60},
+      active:{effect:4,speed:120,intensity:140,r:60,g:45,b:0},
+      sport:{effect:7,speed:160,intensity:180,r:60,g:0,b:0},
+      aurora:{effect:11,speed:120,intensity:180,r:0,g:180,b:120}
+    };
+
+    const COLOR_PRESETS = [
+      {name:'Teal',r:0,g:60,b:60},{name:'Green',r:0,g:120,b:40},
+      {name:'Amber',r:80,g:48,b:0},{name:'Red',r:90,g:0,b:0},
+      {name:'Blue',r:0,g:40,b:120},{name:'White',r:120,g:120,b:120}
+    ];
+
+    const MODE_HELP = {
+      speed:'Usa rangos de velocidad para elegir efectos.',
+      geofence:'Usa distancia al Home. Requiere GPS y home definido.',
+      simple:'Un efecto unico para toda la tira.',
+      show:'Demo automatico de efectos.'
+    };
+
+    const ERROR_MAP = {
+      brightness:{field:'brightness',msg:'Brillo fuera de rango (1..255).'},
+      led_power:{field:'led_power_block',msg:'Parametros de potencia LED invalidos.'},
+      mode:{field:'mode',msg:'Modo invalido.'},
+      fence_max:{field:'fence_max',msg:'Distancia de geocerca fuera de rango (50..5000 m).'},
+      ranges:{field:'speed_lanes_block',msg:'Rangos requeridos.'},
+      'ranges value':{field:'speed_lanes_block',msg:'Rangos deben ser > 0.'},
+      'ranges order':{field:'speed_lanes_block',msg:'Rangos deben ser ascendentes.'},
+      effects:{field:'speed_lanes_block',msg:'Efectos incompletos.'},
+      'effect values':{field:'speed_lanes_block',msg:'Valores de efecto invalidos.'},
+      'effect id':{field:'speed_lanes_block',msg:'ID de efecto invalido.'},
+      single:{field:'simple_block',msg:'Bloque simple invalido.'},
+      'single values':{field:'simple_block',msg:'Valores simple invalidos.'},
+      gps:{field:'gps_block',msg:'Parametros GPS invalidos.'},
+      day_mode:{field:'day_mode_enabled',msg:'Modo DIA invalido.'}
+    };
+
+    function fillEffectSelect(sel){
+      sel.innerHTML = EFFECTS.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('');
+    }
+
+    function effectMeta(id){
+      return EFFECTS.find(e=>e.id===parseInt(id,10)) || null;
+    }
+
+    function controlSummary(effect){
+      if (!effect) return '';
+      const names = [];
+      if (effect.controls && effect.controls.color) names.push('color base');
+      if (effect.controls && effect.controls.speed) names.push('velocidad');
+      if (effect.controls && effect.controls.intensity) names.push('intensidad');
+      return (names.length ? 'Usa ' + names.join(', ') : 'Sin controles') +
+             ' · seguridad ' + (effect.safety || 'unknown');
+    }
+
+    function updateLaneControls(i){
+      const a = effectMeta($('ln'+i+'_eff').value);
+      const advanced = $('ln'+i+'_adv').style.display !== 'none';
+      const b = advanced ? effectMeta($('ln'+i+'_effb').value) : a;
+      $('ln'+i+'_spd').disabled = !((a && a.controls.speed) || (b && b.controls.speed));
+      $('ln'+i+'_int').disabled = !((a && a.controls.intensity) || (b && b.controls.intensity));
+    }
+
+    function updateSimpleControls(){
+      const effect = effectMeta(simpleEffect.value);
+      simpleSpeed.disabled = !(effect && effect.controls.speed);
+      simpleIntensity.disabled = !(effect && effect.controls.intensity);
+      const usesColor = !!(effect && effect.controls.color);
+      [simpleR,simpleG,simpleB].forEach(el=>el.disabled=!usesColor);
+      document.querySelectorAll('.swatch').forEach(el=>el.disabled=!usesColor);
+      simpleEffectHint.textContent = controlSummary(effect);
+    }
+
+    function buildSpeedLanes(){
+      let html = '';
+      for (let i=1;i<=10;i++){
+        const color = ZONE_COLORS[i-1];
+        const lbl = ZONE_LABELS[i-1];
+        const isLast = (i===10);
+        let rangeHtml;
+        if (i===1){
+          rangeHtml = `0 &ndash; <input id="ln${i}_thr" aria-label="Z${i} umbral km/h" type="number" step="0.1" min="0.1" max="40" placeholder="2.0"> km/h`;
+        } else if (!isLast){
+          rangeHtml = `<span id="ln${i}_prev" class="sl-prev">?</span> &ndash; <input id="ln${i}_thr" aria-label="Z${i} umbral km/h" type="number" step="0.1" min="0.1" max="40"> km/h`;
+        } else {
+          rangeHtml = `&gt; <span id="ln${i}_prev" class="sl-prev">?</span> km/h`;
+        }
+        html += `<div class="speed-lane"><div class="sl-main"><div class="sl-meta"><span class="sl-dot" style="background:${esc(color)};box-shadow:0 0 6px ${esc(color)}88"></span><span class="sl-name" style="color:${esc(color)}">Z${i}</span><span class="sl-lbl">${esc(lbl)}</span><span class="sl-range">${rangeHtml}</span></div><div class="sl-ctrls"><select id="ln${i}_eff" aria-label="Z${i} efecto tira A"></select><span class="ctl-grp"><span class="ctl-lbl">vel</span><input id="ln${i}_spd" aria-label="Z${i} velocidad" type="number" min="0" max="255"></span><span class="ctl-grp"><span class="ctl-lbl">int</span><input id="ln${i}_int" aria-label="Z${i} intensidad" type="number" min="0" max="255"></span></div></div><div class="sl-adv" id="ln${i}_adv" style="display:none"><label for="ln${i}_effb">Tira B:</label><select id="ln${i}_effb"></select></div><button class="sl-adv-btn" type="button" onclick="toggleLaneAdv(${i})" id="ln${i}_advbtn">+ tira B independiente</button></div>`;
+      }
+      $('lanes_container').innerHTML = html;
+      for (let i=1;i<=10;i++){
+        fillEffectSelect($('ln'+i+'_eff'));
+        fillEffectSelect($('ln'+i+'_effb'));
+        $('ln'+i+'_eff').onchange = ()=>updateLaneControls(i);
+        $('ln'+i+'_effb').onchange = ()=>updateLaneControls(i);
+        if (i<10){ $('ln'+i+'_thr').oninput = updateLanePrevs; }
+      }
+    }
+
+    function updateLanePrevs(){
+      for (let i=2;i<=10;i++){
+        const prev = $('ln'+(i-1)+'_thr');
+        const disp = $('ln'+i+'_prev');
+        if (disp && prev) disp.textContent = prev.value || '?';
+      }
+    }
+
+    function toggleLaneAdv(i){
+      markDirty();
+      const adv = $('ln'+i+'_adv');
+      const btn = $('ln'+i+'_advbtn');
+      const vis = adv.style.display !== 'none';
+      adv.style.display = vis ? 'none' : 'flex';
+      btn.textContent = vis ? '+ tira B independiente' : '- tira B independiente';
+      if (!vis) $('ln'+i+'_effb').value = $('ln'+i+'_eff').value;
+      updateLaneControls(i);
+    }
+
+    function applyTheme(key){
+      const t = SIMPLE_THEMES[key];
+      if (!t) return;
+      simpleEffect.value = t.effect;
+      simpleSpeed.value = t.speed;
+      simpleIntensity.value = t.intensity;
+      simpleR.value = t.r;
+      simpleG.value = t.g;
+      simpleB.value = t.b;
+      updateSwatchSelection();
+      updateSimpleControls();
+    }
+
+    function readSimple(){
+      return {
+        effect: parseInt(simpleEffect.value || '0',10),
+        speed: parseInt(simpleSpeed.value || '0',10),
+        intensity: parseInt(simpleIntensity.value || '0',10),
+        r: parseInt(simpleR.value || '0',10),
+        g: parseInt(simpleG.value || '0',10),
+        b: parseInt(simpleB.value || '0',10)
+      };
+    }
+
+    function themeMatches(a,b){
+      return a.effect===b.effect&&a.speed===b.speed&&a.intensity===b.intensity&&
+             a.r===b.r&&a.g===b.g&&a.b===b.b;
+    }
+
+    function updateThemeSelection(){
+      const current = readSimple();
+      let match = 'manual';
+      for (const key in SIMPLE_THEMES){
+        if (key === 'manual') continue;
+        if (themeMatches(current,SIMPLE_THEMES[key])){ match = key; break; }
+      }
+      simpleTheme.value = match;
+      document.querySelectorAll('[data-theme]').forEach(btn=>btn.classList.toggle('active',btn.dataset.theme===match));
+      updateSwatchSelection();
+      updateSimpleControls();
+    }
+
+    function buildColorSwatches(){
+      const el=$('color_swatches');
+      if(!el) return;
+      el.innerHTML = COLOR_PRESETS.map(c=>`<button class="swatch" type="button" title="${esc(c.name)}" data-r="${c.r}" data-g="${c.g}" data-b="${c.b}" style="background:rgb(${c.r},${c.g},${c.b})"></button>`).join('');
+      document.querySelectorAll('.swatch').forEach(btn=>{
+        btn.onclick=()=>{
+          markDirty();
+          simpleR.value=btn.dataset.r;
+          simpleG.value=btn.dataset.g;
+          simpleB.value=btn.dataset.b;
+          simpleTheme.value='manual';
+          updateThemeSelection();
+        };
+      });
+    }
+
+    function updateSwatchSelection(){
+      const cur=readSimple();
+      document.querySelectorAll('.swatch').forEach(btn=>{
+        const active=cur.r===parseInt(btn.dataset.r,10)&&cur.g===parseInt(btn.dataset.g,10)&&cur.b===parseInt(btn.dataset.b,10);
+        btn.classList.toggle('active',active);
+      });
+    }
+
+    function updateModeCards(){
+      document.querySelectorAll('[data-mode-card]').forEach(btn=>btn.classList.toggle('active',btn.dataset.modeCard===modeEl.value));
+    }
+
+    function selectMode(mode){
+      if (modeEl.value !== mode) markDirty();
+      modeEl.value=mode;
+      updateModeVisibility();
+    }
+
+    function syncBrightness(source){
+      let v = parseInt(source.value,10);
+      if (isNaN(v)) v = 1;
+      v = Math.max(1,Math.min(255,v));
+      brightness.value = v;
+      brightnessSlider.value = v;
+    }
+
+    function updateFenceRanges(){
+      const max = parseFloat(fenceMax.value || '0');
+      if (!max || max <= 0){ fenceRanges.innerText=''; return; }
+      const step = max / 10;
+      let html = '';
+      for (let i=1;i<=10;i++){
+        const a = ((i-1)*step).toFixed(1);
+        const b = (i*step).toFixed(1);
+        html += `R${i}: ${a} - ${b} m<br>`;
+      }
+      fenceRanges.innerHTML = html;
+    }
+
+    function updateModeVisibility(){
+      const mode = modeEl.value;
+      speedLanesBlock.style.display = (mode === 'speed' || mode === 'geofence') ? 'block' : 'none';
+      geofenceBlock.style.display = (mode === 'geofence') ? 'block' : 'none';
+      simpleBlock.style.display = (mode === 'simple') ? 'block' : 'none';
+      showBlock.style.display = (mode === 'show') ? 'block' : 'none';
+      $('mode_help').innerText = MODE_HELP[mode] || '';
+      updateModeCards();
+    }
+
+    function loadHome(){
+      fetch('/api/home').then(r=>r.json()).then(h=>{
+        if(!h.home_set){
+          homeStatus.innerText = h.gps_fix ? 'Home: no definido (auto 10s con fix)' : 'Home: no definido (sin GPS)';
+          return;
+        }
+        let src = h.home_source || 'auto';
+        let dist = h.distance_m >= 0 ? ` | dist ${h.distance_m.toFixed(1)} m` : '';
+        homeStatus.innerText = `Home (${src}): ${h.home_lat.toFixed(6)}, ${h.home_lon.toFixed(6)}${dist}`;
+      }).catch(()=>{homeStatus.innerText='Home: error';});
+    }
+
+    function intVal(el,fallback){
+      const n = parseInt(el.value,10);
+      return isNaN(n) ? fallback : n;
+    }
+
+    function floatVal(el,fallback){
+      const n = parseFloat(el.value);
+      return isNaN(n) ? fallback : n;
+    }
+
+    function clearErrors(){
+      errorsEl.innerHTML = '';
+      firstInvalid = null;
+      document.querySelectorAll('.invalid').forEach(el=>el.classList.remove('invalid'));
+    }
+
+    function showErrors(list){
+      if (!list.length) return;
+      const head = list.length === 1 ? 'No se pudo guardar:' : ('No se pudo guardar (' + list.length + ' problemas):');
+      errorsEl.innerHTML = `<div><strong>${esc(head)}</strong></div>` + list.map(msg=>`<div>${esc(msg)}</div>`).join('');
+    }
+
+    // Errors name the field that is wrong, not the card it lives in. With ten
+    // zones and seventy inputs, "algo esta mal aqui dentro" is not a usable
+    // message -- the user has to compare nine numbers by hand to find it.
+    let firstInvalid = null;
+
+    function validateConfig(cfg){
+      const errs = [];
+      function addError(field,msg){
+        errs.push(msg);
+        const el = $(field);
+        if (el){
+          el.classList.add('invalid');
+          if (!firstInvalid) firstInvalid = el;
+        }
+      }
+
+      if (cfg.led.brightness < 1 || cfg.led.brightness > 255) addError('brightness','Brillo fuera de rango (1..255).');
+      const p = cfg.led.power || {};
+      if (typeof p.enabled !== 'boolean') addError('led_power_enabled','Estado del limitador LED invalido.');
+      if (p.budget_ma < 250 || p.budget_ma > 5000) addError('led_power_budget','Presupuesto LED fuera de rango (250..5000 mA).');
+      if (p.base_current_ma < 0 || p.base_current_ma > 1500) addError('led_base_current','Corriente base fuera de rango (0..1500 mA).');
+      if (p.base_current_ma >= p.budget_ma) addError('led_base_current','La corriente base debe ser menor que el presupuesto total.');
+      if (p.rgb_channel_ma < 1 || p.rgb_channel_ma > 40) addError('led_rgb_channel_ma','Corriente RGB fuera de rango (1..40 mA).');
+      if (p.white_channel_ma < 1 || p.white_channel_ma > 40) addError('led_white_channel_ma','Corriente blanca fuera de rango (1..40 mA).');
+      if (!cfg.day_mode || typeof cfg.day_mode.enabled !== 'boolean') addError('day_mode_enabled','Modo DIA invalido.');
+
+      const ranges = cfg.speed_ranges_kph;
+      if (ranges.length !== 9){
+        addError('speed_lanes_block','Rangos requeridos.');
+      } else {
+        for (let i=0;i<ranges.length;i++){
+          if (!(ranges[i] > 0)) addError('ln'+(i+1)+'_thr','Z'+(i+1)+': el umbral debe ser mayor que 0.');
+        }
+        for (let i=1;i<ranges.length;i++){
+          if (!(ranges[i] > ranges[i-1])) addError('ln'+(i+1)+'_thr','Z'+(i+1)+' debe ser mayor que Z'+i+' ('+ranges[i-1]+' km/h).');
+        }
+      }
+
+      if (cfg.fence_max_m < 50 || cfg.fence_max_m > 5000) addError('fence_max','Distancia geocerca fuera de rango (50..5000 m).');
+
+      const g = cfg.gps || {};
+      if (g.min_fix_quality < 0 || g.min_fix_quality > 8) addError('gps_min_fix','Calidad de fix minima fuera de rango (0..8).');
+      if (g.min_sats < 3 || g.min_sats > 12) addError('gps_min_sats','Satelites minimos fuera de rango (3..12).');
+      if (!(g.max_hdop >= 0.5 && g.max_hdop <= 20)) addError('gps_max_hdop','HDOP maximo fuera de rango (0.5..20).');
+      if (g.max_gga_age_ms < 500 || g.max_gga_age_ms > 10000) addError('gps_max_gga_age','Edad maxima GGA fuera de rango (500..10000 ms).');
+      if (!(g.min_segment_m >= 0.5 && g.min_segment_m <= 20)) addError('gps_min_segment','Segmento minimo fuera de rango (0.5..20 m).');
+      if (!(g.hdop_factor >= 0 && g.hdop_factor <= 5)) addError('gps_hdop_factor','Factor HDOP fuera de rango (0..5).');
+      if (!(g.max_min_segment_m >= 1 && g.max_min_segment_m <= 50)) addError('gps_max_min_segment','Segmento minimo maximo fuera de rango (1..50 m).');
+      if (g.min_segment_m > g.max_min_segment_m) addError('gps_min_segment','El segmento minimo no puede superar su tope.');
+
+      for (let i=1;i<=10;i++){
+        const e = cfg.effects['range'+i];
+        if (!e){ addError('speed_lanes_block','Efectos incompletos.'); break; }
+        if (!effectMeta(e.a)) addError('ln'+i+'_eff','Z'+i+': efecto de tira A invalido.');
+        if (!effectMeta(e.b)) addError('ln'+i+'_effb','Z'+i+': efecto de tira B invalido.');
+        if (e.speed < 0 || e.speed > 255) addError('ln'+i+'_spd','Z'+i+': velocidad fuera de rango (0..255).');
+        if (e.intensity < 0 || e.intensity > 255) addError('ln'+i+'_int','Z'+i+': intensidad fuera de rango (0..255).');
+      }
+
+      const s = cfg.single;
+      if (!effectMeta(s.effect)) addError('simple_effect','Efecto simple invalido.');
+      if (s.speed < 0 || s.speed > 255) addError('simple_speed','Velocidad simple fuera de rango (0..255).');
+      if (s.intensity < 0 || s.intensity > 255) addError('simple_intensity','Intensidad simple fuera de rango (0..255).');
+      if (s.rgb.r < 0 || s.rgb.r > 255) addError('simple_r','R fuera de rango (0..255).');
+      if (s.rgb.g < 0 || s.rgb.g > 255) addError('simple_g','G fuera de rango (0..255).');
+      if (s.rgb.b < 0 || s.rgb.b > 255) addError('simple_b','B fuera de rango (0..255).');
+
+      if (errs.length) showErrors(errs);
+      return errs.length === 0;
+    }
+
+    // The page is several screens tall and there is a save button at each end.
+    // Rendering the error next to the top button and leaving the viewport where
+    // it was reads, from the bottom of the page, as "the button does nothing".
+    function revealFirstError(){
+      if (!firstInvalid) return;
+      const host = firstInvalid.closest('details');
+      if (host && !host.open) host.open = true;
+      try{ firstInvalid.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){ firstInvalid.scrollIntoView(); }
+      try{ firstInvalid.focus({preventScroll:true}); }catch(e){}
+    }
+
+    function handleBackendError(reason){
+      const e = ERROR_MAP[reason];
+      if (!e){
+        showErrors(['Error guardando.']);
+        return;
+      }
+      const el = $(e.field);
+      if (el){
+        el.classList.add('invalid');
+        if (!firstInvalid) firstInvalid = el;
+      }
+      showErrors([e.msg]);
+    }
+
+    function buildPayload(){
+      const cfg = {
+        version:6,
+        mode: modeEl.value,
+        fence_max_m: intVal(fenceMax,300),
+        led:{
+          brightness: intVal(brightness,1),
+          power:{
+            enabled: !!ledPowerEnabled.checked,
+            budget_ma: intVal(ledPowerBudget,1000),
+            base_current_ma: intVal(ledBaseCurrent,200),
+            rgb_channel_ma: intVal(ledRgbChannelMa,20),
+            white_channel_ma: intVal(ledWhiteChannelMa,20)
+          }
+        },
+        day_mode:{enabled: !!dayModeEnabled.checked},
+        gps:{
+          min_fix_quality: intVal(gpsMinFix,1),
+          min_sats: intVal(gpsMinSats,6),
+          max_hdop: floatVal(gpsMaxHdop,2.5),
+          max_gga_age_ms: intVal(gpsMaxGgaAge,2000),
+          min_segment_m: floatVal(gpsMinSegment,3.0),
+          hdop_factor: floatVal(gpsHdopFactor,2.0),
+          max_min_segment_m: floatVal(gpsMaxMinSegment,10.0)
+        },
+        speed_ranges_kph: [1,2,3,4,5,6,7,8,9].map(i=>floatVal($('ln'+i+'_thr'),0)),
+        effects:{},
+        single:{
+          effect: intVal(simpleEffect,0),
+          speed: intVal(simpleSpeed,0),
+          intensity: intVal(simpleIntensity,0),
+          rgb:{r:intVal(simpleR,0), g:intVal(simpleG,0), b:intVal(simpleB,0)}
+        }
+      };
+      for (let i=1;i<=10;i++){
+        const advVis = $('ln'+i+'_adv').style.display !== 'none';
+        const effA = intVal($('ln'+i+'_eff'),0);
+        cfg.effects['range'+i] = {
+          a: effA,
+          b: advVis ? intVal($('ln'+i+'_effb'),0) : effA,
+          speed: intVal($('ln'+i+'_spd'),0),
+          intensity: intVal($('ln'+i+'_int'),0)
+        };
+      }
+      return cfg;
+    }
+
+    // Save is reachable from a button at each end of a page several screens
+    // tall, so every outcome has to leave a mark somewhere the user is looking.
+    // The sticky bar is always on screen; the error list is not.
+    let statusTimer = null;
+    function setStatus(msg, tone){
+      statusEl.innerText = msg || '';
+      statusEl.className = tone === 'error' ? 'error' : (tone === 'warn' ? 'warn' : 'muted');
+      if (statusTimer){ clearTimeout(statusTimer); statusTimer = null; }
+      if (msg && tone !== 'error'){
+        statusTimer = setTimeout(()=>{ statusEl.innerText=''; statusTimer=null; }, 4000);
+      }
+    }
+
+    async function saveCfg(){
+      clearErrors();
+      const cfg = buildPayload();
+      if (!validateConfig(cfg)){
+        setStatus('Revisa los campos marcados.', 'error');
+        revealFirstError();
+        return;
+      }
+      setStatus('Guardando...', 'muted');
+      if (saveBtn) saveBtn.disabled = true;
+      try{
+        const r = await dogPost('/api/config',{headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)}).then(r=>r.json());
+        if (r.status !== 'ok'){
+          handleBackendError(r.reason);
+          setStatus('No se pudo guardar.', 'error');
+          revealFirstError();
+          return;
+        }
+        markClean();
+        setStatus(r.wifi_restart ? 'Guardado — reiniciando el hotspot' : 'Guardado', 'muted');
+      }catch(e){
+        setStatus('Sin respuesta del collar. No se guardo.', 'error');
+      }finally{
+        if (saveBtn) saveBtn.disabled = false;
+      }
+    }
+
+    function setHome(){
+      dogPost('/api/home/set').then(r=>r.json()).then(r=>{
+        homeStatus.innerText = r.status==='ok' ? 'Home actualizado con la posicion actual.' : 'No se pudo fijar el Home: hace falta senal GPS.';
+        loadHome();
+      }).catch(()=>{homeStatus.innerText='Sin respuesta del collar.';});
+    }
+
+    function clearHome(){
+      // Destructive and not trivially reversible: setting a new Home needs the
+      // user to be physically back at the spot with a GPS fix.
+      if (!confirm('Borrar el Home? El modo Geocerca dejara de funcionar hasta que definas uno nuevo, y para eso hay que estar en el sitio con senal GPS.')) return;
+      dogPost('/api/home/clear').then(r=>r.json()).then(r=>{
+        homeStatus.innerText = r.status==='ok' ? 'Home borrado.' : 'No se pudo borrar el Home.';
+        loadHome();
+      }).catch(()=>{homeStatus.innerText='Sin respuesta del collar.';});
+    }
+
+    function resetCfg(){
+      if (!confirm('Restaurar los valores de fabrica? Se pierde la configuracion actual de LEDs, zonas y GPS.')) return;
+      if (resetBtn) resetBtn.disabled = true;
+      setStatus('Restaurando...', 'muted');
+      dogPost('/api/config/reset').then(r=>r.json()).then(async r=>{
+        if (r.status !== 'ok'){
+          setStatus('No se pudo restaurar.', 'error');
+          return;
+        }
+        // Without this the form keeps showing the pre-reset values, and the next
+        // "Guardar cambios" writes them straight back, undoing the reset without
+        // the user ever seeing it happen.
+        await loadConfig();
+        markClean();
+        setStatus('Valores de fabrica restaurados', 'muted');
+      }).catch(()=>{setStatus('Sin respuesta del collar.', 'error');})
+        .finally(()=>{if(resetBtn) resetBtn.disabled=false;});
+    }
+
+    const lockEnabled = document.getElementById('lock_enabled');
+    const lockPin = document.getElementById('lock_pin');
+    const lockPinField = document.getElementById('lock_pin_field');
+    const lockStatus = document.getElementById('lock_status');
+
+    function updateLockFields(){
+      lockPinField.style.display = lockEnabled.checked ? '' : 'none';
+    }
+
+    async function loadLock(){
+      try{
+        const r = await fetch('/api/lock').then(r=>r.json());
+        lockEnabled.checked = !!r.enabled;
+        lockPin.placeholder = r.enabled ? '(sin cambio)' : '';
+        lockStatus.innerText = r.enabled ? 'Bloqueo activo' : 'Bloqueo desactivado';
+      }catch(e){
+        lockStatus.innerText = '';
+      }
+      updateLockFields();
+    }
+
+    async function saveLock(){
+      const enable = lockEnabled.checked;
+      const pin = lockPin.value;
+      // An empty PIN while already enabled means "keep the current one", so
+      // there is nothing to send and nothing to change.
+      if (enable && pin.length === 0){
+        lockStatus.innerText = 'Sin cambios: escribe un PIN nuevo para cambiarlo.';
+        return;
+      }
+      if (enable && !/^[0-9]{4,8}$/.test(pin)){
+        lockStatus.innerText = 'El PIN debe tener entre 4 y 8 digitos.';
+        return;
+      }
+      if (!enable && !confirm('Quitar el bloqueo del portal?')) return;
+      lockStatus.innerText = 'Guardando...';
+      try{
+        const res = await dogPost('/api/lock',{headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enable,pin:pin})});
+        const r = await res.json();
+        if (!res.ok || r.status !== 'ok'){
+          lockStatus.innerText = r.reason === 'pin'
+            ? 'El PIN debe tener entre 4 y 8 digitos.'
+            : (r.reason === 'locked'
+                ? 'Hace falta el PIN actual para cambiar el bloqueo.'
+                : 'No se pudo guardar el bloqueo.');
+          return;
+        }
+        // The new PIN becomes this tab's credential so the next save works.
+        try{ enable ? sessionStorage.setItem('dogPin',pin) : sessionStorage.removeItem('dogPin'); }catch(e){}
+        lockPin.value = '';
+        await loadLock();
+      }catch(e){
+        lockStatus.innerText = 'Sin respuesta del collar. No se guardo.';
+      }
+    }
+
+    lockEnabled.onchange = updateLockFields;
+    loadLock();
+
+    modeEl.onchange = updateModeVisibility;
+    document.querySelectorAll('[data-mode-card]').forEach(btn=>btn.onclick=()=>selectMode(btn.dataset.modeCard));
+    document.querySelectorAll('[data-theme]').forEach(btn=>btn.onclick=()=>{ markDirty(); simpleTheme.value=btn.dataset.theme; if(btn.dataset.theme !== 'manual') applyTheme(btn.dataset.theme); updateThemeSelection(); });
+    simpleTheme.onchange = () => { if (simpleTheme.value !== 'manual') applyTheme(simpleTheme.value); updateThemeSelection(); };
+    simpleEffect.onchange = ()=>{ updateThemeSelection(); updateSimpleControls(); };
+    [simpleSpeed,simpleIntensity,simpleR,simpleG,simpleB].forEach(el=>el.oninput=updateThemeSelection);
+    brightnessSlider.oninput = () => syncBrightness(brightnessSlider);
+    brightness.oninput = () => syncBrightness(brightness);
+    fenceMax.oninput = updateFenceRanges;
+
+    function applyConfig(c){
+      brightness.value = c.led.brightness;
+      brightnessSlider.value = c.led.brightness;
+      const p = c.led.power || {};
+      ledPowerEnabled.checked = p.enabled !== undefined ? !!p.enabled : true;
+      ledPowerBudget.value = p.budget_ma !== undefined ? p.budget_ma : 1000;
+      ledBaseCurrent.value = p.base_current_ma !== undefined ? p.base_current_ma : 200;
+      ledRgbChannelMa.value = p.rgb_channel_ma !== undefined ? p.rgb_channel_ma : 20;
+      ledWhiteChannelMa.value = p.white_channel_ma !== undefined ? p.white_channel_ma : 20;
+      modeEl.value = c.mode || 'speed';
+      const day = c.day_mode || {};
+      dayModeEnabled.checked = !!day.enabled;
+      fenceMax.value = c.fence_max_m || 300;
+      const g = c.gps || {};
+      gpsMinFix.value = (g.min_fix_quality !== undefined ? g.min_fix_quality : 1);
+      gpsMinSats.value = (g.min_sats !== undefined ? g.min_sats : 6);
+      gpsMaxHdop.value = (g.max_hdop !== undefined ? g.max_hdop : 2.5);
+      gpsMaxGgaAge.value = (g.max_gga_age_ms !== undefined ? g.max_gga_age_ms : 2000);
+      gpsMinSegment.value = (g.min_segment_m !== undefined ? g.min_segment_m : 3.0);
+      gpsHdopFactor.value = (g.hdop_factor !== undefined ? g.hdop_factor : 2.0);
+      gpsMaxMinSegment.value = (g.max_min_segment_m !== undefined ? g.max_min_segment_m : 10.0);
+      for (let i=1;i<=9;i++){ $('ln'+i+'_thr').value = c.speed_ranges_kph[i-1]; }
+      for (let i=1;i<=10;i++){
+        const e = c.effects['range'+i];
+        $('ln'+i+'_eff').value = e.a;
+        $('ln'+i+'_effb').value = e.b;
+        $('ln'+i+'_spd').value = e.speed;
+        $('ln'+i+'_int').value = e.intensity;
+        if (e.a !== e.b){
+          $('ln'+i+'_adv').style.display = 'flex';
+          $('ln'+i+'_advbtn').textContent = '- tira B independiente';
+        }
+        updateLaneControls(i);
+      }
+      updateLanePrevs();
+      const s = c.single || {};
+      const rgb = s.rgb || {};
+      simpleEffect.value = (s.effect !== undefined ? s.effect : 0);
+      simpleSpeed.value = (s.speed !== undefined ? s.speed : 80);
+      simpleIntensity.value = (s.intensity !== undefined ? s.intensity : 140);
+      simpleR.value = (rgb.r !== undefined ? rgb.r : 0);
+      simpleG.value = (rgb.g !== undefined ? rgb.g : 60);
+      simpleB.value = (rgb.b !== undefined ? rgb.b : 60);
+      updateModeVisibility();
+      updateFenceRanges();
+      updateThemeSelection();
+      updateSwatchSelection();
+      updateSimpleControls();
+      loadHome();
+    }
+
+    // Without a failure path a collar that is rebooting or out of range leaves
+    // an empty form on screen with nothing to explain it.
+    async function loadConfig(){
+      try{
+        const r = await fetch('/api/config');
+        if (!r.ok) throw new Error('http ' + r.status);
+        applyConfig(await r.json());
+        clearErrors();
+        markClean();
+        return true;
+      }catch(e){
+        errorsEl.innerHTML = '<div><strong>No se pudo leer la configuracion del collar.</strong></div>' +
+          '<div>Comprueba que sigues conectado al hotspot y reintenta.</div>' +
+          '<div class="actions"><button class="btn" type="button" onclick="loadConfig()">Reintentar</button></div>';
+        setStatus('Sin configuracion cargada.', 'error');
+        return false;
+      }
+    }
+
+    function noPalette(){
+      return {id:PALETTE_NONE_ID,key:'none',name:'Sin paleta',cyclic:false,dynamic:false,stops_rgbw:[]};
+    }
+
+    function paletteMeta(id){
+      id = parseInt(id,10);
+      return id === PALETTE_NONE_ID ? noPalette() : (PALETTES.find(p=>p.id===id) || null);
+    }
+
+    function sceneEntry(id){
+      return SCENE_DATA && Array.isArray(SCENE_DATA.scenes)
+        ? SCENE_DATA.scenes.find(s=>s.id===parseInt(id,10)) || null
+        : null;
+    }
+
+    function clampByte(value){
+      const n = Number(value);
+      return Math.max(0,Math.min(255,Number.isFinite(n) ? Math.round(n) : 0));
+    }
+
+    function rgbHex(rgb){
+      return '#' + ['r','g','b'].map(k=>clampByte(rgb && rgb[k]).toString(16).padStart(2,'0')).join('');
+    }
+
+    function hexRgb(value){
+      const m = /^#([0-9a-f]{6})$/i.exec(value || '');
+      const n = m ? parseInt(m[1],16) : 0;
+      return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+    }
+
+    function utf8Bytes(value){
+      if (window.TextEncoder) return new TextEncoder().encode(value).length;
+      return unescape(encodeURIComponent(value)).length;
+    }
+
+    function effectOptionLabel(effect){
+      return effect.name + ' · ' + (effect.safety || 'unknown');
+    }
+
+    function fillSceneEffectSelect(select){
+      select.replaceChildren();
+      EFFECTS.forEach(effect=>{
+        const option = document.createElement('option');
+        option.value = String(effect.id);
+        option.textContent = effectOptionLabel(effect);
+        select.appendChild(option);
+      });
+    }
+
+    function paletteOptions(effect){
+      if (!effect || effect.palette_mode === 'none') return [noPalette()];
+      if (effect.palette_mode === 'internal') {
+        const internal = paletteMeta(effect.default_palette_id);
+        return internal ? [internal] : [];
+      }
+      return PALETTES.slice();
+    }
+
+    function paletteRgbStops(palette){
+      const base = hexRgb($('scene_base_color').value);
+      const accent = hexRgb($('scene_accent_color').value);
+      if (!palette || palette.id === 255) return [base];
+      if (palette.dynamic) return [base,accent];
+      const stops = Array.isArray(palette.stops_rgbw) ? palette.stops_rgbw : [];
+      return stops.length ? stops.map(stop=>({
+        r:clampByte((stop.r||0)+(stop.w||0)),
+        g:clampByte((stop.g||0)+(stop.w||0)),
+        b:clampByte((stop.b||0)+(stop.w||0))
+      })) : [base];
+    }
+
+    function paletteGradient(palette){
+      const stops = paletteRgbStops(palette);
+      const colors = stops.map((rgb,index)=>{
+        const pct = stops.length < 2 ? 0 : Math.round(index*100/(stops.length-1));
+        return `${rgbHex(rgb)} ${pct}%`;
+      });
+      if (colors.length === 1) colors.push(colors[0].replace(' 0%',' 100%'));
+      return `linear-gradient(90deg,${colors.join(',')})`;
+    }
+
+    function renderPaletteRack(branch, options, selectedId){
+      const rack = $('scene_palette_choices_'+branch);
+      rack.replaceChildren();
+      options.forEach(palette=>{
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'palette-chip';
+        button.dataset.paletteId = String(palette.id);
+        button.setAttribute('aria-pressed',String(palette.id===selectedId));
+        button.disabled = options.length === 1 || (branch === 'b' && $('scene_mirror').checked);
+        const sample = document.createElement('span');
+        sample.className = 'palette-sample';
+        sample.style.background = paletteGradient(palette);
+        sample.setAttribute('aria-hidden','true');
+        const name = document.createElement('span');
+        name.textContent = palette.name;
+        button.append(sample,name);
+        button.addEventListener('click',()=>{
+          $('scene_palette_'+branch).value = String(palette.id);
+          if (branch === 'a' && $('scene_mirror').checked) syncMirroredBranch();
+          renderPaletteRack(branch,options,palette.id);
+          markSceneDirty();
+          updateSceneControls();
+        });
+        rack.appendChild(button);
+      });
+    }
+
+    function configureScenePalette(branch, requestedId){
+      const effect = effectMeta($('scene_effect_'+branch).value);
+      const options = paletteOptions(effect);
+      const select = $('scene_palette_'+branch);
+      select.replaceChildren();
+      options.forEach(palette=>{
+        const option = document.createElement('option');
+        option.value = String(palette.id);
+        option.textContent = palette.name + ' · ID ' + palette.id;
+        select.appendChild(option);
+      });
+      let selected = options.find(p=>p.id===parseInt(requestedId,10));
+      if (!selected && effect) selected = options.find(p=>p.id===effect.default_palette_id);
+      if (!selected) selected = options[0] || noPalette();
+      select.value = String(selected.id);
+      select.disabled = options.length < 2 || (branch === 'b' && $('scene_mirror').checked);
+      renderPaletteRack(branch,options,selected.id);
+      return selected;
+    }
+
+    function syncMirroredBranch(){
+      $('scene_effect_b').value = $('scene_effect_a').value;
+      configureScenePalette('b',parseInt($('scene_palette_a').value,10));
+    }
+
+    function sceneSafetyBlocksShow(){
+      const a = effectMeta($('scene_effect_a').value);
+      const b = effectMeta($('scene_effect_b').value);
+      return [a,b].some(effect=>effect && effect.safety === 'advanced');
+    }
+
+    function updateSceneControls(){
+      if (!$('scene_effect_a').options.length) return;
+      if ($('scene_mirror').checked) syncMirroredBranch();
+      const a = effectMeta($('scene_effect_a').value);
+      const b = effectMeta($('scene_effect_b').value);
+      $('scene_effect_b').disabled = $('scene_mirror').checked;
+      $('scene_palette_b').disabled = $('scene_mirror').checked || !(b && b.palette_mode === 'selectable');
+      $('scene_palette_a').disabled = !(a && a.palette_mode === 'selectable');
+      $('scene_speed').disabled = ![a,b].some(effect=>effect && effect.controls && effect.controls.speed);
+      $('scene_intensity').disabled = ![a,b].some(effect=>effect && effect.controls && effect.controls.intensity);
+      const dynamicPalette = ['a','b'].some(branch=>{
+        const palette = paletteMeta($('scene_palette_'+branch).value);
+        return palette && palette.dynamic;
+      });
+      const usesColor = dynamicPalette || [a,b].some(effect=>effect && effect.controls && effect.controls.color);
+      $('scene_base_color').disabled = !usesColor;
+      $('scene_accent_color').disabled = !usesColor;
+      const advanced = sceneSafetyBlocksShow();
+      if (advanced) $('scene_show_eligible').checked = false;
+      $('scene_show_eligible').disabled = advanced;
+      $('scene_show_hint').textContent = advanced
+        ? 'Show no admite efectos de seguridad Advanced; la aplicacion manual sigue disponible.'
+        : 'Show puede incluir este slot cuando esta opcion queda activa.';
+      const controls = [];
+      if (!$('scene_speed').disabled) controls.push('velocidad');
+      if (!$('scene_intensity').disabled) controls.push('intensidad');
+      if (usesColor) controls.push('colores');
+      const ranges = [a,b].filter(Boolean).map(effect=>{
+        const useful = effect.useful_range || {};
+        return effect.name+': vel '+useful.speed_min+'..'+useful.speed_max+', int '+useful.intensity_min+'..'+useful.intensity_max;
+      });
+      $('scene_controls_hint').textContent = controls.length
+        ? 'Controles publicados: ' + controls.join(', ') + '. Rangos utiles — '+ranges.join(' · ')+'.'
+        : 'Los efectos elegidos generan su apariencia internamente.';
+      updateSceneActions();
+      drawScenePreview(performance.now());
+    }
+
+    function sceneStoreCanRecover(){
+      const health = SCENE_DATA && SCENE_DATA.store ? SCENE_DATA.store.health : '';
+      return health === 'corrupt' || health === 'ambiguous';
+    }
+
+    function updateSceneActions(){
+      if (!SCENE_DATA) return;
+      const selected = sceneEntry(selectedSceneId);
+      const store = SCENE_DATA.store || {};
+      const readOnly = !!store.read_only;
+      $('scene_apply_btn').disabled = sceneBusy || !(selected && selected.occupied);
+      $('scene_cancel_btn').disabled = sceneBusy || !SCENE_DATA.active ||
+        (!SCENE_DATA.active.id && !SCENE_DATA.active.pending_id);
+      $('scene_save_btn').disabled = sceneBusy || readOnly;
+      $('scene_delete_btn').disabled = sceneBusy || readOnly || !(selected && selected.origin === 'user' && selected.occupied && selected.slot === parseInt($('scene_slot').value,10));
+      $('scene_import_btn').disabled = sceneBusy || !LED_CAPABILITIES.features.scene_import || (readOnly && !sceneStoreCanRecover());
+      $('scene_slot').disabled = sceneBusy || readOnly;
+      $('scene_save_btn').textContent = sceneDirty ? 'Guardar escena *' : 'Guardar escena';
+    }
+
+    function setSceneStatus(message,tone){
+      const el = $('scene_status');
+      el.textContent = message || '';
+      el.className = tone === 'error' ? 'notice error' : (tone === 'warn' ? 'notice warn' : 'notice');
+    }
+
+    function sceneApiMessage(error){
+      const code = error && error.data ? error.data.code : '';
+      const field = error && error.data ? error.data.field : '';
+      const messages = {
+        generation_conflict:'Otra pestaña cambio las escenas. Se actualizo la generacion sin perder este borrador; revisalo antes de guardar otra vez.',
+        scene_not_found:'La escena ya no existe en el collar.',
+        store_read_only:'El banco de escenas esta en solo lectura.',
+        recovery_required:'El banco necesita una importacion de recuperacion explicita.',
+        storage_unavailable:'El almacenamiento de escenas no esta disponible; las integradas aun se pueden aplicar.',
+        storage_full:'No queda espacio NVS suficiente para guardar escenas.',
+        locked:'El PIN del portal no fue aceptado.',
+        invalid_scene:'La escena no cumple las reglas del firmware.',
+        reference_mismatch:'El ID y la key del efecto o paleta no coinciden.',
+        unsupported_schema:'El archivo usa un schema de escenas incompatible.'
+      };
+      return (messages[code] || 'No se completo la operacion de escenas.') + (field ? ' Campo: '+field+'.' : '');
+    }
+
+    async function scenePost(path,payload){
+      const response = await dogPost(path,{
+        headers:{'Content-Type':'application/json; charset=utf-8'},
+        body:JSON.stringify(payload)
+      });
+      let data = {};
+      try{ data = await response.json(); }catch(e){}
+      if (!response.ok || data.ok === false){
+        const error = new Error(data.code || ('http '+response.status));
+        error.data = data;
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    }
+
+    async function runSceneAction(action){
+      if (sceneBusy) return;
+      sceneBusy = true;
+      updateSceneActions();
+      try{
+        await action();
+      }catch(error){
+        setSceneStatus(sceneApiMessage(error),'error');
+        if (error && error.data && error.data.code === 'generation_conflict') await loadScenes(true);
+      }finally{
+        sceneBusy = false;
+        updateSceneActions();
+      }
+    }
+
+    function sceneInteger(id,min,max,label){
+      const value = Number($(id).value);
+      if (!Number.isInteger(value) || value < min || value > max) throw new Error(label+' debe estar entre '+min+' y '+max+'.');
+      return value;
+    }
+
+    function sceneBranchReference(branch){
+      const effect = effectMeta($('scene_effect_'+branch).value);
+      if (!effect) throw new Error('Selecciona un efecto valido para la rama '+branch.toUpperCase()+'.');
+      const paletteId = parseInt($('scene_palette_'+branch).value,10);
+      const palette = paletteMeta(paletteId);
+      if (!palette) throw new Error('Selecciona una paleta valida para la rama '+branch.toUpperCase()+'.');
+      if (effect.palette_mode === 'none' && palette.id !== PALETTE_NONE_ID) throw new Error('Ese efecto no admite paleta.');
+      if (effect.palette_mode === 'internal' && palette.id !== effect.default_palette_id) throw new Error('Ese efecto exige su paleta interna.');
+      return {effect:{id:effect.id,key:effect.key},palette:{id:palette.id,key:palette.key}};
+    }
+
+    function buildSceneDraft(){
+      if ($('scene_mirror').checked) syncMirroredBranch();
+      const name = $('scene_name').value.trim();
+      const nameLimit = Math.max(1,(LED_CAPABILITIES.limits.scene_name_bytes || 24)-1);
+      if (!name || utf8Bytes(name) > nameLimit || /[\u0000-\u001f\u007f]/.test(name)) {
+        throw new Error('El nombre debe tener entre 1 y '+nameLimit+' bytes UTF-8 y no contener controles.');
+      }
+      if ($('scene_show_eligible').checked && sceneSafetyBlocksShow()) throw new Error('Una escena con efecto Advanced no puede entrar en Show.');
+      const limits = LED_CAPABILITIES.limits;
+      const branchA = sceneBranchReference('a');
+      const branchB = sceneBranchReference('b');
+      return {
+        name:name,
+        mirror:$('scene_mirror').checked,
+        show_eligible:$('scene_show_eligible').checked,
+        speed:sceneInteger('scene_speed',limits.speed_min,limits.speed_max,'Velocidad'),
+        intensity:sceneInteger('scene_intensity',limits.intensity_min,limits.intensity_max,'Intensidad'),
+        body_level:sceneInteger('scene_body_level',1,255,'Nivel del cuerpo'),
+        transition_ms:sceneInteger('scene_transition',0,limits.scene_transition_max_ms || 5000,'Transicion'),
+        base_rgb:hexRgb($('scene_base_color').value),
+        accent_rgb:hexRgb($('scene_accent_color').value),
+        branch_a:branchA,
+        branch_b:branchB
+      };
+    }
+
+    function selectedTargetSlot(){
+      return parseInt($('scene_slot').value,10);
+    }
+
+    async function applySelectedScene(){
+      const scene = sceneEntry(selectedSceneId);
+      if (!scene || !scene.occupied) return;
+      await runSceneAction(async()=>{
+        const result = await scenePost('/api/v1/led/scenes/apply',{id:scene.id});
+        if (SCENE_DATA.active) SCENE_DATA.active.pending_id = result.pending_id;
+        renderSceneRuntime();
+        setSceneStatus('Aplicacion encolada. El siguiente tick LED tomara la escena.','');
+      });
+    }
+
+    async function cancelActiveScene(){
+      await runSceneAction(async()=>{
+        await scenePost('/api/v1/led/scenes/cancel',{});
+        setSceneStatus('Cancelacion encolada. El collar volvera a su modo configurado.','');
+      });
+    }
+
+    async function saveScene(){
+      let scene;
+      try{ scene = buildSceneDraft(); }
+      catch(error){
+        $('scene_editor').open = true;
+        setSceneStatus(error.message,'error');
+        return;
+      }
+      const slot = selectedTargetSlot();
+      const occupied = SCENE_DATA.scenes.find(item=>item.origin==='user' && item.slot===slot && item.occupied);
+      if (occupied && occupied.id !== selectedSceneId && !confirm('El slot '+slot+' ya contiene "'+occupied.name+'". Reemplazarlo?')) return;
+      await runSceneAction(async()=>{
+        const result = await scenePost('/api/v1/led/scenes/save',{
+          expected_generation:SCENE_DATA.store.generation,
+          slot:slot,
+          scene:scene
+        });
+        selectedSceneId = LED_CAPABILITIES.limits.scene_user_id_first + slot - 1;
+        markSceneClean();
+        await loadScenes(false);
+        setSceneStatus(result.no_change ? 'La escena ya estaba guardada sin cambios.' : 'Escena guardada en el slot '+slot+'.','');
+      });
+    }
+
+    async function deleteScene(){
+      const scene = sceneEntry(selectedSceneId);
+      if (!scene || scene.origin !== 'user' || !scene.occupied) return;
+      if (!confirm('Borrar "'+scene.name+'" del slot '+scene.slot+'? La salida activa conserva su snapshot hasta aplicar o cancelar.')) return;
+      await runSceneAction(async()=>{
+        await scenePost('/api/v1/led/scenes/delete',{
+          expected_generation:SCENE_DATA.store.generation,
+          slot:scene.slot
+        });
+        markSceneClean();
+        await loadScenes(false);
+        setSceneStatus('Slot '+scene.slot+' borrado.','');
+      });
+    }
+
+    async function importScenes(){
+      const file = $('scene_import_file').files && $('scene_import_file').files[0];
+      if (!file){ setSceneStatus('Elige primero un respaldo JSON.','warn'); return; }
+      const maxBytes = LED_CAPABILITIES.limits.scene_import_max_bytes || 4096;
+      if (file.size > maxBytes){
+        setSceneStatus('El respaldo supera el limite de '+maxBytes+' bytes del firmware.','error');
+        return;
+      }
+      let documentValue;
+      try{ documentValue = JSON.parse(await file.text()); }
+      catch(e){ setSceneStatus('El archivo no contiene JSON valido.','error'); return; }
+      if (sceneDirty && !confirm('Importar descartara la copia que estas editando. Continuar?')) return;
+      const recover = sceneStoreCanRecover();
+      const base = {
+        expected_generation:SCENE_DATA.store.generation,
+        recover_corrupt:recover,
+        document:documentValue
+      };
+      if (utf8Bytes(JSON.stringify(Object.assign({dry_run:false},base))) > maxBytes){
+        setSceneStatus('El respaldo supera el limite de '+maxBytes+' bytes del firmware.','error');
+        return;
+      }
+      await runSceneAction(async()=>{
+        const checked = await scenePost('/api/v1/led/scenes/import',Object.assign({dry_run:true},base));
+        const warning = Array.isArray(checked.warnings) && checked.warnings.length
+          ? ' Hay advertencias de version del registro.' : '';
+        if (!confirm('Archivo valido: '+checked.scene_count+' escena(s). Esto reemplazara todos los slots de usuario.'+warning+' Continuar?')) return;
+        const result = await scenePost('/api/v1/led/scenes/import',Object.assign({dry_run:false},base));
+        $('scene_import_file').value = '';
+        markSceneClean();
+        await loadScenes(false);
+        setSceneStatus('Importacion completada: '+result.scene_count+' escena(s).'+warning,(warning ? 'warn' : ''));
+      });
+    }
+
+    function firstFreeSceneSlot(){
+      const empty = SCENE_DATA.scenes.find(scene=>scene.origin==='user' && !scene.occupied);
+      return empty ? empty.slot : 1;
+    }
+
+    function loadSceneDraft(selected){
+      const template = selected && selected.occupied
+        ? selected
+        : SCENE_DATA.scenes.find(scene=>scene.origin==='builtin' && scene.occupied);
+      if (!template) return;
+      const targetSlot = selected && selected.origin === 'user' ? selected.slot : firstFreeSceneSlot();
+      $('scene_slot').value = String(targetSlot);
+      $('scene_name').value = selected && selected.occupied ? template.name : 'Mi escena '+targetSlot;
+      $('scene_mirror').checked = !!template.mirror;
+      $('scene_show_eligible').checked = !!template.show_eligible;
+      $('scene_speed').value = template.speed;
+      $('scene_intensity').value = template.intensity;
+      $('scene_body_level').value = template.body_level;
+      $('scene_transition').value = template.transition_ms;
+      $('scene_base_color').value = rgbHex(template.base_rgb);
+      $('scene_accent_color').value = rgbHex(template.accent_rgb);
+      $('scene_effect_a').value = String(template.branch_a.effect.id);
+      $('scene_effect_b').value = String(template.branch_b.effect.id);
+      configureScenePalette('a',template.branch_a.palette.id);
+      configureScenePalette('b',template.branch_b.palette.id);
+      updateSceneControls();
+      markSceneClean();
+    }
+
+    function sceneSelectLabel(scene){
+      if (scene.origin === 'builtin') return scene.name + ' · integrada' + (SCENE_DATA.active && SCENE_DATA.active.id===scene.id ? ' · activa' : '');
+      return 'Slot '+scene.slot+' · '+(scene.occupied ? scene.name : 'vacio') + (SCENE_DATA.active && SCENE_DATA.active.id===scene.id ? ' · activo' : '');
+    }
+
+    function rebuildSceneSelect(){
+      const select = $('scene_select');
+      select.replaceChildren();
+      [['builtin','Integradas'],['user','Mis slots']].forEach(group=>{
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = group[1];
+        SCENE_DATA.scenes.filter(scene=>scene.origin===group[0]).forEach(scene=>{
+          const option = document.createElement('option');
+          option.value = String(scene.id);
+          option.textContent = sceneSelectLabel(scene);
+          optgroup.appendChild(option);
+        });
+        select.appendChild(optgroup);
+      });
+    }
+
+    function renderSceneRuntime(){
+      const active = SCENE_DATA.active || {};
+      const pending = sceneEntry(active.pending_id);
+      $('scene_active_name').textContent = active.id ? (active.name || active.key || ('Escena '+active.id)) : 'Politica normal';
+      const bits = [];
+      if (active.playback && active.playback !== 'none') bits.push(active.playback);
+      if (pending) bits.push('pendiente: '+pending.name);
+      if (active.stale) bits.push('snapshot desactualizado');
+      const store = SCENE_DATA.store || {};
+      bits.push('banco '+(store.health || 'unknown')+' · gen '+(store.generation || 0));
+      if (store.read_only) bits.push(sceneStoreCanRecover() ? 'solo recuperacion por import' : 'solo lectura');
+      $('scene_store_state').textContent = bits.join(' · ');
+      updateSceneActions();
+    }
+
+    function renderScenes(preserveDraft){
+      rebuildSceneSelect();
+      let selected = sceneEntry(selectedSceneId);
+      if (!selected){
+        selected = sceneEntry(SCENE_DATA.active && SCENE_DATA.active.id) || SCENE_DATA.scenes.find(scene=>scene.origin==='builtin');
+        selectedSceneId = selected ? selected.id : 0;
+      }
+      $('scene_select').value = String(selectedSceneId);
+      renderSceneRuntime();
+      $('scene_loading').classList.add('is-hidden');
+      $('scene_unavailable').classList.add('is-hidden');
+      $('scene_workspace').classList.remove('is-hidden');
+      if (!preserveDraft || !sceneDirty) loadSceneDraft(selected);
+      startScenePreview();
+    }
+
+    async function loadScenes(preserveDraft){
+      $('scene_loading').textContent = 'Cargando escenas del collar...';
+      $('scene_loading').classList.remove('is-hidden');
+      try{
+        const response = await fetch('/api/v1/led/scenes',{cache:'no-store'});
+        if (!response.ok) throw new Error('http '+response.status);
+        const data = await response.json();
+        if (data.schema_version !== LED_CAPABILITIES.scene_schema_version || !data.store || !data.active || !Array.isArray(data.scenes)) throw new Error('schema');
+        SCENE_DATA = data;
+        renderScenes(!!preserveDraft);
+        return true;
+      }catch(e){
+        $('scene_loading').classList.add('is-hidden');
+        $('scene_workspace').classList.add('is-hidden');
+        $('scene_unavailable_text').textContent = 'No se pudo leer el catalogo de escenas. La configuracion general sigue disponible. ';
+        $('scene_unavailable').classList.remove('is-hidden');
+        stopScenePreview();
+        return false;
+      }
+    }
+
+    function interpolateColor(stops,position){
+      if (!stops.length) return {r:0,g:0,b:0};
+      if (stops.length === 1) return stops[0];
+      const scaled = Math.max(0,Math.min(.9999,position))*(stops.length-1);
+      const index = Math.floor(scaled);
+      const amount = scaled-index;
+      const next = stops[Math.min(stops.length-1,index+1)];
+      const current = stops[index];
+      return {
+        r:current.r+(next.r-current.r)*amount,
+        g:current.g+(next.g-current.g)*amount,
+        b:current.b+(next.b-current.b)*amount
+      };
+    }
+
+    function previewPixel(effect,palette,index,count,phase,base,level){
+      const position = count < 2 ? 0 : index/(count-1);
+      let color;
+      if (palette && palette.id !== PALETTE_NONE_ID) {
+        color = interpolateColor(paletteRgbStops(palette),(position+phase)%1);
+      } else if (effect && effect.color_mode === 'generated') {
+        const hue = Math.round(((position+phase)%1)*360);
+        return `hsl(${hue} 90% ${Math.round(18+level*38)}%)`;
+      } else color = base;
+      let energy = .72;
+      const key = effect ? effect.key : '';
+      if (key === 'solid') energy = 1;
+      else if (key === 'pulse' || key === 'breath' || key === 'bpm') energy = .35+.65*(.5+.5*Math.sin(phase*Math.PI*2));
+      else if (key === 'chase' || key === 'comet' || key === 'sinelon') {
+        const distance = Math.abs(position-phase);
+        energy = Math.max(.12,1-Math.min(distance,1-distance)*7);
+      } else if (key === 'confetti' || key === 'juggle') energy = ((index*17+Math.floor(phase*30))%9<2) ? 1 : .2;
+      const scale = Math.max(.08,Math.min(1,energy*level));
+      return `rgb(${Math.round(color.r*scale)} ${Math.round(color.g*scale)} ${Math.round(color.b*scale)})`;
+    }
+
+    function drawScenePreview(now){
+      const canvas = $('scene_preview');
+      if (!canvas || !SCENE_DATA || !canvas.getContext) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const selected = sceneEntry(selectedSceneId);
+      if (!selected) return;
+      const layout = LED_CAPABILITIES.layout || {};
+      const count = Math.max(4,Math.min(64,layout.pixels_per_bus || 24));
+      const statusCount = Math.max(0,Math.min(count,layout.status_pixels_per_bus || 0));
+      const effectA = effectMeta($('scene_effect_a').value);
+      const effectB = effectMeta($('scene_effect_b').value);
+      const paletteA = paletteMeta($('scene_palette_a').value);
+      const paletteB = paletteMeta($('scene_palette_b').value);
+      const base = hexRgb($('scene_base_color').value);
+      const speed = Math.max(0,parseInt($('scene_speed').value,10)||0);
+      const intensity = Math.max(0,parseInt($('scene_intensity').value,10)||0)/255;
+      const bodyLevel = Math.max(1,parseInt($('scene_body_level').value,10)||1)/255;
+      const phase = ((now||0)*(0.00008+speed/255*0.0005))%1;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.strokeStyle = '#003300';
+      ctx.lineWidth = 2;
+      ctx.beginPath();ctx.ellipse(360,110,294,76,0,0,Math.PI*2);ctx.stroke();
+      const branches = [
+        {name:'A',effect:effectA,palette:paletteA,start:Math.PI,end:Math.PI*2,orientation:layout.bus_a_orientation},
+        {name:'B',effect:effectB,palette:paletteB,start:0,end:Math.PI,orientation:layout.bus_b_orientation}
+      ];
+      branches.forEach(branch=>{
+        for(let i=0;i<count;i++){
+          const physical = branch.orientation === 'reverse' ? count-1-i : i;
+          const angle = branch.start+(branch.end-branch.start)*(physical/Math.max(1,count-1));
+          const x = 360+Math.cos(angle)*286;
+          const y = 110+Math.sin(angle)*68;
+          ctx.beginPath();
+          ctx.arc(x,y,i<statusCount?5:7,0,Math.PI*2);
+          ctx.fillStyle = i<statusCount ? '#00a838' : previewPixel(branch.effect,branch.palette,i-statusCount,Math.max(1,count-statusCount),phase,base,bodyLevel*(.45+.55*intensity));
+          ctx.shadowColor = ctx.fillStyle;
+          ctx.shadowBlur = i<statusCount?3:7;
+          ctx.fill();
+        }
+      });
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#00a838';
+      ctx.font = '12px monospace';
+      ctx.fillText('A',44,42);ctx.fillText('B',44,184);
+      const effectText = (effectA ? effectA.name : '?') + ($('scene_mirror').checked ? ' reflejado' : ' / '+(effectB ? effectB.name : '?'));
+      const paletteText = (paletteA ? paletteA.name : '?') + ($('scene_mirror').checked ? '' : ' / '+(paletteB ? paletteB.name : '?'));
+      const description = (selected.occupied ? selected.name : 'Nuevo slot')+'; efectos '+effectText+'; paletas '+paletteText+'.';
+      $('scene_preview_text').textContent = description;
+      canvas.setAttribute('aria-label','Vista aproximada. '+description);
+    }
+
+    function stopScenePreview(){
+      if (previewTimer !== null){ clearTimeout(previewTimer); previewTimer = null; }
+    }
+
+    function startScenePreview(){
+      stopScenePreview();
+      drawScenePreview(performance.now());
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce || document.visibilityState !== 'visible' || !scenesBlock.open || !SCENE_DATA) return;
+      previewTimer = setTimeout(()=>{
+        previewTimer = null;
+        startScenePreview();
+      },180);
+    }
+
+    function selectScene(nextId){
+      const previous = selectedSceneId;
+      if (sceneDirty && !confirm('Descartar los cambios de la escena que estas editando?')) {
+        $('scene_select').value = String(previous);
+        return;
+      }
+      selectedSceneId = parseInt(nextId,10);
+      loadSceneDraft(sceneEntry(selectedSceneId));
+      setSceneStatus('','');
+    }
+
+    async function initScenes(){
+      if (!LED_CAPABILITIES.features || LED_CAPABILITIES.features.scenes !== true) {
+        scenesBlock.open = false;
+        $('scene_loading').classList.add('is-hidden');
+        $('scene_unavailable_text').textContent = 'Este firmware no publica escenas. Los demas controles LED siguen disponibles. ';
+        $('scene_retry_btn').classList.add('is-hidden');
+        $('scene_unavailable').classList.remove('is-hidden');
+        return;
+      }
+      const limits = LED_CAPABILITIES.limits || {};
+      $('scene_speed').min = limits.speed_min;
+      $('scene_speed').max = limits.speed_max;
+      $('scene_intensity').min = limits.intensity_min;
+      $('scene_intensity').max = limits.intensity_max;
+      $('scene_transition').max = limits.scene_transition_max_ms || 5000;
+      $('scene_transition_field').hidden = LED_CAPABILITIES.features.transitions !== true;
+      const nameLimit = Math.max(1,(limits.scene_name_bytes || 24)-1);
+      $('scene_name').maxLength = nameLimit;
+      $('scene_name_help').textContent = 'Maximo '+nameLimit+' bytes UTF-8.';
+      fillSceneEffectSelect($('scene_effect_a'));
+      fillSceneEffectSelect($('scene_effect_b'));
+      $('scene_slot').replaceChildren();
+      for(let slot=1;slot<=(limits.scene_user_slots || 4);slot++){
+        const option = document.createElement('option');
+        option.value = String(slot);
+        option.textContent = 'Slot '+slot+' · ID '+(limits.scene_user_id_first+slot-1);
+        $('scene_slot').appendChild(option);
+      }
+      $('scene_export_link').hidden = LED_CAPABILITIES.features.scene_export !== true;
+      $('scene_import_file').closest('.scene-file').hidden = LED_CAPABILITIES.features.scene_import !== true;
+      $('scene_import_btn').hidden = LED_CAPABILITIES.features.scene_import !== true;
+      if (!scenesBlock.dataset.ready){
+        scenesBlock.dataset.ready = '1';
+        $('scene_select').addEventListener('change',()=>selectScene($('scene_select').value));
+        $('scene_apply_btn').addEventListener('click',applySelectedScene);
+        $('scene_cancel_btn').addEventListener('click',cancelActiveScene);
+        $('scene_save_btn').addEventListener('click',saveScene);
+        $('scene_delete_btn').addEventListener('click',deleteScene);
+        $('scene_import_btn').addEventListener('click',importScenes);
+        $('scene_retry_btn').addEventListener('click',()=>loadScenes(false));
+        $('scene_slot').addEventListener('change',()=>{markSceneDirty();updateSceneActions();});
+        ['a','b'].forEach(branch=>{
+          $('scene_effect_'+branch).addEventListener('change',()=>{
+            const effect = effectMeta($('scene_effect_'+branch).value);
+            configureScenePalette(branch,effect ? effect.default_palette_id : PALETTE_NONE_ID);
+            if (branch === 'a' && effect && effect.defaults){
+              $('scene_speed').value = effect.defaults.speed;
+              $('scene_intensity').value = effect.defaults.intensity;
+            }
+            if (branch === 'a' && $('scene_mirror').checked) syncMirroredBranch();
+            markSceneDirty();updateSceneControls();
+          });
+          $('scene_palette_'+branch).addEventListener('change',()=>{
+            const effect = effectMeta($('scene_effect_'+branch).value);
+            const options = paletteOptions(effect);
+            renderPaletteRack(branch,options,parseInt($('scene_palette_'+branch).value,10));
+            if (branch === 'a' && $('scene_mirror').checked) syncMirroredBranch();
+            markSceneDirty();updateSceneControls();
+          });
+        });
+        $('scene_mirror').addEventListener('change',()=>{if($('scene_mirror').checked)syncMirroredBranch();markSceneDirty();updateSceneControls();});
+        ['scene_name','scene_base_color','scene_accent_color','scene_speed','scene_intensity','scene_body_level','scene_transition','scene_show_eligible'].forEach(id=>{
+          $(id).addEventListener('input',()=>{
+            if (id === 'scene_base_color' || id === 'scene_accent_color') {
+              ['a','b'].forEach(branch=>renderPaletteRack(branch,paletteOptions(effectMeta($('scene_effect_'+branch).value)),parseInt($('scene_palette_'+branch).value,10)));
+            }
+            markSceneDirty();updateSceneControls();
+          });
+        });
+        scenesBlock.addEventListener('toggle',startScenePreview);
+        document.addEventListener('visibilitychange',()=>document.visibilityState==='visible'?startScenePreview():stopScenePreview());
+        window.addEventListener('resize',()=>drawScenePreview(performance.now()));
+      }
+      await loadScenes(false);
+    }
+
+    async function loadCapabilities(){
+      try{
+        const response = await fetch('/api/v1/led/capabilities');
+        if (!response.ok) throw new Error('http ' + response.status);
+        const capabilities = await response.json();
+        const effects = Array.isArray(capabilities.effects) ? capabilities.effects : [];
+        const palettes = Array.isArray(capabilities.palettes) ? capabilities.palettes : [];
+        const ids = new Set(effects.map(e=>e.id));
+        const paletteIds = new Set(palettes.map(p=>p.id));
+        if (capabilities.schema_version !== 1 ||
+            capabilities.effect_count !== effects.length ||
+            capabilities.persistent_effect_ids !== true || effects.length === 0 ||
+            ids.size !== effects.length ||
+            !Number.isInteger(capabilities.palette_none_id) || capabilities.palette_none_id<0 || capabilities.palette_none_id>255 ||
+            !capabilities.limits || !Number.isInteger(capabilities.limits.scene_user_id_first) ||
+            effects.some(e=>!Number.isInteger(e.id) || e.id<0 || e.id>255 ||
+                            !e.key || !e.name || !e.controls || !e.defaults || !e.useful_range || !e.palette_mode) ||
+            (capabilities.features && capabilities.features.palettes === true &&
+              (capabilities.palette_count !== palettes.length || paletteIds.size !== palettes.length ||
+               palettes.some(p=>!Number.isInteger(p.id) || p.id<0 || p.id>254 || !p.key || !p.name || !Array.isArray(p.stops_rgbw))))) {
+          throw new Error('capabilities invalidas');
+        }
+        EFFECTS = effects;
+        PALETTES = palettes;
+        LED_CAPABILITIES = capabilities;
+        PALETTE_NONE_ID = capabilities.palette_none_id;
+        return true;
+      }catch(e){
+        errorsEl.innerHTML = '<div><strong>No se pudo leer el catalogo de efectos.</strong></div>' +
+          '<div>Los controles no se inventan localmente: reintenta cuando el collar responda.</div>' +
+          '<div class="actions"><button class="btn" type="button" onclick="bootstrapConfig()">Reintentar</button></div>';
+        setStatus('Sin capacidades LED.', 'error');
+        return false;
+      }
+    }
+
+    async function bootstrapConfig(){
+      if (!await loadCapabilities()) return;
+      buildSpeedLanes();
+      fillEffectSelect(simpleEffect);
+      buildColorSwatches();
+      await Promise.all([loadConfig(),initScenes()]);
+    }
+
+    bootstrapConfig();
+  </script>
+</body>
+</html>

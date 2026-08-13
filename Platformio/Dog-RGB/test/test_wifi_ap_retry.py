@@ -3,6 +3,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = ROOT.parents[1]
 MASK32 = 0xFFFFFFFF
 HALF_RANGE = 0x80000000
 
@@ -96,7 +97,7 @@ class WifiApRetryTests(unittest.TestCase):
 
     def test_retry_diagnostics_are_visible_in_api_and_portal(self):
         portal = (ROOT / "src/web/portal_http.cpp").read_text(encoding="utf-8")
-        pages = (ROOT / "src/web/pages.cpp").read_text(encoding="utf-8")
+        pages = (REPO_ROOT / "webui/src/pages/dev.html").read_text(encoding="utf-8")
 
         for field in (
             "ap_retry_schedule_count",

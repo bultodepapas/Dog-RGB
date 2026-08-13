@@ -35,16 +35,17 @@ MSYS_NO_PATHCONV=1 docker run --rm \
   -v "$OUT:/out" \
   "$IMAGE" bash -c '
 set -e
-command -v python3 >/dev/null || { apt-get update -qq && apt-get install -y -qq python3; }
-mkdir -p /w/tests /w/tools /w/Platformio/Dog-RGB/src/web
-cp /src/package.json /src/package-lock.json /src/playwright.config.ts /w/
+mkdir -p /w/tests /w/tools
+cp /src/package.json /src/package-lock.json /src/playwright.config.ts /src/.node-version /w/
 cp -r /src/tests/. /w/tests/
 cp -r /src/tools/. /w/tools/
-cp /src/Platformio/Dog-RGB/src/web/pages.cpp /w/Platformio/Dog-RGB/src/web/
+cp -r /src/webui /w/webui
 cd /w
 rm -rf "tests/ap-portal-visual/ap-portal.visual.spec.ts-snapshots"
 npm ci --silent
-AP_PORTAL_VISUAL=1 npx playwright test tests/ap-portal-visual/ \
+NODE_VERSION="$(tr -d "\r\n" < .node-version)"
+AP_PORTAL_VISUAL=1 npx --yes --package "node@$NODE_VERSION" node \
+  node_modules/@playwright/test/cli.js test tests/ap-portal-visual/ \
   --project=iphone-13-pro-max-chromium --update-snapshots --reporter=line
 cp -r "tests/ap-portal-visual/ap-portal.visual.spec.ts-snapshots/." /out/
 '

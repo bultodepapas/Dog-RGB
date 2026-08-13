@@ -53,6 +53,24 @@ async function mockPortalApis(page: Page, state: MockState = {}) {
       await route.fulfill({ json: fixtureJson('led.state.json') });
       return;
     }
+    if (url.pathname === '/api/v1/led/scenes' && method === 'GET') {
+      await route.fulfill({ json: fixtureJson('led.scenes.json') });
+      return;
+    }
+    if (url.pathname === '/api/v1/led/scenes/apply' || url.pathname === '/api/v1/led/scenes/cancel') {
+      const body = request.postDataJSON() as { id?: number } | null;
+      await route.fulfill({ status: 202, json: { ok: true, code: 'pending', pending_id: body?.id ?? 0, store_generation: 7, store_health: 'healthy' } });
+      return;
+    }
+    if (url.pathname === '/api/v1/led/scenes/save' || url.pathname === '/api/v1/led/scenes/delete') {
+      await route.fulfill({ json: { ok: true, code: 'ok', no_change: false, store_generation: 8, store_health: 'healthy' } });
+      return;
+    }
+    if (url.pathname === '/api/v1/led/scenes/import') {
+      const body = request.postDataJSON() as { dry_run?: boolean; document?: { scenes?: unknown[] } } | null;
+      await route.fulfill({ json: { ok: true, code: body?.dry_run ? 'valid' : 'ok', dry_run: !!body?.dry_run, no_change: false, scene_count: body?.document?.scenes?.length ?? 0, store_generation: body?.dry_run ? 7 : 8, store_health: 'healthy', warnings: [] } });
+      return;
+    }
     if (url.pathname === '/api/config' && method === 'GET') {
       await route.fulfill({ json: fixtureJson(fixtures.config) });
       return;
@@ -245,6 +263,16 @@ test.describe('AP portal mobile screenshots', () => {
     await expect(page.locator('[data-mode-card="speed"]')).toHaveClass(/active/);
     await expect(page.locator('#brightness')).toHaveValue('96');
     await capture(page, 'config-speed-default.png');
+  });
+
+  test('config scene editor', async ({ page }) => {
+    await mockPortalApis(page);
+    await page.goto('/config');
+    await expect(page.locator('#scene_active_name')).toHaveText('Activo');
+    await expectCanvasHasInk(page, '#scene_preview');
+    await page.locator('#scene_editor > summary').click();
+    await expect(page.locator('#scene_palette_choices_a .palette-chip')).toHaveCount(8);
+    await capture(page, 'config-scene-editor.png');
   });
 
   test('config simple presets', async ({ page }) => {

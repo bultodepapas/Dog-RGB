@@ -167,6 +167,7 @@ class LedPhase4Tests(unittest.TestCase):
         self.assertIn('features["scenes"] = true', portal)
         self.assertIn('features["scene_import"] = true', portal)
         self.assertIn('doc["scene_registry_version"]', portal)
+        self.assertIn('limits["scene_user_id_first"]', portal)
         self.assertIn('JsonObject scene = doc["scene"]', portal)
 
         for obsolete in (

@@ -30,6 +30,9 @@ test.describe('portal visual audit', () => {
         if (uri === '/api/v1/led/capabilities') {
           return r.fulfill({ json: fixtureJson('led.capabilities.json') });
         }
+        if (uri === '/api/v1/led/scenes' && request.method() === 'GET') {
+          return r.fulfill({ json: fixtureJson('led.scenes.json') });
+        }
         if (uri === '/api/config' && request.method() === 'GET') {
           return r.fulfill({ json: fixtureJson('config.speed.json') });
         }

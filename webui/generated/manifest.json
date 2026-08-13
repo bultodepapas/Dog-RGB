@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "generator": "webui/build.mjs",
+  "node_version": "24.18.0",
+  "html_minifier_terser_version": "7.2.0",
+  "source_sha256": "eaee401f1d99eeda4aff81d8606aa4c86b590f12f215544bfdc0e2ceceb2ea59",
+  "inputs": [
+    {
+      "path": ".node-version",
+      "sha256": "55075b5ec4e8b31936cbbc282b8829116d1fd48f2f2f1856dee592a6650700ce",
+      "bytes": 8
+    },
+    {
+      "path": "package.json",
+      "sha256": "9fc9da1e50261fee02cd037a36971dc765f3a1f4bc5505b5b12d8f1f64bdbeb4",
+      "bytes": 1515
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "93e98d347dd41f642b01437ea46bec89e938921e5460735645a8af9bb2763c00",
+      "bytes": 12262
+    },
+    {
+      "path": "webui/build.mjs",
+      "sha256": "293f1ae1a9f67e16406a04e42ef701d76c73f4a5b5038d38b41441a58b18db5a",
+      "bytes": 12481
+    },
+    {
+      "path": "webui/src/styles/app.css",
+      "sha256": "03340e4444989259aa700c9858fb5cfb8ea93d3c49e41786c93e5f22c0db7184",
+      "bytes": 16799
+    },
+    {
+      "path": "webui/src/pages/index.html",
+      "sha256": "0932c7487e602b66523786a32adf2058fdce8ef6705d739a49a11a1fe2acdac0",
+      "bytes": 17931
+    },
+    {
+      "path": "webui/src/pages/wifi.html",
+      "sha256": "a8d52b105780d4495809483dfb1df1d1637895507542f1f8e6128c2cf62190dd",
+      "bytes": 21822
+    },
+    {
+      "path": "webui/src/pages/config.html",
+      "sha256": "7d687afce82e93d0ba245dc8cbf56449895c70d643521610b6cb7bb81647d1aa",
+      "bytes": 87486
+    },
+    {
+      "path": "webui/src/pages/dev.html",
+      "sha256": "185fef5f2124c3a9a0b65bbae53352347ec292a9b133893b1fbf502f4f7ecb89",
+      "bytes": 19740
+    }
+  ],
+  "generated": [
+    {
+      "path": "Platformio/Dog-RGB/include/web/generated_assets.h",
+      "sha256": "b40f4e7d0c6b4bc34c460c3a140278179b75cc72cf19ebe81327144ddcb2a63c"
+    },
+    {
+      "path": "Platformio/Dog-RGB/src/web/generated_assets.cpp",
+      "sha256": "4d50c42824fb6248a756ec0888c5fb585e1ac80c0dbe4dee352f34cfc10990ed"
+    }
+  ],
+  "totals": {
+    "decoded_bytes": 175095,
+    "gzip_bytes": 45886,
+    "gzip_budget_bytes": 56320
+  },
+  "pages": [
+    {
+      "key": "root",
+      "route": "/",
+      "source": "webui/src/pages/index.html",
+      "preview": ".ap-portal-preview/index.html",
+      "symbol": "ROOT_PAGE",
+      "content_type": "text/html; charset=utf-8",
+      "content_encoding": "gzip",
+      "decoded_bytes": 28642,
+      "gzip_bytes": 7865,
+      "gzip_budget_bytes": 12288,
+      "gzip_sha256": "3313f7685f4ce61cb43b24bfaaa2684e25f1f25ac81ce96b186e59acbd88f0d8",
+      "etag": "\"sha256-3313f7685f4ce61cb43b24bfaaa2684e25f1f25ac81ce96b186e59acbd88f0d8\""
+    },
+    {
+      "key": "wifi",
+      "route": "/wifi",
+      "source": "webui/src/pages/wifi.html",
+      "preview": ".ap-portal-preview/wifi.html",
+      "symbol": "WIFI_PAGE",
+      "content_type": "text/html; charset=utf-8",
+      "content_encoding": "gzip",
+      "decoded_bytes": 31408,
+      "gzip_bytes": 8521,
+      "gzip_budget_bytes": 13312,
+      "gzip_sha256": "1a3717a183e3ce185d9952abb2b9674571fe605cfd35396dbd9e973f55f5add5",
+      "etag": "\"sha256-1a3717a183e3ce185d9952abb2b9674571fe605cfd35396dbd9e973f55f5add5\""
+    },
+    {
+      "key": "config",
+      "route": "/config",
+      "source": "webui/src/pages/config.html",
+      "preview": ".ap-portal-preview/config.html",
+      "symbol": "CONFIG_PAGE",
+      "content_type": "text/html; charset=utf-8",
+      "content_encoding": "gzip",
+      "decoded_bytes": 83328,
+      "gzip_bytes": 22352,
+      "gzip_budget_bytes": 23552,
+      "gzip_sha256": "65a641c90ad3d5d985ba03c70f801ecd556199744d9e9d6ed28bd21bf87fad81",
+      "etag": "\"sha256-65a641c90ad3d5d985ba03c70f801ecd556199744d9e9d6ed28bd21bf87fad81\""
+    },
+    {
+      "key": "dev",
+      "route": "/dev",
+      "source": "webui/src/pages/dev.html",
+      "preview": ".ap-portal-preview/dev.html",
+      "symbol": "DEV_PAGE",
+      "content_type": "text/html; charset=utf-8",
+      "content_encoding": "gzip",
+      "decoded_bytes": 31717,
+      "gzip_bytes": 7148,
+      "gzip_budget_bytes": 10240,
+      "gzip_sha256": "2a89f7ba54f18ee76bb16be36a374af74e1329dcd01e39c1654f73d0845ea7d3",
+      "etag": "\"sha256-2a89f7ba54f18ee76bb16be36a374af74e1329dcd01e39c1654f73d0845ea7d3\""
+    }
+  ]
+}

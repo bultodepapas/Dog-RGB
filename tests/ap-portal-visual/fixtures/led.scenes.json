@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "store": {"health": "healthy", "generation": 7, "read_only": false},
+  "active": {
+    "id": 3,
+    "key": "active",
+    "name": "Activo",
+    "origin": "builtin",
+    "playback": "manual",
+    "pending_id": 0,
+    "stale": false,
+    "applied_generation": 7,
+    "activation_revision": 12
+  },
+  "scenes": [
+    {
+      "id": 1, "key": "high_visibility", "origin": "builtin", "editable": false, "occupied": true,
+      "name": "Alta visibilidad", "mirror": true, "show_eligible": true,
+      "speed": 120, "intensity": 180, "body_level": 255, "transition_ms": 400,
+      "base_rgb": {"r": 255, "g": 80, "b": 0}, "accent_rgb": {"r": 255, "g": 220, "b": 160},
+      "branch_a": {"effect": {"id": 3, "key": "chase"}, "palette": {"id": 0, "key": "safety_amber"}},
+      "branch_b": {"effect": {"id": 3, "key": "chase"}, "palette": {"id": 0, "key": "safety_amber"}}
+    },
+    {
+      "id": 2, "key": "calm", "origin": "builtin", "editable": false, "occupied": true,
+      "name": "Calmado", "mirror": true, "show_eligible": true,
+      "speed": 45, "intensity": 100, "body_level": 110, "transition_ms": 900,
+      "base_rgb": {"r": 120, "g": 0, "b": 0}, "accent_rgb": {"r": 255, "g": 40, "b": 10},
+      "branch_a": {"effect": {"id": 2, "key": "breath"}, "palette": {"id": 1, "key": "night_red"}},
+      "branch_b": {"effect": {"id": 2, "key": "breath"}, "palette": {"id": 1, "key": "night_red"}}
+    },
+    {
+      "id": 3, "key": "active", "origin": "builtin", "editable": false, "occupied": true,
+      "name": "Activo", "mirror": true, "show_eligible": true,
+      "speed": 140, "intensity": 170, "body_level": 200, "transition_ms": 500,
+      "base_rgb": {"r": 0, "g": 90, "b": 25}, "accent_rgb": {"r": 100, "g": 255, "b": 170},
+      "branch_a": {"effect": {"id": 4, "key": "comet"}, "palette": {"id": 3, "key": "forest"}},
+      "branch_b": {"effect": {"id": 4, "key": "comet"}, "palette": {"id": 3, "key": "forest"}}
+    },
+    {
+      "id": 4, "key": "party", "origin": "builtin", "editable": false, "occupied": true,
+      "name": "Fiesta", "mirror": true, "show_eligible": true,
+      "speed": 150, "intensity": 180, "body_level": 180, "transition_ms": 650,
+      "base_rgb": {"r": 200, "g": 0, "b": 200}, "accent_rgb": {"r": 0, "g": 200, "b": 255},
+      "branch_a": {"effect": {"id": 9, "key": "rainbow"}, "palette": {"id": 4, "key": "pride"}},
+      "branch_b": {"effect": {"id": 9, "key": "rainbow"}, "palette": {"id": 4, "key": "pride"}}
+    },
+    {
+      "id": 128, "slot": 1, "key": "user_1", "origin": "user", "editable": true, "occupied": true,
+      "name": "Paseo azul", "mirror": true, "show_eligible": true,
+      "speed": 140, "intensity": 170, "body_level": 180, "transition_ms": 600,
+      "base_rgb": {"r": 0, "g": 40, "b": 80}, "accent_rgb": {"r": 0, "g": 180, "b": 220},
+      "branch_a": {"effect": {"id": 4, "key": "comet"}, "palette": {"id": 2, "key": "ocean"}},
+      "branch_b": {"effect": {"id": 4, "key": "comet"}, "palette": {"id": 2, "key": "ocean"}}
+    },
+    {"id": 129, "slot": 2, "key": "user_2", "origin": "user", "editable": true, "occupied": false},
+    {"id": 130, "slot": 3, "key": "user_3", "origin": "user", "editable": true, "occupied": false},
+    {"id": 131, "slot": 4, "key": "user_4", "origin": "user", "editable": true, "occupied": false}
+  ]
+}

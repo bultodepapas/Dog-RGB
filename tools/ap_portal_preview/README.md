@@ -1,6 +1,9 @@
-# Embedded Portal Preview
+# Generated Portal Preview
 
-This development tool extracts the four HTML pages embedded in `Platformio/Dog-RGB/src/web/pages.cpp`, serves them locally, and supplies fixture API responses for Playwright. It does not run the ESP32 firmware or emulate radio/storage timing.
+This development tool builds the four editable pages under `webui/src`, serves
+the exact decompressed production bundles locally, and supplies fixture API
+responses for Playwright. It does not run the ESP32 firmware or emulate
+radio/storage timing.
 
 From the repository root, install the locked Node dependencies once:
 
@@ -11,11 +14,13 @@ npm ci
 ## Preview locally
 
 ```powershell
-npm run ap-portal:extract
+npm run webui:build
 npm run ap-portal:serve
 ```
 
-Open `http://127.0.0.1:4173/`. The server extracts pages at startup as well, so the explicit extract command is mainly useful for inspecting generated output.
+Open `http://127.0.0.1:4173/`. The server builds pages at startup as well, so
+the explicit build command is mainly useful for inspecting the manifest and
+generated C++ arrays.
 
 If that port is already in use, Playwright can start the preview on another one:
 
@@ -25,7 +30,8 @@ npx playwright test --project=iphone-13-pro-max-chromium
 Remove-Item Env:AP_PORTAL_PREVIEW_PORT
 ```
 
-Generated files live under `tools/ap_portal_preview/generated/` and are ignored by Git.
+Preview files live under `.ap-portal-preview/` and are ignored by Git. The
+manifest and firmware arrays are versioned and checked for staleness.
 
 ## Tests and screenshots
 

@@ -1,0 +1,505 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Wi-Fi</title>
+  <!-- DOG_RGB_INCLUDE:styles/app.css -->
+</head>
+<body>
+  <noscript><div class="warn" style="padding:12px">Este portal necesita JavaScript activado para mostrar los datos del collar.</div></noscript>
+  <main class="container">
+    <div class="hero card">
+      <div class="hero-top">
+        <div>
+          <h1 class="brand">DOG-RGB</h1>
+          <div class="tagline">Configurar Wi-Fi</div>
+        </div>
+      </div>
+      <div class="muted">Home Wi-Fi y hotspot local del collar.</div>
+    </div>
+
+    <a class="back-link" href="/">&#8592; Inicio</a>
+
+    <div class="card section">
+      <h2>Estado Wi-Fi</h2>
+      <div class="grid grid-2 section-body">
+        <div class="field"><span>Home Wi-Fi</span><div class="data" id="wifi_home_state">--</div></div>
+        <div class="field"><span>Hotspot collar</span><div class="data" id="wifi_ap_state">--</div></div>
+        <div class="field"><span>Portal local</span><div class="data mono" id="wifi_portal">--</div></div>
+        <div class="field"><span>mDNS</span><div class="data mono" id="wifi_mdns_state">--</div></div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="wifi_refresh_btn" type="button" onclick="loadWifiStatus()">Actualizar estado</button>
+      </div>
+      <div id="wifi_status_msg" class="notice"></div>
+    </div>
+
+    <!-- No method/action on purpose: a native form post cannot carry the
+         X-Dog-Portal header, and that same fallback is what let a hostile page
+         submit this form cross-origin. Submission goes through onsubmit. -->
+    <form class="card section" id="sta_form">
+      <h2>Home Wi-Fi</h2>
+      <div class="muted">Conecta DOG-RGB al router de casa. El hotspot local queda disponible durante la conexion.</div>
+      <div class="field">
+        <label for="ssid">Nombre de red (SSID)</label>
+        <input id="ssid" name="ssid" autocomplete="off" spellcheck="false" value="">
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="scan_btn" type="button" onclick="startScan()">Buscar redes</button>
+      </div>
+      <div id="scan_status" class="muted"></div>
+      <div id="scan_results" class="scan-list"></div>
+      <div class="field">
+        <label for="pass">Password red de casa</label>
+        <input name="pass" id="pass" type="password" autocomplete="new-password" placeholder="Password">
+        <div id="sta_pass_hint" class="help"></div>
+      </div>
+      <label class="muted"><input type="checkbox" id="show_pass"> Mostrar password</label>
+      <div class="actions">
+        <button class="btn" id="sta_submit_btn" type="submit">Guardar y conectar</button>
+      </div>
+      <div id="sta_status" class="notice"></div>
+    </form>
+
+    <div class="card section" id="ap_block">
+      <h2>Hotspot del collar</h2>
+      <div class="muted">Estos datos son para conectarte directo al collar desde el telefono.</div>
+      <div class="grid grid-2 section-body">
+        <div class="field"><label for="ap_ssid">Nombre hotspot (SSID)</label><input id="ap_ssid" type="text" autocomplete="off" spellcheck="false"></div>
+        <div class="field">
+          <label for="mdns">Nombre corto del portal</label>
+          <input id="mdns" type="text">
+          <div class="help">Podras abrir el portal escribiendo <span id="mdns_preview" class="mono">dog-rgb</span>.local en el navegador.</div>
+        </div>
+      </div>
+      <div class="grid grid-2">
+        <div class="field">
+          <label for="ap_pass">Password hotspot</label>
+          <input id="ap_pass" type="password" autocomplete="new-password" placeholder="(sin cambio)">
+          <div id="ap_hint" class="help"></div>
+        </div>
+        <div class="field-check">
+          <label class="muted" for="ap_open"><input id="ap_open" type="checkbox"> Hotspot sin password</label>
+        </div>
+      </div>
+      <label class="muted"><input type="checkbox" id="show_ap_pass"> Mostrar password hotspot</label>
+      <!-- One advisory area, ordered by weight: the security consequence first
+           and in the danger colour, the operational note after it and muted.
+           Three same-coloured divs with no spacing read as one wall of text. -->
+      <div class="advisories" id="ap_advisories">
+        <div id="ap_open_warn" class="advisory danger"></div>
+        <div id="ap_warn" class="advisory note"></div>
+        <div id="ap_recovery" class="advisory note"></div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="ap_save_btn" type="button" onclick="saveAp()">Guardar AP</button>
+      </div>
+      <div id="ap_status" class="muted"></div>
+    </div>
+
+    <div class="actions">
+      <a class="btn ghost" href="/">&#8592; Inicio</a>
+    </div>
+  </main>
+
+  <script>
+    // Every portal write goes through here. X-Dog-Portal is what the server's
+    // CSRF guard requires; X-Dog-Pin is empty unless the user turned on the
+    // optional lock, in which case a 401 prompts for it once per browser tab.
+    function dogPin(){try{return sessionStorage.getItem('dogPin')||'';}catch(e){return '';}}
+    async function dogPost(url,opts){
+      opts=opts||{};
+      const send=()=>fetch(url,Object.assign({},opts,{method:'POST',headers:Object.assign({'X-Dog-Portal':'1','X-Dog-Pin':dogPin()},opts.headers||{})}));
+      let r=await send();
+      if(r.status===401){
+        const pin=prompt('Portal bloqueado. Introduce el PIN:');
+        if(pin===null){return r;}
+        try{sessionStorage.setItem('dogPin',pin);}catch(e){}
+        r=await send();
+        if(r.status===401){try{sessionStorage.removeItem('dogPin');}catch(e){}}
+      }
+      return r;
+    }
+    // SSIDs come off the air, so they are attacker-controlled text: a neighbour
+    // can name their access point anything at all. Everything scanned goes
+    // through here before it touches innerHTML.
+    function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    const ssidInput = document.getElementById('ssid');
+    const pass = document.getElementById('pass');
+    const show = document.getElementById('show_pass');
+    show.onchange = () => { pass.type = show.checked ? 'text' : 'password'; };
+    const showApPass = document.getElementById('show_ap_pass');
+    const staForm = document.getElementById('sta_form');
+    const staStatus = document.getElementById('sta_status');
+    const wifiHomeState = document.getElementById('wifi_home_state');
+    const wifiApState = document.getElementById('wifi_ap_state');
+    const wifiPortal = document.getElementById('wifi_portal');
+    // La IP del AP es configurable: tomarla del estado en vez de fijarla.
+    let apPortalUrl = 'http://192.168.4.1/';
+    const wifiMdnsState = document.getElementById('wifi_mdns_state');
+    const wifiStatusMsg = document.getElementById('wifi_status_msg');
+    const wifiRefreshBtn = document.getElementById('wifi_refresh_btn');
+    const apSsid = document.getElementById('ap_ssid');
+    const mdns = document.getElementById('mdns');
+    const apPass = document.getElementById('ap_pass');
+    const apOpen = document.getElementById('ap_open');
+    const apHint = document.getElementById('ap_hint');
+    const apWarn = document.getElementById('ap_warn');
+    const apOpenWarn = document.getElementById('ap_open_warn');
+    const apRecovery = document.getElementById('ap_recovery');
+    const apStatus = document.getElementById('ap_status');
+    const staSubmitBtn = document.getElementById('sta_submit_btn');
+    const apSaveBtn = document.getElementById('ap_save_btn');
+    const mdnsPreview = document.getElementById('mdns_preview');
+    const staPassHint = document.getElementById('sta_pass_hint');
+    let apHasPass = false;
+    let staHasPass = false;
+    let initialAp = null;
+    let baseCfg = null;
+    let staPollTimer = null;
+    showApPass.onchange = () => { apPass.type = showApPass.checked ? 'text' : 'password'; };
+
+    const STA_ERROR_MAP = {
+      ssid:'El nombre de la red no es valido (1 a 32 caracteres).',
+      pass:'La password no es valida (hasta 63 caracteres).',
+      locked:'El portal esta bloqueado: hace falta el PIN.',
+      storage:'El collar no pudo guardar la red. Reintenta.'
+    };
+
+    const AP_ERROR_MAP = {
+      ssid:{field:apSsid,msg:'El nombre del hotspot debe tener entre 1 y 32 caracteres, sin espacios al principio ni al final.'},
+      pass:{field:apPass,msg:'La password del hotspot debe tener entre 8 y 63 caracteres.'},
+      'pass required':{field:apPass,msg:'Escribe una password o marca "Hotspot sin password".'},
+      mdns:{field:mdns,msg:'El nombre corto solo admite letras, numeros y guiones (1 a 32).'}
+    };
+
+    const scanBtn = document.getElementById('scan_btn');
+    const scanStatus = document.getElementById('scan_status');
+    const scanResults = document.getElementById('scan_results');
+    let scanTimer = null;
+
+    function signalBars(rssi){
+      const n = rssi >= -55 ? 4 : rssi >= -65 ? 3 : rssi >= -75 ? 2 : rssi >= -85 ? 1 : 0;
+      return '[' + '#'.repeat(n) + '.'.repeat(4 - n) + ']';
+    }
+
+    function stopScanPoll(){
+      if (scanTimer){ clearInterval(scanTimer); scanTimer = null; }
+    }
+
+    function renderNetworks(list){
+      if (!list || !list.length){
+        scanResults.innerHTML = '';
+        scanStatus.textContent = 'No se encontro ninguna red. Acerca el collar al router y reintenta.';
+        return;
+      }
+      list.sort((a,b)=>b.rssi-a.rssi);
+      scanResults.innerHTML = list.map(n=>
+        `<button class="scan-item" type="button" data-ssid="${esc(n.ssid)}"><span class="scan-ssid">${esc(n.ssid)}</span><span class="scan-meta">${signalBars(n.rssi)} ${n.open?'ABIERTA':'CLAVE'}</span></button>`
+      ).join('');
+      scanResults.querySelectorAll('.scan-item').forEach(b=>{
+        b.onclick = () => {
+          ssidInput.value = b.dataset.ssid;
+          scanResults.querySelectorAll('.scan-item').forEach(o=>o.classList.remove('active'));
+          b.classList.add('active');
+          scanStatus.textContent = 'Red elegida: ' + b.dataset.ssid + '. Escribe el password.';
+          pass.focus();
+        };
+      });
+      scanStatus.textContent = list.length + (list.length === 1 ? ' red encontrada.' : ' redes encontradas.') + ' Toca la tuya.';
+    }
+
+    // Scanning hops channels, so the hotspot the user is sitting on goes quiet
+    // for a moment. Say so, and only ever scan because a button was pressed.
+    async function startScan(){
+      scanBtn.disabled = true;
+      scanResults.innerHTML = '';
+      scanStatus.textContent = 'Buscando redes... el hotspot puede ir lento unos segundos.';
+      try{
+        const res = await dogPost('/api/wifi/scan');
+        if (!res.ok){
+          scanStatus.textContent = 'No se pudo iniciar la busqueda.';
+          scanBtn.disabled = false;
+          return;
+        }
+        pollScan();
+      }catch(e){
+        scanStatus.textContent = 'No se pudo iniciar la busqueda.';
+        scanBtn.disabled = false;
+      }
+    }
+
+    function pollScan(){
+      stopScanPoll();
+      const deadline = Date.now() + 25000;
+      scanTimer = setInterval(async () => {
+        try{
+          const d = await fetch('/api/wifi/scan').then(r=>r.json());
+          if (d.state === 'scanning'){
+            if (Date.now() >= deadline){
+              stopScanPoll();
+              scanBtn.disabled = false;
+              scanStatus.textContent = 'La busqueda tardo demasiado. Reintenta.';
+            }
+            return;
+          }
+          stopScanPoll();
+          scanBtn.disabled = false;
+          if (d.state === 'ready'){
+            renderNetworks(d.networks || []);
+          } else {
+            scanStatus.textContent = 'No se pudo completar la busqueda. Reintenta.';
+          }
+        }catch(e){
+          stopScanPoll();
+          scanBtn.disabled = false;
+          scanStatus.textContent = 'Se perdio la conexion durante la busqueda.';
+        }
+      }, 1200);
+    }
+
+    // Confirmations clear themselves so the card stops claiming "Guardado" over
+    // edits made a minute later. Errors stay until the user acts on them.
+    let apStatusTimer = null;
+    function setApStatus(msg, tone){
+      apStatus.textContent = msg || '';
+      if (tone === 'error') apStatus.className = 'error';
+      else if (tone === 'warn') apStatus.className = 'warn';
+      else apStatus.className = 'muted';
+      if (apStatusTimer){ clearTimeout(apStatusTimer); apStatusTimer = null; }
+      if (msg && tone !== 'error'){
+        apStatusTimer = setTimeout(()=>{ apStatus.textContent=''; apStatusTimer=null; }, 4000);
+      }
+    }
+
+    function clearApInvalid(){
+      [apSsid, apPass, mdns].forEach(el => el && el.classList.remove('invalid'));
+    }
+
+    function setText(el, value){
+      if (el) el.textContent = value || '--';
+    }
+
+    function validMdns(value){
+      if (!value || value.length < 1 || value.length > 32) return false;
+      if (value[0] === '-' || value[value.length - 1] === '-') return false;
+      return /^[A-Za-z0-9-]+$/.test(value);
+    }
+
+    function handleApBackendError(reason){
+      const e = AP_ERROR_MAP[reason] || null;
+      if (!e){
+        setApStatus('Error guardando AP.', 'error');
+        return;
+      }
+      if (e.field) e.field.classList.add('invalid');
+      setApStatus(e.msg, 'error');
+    }
+
+    function renderWifiStatus(s){
+      const w = (s && s.wifi) ? s.wifi : {};
+      let home = 'Desconectado';
+      if (w.sta_connected){
+        home = 'Conectado' + (w.sta_ip && w.sta_ip !== '0.0.0.0' ? (' (' + w.sta_ip + ')') : '');
+      } else if (w.sta_connecting){
+        home = 'Conectando...';
+      } else if (w.wifi_off){
+        home = 'Wi-Fi off';
+      }
+      const ap = w.ap_enabled ? ('Activo: ' + (w.ap_ssid || 'DogRGB') + ' (' + (w.ap_stations || 0) + ' clientes)') : 'Apagado';
+      const apIp = w.ap_ip || '192.168.4.1';
+      apPortalUrl = 'http://' + apIp + '/';
+      const mdnsName = w.mdns || '';
+      setText(wifiHomeState, home);
+      setText(wifiApState, ap);
+      setText(wifiPortal, 'http://' + apIp + '/');
+      setText(wifiMdnsState, mdnsName ? ('http://' + mdnsName + '.local/') : '--');
+      return w;
+    }
+
+    async function loadWifiStatus(){
+      if (wifiRefreshBtn) wifiRefreshBtn.disabled = true;
+      try{
+        const s = await fetch('/api/status').then(r=>r.json());
+        const w = renderWifiStatus(s);
+        wifiStatusMsg.textContent = w.sta_connected ? 'Home Wi-Fi conectado.' : (w.sta_connecting ? 'Intentando conectar a Home Wi-Fi...' : '');
+        return w;
+      }catch(e){
+        wifiStatusMsg.textContent = 'No se pudo leer el estado Wi-Fi.';
+        return null;
+      }finally{
+        if (wifiRefreshBtn) wifiRefreshBtn.disabled = false;
+      }
+    }
+
+    function pollStaStatus(){
+      if (staPollTimer) clearInterval(staPollTimer);
+      const deadline = Date.now() + 30000;
+      const tick = async () => {
+        const w = await loadWifiStatus();
+        if (w && w.sta_connected){
+          staStatus.textContent = 'Conectado a Home Wi-Fi. Portal: http://' + (w.mdns || 'dog-collar') + '.local/';
+          clearInterval(staPollTimer);
+          staPollTimer = null;
+          return;
+        }
+        if (Date.now() >= deadline){
+          staStatus.textContent = 'No se confirmo conexion. Revisa SSID/password; el hotspot sigue disponible en ' + apPortalUrl + '.';
+          clearInterval(staPollTimer);
+          staPollTimer = null;
+        }
+      };
+      staPollTimer = setInterval(tick, 3000);
+      tick();
+    }
+
+    function apChanged(){
+      if (!initialAp) return false;
+      return apSsid.value.trim() !== initialAp.ap_ssid ||
+             mdns.value.trim() !== initialAp.mdns ||
+             apOpen.checked !== initialAp.ap_open ||
+             apPass.value !== '';
+    }
+
+    function updateMdnsPreview(){
+      if (mdnsPreview) mdnsPreview.textContent = mdns.value.trim() || 'dog-rgb';
+    }
+
+    function updateApState(){
+      if (apOpen.checked){
+        apPass.value = '';
+        apPass.disabled = true;
+        apHint.innerText = 'Sin password mientras la casilla este marcada.';
+      } else {
+        apPass.disabled = false;
+        apHint.innerText = apHasPass
+          ? 'Ya hay una password guardada. Dejalo vacio para conservarla.'
+          : 'No hay password. Escribe una de 8 caracteres o mas.';
+      }
+      apWarn.innerText = apChanged() ? 'Al guardar, el hotspot se reinicia y el telefono puede desconectarse un momento.' : '';
+      apOpenWarn.innerText = apOpen.checked ? 'Sin password, cualquiera que este cerca podra abrir este portal y cambiar la configuracion del collar, incluido el password del hotspot.' : '';
+      if (apChanged()) apRecovery.innerText = '';
+      updateMdnsPreview();
+    }
+
+    // W4: the SSID comes back prefilled but the password never does, so without
+    // this the user cannot tell "no password stored" from "stored, not shown"
+    // -- and therefore cannot tell whether saving blank wipes it.
+    function updateStaPassHint(){
+      if (!staPassHint) return;
+      staPassHint.innerText = staHasPass
+        ? 'Ya hay una password guardada para esta red. Dejalo vacio para conservarla.'
+        : 'No hay ninguna password guardada todavia.';
+    }
+
+    async function loadConfig(){
+      try{
+        baseCfg = await fetch('/api/config').then(r=>r.json());
+        ssidInput.value = baseCfg.wifi.sta_ssid || '';
+        apSsid.value = baseCfg.wifi.ap_ssid || '';
+        mdns.value = baseCfg.wifi.mdns || '';
+        apHasPass = !!baseCfg.wifi.has_ap_pass;
+        staHasPass = !!baseCfg.wifi.has_sta_pass;
+        apOpen.checked = !apHasPass;
+        initialAp = { ap_ssid: apSsid.value.trim(), mdns: mdns.value.trim(), ap_open: apOpen.checked };
+        updateApState();
+        updateStaPassHint();
+      }catch(e){
+        setApStatus('No se pudo leer la configuracion del collar.', 'error');
+      }
+    }
+
+    async function saveAp(){
+      clearApInvalid();
+      if (!baseCfg){
+        setApStatus('Error: config no disponible.', 'error');
+        return;
+      }
+      const ssid = apSsid.value.trim();
+      const mdnsVal = mdns.value.trim();
+      const passVal = apPass.value;
+      if (ssid.length < 1 || ssid.length > 32){
+        apSsid.classList.add('invalid');
+        setApStatus('El nombre del hotspot debe tener entre 1 y 32 caracteres.', 'error');
+        return;
+      }
+      if (!apOpen.checked && passVal.length > 0 && passVal.length < 8){
+        apPass.classList.add('invalid');
+        setApStatus('La password del hotspot necesita 8 caracteres como minimo.', 'error');
+        return;
+      }
+      if (!apOpen.checked && passVal.length === 0 && !apHasPass){
+        apPass.classList.add('invalid');
+        setApStatus('Escribe una password o marca "Hotspot sin password".', 'error');
+        return;
+      }
+      if (!validMdns(mdnsVal)){
+        mdns.classList.add('invalid');
+        setApStatus('El nombre corto solo admite letras, numeros y guiones (1 a 32).', 'error');
+        return;
+      }
+      if (apChanged()){
+        if (!confirm('Guardar los cambios del hotspot? Se reinicia y puede que tengas que reconectar el telefono.')) return;
+      }
+      setApStatus('Guardando...', 'muted');
+      const payload = {ap_ssid:ssid, ap_open:apOpen.checked, ap_pass:passVal, mdns:mdnsVal};
+      if (apSaveBtn) apSaveBtn.disabled = true;
+      try{
+        const res = await dogPost('/api/wifi/ap',{headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const r = await res.json();
+        if (!res.ok || r.status !== 'ok'){
+          handleApBackendError(r.reason);
+          return;
+        }
+        setApStatus(r.wifi_restart ? 'Guardado — reiniciando el hotspot' : 'Guardado', 'muted');
+        baseCfg.wifi = baseCfg.wifi || {};
+        baseCfg.wifi.ap_ssid = ssid;
+        baseCfg.wifi.mdns = mdnsVal;
+        initialAp = { ap_ssid: ssid, mdns: mdnsVal, ap_open: apOpen.checked };
+        if (apOpen.checked) apHasPass = false;
+        else if (passVal.length >= 8) apHasPass = true;
+        baseCfg.wifi.has_ap_pass = apHasPass;
+        apPass.value = '';
+        const securityText = apOpen.checked ? 'sin password' : (passVal.length >= 8 ? 'con el password nuevo' : 'con el password ya configurado');
+        apRecovery.innerText = r.wifi_restart ? ('Si el telefono se desconecta, reconectate al hotspot "' + ssid + '" ' + securityText + ' y abre ' + apPortalUrl + '.') : 'Hotspot actualizado.';
+        updateApState();
+        loadWifiStatus();
+      }catch(e){
+        setApStatus('Sin respuesta del collar. No se guardo.', 'error');
+      }finally{
+        if (apSaveBtn) apSaveBtn.disabled = false;
+      }
+    }
+
+    staForm.onsubmit = async (e) => {
+      e.preventDefault();
+      staStatus.textContent = 'Guardando...';
+      if (staSubmitBtn) staSubmitBtn.disabled = true;
+      try{
+        const fd = new FormData(staForm);
+        const r = await dogPost('/api/wifi',{body:fd});
+        const body = await r.json().catch(()=>({}));
+        if (r.ok && body.status === 'ok'){
+          staStatus.textContent = 'Guardado, conectando... el hotspot sigue disponible en ' + apPortalUrl + '.';
+          pollStaStatus();
+        } else {
+          staStatus.textContent = STA_ERROR_MAP[body.reason] || 'No se pudo guardar la red de casa.';
+        }
+      }catch(e){
+        staStatus.textContent = 'Sin respuesta del collar. No se guardo.';
+      }finally{
+        if (staSubmitBtn) staSubmitBtn.disabled = false;
+      }
+    };
+
+    apOpen.onchange = updateApState;
+    apPass.oninput = updateApState;
+    apSsid.oninput = updateApState;
+    mdns.oninput = updateApState;
+    loadConfig();
+    loadWifiStatus();
+  </script>
+</body>
+</html>

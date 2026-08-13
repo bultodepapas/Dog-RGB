@@ -1,8 +1,8 @@
 # AP Portal Visual Verification
 
-**Status:** Current developer workflow, reviewed on 2026-08-12.
+**Status:** Current developer workflow, reviewed on 2026-08-13.
 
-Use this workflow after changing embedded portal markup, styles, scripts, or API fixtures. It extracts the pages from `Platformio/Dog-RGB/src/web/pages.cpp`, serves them locally, mocks device APIs, and exercises mobile layouts with Playwright.
+Use this workflow after changing portal markup, styles, scripts, the generator, or API fixtures. It builds the editable files under `webui/src`, serves the same decompressed bundles embedded in firmware, mocks device APIs, and exercises mobile layouts with Playwright.
 
 It validates UI behavior and pixel output; it does not replace a firmware build or a real-device AP test.
 
@@ -24,6 +24,8 @@ npm ci
 
 ```powershell
 # Fast source/contract checks
+npm run webui:check
+npm run webui:unit
 npm run smoke
 
 # Generate the reviewed mobile states
@@ -60,7 +62,9 @@ The helper uses Bash/container tooling; run it in an environment that provides t
 
 | Command | Purpose |
 | --- | --- |
-| `npm run ap-portal:extract` | Extract embedded pages into the generated preview directory |
+| `npm run webui:build` | Regenerate manifest, flash arrays and disposable preview HTML |
+| `npm run webui:check` | Fail if tracked generated assets are stale or over budget |
+| `npm run webui:unit` | Test deterministic gzip and binary C++ rendering |
 | `npm run ap-portal:serve` | Serve the preview at `http://127.0.0.1:4173` |
 | `npm run ap-portal:screenshots` | Run deterministic mobile screenshot scenarios |
 | `npm run ap-portal:visual` | Enable snapshot comparisons |
@@ -88,6 +92,6 @@ Fixtures live under `tests/ap-portal-visual/fixtures/`. Keep them deterministic,
 2. Decide whether the change is intended or a regression.
 3. Fix source markup/fixtures and rerun when unintended.
 4. When intended, review every affected viewport and state before updating snapshots.
-5. Build the firmware if `pages.cpp` changed, because HTML extraction alone cannot catch C++ or flash-size failures.
+5. Build the firmware after any portal change; browser checks cannot catch target linking, flash-size or `send_P` regressions.
 
 CI runs static portal checks, the complete Playwright project, and visual comparisons in the pinned Linux image. See [Testing and simulation](testing.md) for the full matrix.

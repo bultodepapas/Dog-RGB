@@ -1,12 +1,23 @@
 {
   "schema_version": 1,
   "effect_registry_version": 1,
+  "palette_registry_version": 1,
+  "palette_none_id": 255,
+  "scene_registry_version": 1,
+  "scene_schema_version": 1,
   "effect_count": 12,
+  "palette_count": 8,
   "persistent_effect_ids": true,
   "layout": {
     "buses": 2,
     "pixels_per_bus": 24,
     "status_pixels_per_bus": 2,
+    "body_pixels_per_bus": 22,
+    "bus_a_orientation": "forward",
+    "bus_b_orientation": "reverse",
+    "mirror_supported": true,
+    "mirror_default": true,
+    "regions": ["status", "body", "alert"],
     "physical_format": "RGBW",
     "logical_format": "RGB"
   },
@@ -17,14 +28,25 @@
     "speed_max": 255,
     "intensity_min": 0,
     "intensity_max": 255,
+    "transition_default_ms": 500,
+    "scene_transition_max_ms": 5000,
+    "scene_name_bytes": 24,
+    "scene_user_slots": 4,
+    "scene_user_id_first": 128,
+    "scene_import_max_bytes": 4096,
+    "scene_json_nesting": 6,
+    "scene_record_bytes": 196,
     "current_budget_min_ma": 250,
     "current_budget_max_ma": 5000
   },
   "features": {
     "state_get": true,
     "state_patch": false,
-    "transitions": false,
-    "palettes": false
+    "transitions": true,
+    "palettes": true,
+    "scenes": true,
+    "scene_import": true,
+    "scene_export": true
   },
   "effects": [
     {
@@ -32,84 +54,94 @@
       "controls": {"speed": false, "intensity": false, "color": true},
       "defaults": {"speed": 80, "intensity": 140},
       "useful_range": {"speed_min": 0, "speed_max": 255, "intensity_min": 0, "intensity_max": 255},
-      "color_mode": "base", "palette_mode": "none", "safety": "calm"
+      "color_mode": "base", "palette_mode": "none", "default_palette_id": -1, "safety": "calm"
     },
     {
       "id": 1, "key": "pulse", "name": "PULSE",
       "controls": {"speed": true, "intensity": false, "color": true},
       "defaults": {"speed": 80, "intensity": 140},
       "useful_range": {"speed_min": 10, "speed_max": 180, "intensity_min": 0, "intensity_max": 255},
-      "color_mode": "base", "palette_mode": "none", "safety": "active"
+      "color_mode": "base", "palette_mode": "none", "default_palette_id": -1, "safety": "active"
     },
     {
       "id": 2, "key": "breath", "name": "BREATH",
       "controls": {"speed": true, "intensity": false, "color": true},
       "defaults": {"speed": 60, "intensity": 90},
       "useful_range": {"speed_min": 10, "speed_max": 140, "intensity_min": 0, "intensity_max": 255},
-      "color_mode": "base", "palette_mode": "none", "safety": "calm"
+      "color_mode": "base", "palette_mode": "selectable", "default_palette_id": 7, "safety": "calm"
     },
     {
       "id": 3, "key": "chase", "name": "CHASE",
       "controls": {"speed": true, "intensity": true, "color": true},
       "defaults": {"speed": 120, "intensity": 140},
       "useful_range": {"speed_min": 32, "speed_max": 224, "intensity_min": 40, "intensity_max": 240},
-      "color_mode": "base", "palette_mode": "none", "safety": "active"
+      "color_mode": "base", "palette_mode": "selectable", "default_palette_id": 7, "safety": "active"
     },
     {
       "id": 4, "key": "comet", "name": "COMET",
       "controls": {"speed": true, "intensity": true, "color": true},
       "defaults": {"speed": 120, "intensity": 140},
       "useful_range": {"speed_min": 24, "speed_max": 216, "intensity_min": 40, "intensity_max": 240},
-      "color_mode": "base", "palette_mode": "none", "safety": "active"
+      "color_mode": "base", "palette_mode": "selectable", "default_palette_id": 7, "safety": "active"
     },
     {
       "id": 5, "key": "sinelon", "name": "SINELON",
       "controls": {"speed": true, "intensity": true, "color": true},
       "defaults": {"speed": 110, "intensity": 150},
       "useful_range": {"speed_min": 20, "speed_max": 180, "intensity_min": 40, "intensity_max": 240},
-      "color_mode": "base", "palette_mode": "none", "safety": "active"
+      "color_mode": "base", "palette_mode": "none", "default_palette_id": -1, "safety": "active"
     },
     {
       "id": 6, "key": "confetti", "name": "CONFETTI",
       "controls": {"speed": false, "intensity": true, "color": true},
       "defaults": {"speed": 100, "intensity": 150},
       "useful_range": {"speed_min": 0, "speed_max": 255, "intensity_min": 40, "intensity_max": 240},
-      "color_mode": "base", "palette_mode": "none", "safety": "active"
+      "color_mode": "base", "palette_mode": "none", "default_palette_id": -1, "safety": "active"
     },
     {
       "id": 7, "key": "juggle", "name": "JUGGLE",
       "controls": {"speed": true, "intensity": true, "color": true},
       "defaults": {"speed": 150, "intensity": 180},
       "useful_range": {"speed_min": 20, "speed_max": 200, "intensity_min": 40, "intensity_max": 240},
-      "color_mode": "base", "palette_mode": "none", "safety": "advanced"
+      "color_mode": "base", "palette_mode": "none", "default_palette_id": -1, "safety": "advanced"
     },
     {
       "id": 8, "key": "bpm", "name": "BPM",
       "controls": {"speed": true, "intensity": false, "color": true},
       "defaults": {"speed": 100, "intensity": 150},
       "useful_range": {"speed_min": 10, "speed_max": 180, "intensity_min": 0, "intensity_max": 255},
-      "color_mode": "base", "palette_mode": "none", "safety": "active"
+      "color_mode": "base", "palette_mode": "none", "default_palette_id": -1, "safety": "active"
     },
     {
       "id": 9, "key": "rainbow", "name": "RAINBOW",
       "controls": {"speed": true, "intensity": false, "color": false},
       "defaults": {"speed": 120, "intensity": 180},
       "useful_range": {"speed_min": 16, "speed_max": 224, "intensity_min": 0, "intensity_max": 255},
-      "color_mode": "generated", "palette_mode": "none", "safety": "active"
+      "color_mode": "generated", "palette_mode": "selectable", "default_palette_id": 4, "safety": "active"
     },
     {
       "id": 10, "key": "fire", "name": "FIRE",
       "controls": {"speed": false, "intensity": true, "color": false},
       "defaults": {"speed": 155, "intensity": 200},
       "useful_range": {"speed_min": 80, "speed_max": 220, "intensity_min": 80, "intensity_max": 240},
-      "color_mode": "generated", "palette_mode": "internal", "safety": "advanced"
+      "color_mode": "generated", "palette_mode": "internal", "default_palette_id": 5, "safety": "advanced"
     },
     {
       "id": 11, "key": "gradient_wave", "name": "GRADIENT_WAVE",
       "controls": {"speed": true, "intensity": false, "color": false},
       "defaults": {"speed": 120, "intensity": 180},
       "useful_range": {"speed_min": 24, "speed_max": 224, "intensity_min": 0, "intensity_max": 255},
-      "color_mode": "generated", "palette_mode": "none", "safety": "active"
+      "color_mode": "generated", "palette_mode": "selectable", "default_palette_id": 2, "safety": "active"
     }
+  ],
+  "palettes": [
+    {"id":0,"key":"safety_amber","name":"Safety Amber","cyclic":true,"dynamic":false,"stops_rgbw":[{"r":180,"g":45,"b":0,"w":0},{"r":200,"g":70,"b":0,"w":20},{"r":120,"g":25,"b":0,"w":70},{"r":0,"g":0,"b":0,"w":180}]},
+    {"id":1,"key":"night_red","name":"Night Red","cyclic":true,"dynamic":false,"stops_rgbw":[{"r":18,"g":0,"b":0,"w":0},{"r":55,"g":0,"b":0,"w":0},{"r":100,"g":0,"b":0,"w":0},{"r":30,"g":0,"b":0,"w":8}]},
+    {"id":2,"key":"ocean","name":"Ocean","cyclic":true,"dynamic":false,"stops_rgbw":[{"r":0,"g":15,"b":100,"w":0},{"r":0,"g":100,"b":150,"w":0},{"r":0,"g":150,"b":170,"w":20},{"r":0,"g":20,"b":80,"w":120}]},
+    {"id":3,"key":"forest","name":"Forest","cyclic":true,"dynamic":false,"stops_rgbw":[{"r":0,"g":45,"b":5,"w":0},{"r":0,"g":120,"b":55,"w":0},{"r":0,"g":150,"b":90,"w":20},{"r":0,"g":40,"b":20,"w":100}]},
+    {"id":4,"key":"pride","name":"Pride","cyclic":true,"dynamic":false,"stops_rgbw":[{"r":220,"g":0,"b":0,"w":0},{"r":220,"g":70,"b":0,"w":0},{"r":180,"g":180,"b":0,"w":0},{"r":0,"g":190,"b":20,"w":0},{"r":0,"g":50,"b":220,"w":0},{"r":140,"g":0,"b":200,"w":0}]},
+    {"id":5,"key":"heat","name":"Heat","cyclic":false,"dynamic":false,"stops_rgbw":[{"r":80,"g":0,"b":0,"w":0},{"r":200,"g":20,"b":0,"w":0},{"r":220,"g":90,"b":0,"w":0},{"r":180,"g":180,"b":0,"w":30},{"r":0,"g":0,"b":0,"w":180}]},
+    {"id":6,"key":"ice","name":"Ice","cyclic":true,"dynamic":false,"stops_rgbw":[{"r":0,"g":15,"b":70,"w":40},{"r":0,"g":80,"b":150,"w":50},{"r":0,"g":20,"b":80,"w":140},{"r":0,"g":0,"b":0,"w":210}]},
+    {"id":7,"key":"custom_ab","name":"Custom A-B","cyclic":false,"dynamic":true,"stops_rgbw":[{"r":0,"g":0,"b":0,"w":0},{"r":0,"g":0,"b":0,"w":0}]}
   ]
 }

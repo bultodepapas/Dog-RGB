@@ -1,0 +1,444 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DOG-RGB</title>
+  <!-- DOG_RGB_INCLUDE:styles/app.css -->
+</head>
+<body>
+  <noscript><div class="warn" style="padding:12px">Este portal necesita JavaScript activado para mostrar los datos del collar.</div></noscript>
+  <main class="container">
+    <div class="hero card">
+      <div class="hero-top">
+        <div>
+          <h1 class="brand">DOG-RGB</h1>
+          <div class="tagline">Collar inteligente de seguridad</div>
+        </div>
+        <div class="chips">
+          <span class="pill" id="pill-gps">GPS: --</span>
+          <span class="pill" id="pill-wifi">Wi-Fi: --</span>
+          <span class="pill" id="pill-mode">Modo: --</span>
+          <span class="pill" id="pill-day" style="display:none">DIA: --</span>
+          <span class="pill" id="pill-home">Home: --</span>
+        </div>
+      </div>
+      <div class="dashboard-actions">
+        <button class="btn" onclick="refreshAll()">Refresh</button>
+        <a class="btn ghost" href="/config">Config LEDs</a>
+        <a class="btn ghost" href="/wifi">Config Wi-Fi</a>
+        <a class="btn ghost" href="/dev">Dev</a>
+        <button class="btn ghost" id="home_btn" onclick="updateHome()" style="display:none">Set Home</button>
+      </div>
+      <div class="muted" id="status">Estado: --</div>
+    </div>
+
+    <div class="card section dashboard-summary">
+      <div class="primary-metric metric">
+        <div class="label">Distancia</div>
+        <div class="value" id="dist">--</div>
+        <div class="unit">km</div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat metric">
+          <div class="label">Vel. promedio</div>
+          <div class="value" id="avg">--</div>
+          <div class="unit">km/h</div>
+        </div>
+        <div class="stat metric">
+          <div class="label">Vel. maxima</div>
+          <div class="value" id="max">--</div>
+          <div class="unit">km/h</div>
+        </div>
+      </div>
+      <div class="summary-meta">
+        <span class="meta-pair"><span class="meta-k">Fecha</span><span class="meta-v" id="date">--</span></span>
+        <span class="meta-pair"><span class="meta-k">Ultima lectura</span><span class="meta-v" id="updated">--</span></span>
+      </div>
+    </div>
+
+    <details class="card section">
+      <summary>Historial y ruta</summary>
+      <div class="section-body">
+        <h2>Sesiones</h2>
+        <div id="session-current"></div>
+        <div id="history"></div>
+        <div class="track-controls section">
+          <h2>Ruta GPS</h2>
+          <select id="track_session" aria-label="Sesion a mostrar">
+            <option value="current">Sesion actual</option>
+            <option value="0">Sesion 1 (ultima)</option>
+            <option value="1">Sesion 2</option>
+            <option value="2">Sesion 3</option>
+          </select>
+          <button class="btn ghost" id="track_load" type="button" onclick="loadTrack()">Ver trazo</button>
+          <a class="btn ghost" id="track_csv" href="/api/track.csv" style="display:none">CSV completo</a>
+          <a class="btn ghost" id="track_geo" href="/api/track.geojson" style="display:none">GeoJSON completo</a>
+        </div>
+        <div class="track-note">Vista previa del trazo GPS, sin mapa base ni escala. Los exports descargan la sesion completa.</div>
+        <canvas id="track_map" class="track-canvas is-hidden"></canvas>
+        <div class="empty-state" id="track_status">Ruta: sin cargar</div>
+      </div>
+    </details>
+  </main>
+
+  <script>
+    // Every portal write goes through here. X-Dog-Portal is what the server's
+    // CSRF guard requires; X-Dog-Pin is empty unless the user turned on the
+    // optional lock, in which case a 401 prompts for it once per browser tab.
+    function dogPin(){try{return sessionStorage.getItem('dogPin')||'';}catch(e){return '';}}
+    async function dogPost(url,opts){
+      opts=opts||{};
+      const send=()=>fetch(url,Object.assign({},opts,{method:'POST',headers:Object.assign({'X-Dog-Portal':'1','X-Dog-Pin':dogPin()},opts.headers||{})}));
+      let r=await send();
+      if(r.status===401){
+        const pin=prompt('Portal bloqueado. Introduce el PIN:');
+        if(pin===null){return r;}
+        try{sessionStorage.setItem('dogPin',pin);}catch(e){}
+        r=await send();
+        if(r.status===401){try{sessionStorage.removeItem('dogPin');}catch(e){}}
+      }
+      return r;
+    }
+    const $ = (id) => document.getElementById(id);
+    const homeBtn = $('home_btn');
+    const trackCanvas = $('track_map');
+    const trackSession = $('track_session');
+    const trackStatus = $('track_status');
+    const trackCsv = $('track_csv');
+    const trackGeo = $('track_geo');
+    const trackLoad = $('track_load');
+    let trackLoaded = false;
+    // Assigning canvas.width wipes the bitmap, and resizeTrackCanvas does exactly
+    // that. Keep the last drawing so a rotation or an address-bar collapse can
+    // repaint instead of leaving the user with an empty box.
+    let trackDrawn = null;
+    let trackResizeTimer = null;
+    function minToTime(m){var h=Math.floor(m/60);var mm=m%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0');}
+    function cmpsToKph(v){return (v*0.036).toFixed(1);}
+    function fmtDate(d){if(!d){return '--';}var s=String(d);if(s.length!==8){return s;}return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);}
+    function yyyymmddToDate(d){if(!d){return '--/--';}var y=Math.floor(d/10000);var m=Math.floor((d%10000)/100);var day=d%100;return String(day).padStart(2,'0')+'/'+String(m).padStart(2,'0');}
+    function formatDuration(s){var h=Math.floor(s/3600);var m=Math.floor((s%3600)/60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+    function hasFlag(flags,bit){return (flags&(1<<bit))!==0;}
+    function setPill(id,text,tone){var el=$(id);el.textContent=text;el.className='pill'+(tone?(' '+tone):'');}
+    const MODE_NAMES={speed:'Velocidad',geofence:'Geocerca',simple:'Simple',show:'Show'};
+
+    function resizeTrackCanvas(){
+      if(!trackCanvas){return;}
+      const rect=trackCanvas.getBoundingClientRect();
+      const dpr=window.devicePixelRatio||1;
+      trackCanvas.width=Math.max(1,Math.floor(rect.width*dpr));
+      trackCanvas.height=Math.max(1,Math.floor(rect.height*dpr));
+    }
+
+    function setTrackLinks(session){
+      if(trackCsv) trackCsv.href='/api/track.csv?session='+session;
+      if(trackGeo) trackGeo.href='/api/track.geojson?session='+session;
+    }
+
+    function setTrackExportsVisible(visible){
+      if(trackCsv) trackCsv.style.display=visible?'inline-flex':'none';
+      if(trackGeo) trackGeo.style.display=visible?'inline-flex':'none';
+    }
+
+    function setTrackCanvasVisible(visible){
+      if(trackCanvas) trackCanvas.classList.toggle('is-hidden',!visible);
+    }
+
+    function clearTrack(msg){
+      if(trackCanvas){
+        const ctx=trackCanvas.getContext('2d');
+        const dpr=window.devicePixelRatio||1;
+        const rect=trackCanvas.getBoundingClientRect();
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        ctx.clearRect(0,0,rect.width,rect.height);
+      }
+      setTrackCanvasVisible(false);
+      setTrackExportsVisible(false);
+      trackDrawn=null;
+      if(trackStatus){
+        trackStatus.textContent=msg||'Ruta: --';
+        trackStatus.className='empty-state';
+      }
+    }
+
+    function drawTrack(points,bbox){
+      if(!trackCanvas){return;}
+      trackDrawn={points:points,bbox:bbox};
+      setTrackCanvasVisible(true);
+      resizeTrackCanvas();
+      const ctx=trackCanvas.getContext('2d');
+      const rect=trackCanvas.getBoundingClientRect();
+      const dpr=window.devicePixelRatio||1;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      ctx.clearRect(0,0,rect.width,rect.height);
+
+      const pad=12;
+      const minLat=bbox.min_lat, maxLat=bbox.max_lat;
+      const minLon=bbox.min_lon, maxLon=bbox.max_lon;
+      const latSpan=Math.max(1e-6, maxLat-minLat);
+      const lonSpan=Math.max(1e-6, maxLon-minLon);
+      const scale=Math.min((rect.width-2*pad)/lonSpan, (rect.height-2*pad)/latSpan);
+
+      ctx.beginPath();
+      for(let i=0;i<points.length;i++){
+        const lat=points[i][0];
+        const lon=points[i][1];
+        const x=pad+(lon-minLon)*scale;
+        const y=rect.height-(pad+(lat-minLat)*scale);
+        if(i===0){ctx.moveTo(x,y);} else {ctx.lineTo(x,y);}
+      }
+      ctx.strokeStyle='#00FF41';
+      ctx.lineWidth=3;
+      ctx.lineJoin='round';
+      ctx.lineCap='round';
+      ctx.stroke();
+
+      if(points.length>0){
+        const start=points[0];
+        const end=points[points.length-1];
+        const sx=pad+(start[1]-minLon)*scale;
+        const sy=rect.height-(pad+(start[0]-minLat)*scale);
+        const ex=pad+(end[1]-minLon)*scale;
+        const ey=rect.height-(pad+(end[0]-minLat)*scale);
+        ctx.fillStyle='#00FF41';
+        ctx.beginPath();ctx.arc(sx,sy,4,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#FF0055';
+        ctx.beginPath();ctx.arc(ex,ey,4,0,Math.PI*2);ctx.fill();
+      }
+    }
+
+    async function loadTrack(){
+      if(!trackSession){return;}
+      const session=trackSession.value||'current';
+      trackLoaded=true;
+      setTrackLinks(session);
+      if(trackStatus) trackStatus.textContent='Ruta: cargando...';
+      if(trackLoad) trackLoad.disabled=true;
+      try{
+        const r=await fetch('/api/track?session='+session+'&max_points=250');
+        const d=await r.json();
+        if(!d||!d.count||!d.points||d.points.length<2){
+          clearTrack('Ruta: no hay puntos suficientes');
+          return;
+        }
+        if(!d.bbox){
+          clearTrack('Ruta: sin bbox');
+          return;
+        }
+        if(trackStatus){
+          trackStatus.className='muted';
+          trackStatus.textContent='Ruta: '+d.points.length+' puntos de vista previa, dibujando...';
+        }
+        drawTrack(d.points,d.bbox);
+        setTrackExportsVisible(true);
+        var sDate=fmtDate(d.start_date);
+        var eDate=fmtDate(d.end_date||d.start_date);
+        var sTime=minToTime(d.start_min||0);
+        var eTime=minToTime(d.end_min||0);
+        var shown=d.points.length;
+        var countText=(d.count&&d.count>shown)?(shown+' de '+d.count+' pts'):(shown+' pts');
+        if(trackStatus) trackStatus.textContent='Trazo GPS: '+countText+' | '+sDate+' '+sTime+' a '+eDate+' '+eTime;
+      }catch(e){
+        clearTrack('Ruta: error');
+      }finally{
+        if(trackLoad) trackLoad.disabled=false;
+      }
+    }
+
+    // The GPS state already has its own pill, so repeating it here as
+    // "Estado: GPS OK" said nothing twice. This line now only speaks when it
+    // has something the pills do not carry.
+    function setDashNote(msg,tone){
+      const el=$('status');
+      el.textContent=msg||'';
+      el.className=msg?(tone==='warn'?'warn':'muted'):'muted';
+    }
+
+    function renderSummary(d){
+      if(!d||!d.has_data){
+        const gpsFix=!!(d&&d.gps_fix);
+        const gpsRaw=!!(d&&d.gps_raw_fix);
+        if(gpsFix){
+          // With a trusted fix and no movement, the day really is all zeros.
+          // Mixing 0.00 with "--" made the empty state contradict itself.
+          setDashNote('Sin actividad registrada hoy');
+          $('dist').textContent='0.00';
+          $('avg').textContent='0.0';
+          $('max').textContent='0.0';
+        } else {
+          setDashNote(gpsRaw?'GPS no confiable todavia: aun no se registra actividad.':'Esperando senal GPS para empezar a registrar.','warn');
+          $('dist').textContent='--';
+          $('avg').textContent='--';
+          $('max').textContent='--';
+        }
+        $('date').textContent=(d&&d.date)?fmtDate(d.date):'--';
+        $('updated').textContent='--';
+        return;
+      }
+      $('dist').textContent=(d.distance_m/1000).toFixed(2);
+      $('avg').textContent=cmpsToKph(d.avg_speed_cmps);
+      $('max').textContent=cmpsToKph(d.max_speed_cmps);
+      $('date').textContent=fmtDate(d.date);
+      $('updated').textContent=minToTime(d.last_update_min);
+      if (d.gps_fix) {
+        setDashNote('');
+      } else if (d.gps_raw_fix) {
+        setDashNote('GPS no confiable: los datos de hoy pueden estar incompletos.','warn');
+      } else {
+        setDashNote('Sin GPS: no se esta registrando actividad ahora mismo.','warn');
+      }
+    }
+
+    function renderSessionCard(label,s){
+      if(!s){return '';}
+      var flags=s.flags||0;
+      var noFix=hasFlag(flags,3)||!hasFlag(flags,0);
+      if(noFix){
+        return "<div class='session-card'><div class='label'>"+label+"</div><div class='muted'>GPS no disponible para esta sesion</div></div>";
+      }
+      var startDate=yyyymmddToDate(s.start_date);
+      var startTime=minToTime(s.start_min||0);
+      var endDate=yyyymmddToDate(s.end_date||s.start_date);
+      var endTime=minToTime(s.end_min||s.start_min||0);
+      var distKm=(s.distance_m/1000).toFixed(2);
+      var avg=cmpsToKph(s.avg_speed_cmps||0);
+      var max=cmpsToKph(s.max_speed_cmps||0);
+      var active=formatDuration(s.active_s||0);
+      return "<div class='session-card'><div class='label'>"+label+"</div>"+
+             "<div class='muted'>"+startDate+" "+startTime+" a "+endDate+" "+endTime+"</div>"+
+             "<div>Distancia: <strong>"+distKm+"</strong> km</div>"+
+             "<div class='muted'>Tiempo activo: "+active+"</div>"+
+             "<div class='muted'>Vel. prom: "+avg+" km/h | Vel. max: "+max+" km/h</div></div>";
+    }
+
+    function renderSessionCurrent(s){
+      var el=$('session-current');
+      if(!el){return;}
+      if(!s){
+        el.innerHTML="<div class='empty-state'>Sesion actual: sin datos todavia</div>";
+        return;
+      }
+      el.innerHTML=renderSessionCard('Sesion actual',s);
+    }
+
+    function renderHistory(list){
+      var el=$('history');
+      if(!el){return;}
+      if(!list||list.length===0){
+        el.innerHTML="<div class='empty-state'>Sin sesiones anteriores</div>";
+        return;
+      }
+      var out='';
+      for(var i=0;i<list.length;i++){
+        out+=renderSessionCard('Sesion '+(i+1),list[i]);
+      }
+      el.innerHTML=out;
+    }
+
+    function renderStatus(s){
+      if(!s){return;}
+      var gpsTrusted=!!(s.gps&&s.gps.fix);
+      var gpsRaw=!!(s.gps&&s.gps.raw_fix);
+      var gpsTone=gpsTrusted?'ok':'warn';
+      var gpsSats=(s.gps&&s.gps.sats!==undefined)?s.gps.sats:'--';
+      var gpsText='GPS sin fix ('+gpsSats+')';
+      if (gpsTrusted){
+        gpsText='GPS OK ('+gpsSats+')';
+      } else if (gpsRaw){
+        gpsText='GPS no confiable ('+gpsSats+')';
+      }
+      setPill('pill-gps',gpsText,gpsTone);
+
+      var wifiText='Wi-Fi off';
+      var wifiTone='warn';
+      if(s.wifi){
+        if(s.wifi.sta_connected){wifiText='STA conectada';wifiTone='ok';}
+        else if(s.wifi.ap_enabled){wifiText='AP activo';wifiTone='warn';}
+      }
+      setPill('pill-wifi',wifiText,wifiTone);
+
+      // Same names the config page uses. Showing the internal identifier here
+      // ("speed") while /config calls it "Velocidad" made them look unrelated.
+      var modeText='Modo: '+(MODE_NAMES[s.mode]||s.mode||'--');
+      setPill('pill-mode',modeText,'');
+      const dayPill = $('pill-day');
+      if (dayPill && s.day_mode && s.day_mode.enabled){
+        const active = !!s.day_mode.active;
+        const waiting = s.day_mode.state === 'waiting_time';
+        dayPill.style.display = 'inline-flex';
+        setPill('pill-day', active ? 'DIA activo' : (waiting ? 'DIA esperando hora' : 'DIA armado'), active ? 'ok' : 'warn');
+      } else if (dayPill) {
+        dayPill.style.display = 'none';
+      }
+      if (homeBtn){
+        homeBtn.style.display = (s.mode === 'geofence') ? 'inline-flex' : 'none';
+      }
+
+      var homeText='Home: --';
+      var homeTone='warn';
+      if(s.home){
+        if(s.home.set){
+          homeText='Home OK';
+          if(s.home.distance_m>=0){homeText+=' ('+s.home.distance_m.toFixed(1)+' m)';}
+          homeTone='ok';
+        } else {
+          homeText='Home no definido';
+        }
+      }
+      setPill('pill-home',homeText,homeTone);
+    }
+
+    async function loadSummary(){
+      try{
+        const d=await fetch('/api/summary').then(r=>r.json());
+        renderSummary(d);
+        renderSessionCurrent(d.session_current);
+        renderHistory(d.history);
+      }catch(e){
+        $('status').textContent='Estado: Error';
+      }
+    }
+
+    async function loadStatus(){
+      try{
+        const s=await fetch('/api/status').then(r=>r.json());
+        renderStatus(s);
+      }catch(e){}
+    }
+
+    function refreshAll(){loadSummary();loadStatus();}
+    async function updateHome(){
+      if (homeBtn) homeBtn.disabled = true;
+      try{
+        const r = await dogPost('/api/home/set').then(r=>r.json());
+        if (r.status === 'ok'){
+          loadStatus();
+        }
+      }catch(e){}
+      if (homeBtn) homeBtn.disabled = false;
+    }
+    if (trackSession){
+      trackSession.addEventListener('change',()=>{ if(trackLoaded) loadTrack(); else setTrackLinks(trackSession.value||'current'); });
+    }
+    // Repaint rather than just resize: without this the track vanishes on every
+    // rotation. Debounced because a rotation fires a burst of resize events.
+    function handleTrackResize(){
+      if(trackResizeTimer){clearTimeout(trackResizeTimer);}
+      trackResizeTimer=setTimeout(()=>{
+        trackResizeTimer=null;
+        if(trackDrawn){drawTrack(trackDrawn.points,trackDrawn.bbox);}
+        else{resizeTrackCanvas();}
+      },150);
+    }
+    window.addEventListener('resize',handleTrackResize);
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refreshAll(); });
+    resizeTrackCanvas();
+    setTrackLinks(trackSession ? (trackSession.value||'current') : 'current');
+    refreshAll();
+    setInterval(()=>{ if(!document.hidden) loadStatus(); },5000);
+    setInterval(()=>{ if(!document.hidden) loadSummary(); },10000);
+  </script>
+</body>
+</html>
