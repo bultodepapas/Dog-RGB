@@ -177,22 +177,23 @@ def main() -> int:
             continue
         source = source_path.read_text(encoding="utf-8")
         failures.extend(check_source(filename, source))
-        if not preview_path.is_file():
-            failures.append(f"missing preview {preview_path.relative_to(ROOT)}")
-            continue
-        preview = preview_path.read_bytes()
-        if STYLE_MARKER.encode() in preview:
-            failures.append(f"{filename}: unresolved include marker in preview")
-        if len(preview) != page.get("decoded_bytes"):
-            failures.append(f"{filename}: decoded size does not match manifest")
         try:
             compressed = parse_cpp_array(cpp, page["symbol"])
             decoded = gzip.decompress(compressed)
         except (KeyError, OSError, EOFError, ValueError) as exc:
             failures.append(f"{filename}: invalid generated gzip: {exc}")
             continue
-        if decoded != preview:
-            failures.append(f"{filename}: firmware array differs from preview")
+        if STYLE_MARKER.encode() in decoded:
+            failures.append(f"{filename}: unresolved include marker in firmware asset")
+        if not re.match(rb"\s*<!doctype html>", decoded, re.I):
+            failures.append(f"{filename}: firmware asset is not an HTML document")
+        if len(decoded) != page.get("decoded_bytes"):
+            failures.append(f"{filename}: decoded size does not match manifest")
+        # The preview directory is disposable and intentionally ignored. When
+        # present, compare it too; a clean checkout validates the authoritative
+        # tracked gzip bytes without depending on generated local residue.
+        if preview_path.is_file() and decoded != preview_path.read_bytes():
+            failures.append(f"{filename}: firmware array differs from local preview")
         if len(compressed) != page.get("gzip_bytes"):
             failures.append(f"{filename}: gzip size does not match manifest")
         if digest(compressed) != page.get("gzip_sha256"):
