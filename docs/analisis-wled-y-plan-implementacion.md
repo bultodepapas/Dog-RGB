@@ -32,7 +32,7 @@ No recomiendo priorizar MQTT, Alexa, DMX, Art-Net, 250 presets, cientos de palet
 - Para WLED se usó el tag estable exacto `v16.0.1`; no se tomaron decisiones desde `main` ni desde builds nocturnos.
 - Se contrastó el código con la documentación y las páginas de release oficiales.
 - Se ejecutó la suite host disponible de RGB Dog y el smoke test de las páginas.
-- No se hizo un build local de PlatformIO porque `pio`/`platformio` no está instalado en el entorno. No se modificó la máquina para ocultar esa limitación; el repositorio sí contiene un job de compilación en CI.
+- En el análisis inicial PlatformIO no estaba disponible localmente. Durante la Fase 0 se instaló el entorno fijado, se reparó una extracción parcial del framework y se completaron un build limpio y otro incremental con `SUCCESS`.
 
 Este documento distingue entre hechos observados, propuestas y trabajo opcional. Las estimaciones son rangos de esfuerzo de ingeniería, no fechas prometidas.
 
@@ -125,7 +125,7 @@ Las dos fallas parecen contratos estáticos desactualizados que deben revisarse,
 1. Una prueba espera cuatro apariciones de `persist_config_or_restore(previous)` y el código actual contiene tres.
 2. Una prueba de credenciales espera `{"ok":false,"reason":"storage"}`, mientras el handler actual responde `{"status":"error","reason":"storage"}`.
 
-También se ejecutó `python tools/web_pages_smoke.py` con resultado satisfactorio. No se pudo producir una línea base local de flash/RAM porque PlatformIO no está disponible; la primera fase debe capturar esos números desde CI.
+También se ejecutó `python tools/web_pages_smoke.py` con resultado satisfactorio. La Fase 0 produjo después la línea base local: 56.644 bytes de RAM (17,3 %) y 1.171.295 bytes de flash de aplicación (35,0 %); CI repetirá y archivará la medición por commit.
 
 ## 2. Qué hace bien WLED y por qué importa aquí
 
@@ -400,7 +400,7 @@ flowchart LR
 
 **Esfuerzo:** 1–2 días. **Prioridad:** inmediata.
 
-**Estado 2026-08-12:** ejecutada en software. La suite host queda en 114/114 y CI captura tests, entorno, tamaño y artefactos. Las mediciones eléctricas siguen pendientes de hardware/BOM/instrumentos; véanse el [registro de baseline](baselines/fase-0-2026-08-12.md) y la [ADR de procedencia/licencia](adr/0001-wled-clean-room-y-licencia-del-proyecto.md).
+**Estado 2026-08-12:** ejecutada en software. La suite host queda en 114/114; el build local de producción termina con `SUCCESS`, 17,3 % de RAM y 35,0 % de flash; y CI captura tests, entorno, tamaño y artefactos. Las mediciones eléctricas siguen pendientes de hardware/BOM/instrumentos; véanse el [registro de baseline](baselines/fase-0-2026-08-12.md) y la [ADR de procedencia/licencia](adr/0001-wled-clean-room-y-licencia-del-proyecto.md).
 
 Trabajo:
 
@@ -650,7 +650,7 @@ Las primeras cinco aprovechan piezas ya propuestas. ESP-NOW y replay son experim
 3. Política exacta de prioridad: geocerca, sin fix, Wi-Fi, BLE, batería y escena manual.
 4. Compatibilidad prometida para `/api/config` y valores numéricos de efectos.
 5. Número máximo de escenas de usuario y tamaño NVS asignado.
-6. Licencia de RGB Dog.
+6. Política de compatibilidad y atribución para material de terceros; RGB Dog ya adoptó MIT mediante ADR-0002.
 7. Si OTA es una necesidad real o solo una posibilidad futura.
 
 Ninguna de estas decisiones impide comenzar la Fase 0. Las tres primeras sí deben cerrarse antes de terminar las fases 1–3.

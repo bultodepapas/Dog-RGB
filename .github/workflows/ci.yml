@@ -180,9 +180,8 @@ jobs:
           name: firmware-baseline-seeed-xiao-esp32s3-${{ github.sha }}
           path: |
             Platformio/Dog-RGB/artifacts/ci-firmware-baseline/
-            Platformio/Dog-RGB/.pio/build/seeed_xiao_esp32s3/firmware.bin
+            Platformio/Dog-RGB/.pio/build/seeed_xiao_esp32s3/*.bin
             Platformio/Dog-RGB/.pio/build/seeed_xiao_esp32s3/firmware.elf
             Platformio/Dog-RGB/.pio/build/seeed_xiao_esp32s3/firmware.map
-            Platformio/Dog-RGB/.pio/build/seeed_xiao_esp32s3/partitions.bin
           if-no-files-found: warn
           retention-days: 14
