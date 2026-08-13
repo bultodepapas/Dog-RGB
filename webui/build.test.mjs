@@ -50,8 +50,8 @@ test('C++ array rendering preserves binary zeroes and stable width', () => {
   );
 });
 
-test('tracked manifest and C++ assets match the preview bytes', async () => {
-  await buildArtifacts({ check: true });
+test('tracked manifest and C++ assets match generated decoded bytes', async () => {
+  const built = await buildArtifacts({ check: true });
   const manifest = JSON.parse(
     readFileSync(join(WEBUI, 'generated', 'manifest.json'), 'utf8'),
   );
@@ -74,7 +74,11 @@ test('tracked manifest and C++ assets match the preview bytes', async () => {
       Number.parseInt(item[1], 16),
     );
     const gzip = Buffer.from(values);
-    const preview = readFileSync(join(ROOT, '.ap-portal-preview', definition.filename));
+    const generatedPage = built.pages.find(
+      (item) => item.definition.key === definition.key,
+    );
+    assert.ok(generatedPage, `generated page for ${definition.key}`);
+    const preview = generatedPage.decoded;
     assert.equal(gzip.length, page.gzip_bytes);
     assert.equal(digest(gzip), page.gzip_sha256);
     assert.equal(page.etag, `"sha256-${page.gzip_sha256}"`);
