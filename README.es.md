@@ -10,14 +10,14 @@ Dog-RGB es un collar inteligente DIY con tiras LED RGBW, GNSS y un XIAO ESP32-S3
 
 - Métricas GNSS: distancia, tiempo activo, velocidad promedio y máxima.
 - Historial local de ruta con exportación JSON, CSV y GeoJSON.
-- Dos tiras SK6812 RGBW con layout semántico, mirror/orientación, 12 efectos, 8 paletas RGBW, crossfades que preservan status, cuatro modos y un limitador global de corriente estimada.
+- Dos tiras SK6812 RGBW con layout semántico, mirror/orientación, 12 efectos, 8 paletas RGBW, 4 escenas integradas + 4 slots de usuario, Show por escenas, crossfades que preservan status, cuatro modos y un limitador global de corriente estimada.
 - Modo Día opcional, que apaga los efectos entre 06:00 y 16:00 sin detener alertas ni rastreo.
-- Portal Wi-Fi local AP/STA con portal cautivo, escaneo de redes, configuración (incluida calibración eléctrica LED opcional) y diagnóstico.
+- Portal Wi-Fi local AP/STA con portal cautivo, escaneo de redes, configuración (incluida calibración eléctrica LED opcional), API versionada de escenas/import/export y diagnóstico.
 - PIN opcional para escrituras del portal y protección CSRF; la telemetría de lectura sigue accesible dentro de la red local.
-- Persistencia robusta con registros A/B y CRC; partición NVS dedicada para rutas.
+- Persistencia robusta con registros A/B y CRC, incluido un banco independiente de escenas; partición NVS dedicada para rutas.
 - Resumen BLE de 16 bytes implementado, pero desactivado por defecto por coexistencia de radio con SoftAP.
 
-No están implementados: nube, cuentas, app móvil, IMU, ritmo cardíaco, telemetría de batería, OTA ni presets del portal.
+No están implementados: nube, cuentas, app móvil, IMU, ritmo cardíaco, telemetría de batería, OTA ni el editor gráfico de escenas del portal. El store y la API de escenas sí están implementados.
 
 ## Inicio rápido
 

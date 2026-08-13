@@ -5,6 +5,8 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <math.h>
+#include <memory>
+#include <new>
 #include <stdio.h>
 #include <string.h>
 
@@ -15,11 +17,13 @@
 #include "led/led_ui.h"
 #include "led/effect_registry.h"
 #include "led/palette_registry.h"
+#include "led/scene_runtime.h"
 #include "power/day_mode.h"
 #include "storage/nvs_store.h"
 #include "util/time_utils.h"
 #include "web/pages.h"
 #include "web/portal_lock.h"
+#include "web/scene_json.h"
 #include "wifi/wifi_mgr.h"
 
 namespace portal_http {
@@ -31,6 +35,28 @@ uint32_t dns_start_count = 0;
 uint32_t dns_stop_count = 0;
 static const uint16_t DNS_PORT = 53;
 static const size_t TRACK_STREAM_CHUNK_BYTES = 768;
+
+struct SceneBodyCollector {
+  std::unique_ptr<char[]> data;
+  size_t expected = 0;
+  size_t received = 0;
+  bool started = false;
+  bool complete = false;
+  bool authorized = false;
+  bool response_sent = false;
+
+  void reset() {
+    data.reset();
+    expected = 0;
+    received = 0;
+    started = false;
+    complete = false;
+    authorized = false;
+    response_sent = false;
+  }
+};
+
+SceneBodyCollector scene_body;
 
 // WebServer writes are synchronous. Coalesce the many small coordinate
 // fragments into bounded chunks and drain GNSS on both sides of every socket
@@ -107,7 +133,8 @@ struct CsvStreamContext {
 // every name to this device, so the portal has no stable origin to compare.
 static const char *CSRF_HEADER = "X-Dog-Portal";
 static const char *PIN_HEADER = "X-Dog-Pin";
-static const char *COLLECTED_HEADERS[] = {"X-Dog-Portal", "X-Dog-Pin"};
+static const char *COLLECTED_HEADERS[] = {
+    "X-Dog-Portal", "X-Dog-Pin", "Content-Length", "Content-Type"};
 
 void note_activity() {
   wifi_mgr::note_portal_activity();
@@ -155,7 +182,11 @@ static const char *API_ROUTES[] = {
     "/api/track.csv", "/api/track.geojson", "/api/config", "/api/config/reset",
     "/api/home",    "/api/home/set",    "/api/home/clear", "/api/wifi",
     "/api/wifi/ap", "/api/wifi/scan", "/api/lock",
-    "/api/v1/led/state", "/api/v1/led/capabilities"};
+    "/api/v1/led/state", "/api/v1/led/capabilities",
+    "/api/v1/led/scenes", "/api/v1/led/scenes/apply",
+    "/api/v1/led/scenes/cancel", "/api/v1/led/scenes/save",
+    "/api/v1/led/scenes/delete", "/api/v1/led/scenes/export",
+    "/api/v1/led/scenes/import"};
 
 bool is_known_api_route(const String &uri) {
   for (size_t i = 0; i < sizeof(API_ROUTES) / sizeof(API_ROUTES[0]); ++i) {
@@ -340,12 +371,47 @@ void append_palette_descriptor(JsonObject out,
   }
 }
 
+static bool scene_store_read_only(storage::SceneStoreHealth health) {
+  switch (health) {
+    case storage::SceneStoreHealth::Empty:
+    case storage::SceneStoreHealth::Healthy:
+    case storage::SceneStoreHealth::Recovered:
+    case storage::SceneStoreHealth::DegradedEmpty:
+      return false;
+    default:
+      return true;
+  }
+}
+
+static void append_scene_store(JsonObject out) {
+  const storage::SceneStore &store = scene_runtime::store();
+  out["health"] = storage::scene_store_health_name(store.health());
+  out["generation"] = store.generation();
+  out["read_only"] = scene_store_read_only(store.health());
+}
+
+static void append_active_scene(JsonObject out) {
+  const led::ScenePlayer &player = scene_runtime::player();
+  const led::SceneV1 *scene = player.active_scene();
+  out["id"] = player.active_scene_id();
+  out["key"] = scene == nullptr ? "none" : led::scene_key(scene->scene_id);
+  out["name"] = scene == nullptr ? "" : scene->name;
+  out["origin"] = led::scene_origin_name(player.origin());
+  out["playback"] = player.playback_name();
+  out["pending_id"] = player.pending_scene_id();
+  out["stale"] = player.stale();
+  out["applied_generation"] = player.applied_generation();
+  out["activation_revision"] = player.activation_revision();
+}
+
 void handle_led_capabilities_get() {
   note_activity();
   JsonDocument doc;
   doc["schema_version"] = 1;
   doc["effect_registry_version"] = led::EFFECT_REGISTRY_VERSION;
   doc["palette_registry_version"] = led::PALETTE_REGISTRY_VERSION;
+  doc["scene_registry_version"] = led::SCENE_REGISTRY_VERSION;
+  doc["scene_schema_version"] = led::SCENE_SCHEMA_VERSION;
   doc["effect_count"] = led::effect_descriptor_count();
   doc["palette_count"] = led::palette_descriptor_count();
   doc["persistent_effect_ids"] = true;
@@ -378,6 +444,12 @@ void handle_led_capabilities_get() {
   limits["intensity_min"] = 0;
   limits["intensity_max"] = 255;
   limits["transition_default_ms"] = LED_TRANSITION_MS;
+  limits["scene_transition_max_ms"] = led::SCENE_TRANSITION_MAX_MS;
+  limits["scene_name_bytes"] = led::SCENE_NAME_BYTES;
+  limits["scene_user_slots"] = led::SCENE_USER_SLOT_COUNT;
+  limits["scene_import_max_bytes"] = scene_json::SCENE_JSON_BODY_MAX_BYTES;
+  limits["scene_json_nesting"] = scene_json::SCENE_JSON_NESTING_LIMIT;
+  limits["scene_record_bytes"] = storage::SCENE_RECORD_BYTES;
   limits["current_budget_min_ma"] = LED_POWER_BUDGET_MA_MIN;
   limits["current_budget_max_ma"] = LED_POWER_BUDGET_MA_MAX;
   JsonObject features = doc["features"].to<JsonObject>();
@@ -385,6 +457,9 @@ void handle_led_capabilities_get() {
   features["state_patch"] = false;
   features["transitions"] = true;
   features["palettes"] = true;
+  features["scenes"] = true;
+  features["scene_import"] = true;
+  features["scene_export"] = true;
   JsonArray effects = doc["effects"].to<JsonArray>();
   for (size_t i = 0; i < led::effect_descriptor_count(); ++i) {
     JsonObject item = effects.add<JsonObject>();
@@ -432,7 +507,11 @@ void handle_led_state_get() {
   doc["critical_alert"] = state.critical_alert;
   doc["range"] = state.range;
   doc["brightness"] = state.brightness;
+  doc["body_level"] = state.body_level;
   doc["transition_ms"] = state.transition_ms;
+  JsonObject scene = doc["scene"].to<JsonObject>();
+  append_active_scene(scene);
+  scene["store_generation"] = scene_runtime::store().generation();
   JsonObject effect_a = doc["effect_a"].to<JsonObject>();
   append_state_effect(effect_a, state.effect_a, state.palette_a,
                       state.speed, state.intensity);
@@ -466,6 +545,432 @@ void handle_led_state_get() {
   String out;
   serializeJson(doc, out);
   server.send(200, "application/json", out);
+}
+
+static void send_json_document(int status, JsonDocument &document) {
+  String out;
+  serializeJson(document, out);
+  server.send(status, "application/json", out);
+}
+
+static void send_scene_error(int status, const char *code,
+                             const char *field = nullptr,
+                             const char *detail = nullptr) {
+  JsonDocument document;
+  document["ok"] = false;
+  document["code"] = code;
+  if (field != nullptr && field[0] != '\0') document["field"] = field;
+  if (detail != nullptr && detail[0] != '\0') document["detail"] = detail;
+  document["store_generation"] = scene_runtime::store().generation();
+  document["store_health"] = storage::scene_store_health_name(
+      scene_runtime::store().health());
+  send_json_document(status, document);
+}
+
+static bool scene_write_allowed() {
+  if (!server.hasHeader(CSRF_HEADER)) {
+    send_scene_error(403, "csrf");
+    return false;
+  }
+  if (!portal_lock::accepts(server.header(PIN_HEADER))) {
+    send_scene_error(401, "locked");
+    return false;
+  }
+  return true;
+}
+
+static int scene_json_http_status(scene_json::ErrorCode code) {
+  switch (code) {
+    case scene_json::ErrorCode::InvalidJson:
+    case scene_json::ErrorCode::TooDeep:
+    case scene_json::ErrorCode::ExpectedObject:
+    case scene_json::ErrorCode::MissingField:
+    case scene_json::ErrorCode::UnknownField:
+    case scene_json::ErrorCode::InvalidType:
+    case scene_json::ErrorCode::InvalidValue:
+      return 400;
+    case scene_json::ErrorCode::InvalidScene:
+    case scene_json::ErrorCode::ReferenceMismatch:
+    case scene_json::ErrorCode::UnsupportedSchema:
+      return 422;
+    case scene_json::ErrorCode::None:
+      return 400;
+  }
+  return 400;
+}
+
+static void send_scene_parse_error(const scene_json::Error &error) {
+  const char *detail =
+      error.validation_error == led::SceneValidationError::None
+          ? nullptr
+          : led::scene_validation_error_name(error.validation_error);
+  send_scene_error(scene_json_http_status(error.code),
+                   scene_json::error_name(error.code), error.field, detail);
+}
+
+static int scene_store_http_status(storage::SceneStoreResultCode code) {
+  switch (code) {
+    case storage::SceneStoreResultCode::Ok:
+    case storage::SceneStoreResultCode::NoChange:
+      return 200;
+    case storage::SceneStoreResultCode::InvalidSlot:
+    case storage::SceneStoreResultCode::InvalidScene:
+      return 422;
+    case storage::SceneStoreResultCode::GenerationConflict:
+    case storage::SceneStoreResultCode::RecoveryRequired:
+    case storage::SceneStoreResultCode::ReadOnly:
+      return 409;
+    case storage::SceneStoreResultCode::Unavailable:
+      return 503;
+    case storage::SceneStoreResultCode::StorageFull:
+      return 507;
+    case storage::SceneStoreResultCode::WriteFailed:
+    case storage::SceneStoreResultCode::VerifyFailed:
+    case storage::SceneStoreResultCode::Uncertain:
+      return 500;
+  }
+  return 500;
+}
+
+static void send_scene_store_result(const storage::SceneStoreResult &result,
+                                    int success_status = 200) {
+  JsonDocument document;
+  document["ok"] = result.code == storage::SceneStoreResultCode::Ok ||
+                   result.code == storage::SceneStoreResultCode::NoChange;
+  document["code"] = storage::scene_store_result_name(result.code);
+  document["no_change"] = result.no_change;
+  document["store_generation"] = result.generation;
+  document["store_health"] =
+      storage::scene_store_health_name(result.health);
+  if (result.validation_error != led::SceneValidationError::None) {
+    document["detail"] =
+        led::scene_validation_error_name(result.validation_error);
+  }
+  const int status = document["ok"].as<bool>()
+                         ? success_status
+                         : scene_store_http_status(result.code);
+  send_json_document(status, document);
+}
+
+static void handle_scenes_get() {
+  note_activity();
+  JsonDocument document;
+  document["schema_version"] = led::SCENE_SCHEMA_VERSION;
+  append_scene_store(document["store"].to<JsonObject>());
+  append_active_scene(document["active"].to<JsonObject>());
+  JsonArray scenes = document["scenes"].to<JsonArray>();
+  const led::SceneCatalog &catalog = scene_runtime::catalog();
+  for (uint8_t index = 0; index < led::SCENE_BUILTIN_COUNT; ++index) {
+    const led::SceneV1 &scene = catalog.builtin_at(index);
+    JsonObject item = scenes.add<JsonObject>();
+    item["id"] = scene.scene_id;
+    item["key"] = led::scene_key(scene.scene_id);
+    item["origin"] = "builtin";
+    item["editable"] = false;
+    item["occupied"] = true;
+    scene_json::append_scene(item, scene, false);
+  }
+  for (uint8_t slot = 1; slot <= led::SCENE_USER_SLOT_COUNT; ++slot) {
+    const led::SceneV1 *scene = catalog.user_at(slot);
+    const uint8_t scene_id = led::scene_id_from_slot(slot);
+    JsonObject item = scenes.add<JsonObject>();
+    item["id"] = scene_id;
+    item["slot"] = slot;
+    item["key"] = led::scene_key(scene_id);
+    item["origin"] = "user";
+    item["editable"] = true;
+    item["occupied"] = scene != nullptr;
+    if (scene != nullptr) scene_json::append_scene(item, *scene, false);
+  }
+  send_json_document(200, document);
+}
+
+static bool scene_json_content_type();
+
+static bool scene_request_body(const char *&data, size_t &size) {
+  if (!scene_body.started || !scene_body.complete || scene_body.data == nullptr ||
+      scene_body.received != scene_body.expected) {
+    send_scene_error(400, "invalid_json", "body");
+    scene_body.reset();
+    return false;
+  }
+  data = scene_body.data.get();
+  size = scene_body.received;
+  return true;
+}
+
+static void finish_scene_request() {
+  scene_body.reset();
+}
+
+static bool scene_request_ready() {
+  if (scene_body.response_sent) {
+    finish_scene_request();
+    return false;
+  }
+  if (!scene_body.started || !scene_body.authorized) {
+    note_activity();
+    if (scene_json_content_type()) {
+      send_scene_error(400, "invalid_json", "body");
+    } else {
+      send_scene_error(415, "unsupported_media_type", "Content-Type");
+    }
+    finish_scene_request();
+    return false;
+  }
+  return true;
+}
+
+static void handle_scene_apply() {
+  if (!scene_request_ready()) return;
+  const char *data = nullptr;
+  size_t size = 0;
+  if (!scene_request_body(data, size)) return;
+  scene_json::ApplyRequest request{};
+  scene_json::Error error{};
+  if (!scene_json::parse_apply(data, size, request, error)) {
+    send_scene_parse_error(error);
+  } else if (!scene_runtime::request_apply(request.scene_id)) {
+    send_scene_error(404, "scene_not_found", "id");
+  } else {
+    JsonDocument response;
+    response["ok"] = true;
+    response["code"] = "pending";
+    response["pending_id"] = request.scene_id;
+    response["store_generation"] = scene_runtime::store().generation();
+    response["store_health"] = storage::scene_store_health_name(
+        scene_runtime::store().health());
+    send_json_document(202, response);
+  }
+  finish_scene_request();
+}
+
+static void handle_scene_cancel() {
+  if (!scene_request_ready()) return;
+  const char *data = nullptr;
+  size_t size = 0;
+  if (!scene_request_body(data, size)) return;
+  scene_json::Error error{};
+  if (!scene_json::parse_cancel(data, size, error)) {
+    send_scene_parse_error(error);
+  } else {
+    scene_runtime::request_cancel();
+    JsonDocument response;
+    response["ok"] = true;
+    response["code"] = "pending";
+    response["pending_id"] = 0;
+    response["store_generation"] = scene_runtime::store().generation();
+    response["store_health"] = storage::scene_store_health_name(
+        scene_runtime::store().health());
+    send_json_document(202, response);
+  }
+  finish_scene_request();
+}
+
+static void handle_scene_save() {
+  if (!scene_request_ready()) return;
+  const char *data = nullptr;
+  size_t size = 0;
+  if (!scene_request_body(data, size)) return;
+  scene_json::SaveRequest request{};
+  scene_json::Error error{};
+  if (!scene_json::parse_save(data, size, request, error)) {
+    send_scene_parse_error(error);
+  } else {
+    const bool existed =
+        scene_runtime::catalog().user_occupied(request.slot);
+    send_scene_store_result(
+        scene_runtime::save_slot(request.slot, request.scene,
+                                 request.expected_generation),
+        existed ? 200 : 201);
+  }
+  finish_scene_request();
+}
+
+static void handle_scene_delete() {
+  if (!scene_request_ready()) return;
+  const char *data = nullptr;
+  size_t size = 0;
+  if (!scene_request_body(data, size)) return;
+  scene_json::DeleteRequest request{};
+  scene_json::Error error{};
+  if (!scene_json::parse_delete(data, size, request, error)) {
+    send_scene_parse_error(error);
+  } else {
+    send_scene_store_result(scene_runtime::delete_slot(
+        request.slot, request.expected_generation));
+  }
+  finish_scene_request();
+}
+
+static void handle_scenes_export() {
+  note_activity();
+  JsonDocument document;
+  scene_json::build_export(document, scene_runtime::store().bank(),
+                           scene_runtime::store().generation());
+  server.sendHeader("Content-Disposition",
+                    "attachment; filename=dog-rgb-scenes.json");
+  send_json_document(200, document);
+}
+
+static void handle_scene_import() {
+  if (!scene_request_ready()) return;
+  const char *data = nullptr;
+  size_t size = 0;
+  if (!scene_request_body(data, size)) return;
+  scene_json::ImportRequest request{};
+  scene_json::Error error{};
+  if (!scene_json::parse_import(data, size, request, error)) {
+    send_scene_parse_error(error);
+  } else if (request.dry_run) {
+    JsonDocument response;
+    response["ok"] = true;
+    response["code"] = "valid";
+    response["dry_run"] = true;
+    response["scene_count"] = request.scene_count;
+    response["store_generation"] = scene_runtime::store().generation();
+    response["store_health"] = storage::scene_store_health_name(
+        scene_runtime::store().health());
+    JsonArray warnings = response["warnings"].to<JsonArray>();
+    if (request.effects_registry_mismatch) {
+      warnings.add("effect_registry_version_mismatch");
+    }
+    if (request.palettes_registry_mismatch) {
+      warnings.add("palette_registry_version_mismatch");
+    }
+    send_json_document(200, response);
+  } else {
+    const storage::SceneStoreResult result = scene_runtime::replace_all(
+        request.bank, request.expected_generation, request.recover_corrupt);
+    if (result.code != storage::SceneStoreResultCode::Ok &&
+        result.code != storage::SceneStoreResultCode::NoChange) {
+      send_scene_store_result(result);
+    } else {
+      JsonDocument response;
+      response["ok"] = true;
+      response["code"] = storage::scene_store_result_name(result.code);
+      response["no_change"] = result.no_change;
+      response["dry_run"] = false;
+      response["scene_count"] = request.scene_count;
+      response["store_generation"] = result.generation;
+      response["store_health"] =
+          storage::scene_store_health_name(result.health);
+      JsonArray warnings = response["warnings"].to<JsonArray>();
+      if (request.effects_registry_mismatch) {
+        warnings.add("effect_registry_version_mismatch");
+      }
+      if (request.palettes_registry_mismatch) {
+        warnings.add("palette_registry_version_mismatch");
+      }
+      send_json_document(200, response);
+    }
+  }
+  finish_scene_request();
+}
+
+static bool scene_json_content_type() {
+  String content_type = server.header("Content-Type");
+  content_type.toLowerCase();
+  const int semicolon = content_type.indexOf(';');
+  String media_type =
+      semicolon < 0 ? content_type : content_type.substring(0, semicolon);
+  media_type.trim();
+  if (media_type != "application/json") return false;
+  if (semicolon < 0) return true;
+  String parameter = content_type.substring(semicolon + 1);
+  parameter.trim();
+  return parameter == "charset=utf-8" || parameter == "charset=\"utf-8\"";
+}
+
+// For application/json, a raw callback streams chunks of at most
+// HTTP_RAW_BUFLEN, so the length guard runs before allocating the declared body.
+// WebServer routes form media types through its upload callback instead; reject
+// those before touching server.raw(), which is not populated on that path.
+static void collect_scene_json_body() {
+  if (!scene_json_content_type()) {
+    if (scene_body.response_sent) {
+      // The framework reports RAW_ABORTED/UPLOAD_FILE_ABORTED after stop().
+      // Clear the per-request collector then, so a later request cannot inherit
+      // the rejection marker when no raw callback is used.
+      if (!server.client().connected()) scene_body.reset();
+      return;
+    }
+    note_activity();
+    scene_body.reset();
+    send_scene_error(415, "unsupported_media_type", "Content-Type");
+    scene_body.response_sent = true;
+    server.client().stop();
+    return;
+  }
+
+  HTTPRaw &raw = server.raw();
+  if (raw.status == RAW_START) {
+    note_activity();
+    scene_body.reset();
+    scene_body.started = true;
+    const int content_length = server.clientContentLength();
+    if (content_length <= 0) {
+      send_scene_error(411, "length_required", "Content-Length");
+      scene_body.response_sent = true;
+      server.client().stop();
+      return;
+    }
+    scene_body.expected = static_cast<size_t>(content_length);
+    if (scene_body.expected < scene_json::SCENE_JSON_BODY_MIN_BYTES) {
+      send_scene_error(400, "invalid_json", "body");
+      scene_body.response_sent = true;
+      server.client().stop();
+      return;
+    }
+    if (scene_body.expected > scene_json::SCENE_JSON_BODY_MAX_BYTES) {
+      send_scene_error(413, "payload_too_large", "Content-Length");
+      scene_body.response_sent = true;
+      server.client().stop();
+      return;
+    }
+    if (!scene_json_content_type()) {
+      send_scene_error(415, "unsupported_media_type", "Content-Type");
+      scene_body.response_sent = true;
+      server.client().stop();
+      return;
+    }
+    if (!scene_write_allowed()) {
+      scene_body.response_sent = true;
+      server.client().stop();
+      return;
+    }
+    scene_body.authorized = true;
+    scene_body.data.reset(new (std::nothrow) char[scene_body.expected + 1U]);
+    if (scene_body.data == nullptr) {
+      send_scene_error(503, "storage_unavailable", "body");
+      scene_body.response_sent = true;
+      server.client().stop();
+    }
+    return;
+  }
+
+  if (raw.status == RAW_WRITE && !scene_body.response_sent &&
+      scene_body.data != nullptr) {
+    if (raw.currentSize > scene_body.expected - scene_body.received) {
+      send_scene_error(413, "payload_too_large", "body");
+      scene_body.response_sent = true;
+      scene_body.data.reset();
+      server.client().stop();
+      return;
+    }
+    memcpy(scene_body.data.get() + scene_body.received, raw.buf,
+           raw.currentSize);
+    scene_body.received += raw.currentSize;
+    return;
+  }
+
+  if (raw.status == RAW_END && !scene_body.response_sent &&
+      scene_body.data != nullptr) {
+    scene_body.complete = scene_body.received == scene_body.expected;
+    scene_body.data[scene_body.received] = '\0';
+  } else if (raw.status == RAW_ABORTED) {
+    scene_body.reset();
+  }
 }
 
 void handle_status_get() {
@@ -741,6 +1246,43 @@ void handle_dev_get() {
   const uint8_t show_id = led_ui::current_show_effect();
   show["effect"] = show_id;
   show["name"] = led_ui::effect_name(show_id);
+
+  const storage::SceneStoreDiagnostics &scene_store_diag =
+      scene_runtime::store().diagnostics();
+  const led::ScenePlayerDiagnostics &scene_player_diag =
+      scene_runtime::player().diagnostics();
+  const scene_runtime::SceneRuntimeDiagnostics &scene_runtime_diag =
+      scene_runtime::diagnostics();
+  JsonObject scenes = led["scenes"].to<JsonObject>();
+  append_scene_store(scenes["store"].to<JsonObject>());
+  append_active_scene(scenes["active"].to<JsonObject>());
+  scenes["bank_a"] = storage::scene_record_status_name(
+      scene_store_diag.bank_a);
+  scenes["bank_b"] = storage::scene_record_status_name(
+      scene_store_diag.bank_b);
+  scenes["active_bank"] = scene_store_diag.active_bank;
+  scenes["bank_a_generation"] = scene_store_diag.bank_a_generation;
+  scenes["bank_b_generation"] = scene_store_diag.bank_b_generation;
+  scenes["free_entries"] = scene_store_diag.free_entries;
+  scenes["load_count"] = scene_store_diag.load_count;
+  scenes["recovery_count"] = scene_store_diag.recovery_count;
+  scenes["mutation_count"] = scene_store_diag.mutation_count;
+  scenes["write_failures"] = scene_store_diag.write_failures;
+  scenes["verify_failures"] = scene_store_diag.verify_failures;
+  scenes["uncertain_commits"] = scene_store_diag.uncertain_commits;
+  scenes["last_write_us"] = scene_store_diag.last_write_us;
+  scenes["max_write_us"] = scene_store_diag.max_write_us;
+  scenes["last_save_us"] = scene_runtime_diag.last_save_us;
+  scenes["max_save_us"] = scene_runtime_diag.max_save_us;
+  scenes["last_import_us"] = scene_runtime_diag.last_import_us;
+  scenes["max_import_us"] = scene_runtime_diag.max_import_us;
+  scenes["max_led_gap_during_write_us"] =
+      scene_runtime_diag.max_led_gap_during_write_us;
+  scenes["apply_count"] = scene_player_diag.apply_count;
+  scenes["cancel_count"] = scene_player_diag.cancel_count;
+  scenes["superseded_commands"] = scene_player_diag.superseded_commands;
+  scenes["show_cycle_count"] = scene_player_diag.show_cycle_count;
+  scenes["lookup_failures"] = scene_player_diag.lookup_failures;
 
   JsonObject day = doc["day_mode"].to<JsonObject>();
   day["enabled"] = day_mode::enabled();
@@ -1497,6 +2039,18 @@ void begin() {
   server.on("/api/v1/led/state", HTTP_GET, handle_led_state_get);
   server.on("/api/v1/led/capabilities", HTTP_GET,
             handle_led_capabilities_get);
+  server.on("/api/v1/led/scenes", HTTP_GET, handle_scenes_get);
+  server.on("/api/v1/led/scenes/apply", HTTP_POST, handle_scene_apply,
+            collect_scene_json_body);
+  server.on("/api/v1/led/scenes/cancel", HTTP_POST, handle_scene_cancel,
+            collect_scene_json_body);
+  server.on("/api/v1/led/scenes/save", HTTP_POST, handle_scene_save,
+            collect_scene_json_body);
+  server.on("/api/v1/led/scenes/delete", HTTP_POST, handle_scene_delete,
+            collect_scene_json_body);
+  server.on("/api/v1/led/scenes/export", HTTP_GET, handle_scenes_export);
+  server.on("/api/v1/led/scenes/import", HTTP_POST, handle_scene_import,
+            collect_scene_json_body);
   server.on("/api/track", HTTP_GET, handle_track_get);
   server.on("/api/track.csv", HTTP_GET, handle_track_csv);
   server.on("/api/track.geojson", HTTP_GET, handle_track_geojson);

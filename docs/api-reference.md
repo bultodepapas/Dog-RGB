@@ -48,6 +48,13 @@ Unknown non-API paths redirect relatively to `/`. Captive probes at `/generate_2
 | GET | `/api/dev` | Read-only | Detailed health, counters, storage recovery, LED power estimate, and loop timing |
 | GET | `/api/v1/led/state` | Read-only | Current selected LED intent, priority, effects, color, and limiter snapshot |
 | GET | `/api/v1/led/capabilities` | Read-only | Versioned effect metadata, layout, limits, and supported LED API features |
+| GET | `/api/v1/led/scenes` | Read-only | Four built-ins, four user slots, active scene, store health, and generation |
+| POST | `/api/v1/led/scenes/apply` | CSRF + optional PIN | Queue a volatile scene override by stable ID |
+| POST | `/api/v1/led/scenes/cancel` | CSRF + optional PIN | Cancel the volatile override and return to configured policy/mode |
+| POST | `/api/v1/led/scenes/save` | CSRF + optional PIN | Create or replace one user slot with optimistic concurrency |
+| POST | `/api/v1/led/scenes/delete` | CSRF + optional PIN | Clear one user slot with optimistic concurrency |
+| GET | `/api/v1/led/scenes/export` | Read-only | Download the canonical user-scene document |
+| POST | `/api/v1/led/scenes/import` | CSRF + optional PIN | Validate or atomically replace all user scenes |
 | GET | `/api/track` | Read-only | Stream route snapshot as JSON |
 | GET | `/api/track.csv` | Read-only | Stream route snapshot as CSV |
 | GET | `/api/track.geojson` | Read-only | Stream route snapshot as GeoJSON |
@@ -165,7 +172,7 @@ Known API paths called with the wrong method return `405`; unknown `/api/*` path
 
 ## LED API v1
 
-The v1 endpoints are additive read contracts. Runtime writes continue through schema-6 `/api/config`; there is deliberately no `PATCH /api/v1/led/state`. Phase 3 added layout, palette, transition and typed-alert fields without removing the Phase 2 shape.
+The v1 state/capability endpoints remain additive read contracts and there is deliberately no `PATCH /api/v1/led/state`. Runtime configuration writes continue through schema-6 `/api/config`; scene recipes use their own bounded routes and persistence generation. Phase 4 adds scene metadata without removing the Phase 2/3 shape.
 
 ### Current state
 
@@ -185,7 +192,20 @@ The v1 endpoints are additive read contracts. Runtime writes continue through sc
   "critical_alert": false,
   "range": 3,
   "brightness": 180,
+  "body_level": 255,
   "transition_ms": 500,
+  "scene": {
+    "id": 0,
+    "key": "none",
+    "name": "",
+    "origin": "none",
+    "playback": "none",
+    "pending_id": 0,
+    "stale": false,
+    "applied_generation": 0,
+    "activation_revision": 0,
+    "store_generation": 3
+  },
   "effect_a": {
     "id": 1,
     "key": "pulse",
@@ -226,9 +246,11 @@ The v1 endpoints are additive read contracts. Runtime writes continue through sc
 }
 ```
 
-`intent` is one of `welcome`, `day_status`, `idle`, `home_missing`, `range`, `show`, `simple`, or `critical_alert`; current composition represents an overlay through `alert` (`none`, `system`, or `geofence`) and `critical_alert:true` alongside the underlying body intent. `range` is `-1` when no Speed/Geofence range is active. Palette ID `-1` means that renderer has no selected registry palette.
+`intent` is one of `welcome`, `day_status`, `idle`, `home_missing`, `range`, `show`, `simple`, `scene_manual`, or `critical_alert`; current composition represents an overlay through `alert` (`none`, `system`, or `geofence`) and `critical_alert:true` alongside the underlying body intent. `range` is `-1` when no Speed/Geofence range is active. Palette ID `-1` means that renderer has no selected registry palette.
 
-Priority values are part of schema 1: welcome `100`, System/Geofence overlay `90`, Day Mode `80`, active Range/Show/Simple scenes `30`, and idle/Home guidance `20`. Higher values win policy selection; consumers should still use the named fields instead of inferring the full scene from a number alone.
+`body_level` is the active recipe's relative body scale, not the global brightness. It never scales status or alert pixels. `scene.id` and `pending_id` are `0` when absent; `playback` is `none`, `manual`, or `show`. A user scene becomes `stale:true` when its saved slot no longer matches the active snapshot; it stays visually stable until reapplied or cancelled.
+
+Priority values are part of schema 1: welcome `100`, System/Geofence overlay `90`, Day Mode `80`, active Range/Show/Simple/manual scenes `30`, and idle/Home guidance `20`. Higher values win policy selection; consumers should still use the named fields instead of inferring the full scene from a number alone.
 
 ### Capabilities and effect metadata
 
@@ -239,6 +261,8 @@ Priority values are part of schema 1: welcome `100`, System/Geofence overlay `90
   "schema_version": 1,
   "effect_registry_version": 2,
   "palette_registry_version": 1,
+  "scene_registry_version": 1,
+  "scene_schema_version": 1,
   "effect_count": 12,
   "palette_count": 8,
   "persistent_effect_ids": true,
@@ -263,6 +287,12 @@ Priority values are part of schema 1: welcome `100`, System/Geofence overlay `90
     "intensity_min": 0,
     "intensity_max": 255,
     "transition_default_ms": 500,
+    "scene_transition_max_ms": 5000,
+    "scene_name_bytes": 24,
+    "scene_user_slots": 4,
+    "scene_import_max_bytes": 4096,
+    "scene_json_nesting": 6,
+    "scene_record_bytes": 196,
     "current_budget_min_ma": 250,
     "current_budget_max_ma": 5000
   },
@@ -270,7 +300,10 @@ Priority values are part of schema 1: welcome `100`, System/Geofence overlay `90
     "state_get": true,
     "state_patch": false,
     "transitions": true,
-    "palettes": true
+    "palettes": true,
+    "scenes": true,
+    "scene_import": true,
+    "scene_export": true
   },
   "effects": [
     {
@@ -308,6 +341,173 @@ Priority values are part of schema 1: welcome `100`, System/Geofence overlay `90
 ```
 
 The real response contains all 12 effects and all eight palettes with their complete RGBW stop arrays; the shortened example shows only part of each. `controls` says which stored parameters visibly affect a renderer, so clients should disable irrelevant inputs without deleting persisted values. `color_mode` is `base` or `generated`; `palette_mode` is `none`, `internal`, or `selectable`. `default_palette_id` is `-1` when no palette applies.
+
+`limits.scene_name_bytes` is the 24-byte wire field, including its terminating NUL. The maximum user-visible UTF-8 name is therefore 23 bytes; clients must count encoded bytes, not Unicode characters.
+
+## LED scenes API v1
+
+Scenes are bounded visual recipes, not serialized device state. They cannot set mode, status, alerts, Day Mode, global brightness, power limits, GPS/Home, Wi-Fi, PIN, or other product state.
+
+Stable IDs are `1..4` for the built-ins `high_visibility`, `calm`, `active`, and `party`; user slots 1–4 use IDs `128..131`. A user scene may be manually applied even when `show_eligible:false`. A scene marked eligible is rejected if either effect has `advanced` safety metadata.
+
+Inside scene documents, a branch without a registry palette uses `{"id":255,"key":"none"}`. This is the scene wire sentinel; `/api/v1/led/state` continues to report palette ID `-1` for “none” for backward compatibility with its existing contract.
+
+### Request envelope and limits
+
+Every scene `POST` requires the write headers described above plus:
+
+```http
+Content-Type: application/json; charset=utf-8
+Content-Length: <2..4096>
+```
+
+The charset suffix is optional. Missing length returns `411`; more than 4096 bytes returns `413`; form or multipart media types return `415`. JSON nesting is limited to 6, enough for the canonical import path `document.scenes[].branch_a.effect.id`. Unknown or missing fields, wrong JSON types, fractional/negative/stringified integers, duplicate slots, and ID/key mismatches fail closed.
+
+The body is bounded before allocation/parsing. Clients must not use chunked form uploads for these routes.
+
+### List and active state
+
+`GET /api/v1/led/scenes` returns all eight stable positions. Empty user slots remain present with `occupied:false`:
+
+```json
+{
+  "schema_version": 1,
+  "store": {"health": "healthy", "generation": 3, "read_only": false},
+  "active": {
+    "id": 1,
+    "key": "high_visibility",
+    "name": "Alta visibilidad",
+    "origin": "builtin",
+    "playback": "show",
+    "pending_id": 0,
+    "stale": false,
+    "applied_generation": 3,
+    "activation_revision": 7
+  },
+  "scenes": [
+    {
+      "id": 1,
+      "key": "high_visibility",
+      "origin": "builtin",
+      "editable": false,
+      "occupied": true,
+      "name": "Alta visibilidad",
+      "mirror": true,
+      "show_eligible": true,
+      "speed": 120,
+      "intensity": 180,
+      "body_level": 255,
+      "transition_ms": 400,
+      "base_rgb": {"r": 255, "g": 80, "b": 0},
+      "accent_rgb": {"r": 255, "g": 220, "b": 160},
+      "branch_a": {
+        "effect": {"id": 3, "key": "chase"},
+        "palette": {"id": 0, "key": "safety_amber"}
+      },
+      "branch_b": {
+        "effect": {"id": 3, "key": "chase"},
+        "palette": {"id": 0, "key": "safety_amber"}
+      }
+    },
+    {"id": 128, "slot": 1, "key": "user_1", "origin": "user", "editable": true, "occupied": false}
+  ]
+}
+```
+
+The example shortens the `scenes` array; the real response contains four built-ins followed by four user slots.
+
+### Apply and cancel
+
+Queue a volatile override:
+
+```json
+{"id": 128}
+```
+
+`POST /api/v1/led/scenes/apply` returns `202` with `{"ok":true,"code":"pending","pending_id":128,...}`. An unoccupied user ID returns `404 scene_not_found`. The request does not persist the active scene or change the configured mode.
+
+Cancel with the exact empty object:
+
+```json
+{}
+```
+
+`POST /api/v1/led/scenes/cancel` returns `202` with `pending_id:0`. Commands are consumed by the LED tick; if requests race before that tick, the latest command wins.
+
+### Save and delete
+
+Save one complete recipe. `slot` is 1-based and `scene` deliberately omits `id`/`slot`:
+
+```json
+{
+  "expected_generation": 3,
+  "slot": 1,
+  "scene": {
+    "name": "Paseo azul",
+    "mirror": true,
+    "show_eligible": true,
+    "speed": 140,
+    "intensity": 170,
+    "body_level": 180,
+    "transition_ms": 600,
+    "base_rgb": {"r": 0, "g": 40, "b": 80},
+    "accent_rgb": {"r": 0, "g": 180, "b": 220},
+    "branch_a": {
+      "effect": {"id": 4, "key": "comet"},
+      "palette": {"id": 2, "key": "ocean"}
+    },
+    "branch_b": {
+      "effect": {"id": 4, "key": "comet"},
+      "palette": {"id": 2, "key": "ocean"}
+    }
+  }
+}
+```
+
+Creating an empty slot returns `201`; replacing returns `200`. An identical save returns `no_change:true` without a flash write or generation increment.
+
+Delete with:
+
+```json
+{"expected_generation": 4, "slot": 1}
+```
+
+Deleting an already empty slot is also an observable no-op. A stale generation returns `409 generation_conflict`; reread the catalog before retrying instead of blindly overwriting another client.
+
+### Export and import
+
+`GET /api/v1/led/scenes/export` downloads `dog-rgb-scenes.json`. It contains only occupied user recipes:
+
+```json
+{
+  "format": "dog-rgb-scenes",
+  "schema_version": 1,
+  "store_generation": 4,
+  "registry": {"effects": 2, "palettes": 1},
+  "scenes": []
+}
+```
+
+Import wraps that exact document:
+
+```json
+{
+  "expected_generation": 4,
+  "dry_run": false,
+  "recover_corrupt": false,
+  "document": {
+    "format": "dog-rgb-scenes",
+    "schema_version": 1,
+    "store_generation": 4,
+    "registry": {"effects": 2, "palettes": 1},
+    "scenes": []
+  }
+}
+```
+
+Import is atomic replace-all, not merge. `dry_run:true` may omit `expected_generation` and executes the same parse/validation without writing. Registry-version differences produce warnings only when every current ID/key and semantic rule still validates. `recover_corrupt:true` is accepted only with generation 0 for explicit corrupt/ambiguous recovery; it cannot overwrite a future/oversized read-only record.
+
+Successful scene mutations use `{ok, code, no_change, store_generation, store_health}` plus operation-specific fields. Parse errors also include `field` and may include `detail`.
 
 ## Route exports
 
@@ -437,5 +637,13 @@ Common status codes:
 | 405 | Known API path with unsupported method |
 | 500 | Persistent storage write/verification failed; in-memory previous state is restored |
 | 503 | Wi-Fi scan could not start because the radio was unavailable |
+
+Scene routes use a stricter shape:
+
+```json
+{"ok":false,"code":"invalid_scene","field":"scene","detail":"invalid_palette_a","store_generation":4,"store_health":"healthy"}
+```
+
+Their additional statuses are `411 length_required`, `413 payload_too_large`, `415 unsupported_media_type`, `422 invalid_scene`/schema or field errors, `409 generation_conflict`/`recovery_required`/`store_read_only`, `500 storage_write_failed`/`storage_verify_failed`/`storage_uncertain`, `503 storage_unavailable`, and `507 storage_full`.
 
 Do not parse human portal copy as an API. Prefer documented fields and tolerate new diagnostic fields.

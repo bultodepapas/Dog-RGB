@@ -7,6 +7,7 @@
 #include "led/effect_registry.h"
 #include "led/led_policy.h"
 #include "led/led_state.h"
+#include "led/scene_catalog.h"
 
 namespace {
 
@@ -233,12 +234,6 @@ led::LedPolicyInput policy_input(const led::LedPolicyConfig *config) {
   input.homogeneous_ready = true;
   input.speed_kph = 0.5F;
   input.geofence_range = 1;
-  input.show_effect = 7;
-  input.show_speed = 88;
-  input.show_intensity = 99;
-  input.show_palette = led::PALETTE_OCEAN;
-  input.show_base = led::Rgb{4, 5, 6};
-  input.show_accent = led::Rgb{6, 5, 4};
   return input;
 }
 
@@ -324,10 +319,36 @@ void test_policy() {
   input.mode = led::LedMode::Show;
   input.config = nullptr;
   input.wifi_off = true;
+  led::SceneCatalog scene_catalog;
+  input.scene = &scene_catalog.builtin_at(2);
+  input.scene_activation_revision = 7;
   state = engine.evaluate(input);
-  expect(state.intent == led::LedIntent::Show && state.effect_a == 7 &&
-             state.effect_b == 7 && state.homogeneous,
+  expect(state.intent == led::LedIntent::Show && state.effect_a == 4 &&
+             state.effect_b == 4 && state.palette_a == led::PALETTE_FOREST &&
+             state.body_level == 200 && state.scene_id == 3 &&
+             state.scene_activation_revision == 7 && state.homogeneous,
          "show policy depends on persisted range configuration");
+
+  input.mode = led::LedMode::Geofence;
+  input.scene_manual = true;
+  state = engine.evaluate(input);
+  expect(state.intent == led::LedIntent::SceneManual && state.scene_id == 3 &&
+             state.mode == led::LedMode::Geofence,
+         "manual scene did not remain a volatile body override");
+  input.geofence_alert = true;
+  state = engine.evaluate(input);
+  expect(state.intent == led::LedIntent::SceneManual && state.priority == 90 &&
+             state.alert == led::LedAlert::Geofence,
+         "manual scene bypassed the geofence status overlay");
+  input.day_mode_active = true;
+  state = engine.evaluate(input);
+  expect(state.intent == led::LedIntent::DayStatus && !state.body_enabled &&
+             state.alert == led::LedAlert::Geofence,
+         "manual scene bypassed Day Mode body ownership");
+  input.day_mode_active = false;
+  input.geofence_alert = false;
+  input.scene = nullptr;
+  input.scene_manual = false;
 
   input.mode = led::LedMode::Simple;
   input.config = &config;

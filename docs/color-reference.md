@@ -58,6 +58,19 @@ Geofence mode divides `fence_max_m` into ten equal distance bands and reuses the
 The runtime registry provides Safety Amber, Night Red, Ocean, Forest, Pride, Heat, Ice, and Custom A-B. Breath, Chase, Comet, Rainbow and Gradient Wave can sample a selected palette; Fire retains internal heat behavior. The white values are intentional and use the same RGB↔RGBW conversion as power estimation and transport.
 - Boundaries use hysteresis to avoid flicker.
 
+## Built-in scenes
+
+Show and manual scene playback use these immutable recipes:
+
+| ID/key | Name | Effect/palette | Base/accent | Body level | Transition |
+| --- | --- | --- | --- | ---: | ---: |
+| `1/high_visibility` | Alta visibilidad | Chase / Safety Amber | `#FF5000` / `#FFDCA0` | 255 | 400 ms |
+| `2/calm` | Calmado | Breath / Night Red | `#780000` / `#FF280A` | 110 | 900 ms |
+| `3/active` | Activo | Comet / Forest | `#005A19` / `#64FFAA` | 200 | 500 ms |
+| `4/party` | Fiesta | Rainbow / Pride | `#C800C8` / `#00C8FF` | 180 | 650 ms |
+
+`body_level` is relative to global brightness and affects only body pixels before crossfade. It cannot brighten above the owner's setting or power budget, and it never dims Wi-Fi/GNSS status or alert pixels. Names such as “Alta visibilidad” describe appearance, not certified visibility or safety performance.
+
 ## Effect caveat
 
 Most effects tint their output with the base RGB. `RAINBOW` and `GRADIENT_WAVE` generate their own HSV colors; `FIRE` uses an internal heat palette. Those three do not directly reflect the selected base color.

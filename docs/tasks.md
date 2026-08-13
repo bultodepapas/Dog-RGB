@@ -1,6 +1,6 @@
 # Dog-RGB Work Queue
 
-**Status:** Open work derived from the current repository on 2026-08-12. Completed implementation history lives in audits/plans and Git; this page lists actionable remaining work.
+**Status:** Open work derived from the current repository on 2026-08-13. Completed implementation history lives in audits/plans and Git; this page lists actionable remaining work.
 
 ## P0 — Safe physical prototype
 
@@ -26,6 +26,8 @@
 - [ ] Add native PlatformIO/Unity tests for extracted pure C++ logic; keep Python contracts as complementary regression tests.
 - [ ] Define physical-device loop-latency, UART-overflow, heap, and radio-retry acceptance thresholds.
 - [ ] Exercise slow/aborted route exports against a real phone while recording GNSS overflow and loop diagnostics.
+- [ ] Exercise all seven scene routes against Wokwi runtime or a physical ESP32, including auth/media/length errors, apply state after one tick, export/import and reboot recovery.
+- [ ] Measure scene-store NVS latency, maximum LED gap during writes and heap before/after 100 save/import cycles; require ≤100 ms write gap or record an explicit revised SLO with evidence.
 - [ ] Decide whether the three completed session slots should be presented chronologically or by storage slot in the public API contract.
 - [ ] Document and test the supported upgrade path for partition-table changes and future schema migrations.
 
@@ -39,16 +41,15 @@
 ## P2 — Optional experiments
 
 - [ ] Evaluate voltage/temperature compensation or a physical current sensor only if bench evidence shows that the delivered schema-6 estimator cannot remain conservative enough.
-- [ ] Design one effect metadata registry before adding more effects or portal controls.
 - [ ] Validate the implemented RGBW palettes, A-forward/B-reverse layout, mirror, alert visibility and maximum LED tick time on the mounted collar; change only the orientation flags if physical direction differs.
 - [ ] Measure whether generated/compressed portal assets provide enough flash/maintenance benefit to justify a build step.
 - [ ] Evaluate BLE in STA-only and AP-transition matrices before enabling `BLE_ENABLED` in normal builds.
 - [ ] Prototype IMU current/noise/mechanical impact before choosing a sensor.
-- [ ] Revisit portal presets if real users need repeatable profiles.
+- [ ] Add a graphical scene editor/export/import workflow only if users need it; consume the implemented Fase-4 API and keep advanced controls optional.
 - [ ] Revisit companion/cloud work only with explicit privacy, retention, authentication, cost, and offline-recovery requirements.
 
 ## Completed baseline (reference)
 
-The repository already contains modular firmware, trusted GNSS metrics/date rollover, route/session persistence, Wi-Fi event ownership/retries/scanning, local portal security/UX remediation, four LED modes, Day Mode, a global estimated-current limiter with advanced calibration/diagnostics, semantic LED layout/mirror, eight RGBW palettes, status-preserving crossfades/alerts, optional portal PIN, host/Wokwi/Playwright tests, and visual regression baselines. Do not duplicate those items as open tasks without a concrete regression or enhancement.
+The repository already contains modular firmware, trusted GNSS metrics/date rollover, route/session persistence, Wi-Fi event ownership/retries/scanning, local portal security/UX remediation, four LED modes, Day Mode, a global estimated-current limiter with advanced calibration/diagnostics, semantic LED layout/mirror, versioned effects and eight RGBW palettes, status-preserving crossfades/alerts, four built-in plus four user scene slots with A/B recovery and strict API, optional portal PIN, host/Wokwi/Playwright tests, and visual regression baselines. Do not duplicate those items as open tasks without a concrete regression or enhancement.
 
 See [Roadmap](roadmap.md) for milestone ordering and [Requirements](requirements.md) for acceptance context.

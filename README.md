@@ -14,15 +14,15 @@ The active implementation is local-first. The collar records activity, drives tw
 | --- | --- |
 | GNSS | NMEA RMC/GGA parsing, fix-quality gates, Haversine distance, active time, average/max speed, spike rejection, trusted date rollover |
 | Route history | Latest two hours at a nominal 5-second interval, plus the current and three completed session summaries; JSON, CSV, and GeoJSON streaming exports |
-| LEDs | Two 24-pixel SK6812 RGBW strips by default, semantic status/body/alert layout, mirror-aware orientation, 12 effects, 8 RGBW palettes, status-preserving crossfades, four modes, and one global estimated-current limiter |
+| LEDs | Two 24-pixel SK6812 RGBW strips by default, semantic status/body/alert layout, mirror-aware orientation, 12 effects, 8 RGBW palettes, 4 built-in + 4 user scene slots, Show-by-scenes, status-preserving crossfades, four modes, and one global estimated-current limiter |
 | Power saving | Optional Day Mode turns off effect pixels from 06:00 to 16:00 in America/Bogota while keeping status LEDs, GNSS, storage, and the portal active |
 | Wi-Fi | SoftAP + station mode, captive-portal helpers, on-demand network scan, mDNS, bounded retry/backoff, and automatic AP availability policy |
-| Portal | Dashboard, route preview, Wi-Fi setup, runtime configuration (including optional LED power calibration), diagnostics, optional write PIN, and safe configuration reset |
-| Persistence | CRC-protected A/B records for runtime config, metrics, sessions, home, and Wi-Fi credentials; dedicated NVS partition for route points |
+| Portal | Dashboard, route preview, Wi-Fi setup, runtime configuration (including optional LED power calibration), versioned scene API/import/export, diagnostics, optional write PIN, and safe configuration reset |
+| Persistence | CRC-protected A/B records for runtime config, scenes, metrics, sessions, home, and Wi-Fi credentials; dedicated NVS partition for route points |
 | BLE | A read-only 16-byte daily summary is implemented but **disabled by default** because SoftAP/BLE coexistence is unreliable on the shared ESP32-S3 antenna |
 | Verification | PlatformIO build, Python host tests, static portal checks, Playwright behavior/a11y tests, committed visual baselines, and eight Wokwi scenarios |
 
-Not implemented: cloud sync, user accounts, a native mobile app, IMU/heart-rate input, battery telemetry, OTA updates, and portal presets. Those ideas remain optional roadmap items.
+Not implemented: cloud sync, user accounts, a native mobile app, IMU/heart-rate input, battery telemetry, OTA updates, and the graphical portal scene editor. Scene storage/API is implemented; its embedded UI remains an optional later phase.
 
 ## Hardware baseline
 
@@ -113,13 +113,14 @@ flowchart LR
     GPS --> API[Local HTTP API]
     GPS --> NVS[(NVS + tracknvs)]
     CFG[Runtime config] --> LED
+    SCN[Scene catalog + A/B store] --> LED
     CFG --> WIFI[AP/STA manager]
     WIFI --> API
     API --> PORTAL[Embedded portal]
     GPS -. optional .-> BLE[Read-only BLE summary]
 ```
 
-`main.cpp` orchestrates bounded ticks; domain state lives inside modules. Wi-Fi callbacks enqueue events for processing in the main loop, route exports stream in bounded chunks while servicing GNSS, and persistent records use validation plus CRC/generation selection. The detailed module and data-flow map is in [Architecture](docs/architecture.md).
+`main.cpp` orchestrates bounded ticks; domain state lives inside modules. Wi-Fi callbacks enqueue events for processing in the main loop, route exports stream in bounded chunks while servicing GNSS, scene apply/Show stays out of NVS on the LED hot path, and persistent records use validation plus CRC/generation selection. The detailed module and data-flow map is in [Architecture](docs/architecture.md).
 
 ## Documentation map
 

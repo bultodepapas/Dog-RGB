@@ -7,4 +7,6 @@ void begin();
 Preferences &prefs();
 Preferences &prefs_cfg();
 Preferences &prefs_trk();
+Preferences &prefs_scenes();
+bool scenes_available();
 }

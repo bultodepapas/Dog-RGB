@@ -45,6 +45,7 @@
 #include "config.h"
 #include "geofence/home.h"
 #include "gps/gps.h"
+#include "led/scene_runtime.h"
 #include "led/led_ui.h"
 #include "pins.h"
 #include "power/day_mode.h"
@@ -504,34 +505,14 @@ static void emit_periodic_logs(unsigned long now_ms) {
   Serial.println(wifi_mgr::diagnostics().current_ap_channel);
   }
 
-  const bool has_range = (range >= 1 && range <= 10 && !body_idle && !home_missing);
-  const bool day_active = day_mode::active_now();
-  bool body_on = has_range;
-  const char *render = has_range ? "range" : (home_missing ? "home_missing" : "idle");
-  int effect_a = RANGE_1_EFFECT_A;
-  int effect_b = RANGE_1_EFFECT_B;
-  uint8_t eff_speed = RANGE_1_SPEED;
-  uint8_t eff_intensity = RANGE_1_INTENSITY;
-  if (day_active) {
-    body_on = false;
-    render = "day_status";
-  } else if (mode == MODE_SHOW) {
-    body_on = true;
-    render = "show";
-    effect_a = led_ui::current_show_effect();
-    effect_b = effect_a;
-    eff_speed = SHOW_SPEED;
-    eff_intensity = SHOW_INTENSITY;
-  } else if (mode == MODE_SIMPLE) {
-    body_on = true;
-    render = "simple";
-    effect_a = config::get().single.effect_id;
-    effect_b = effect_a;
-    eff_speed = config::get().single.speed;
-    eff_intensity = config::get().single.intensity;
-  } else if (has_range) {
-    led_ui::get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
-  }
+  const led::LedState &led_state = led_ui::current_state();
+  const bool body_on = led_state.body_enabled &&
+                       led_state.intent != led::LedIntent::Idle;
+  const char *render = led::led_intent_name(led_state.intent);
+  const int effect_a = led_state.effect_a;
+  const int effect_b = led_state.effect_b;
+  const uint8_t eff_speed = led_state.speed;
+  const uint8_t eff_intensity = led_state.intensity;
   if (detail_slot == 4) {
   Serial.print("[LED] mode=");
   Serial.print(config::mode_name(config::get().mode));
@@ -688,6 +669,7 @@ void setup() {
 
   storage::begin();
   config::load();
+  scene_runtime::begin(millis(), config::get().mode);
 
   if (DEBUG_AP_ONLY_MINIMAL) {
     wifi_mgr::begin();

@@ -30,7 +30,7 @@ class LedCompositor {
   // ownership happen here, after effects and before the power limiter.
   void compose(const LedFrame &logical, LedFrame &physical, uint32_t now_ms,
                bool mirror, bool status_enabled, bool alert_active,
-               const Rgb &alert_color);
+               const Rgb &alert_color, uint8_t body_level = 255);
 
   const LedLayout &layout() const;
   const TransitionDiagnostics &diagnostics() const;
@@ -39,6 +39,7 @@ class LedCompositor {
   void clear_frame(LedFrame &frame) const;
   void map_target(const LedFrame &logical, LedFrame &physical, bool mirror,
                   bool status_enabled);
+  void scale_target_body(LedFrame &physical, uint8_t body_level) const;
   void blend_transition_body(LedFrame &physical, uint8_t amount) const;
   void apply_alert(LedFrame &physical, const Rgb &color) const;
   uint8_t transition_progress(uint32_t now_ms) const;

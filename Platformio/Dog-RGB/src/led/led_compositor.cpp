@@ -112,6 +112,22 @@ void LedCompositor::blend_transition_body(LedFrame &physical,
   }
 }
 
+void LedCompositor::scale_target_body(LedFrame &physical,
+                                      uint8_t body_level) const {
+  if (body_level == 255U) return;
+  const uint16_t body_count = layout_.body_pixels_per_bus();
+  for (uint16_t i = 0; i < body_count; ++i) {
+    const uint16_t a = layout_.physical_body_index(LedBusId::A, i);
+    physical.bus_a[a] = rgbw_to_rgb(
+        scale_rgbw(rgb_to_rgbw(physical.bus_a[a]), body_level));
+    if (layout_.dual_bus()) {
+      const uint16_t b = layout_.physical_body_index(LedBusId::B, i);
+      physical.bus_b[b] = rgbw_to_rgb(
+          scale_rgbw(rgb_to_rgbw(physical.bus_b[b]), body_level));
+    }
+  }
+}
+
 void LedCompositor::apply_alert(LedFrame &physical, const Rgb &color) const {
   LedAddress addresses[2] = {};
   for (uint16_t i = 0; i < layout_.region_size(LedRegion::Alert); ++i) {
@@ -128,8 +144,9 @@ void LedCompositor::apply_alert(LedFrame &physical, const Rgb &color) const {
 void LedCompositor::compose(const LedFrame &logical, LedFrame &physical,
                             uint32_t now_ms, bool mirror,
                             bool status_enabled, bool alert_active,
-                            const Rgb &alert_color) {
+                            const Rgb &alert_color, uint8_t body_level) {
   map_target(logical, physical, mirror, status_enabled);
+  scale_target_body(physical, body_level);
   if (alert_active) {
     interrupt_for_alert();
   } else if (diagnostics_.active) {

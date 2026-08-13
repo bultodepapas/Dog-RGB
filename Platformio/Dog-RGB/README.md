@@ -7,10 +7,10 @@
 - RMC/GGA GNSS parsing with runtime quality gates, distance, active time, daily metrics, trusted date rollover, and diagnostics.
 - Transactional current session, three completed summaries, completed-day journal, and two-hour route ring.
 - JSON/CSV/GeoJSON route streaming that services GNSS around bounded socket writes.
-- Two SK6812 RGBW strips with reserved status pixels, 12 effects, four modes, welcome animation, optional Day Mode, and one estimated-current limiter across both buses.
+- Two SK6812 RGBW strips with reserved status pixels, 12 effects, eight palettes, four built-in plus four user scenes, Show-by-scenes, four modes, welcome animation, optional Day Mode, and one estimated-current limiter across both buses.
 - AP/STA Wi-Fi with captive DNS/probes, network scan, event-queue ownership, bounded retry/backoff, AP hold/idle policy, and mDNS.
-- Embedded dashboard, Wi-Fi/configuration/diagnostic pages, CSRF-intent header, output escaping, response headers, and optional write PIN.
-- A/B + CRC persistence for config, metrics, sessions, Home, and station credentials; dedicated route NVS partition.
+- Embedded dashboard, Wi-Fi/configuration/diagnostic pages, strict versioned scene API/import/export, CSRF-intent header, output escaping, response headers, and optional write PIN.
+- A/B + CRC persistence for config, scenes, metrics, sessions, Home, and station credentials; dedicated route NVS partition.
 - Read-only BLE summary code, disabled by default for radio coexistence.
 - Wokwi production-image simulation with custom controllable NMEA chip and eight scenarios.
 
@@ -87,11 +87,11 @@ Authoritative values: `include/config.h`, `include/pins.h`, and `platformio.ini`
 | Wi-Fi | `src/wifi/wifi_mgr.cpp` |
 | HTTP and pages | `src/web/portal_http.cpp`, `src/web/pages.cpp` |
 | Optional PIN | `src/web/portal_lock.cpp` |
-| LEDs / layout / palettes / composition | `src/led/led_ui.cpp`, `src/led/led_layout.cpp`, `src/led/palette_registry.cpp`, `src/led/led_compositor.cpp` |
+| LEDs / scenes / layout / composition | `src/led/led_ui.cpp`, `src/led/scene*.cpp`, `src/led/led_layout.cpp`, `src/led/palette_registry.cpp`, `src/led/led_compositor.cpp` |
 | LED transport / current limiting / Day Mode | `src/led/led_bus.cpp`, `src/led/power_limiter.cpp`, `src/power/day_mode.cpp` |
 | Home/geofence | `src/geofence/home.cpp` |
 | BLE | `src/ble/summary_ble.cpp` |
-| Storage/utilities | `src/storage/nvs_store.cpp`, `src/util/geo.cpp`, `include/util/*` |
+| Storage/utilities | `src/storage/nvs_store.cpp`, `src/storage/scene_*.cpp`, `src/util/geo.cpp`, `include/util/*` |
 
 Detailed boot/loop/storage/concurrency design: [Architecture](../../docs/architecture.md).
 

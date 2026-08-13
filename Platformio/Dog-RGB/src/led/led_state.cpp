@@ -12,6 +12,7 @@ const char *led_intent_name(LedIntent intent) {
     case LedIntent::Show: return "show";
     case LedIntent::Simple: return "simple";
     case LedIntent::CriticalAlert: return "critical_alert";
+    case LedIntent::SceneManual: return "scene_manual";
   }
   return "unknown";
 }
@@ -49,7 +50,11 @@ bool led_visual_state_equal(const LedState &left, const LedState &right) {
          left.effect_b == right.effect_b &&
          left.palette_a == right.palette_a &&
          left.palette_b == right.palette_b && left.speed == right.speed &&
-         left.intensity == right.intensity && base_equal && accent_equal;
+         left.intensity == right.intensity &&
+         left.body_level == right.body_level &&
+         left.scene_id == right.scene_id &&
+         left.scene_activation_revision == right.scene_activation_revision &&
+         base_equal && accent_equal;
 }
 
 } // namespace led

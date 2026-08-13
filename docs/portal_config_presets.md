@@ -1,8 +1,8 @@
 # Portal Configuration Presets
 
-> **Document status:** Proposed optional feature. No preset storage, API, or selector is implemented in the active firmware as of 2026-08-12.
+> **Document status:** Proposed optional **whole-runtime-configuration** feature, reviewed 2026-08-13. Fase 4 now implements visual LED scenes and their storage/API, but not this broader Speed-range/configuration preset or its selector.
 
-Presets would let a user apply a named group of existing configuration fields without editing ten ranges individually. They should remain an optional convenience layer over the versioned configuration schema, not a second configuration system.
+These configuration presets would let a user apply a named group of existing runtime fields without editing ten ranges individually. They are distinct from implemented LED scenes, which contain only one body recipe and cannot mutate mode, range thresholds, GNSS, Wi-Fi or other configuration. This proposal should remain an optional convenience layer over the versioned configuration schema, not a second configuration system.
 
 ## Proposed scope
 

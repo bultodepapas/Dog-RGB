@@ -1,6 +1,6 @@
 # Show Mode Manual Test Checklist
 
-> **Document status:** Historical/manual validation artifact refreshed for the current interface on 2026-08-12. Automated contracts cover structure; the physical visual result still requires human judgment.
+> **Document status:** Current manual validation artifact refreshed for scene-based Show on 2026-08-13. Automated contracts cover structure; the physical visual result still requires human judgment.
 
 ## Setup
 
@@ -13,15 +13,15 @@
 
 1. Select **Show** on `/config` and save.
 2. Open `/dev` and confirm the reported LED mode is `show`.
-3. Confirm that the current Show effect exposes a valid name and ID.
+3. Confirm that `/api/v1/led/state` reports `scene.playback:"show"`, a valid scene ID/name, and matching effect/palette metadata.
 
-Expected: the effect segment starts a demo while status pixels continue to show Wi-Fi/GNSS. Simple mode is the only normal mode that intentionally claims the entire strip.
+Expected: the body starts a scene while status pixels continue to show Wi-Fi/GNSS. No normal mode, including Simple or manual scene playback, claims the reserved status pixels.
 
 ## 2. Observe one complete shuffled bag
 
-Allow at least six minutes because each of the 12 effects normally runs for about 30 seconds.
+First query `/api/v1/led/scenes` and count the four built-ins plus occupied user scenes with `show_eligible:true`. Allow roughly 30 seconds of visible time per eligible scene; Welcome and Day Mode pause this clock.
 
-| Sequence | Approximate time | Effect | ID | Transition/color notes |
+| Sequence | Approximate time | Scene | ID | Effect/palette/transition notes |
 | ---: | --- | --- | ---: | --- |
 | 1 | 00:00 |  |  |  |
 | 2 | 00:30 |  |  |  |
@@ -31,18 +31,16 @@ Allow at least six minutes because each of the 12 effects normally runs for abou
 | 6 | 02:30 |  |  |  |
 | 7 | 03:00 |  |  |  |
 | 8 | 03:30 |  |  |  |
-| 9 | 04:00 |  |  |  |
-| 10 | 04:30 |  |  |  |
-| 11 | 05:00 |  |  |  |
-| 12 | 05:30 |  |  |  |
+
+Rows 5–8 apply only when those user slots are occupied and eligible.
 
 Expected:
 
-- all IDs `0..11` occur once before the bag repeats;
+- every eligible scene ID occurs exactly once before the bag repeats;
 - the first item of the next bag differs from the previous bag's last item;
-- transitions are brief and do not produce an obvious blank/frozen strip;
-- base color evolves where the effect supports it;
-- `RAINBOW`, `GRADIENT_WAVE`, and `FIRE` need not reflect the random base color directly.
+- each scene uses its declared transition and does not produce an obvious blank/frozen strip;
+- the four built-ins match the documented effect, palette, color and relative body level;
+- a user scene saved while active remains visually snapshotted/stale until explicitly reapplied.
 
 ## 3. Status and Day Mode
 
@@ -53,22 +51,22 @@ Expected: Day Mode turns off effect pixels during its window but preserves statu
 
 ## 4. Two-strip behavior
 
-When two strips are configured, confirm that both use the same Show effect and parameters at each transition. Their physical orientation may make the pattern look mirrored or repetitive; record that as a design observation unless the data streams actually diverge.
+When two strips are configured, confirm each scene follows its declared mirror/A-B branches and that physical A-forward/B-reverse orientation looks intentional. Record a mounting mismatch separately from a recipe mismatch.
 
 ## Optional explicit Wi-Fi-OFF test
 
-The firmware retains homogeneous rendering after an explicit Wi-Fi-OFF state plus stable GNSS. Automatic idle AP shutdown currently stops SoftAP without forcing that state, so this case is not part of the normal field policy. If tested through an experimental control path, confirm the Show effect covers the status pixels only after the documented stability delay.
+The firmware retains homogeneous eligibility after an explicit Wi-Fi-OFF state plus stable GNSS, but semantic status ownership remains reserved. Automatic idle AP shutdown currently stops SoftAP without forcing that state. If tested through an experimental control path, confirm scenes still do not cover status pixels.
 
 ## Pass record
 
 - [ ] Show is selectable and persists.
-- [ ] `/dev` reports the current mode/effect correctly.
-- [ ] All 12 effects appear once per bag.
+- [ ] `/dev` and LED state report mode, scene, effect and palette correctly.
+- [ ] Every eligible scene appears once per bag.
 - [ ] Bag-boundary non-repeat behavior passes.
 - [ ] Transitions and supported color evolution look acceptable.
 - [ ] Status pixels survive normal Show operation.
 - [ ] Day Mode preserves status and controls only the effect segment.
-- [ ] Both strips stay synchronized.
+- [ ] Both strips follow mirror/branch declarations and physical orientation.
 - [ ] Current, voltage, and temperature remain within the build's measured limits.
 
 Link any failure to logs, firmware revision, configuration export, and photos/video. See [LED UI](led_ui_spec.md) and [LED effects](led_effects.md) for the canonical behavior.

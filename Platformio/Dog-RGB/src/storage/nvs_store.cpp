@@ -5,6 +5,8 @@ namespace {
 Preferences prefs_instance;
 Preferences prefs_cfg_instance;
 Preferences prefs_trk_instance;
+Preferences prefs_scenes_instance;
+bool scenes_available_instance = false;
 } // namespace
 
 void begin() {
@@ -19,6 +21,7 @@ void begin() {
     prefs_instance.putBool("trk_part", true);
   }
   prefs_trk_instance.begin("dogrgb_trk", false, "tracknvs");
+  scenes_available_instance = prefs_scenes_instance.begin("dogrgb_scn", false);
 }
 
 Preferences &prefs() {
@@ -31,5 +34,13 @@ Preferences &prefs_cfg() {
 
 Preferences &prefs_trk() {
   return prefs_trk_instance;
+}
+
+Preferences &prefs_scenes() {
+  return prefs_scenes_instance;
+}
+
+bool scenes_available() {
+  return scenes_available_instance;
 }
 } // namespace storage

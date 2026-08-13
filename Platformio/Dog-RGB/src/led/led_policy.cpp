@@ -30,6 +30,27 @@ static LedState base_state(LedMode mode, const LedPolicyConfig *config) {
   return state;
 }
 
+static bool apply_scene(LedState &state, const SceneV1 *scene,
+                        bool manual, uint32_t activation_revision) {
+  if (scene == nullptr || !scene_validate(*scene)) return false;
+  state.intent = manual ? LedIntent::SceneManual : LedIntent::Show;
+  state.priority = state.critical_alert ? 90 : 30;
+  state.mirror = scene->mirror;
+  state.effect_a = scene->effect_a;
+  state.effect_b = scene->effect_b;
+  state.palette_a = scene->palette_a;
+  state.palette_b = scene->palette_b;
+  state.speed = scene->speed;
+  state.intensity = scene->intensity;
+  state.body_level = scene->body_level;
+  state.transition_ms = scene->transition_ms;
+  state.scene_id = scene->scene_id;
+  state.scene_activation_revision = activation_revision;
+  state.base = scene->base;
+  state.accent = scene->accent;
+  return true;
+}
+
 } // namespace
 
 LedState LedPolicyEngine::evaluate(const LedPolicyInput &input) const {
@@ -56,22 +77,8 @@ LedState LedPolicyEngine::evaluate(const LedPolicyInput &input) const {
   }
 
   state.homogeneous = input.wifi_off && input.homogeneous_ready;
-  if (input.mode == LedMode::Show) {
-    state.intent = LedIntent::Show;
-    state.priority = state.critical_alert ? 90 : 30;
-    const bool mirror = state.mirror;
-    select_effects(state, input.show_effect, input.show_effect, mirror);
-    const EffectDescriptor *descriptor = effect_descriptor(input.show_effect);
-    if (descriptor != nullptr &&
-        descriptor->palette_mode == EffectPaletteMode::Selectable &&
-        palette_id_valid(input.show_palette)) {
-      state.palette_a = input.show_palette;
-      state.palette_b = input.show_palette;
-    }
-    state.speed = input.show_speed;
-    state.intensity = input.show_intensity;
-    state.base = input.show_base;
-    state.accent = input.show_accent;
+  if (apply_scene(state, input.scene, input.scene_manual,
+                  input.scene_activation_revision)) {
     return state;
   }
 

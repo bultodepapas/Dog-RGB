@@ -12,6 +12,7 @@
 #include "led/led_compositor.h"
 #include "led/led_policy.h"
 #include "led/palette_registry.h"
+#include "led/scene_runtime.h"
 #include "pins.h"
 #include "power/day_mode.h"
 #include "wifi/wifi_mgr.h"
@@ -56,23 +57,7 @@ using EffectState = led::EffectRuntime;
 
 EffectState state_a;
 EffectState state_b;
-EffectState show_state_a;
-EffectState show_state_b;
-uint8_t show_effect_id = 0;
-unsigned long show_effect_since_ms = 0;
-Rgb show_base = {0, 0, 0};
-Rgb show_accent = {0, 0, 0};
-uint8_t show_palette = led::PALETTE_NONE;
-uint8_t show_speed = SHOW_SPEED;
-uint8_t show_intensity = SHOW_INTENSITY;
-bool show_first_tick = true;
-uint8_t show_effect_order[EFFECT_COUNT];
-uint8_t show_effect_order_index = EFFECT_COUNT;
-uint8_t show_last_effect_id = 255;
-EffectState simple_state_a;
-EffectState simple_state_b;
 bool led_transport_enabled = true;
-uint8_t last_mode = MODE_SPEED;
 uint32_t effect_random_state = 0xD06F00D5UL;
 led::LedPolicyEngine policy_engine;
 led::LedState active_led_state = {};
@@ -99,21 +84,6 @@ const Rgb WELCOME_COLORS[5] = {
   {0, 0, 255},     // azul
   {0, 255, 0}      // verde
 };
-const Rgb SHOW_PALETTE[] = {
-  {255, 0, 80},
-  {0, 180, 255},
-  {0, 255, 120},
-  {255, 180, 0},
-  {150, 0, 255},
-  {255, 255, 255},
-  {255, 70, 0},
-  {0, 70, 255},
-  {255, 0, 190},
-  {70, 255, 220},
-  {255, 230, 60},
-  {120, 255, 0}
-};
-
 } // namespace
 static uint8_t clamp_u8(int value) {
   if (value < 0) {
@@ -147,17 +117,6 @@ static void fade_rgb(Rgb &c, uint8_t amount) {
   c.r = scale8(c.r, scale);
   c.g = scale8(c.g, scale);
   c.b = scale8(c.b, scale);
-}
-
-static uint8_t random8(uint8_t max_val = 255) {
-  return static_cast<uint8_t>(random(0, static_cast<long>(max_val) + 1));
-}
-
-static uint8_t random8(uint8_t min_val, uint8_t max_val) {
-  if (max_val <= min_val) {
-    return min_val;
-  }
-  return static_cast<uint8_t>(random(min_val, static_cast<long>(max_val) + 1));
 }
 
 static float pulse_scale(unsigned long period_ms) {
@@ -217,6 +176,7 @@ static void show_leds() {
   last_transport_ms = now_ms;
 #endif
   led_bus.show(led_frame);
+  scene_runtime::note_led_frame(micros());
 }
 
 static void fill_range(Rgb *leds, int start, int count, const Rgb &color) {
@@ -293,12 +253,10 @@ static led::LedState evaluate_policy(unsigned long now_ms, bool gps_ok,
   input.homogeneous_ready = gps_fix_ms >= WIFI_OFF_GPS_FIX_MS;
   input.speed_kph = gps::last_speed_kph();
   input.geofence_range = geofence_range;
-  input.show_effect = show_effect_id;
-  input.show_speed = show_speed;
-  input.show_intensity = show_intensity;
-  input.show_palette = show_palette;
-  input.show_base = show_base;
-  input.show_accent = show_accent;
+  const led::ScenePlayer &player = scene_runtime::player();
+  input.scene = player.active_scene();
+  input.scene_manual = player.playback() == led::ScenePlayback::Manual;
+  input.scene_activation_revision = player.activation_revision();
   (void)now_ms;
   return policy_engine.evaluate(input);
 }
@@ -585,138 +543,23 @@ static void render_composed_frame(unsigned long now_ms, bool gps_ok,
                      active_led_state.mirror,
                      active_led_state.status_enabled,
                      active_led_state.alert != led::LedAlert::None,
-                     alert_color(now_ms, active_led_state.alert));
+                     alert_color(now_ms, active_led_state.alert),
+                     active_led_state.body_level);
   show_leds();
 }
 
-static Rgb random_show_color() {
-  const size_t palette_size = sizeof(SHOW_PALETTE) / sizeof(SHOW_PALETTE[0]);
-  Rgb color = SHOW_PALETTE[random8(static_cast<uint8_t>(palette_size - 1))];
-  color.r = clamp_u8(static_cast<int>(color.r) + static_cast<int>(random8(0, 40)) - 20);
-  color.g = clamp_u8(static_cast<int>(color.g) + static_cast<int>(random8(0, 40)) - 20);
-  color.b = clamp_u8(static_cast<int>(color.b) + static_cast<int>(random8(0, 40)) - 20);
-  return color;
-}
-
-static void shuffle_show_effect_order() {
-  for (uint8_t i = 0; i < EFFECT_COUNT; ++i) {
-    show_effect_order[i] = i;
-  }
-  for (int i = EFFECT_COUNT - 1; i > 0; --i) {
-    const int j = random8(static_cast<uint8_t>(i));
-    const uint8_t tmp = show_effect_order[i];
-    show_effect_order[i] = show_effect_order[j];
-    show_effect_order[j] = tmp;
-  }
-  if (EFFECT_COUNT > 1 && show_last_effect_id < EFFECT_COUNT &&
-      show_effect_order[0] == show_last_effect_id) {
-    const uint8_t swap_idx = random8(1, EFFECT_COUNT - 1);
-    show_effect_order[0] = show_effect_order[swap_idx];
-    show_effect_order[swap_idx] = show_last_effect_id;
-  }
-  show_effect_order_index = 0;
-}
-
-static uint8_t next_show_effect() {
-  if (show_effect_order_index >= EFFECT_COUNT) {
-    shuffle_show_effect_order();
-  }
-  const uint8_t effect_id = show_effect_order[show_effect_order_index++];
-  show_last_effect_id = effect_id;
-  return effect_id;
-}
-
-static void prepare_show_effect() {
-  show_base = random_show_color();
-  show_accent = random_show_color();
-  const led::EffectDescriptor *descriptor =
-      led::effect_descriptor(show_effect_id);
-  show_palette = descriptor == nullptr
-                     ? led::PALETTE_NONE
-                     : descriptor->default_palette_id;
-  if (descriptor != nullptr &&
-      descriptor->palette_mode == led::EffectPaletteMode::Selectable) {
-    show_palette = random8(led::PALETTE_REGISTRY_COUNT - 1U);
-  }
-  show_speed = clamp_u8(static_cast<int>(SHOW_SPEED) + static_cast<int>(random8(0, 50)) - 25);
-  show_intensity = clamp_u8(static_cast<int>(SHOW_INTENSITY) + static_cast<int>(random8(0, 50)) - 25);
-  if (show_effect_id == 10) { // FIRE
-    show_speed = random8(130, 180);
-    show_intensity = random8(175, 220);
-  }
-}
-
-static void update_show_mode(unsigned long now_ms) {
-  if (show_first_tick) {
-    show_first_tick = false;
-    shuffle_show_effect_order();
-    show_effect_id = next_show_effect();
-    show_effect_since_ms = now_ms;
-    prepare_show_effect();
-  }
-
-  if (now_ms - show_effect_since_ms >= SHOW_EFFECT_MS) {
-    show_effect_id = next_show_effect();
-    show_effect_since_ms = now_ms;
-    prepare_show_effect();
-  }
-
-  if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
-    return;
-  }
-  last_led_update_ms = now_ms;
-
-  const bool gps_ok = gps::has_fix();
-  const bool sta_ok = (wifi_mgr::sta_connected() && WiFi.status() == WL_CONNECTED);
-  const bool sta_try = (!sta_ok && wifi_mgr::sta_connecting());
-
-  update_gps_fix_timer(now_ms, gps_ok);
-  const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
-  const led::LedState next = evaluate_policy(now_ms, gps_ok, critical_error);
-  accept_led_state(next, now_ms, show_state_a, show_state_b);
-  render_composed_frame(now_ms, gps_ok, sta_ok, sta_try,
-                        show_state_a, show_state_b);
-
-}
-
-static void update_simple_mode(unsigned long now_ms) {
-  if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
-    return;
-  }
-  last_led_update_ms = now_ms;
-
-  const bool gps_ok = gps::has_fix();
-  const bool sta_ok = (wifi_mgr::sta_connected() && WiFi.status() == WL_CONNECTED);
-  const bool sta_try = (!sta_ok && wifi_mgr::sta_connecting());
-  update_gps_fix_timer(now_ms, gps_ok);
-  const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
-  const led::LedState next = evaluate_policy(now_ms, gps_ok, critical_error);
-  accept_led_state(next, now_ms, simple_state_a, simple_state_b);
-  render_composed_frame(now_ms, gps_ok, sta_ok, sta_try,
-                        simple_state_a, simple_state_b);
-}
-
 static void update_led_ui() {
+  const unsigned long now_ms = millis();
+  const RuntimeConfig &cfg = config::get();
+  const bool body_permitted =
+      LED_UI_ENABLED && !welcome.active && !day_mode::active_now();
+  scene_runtime::tick(now_ms, cfg.mode, cfg.mode == MODE_SHOW,
+                      body_permitted);
   if (!LED_UI_ENABLED) {
     return;
   }
-  const unsigned long now_ms = millis();
   if (welcome.active) {
     update_welcome(now_ms);
-    return;
-  }
-  if (config::get().mode != last_mode) {
-    if (config::get().mode == MODE_SHOW) {
-      show_first_tick = true;
-    }
-    last_mode = config::get().mode;
-  }
-  if (config::get().mode == MODE_SHOW) {
-    update_show_mode(now_ms);
-    return;
-  }
-  if (config::get().mode == MODE_SIMPLE) {
-    update_simple_mode(now_ms);
     return;
   }
   if (now_ms - last_led_update_ms < LED_UPDATE_MS) {
@@ -784,6 +627,10 @@ bool transport_enabled() {
 }
 
 uint8_t current_show_effect() {
-  return show_effect_id;
+  const led::ScenePlayer &player = scene_runtime::player();
+  const led::SceneV1 *scene = player.active_scene();
+  return player.playback() == led::ScenePlayback::Show && scene != nullptr
+             ? scene->effect_a
+             : 0U;
 }
 } // namespace led_ui

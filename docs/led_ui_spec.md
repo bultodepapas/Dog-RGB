@@ -38,10 +38,12 @@ The automatic AP idle policy currently stops SoftAP without forcing the whole Wi
 | --- | --- | --- | --- |
 | Speed | Trusted usable GNSS speed | Body; rainbow fallback without fix | Status pixels retained |
 | Geofence | Distance from Home with hysteresis | Body; rainbow without fix, amber breath without Home | Status pixels retained |
-| Show | Shuffled 12-effect demo | Body | Status pixels retained |
+| Show | Shuffled eligible-scene catalog (4 built-ins + up to 4 user slots) | Body | Status pixels retained |
 | Simple | One configured effect/RGB | Body | Status pixels retained |
 
 Speed/Geofence use the same ten effect records. Geofence changes the range selector, not the effect engine.
+
+A manual scene is a volatile override, not a fifth persisted mode. It snapshots one built-in/user recipe, reports `LedIntent::SceneManual`, and replaces the normal Speed/Geofence/Show/Simple body until cancel, explicit mode change, another apply, or reboot. It never takes ownership of status/alert regions.
 
 ## Priority and composition
 
@@ -52,20 +54,23 @@ Speed/Geofence use the same ten effect records. Geofence changes the range selec
 | 100 | Welcome | Owns both complete strips during startup |
 | 90 | System or Geofence alert | Overrides only `alert`/status while preserving the underlying body intent |
 | 80 | Day status | Disables the body and keeps status pixels; a simultaneous critical alert reports priority 90 |
-| 30 | Range, Show, Simple | Normal configured scene |
+| 30 | Range, Show, Simple, SceneManual | Normal configured or overridden body recipe |
 | 20 | Idle, Home missing | Fallback/guidance behavior |
 
 The practical render order is:
 
 1. **Welcome** owns the strips until its startup sequence completes.
-2. `LedPolicyEngine` produces body effects, palettes, mirror, transition and alert state.
-3. Effects render only logical body coordinates; status renders independently.
-4. `LedCompositor` maps A/B orientation, mirrors one logical branch when requested, and crossfades the body.
-5. The current status frame bypasses decorative fades.
-6. A System/Geofence alert interrupts an active fade and overwrites the two reserved status pixels on both buses.
-7. Day Mode clears only the body before this composition.
+2. `ScenePlayer` consumes any pending apply/cancel and advances Show from a fixed shuffled bag.
+3. `LedPolicyEngine` combines the optional scene snapshot with device state and produces body effects, palettes, mirror, transition, body level and alert state.
+4. Effects render only logical body coordinates; status renders independently.
+5. `LedCompositor` scales the target body, maps A/B orientation, mirrors one logical branch when requested, and crossfades the body.
+6. The current status frame bypasses decorative fades.
+7. A System/Geofence alert interrupts an active fade and overwrites the two reserved status pixels on both buses.
+8. Day Mode clears only the body before this composition.
 
 `critical_alert` and the typed `alert` field are separate from `intent`, so an alert does not silently destroy the current decorative scene. The retained `homogeneous` flag still reports Wi-Fi-off/GNSS eligibility for compatibility, but semantic status ownership is no longer surrendered to an effect.
+
+`body_level` is `1..255` relative to global brightness. It is applied to the requested body target before crossfade; status/alerts remain unscaled by the recipe, and the later global brightness plus `PowerLimiter` remain authoritative.
 
 ## Semantic regions and transitions
 
@@ -96,21 +101,21 @@ Default Speed colors progress from cyan at the lowest range to red at the highes
 | Slow status pulse | About 1.5 s cycle |
 | Critical flash | 200 ms phases |
 | AP-off double pulse | 3 s period, 200 ms pulse width |
-| Show effect | 30 s |
+| Show scene visible time | 30 s of active playback; Welcome and Day Mode pause the clock |
 | Normal body crossfade | 500 ms |
 | Homogeneous eligibility | 5 min stable GNSS while Wi-Fi-off state is true |
 | Critical health timeout | 10 min |
 
 ## Diagnostics and testing
 
-`/api/v1/led/state` exposes mode, intent, typed alert, priority, mirror, effects/palettes, parameters, base/accent RGB, transition counters/progress, brightness, and the latest limiter snapshot. `/api/dev` uses that same state instead of recomputing a second range/effect decision. `/api/v1/led/capabilities` exposes effect/palette registries, semantic layout/orientation and hardware/control limits.
+`/api/v1/led/state` exposes mode, intent, typed alert, priority, mirror, effects/palettes, parameters, base/accent RGB, body level, active/pending/stale scene metadata, transition counters/progress, brightness, and the latest limiter snapshot. `/api/dev` uses that same state and adds scene-store/player timing/recovery counters instead of recomputing a second decision. `/api/v1/led/capabilities` exposes effect/palette/scene registry versions, semantic layout/orientation, scene limits and feature flags.
 
-The Phase 2 harness retains the 12 legacy effect goldens with no selected palette and validates policy boundaries. The Phase 3 harness adds exact layout maps, canonical RGBW palette round-trips, five palette-aware effects, mirror, status-preserving crossfade, no-black midpoint, and immediate alert interruption. Physical strips still require orientation, current, timing, temperature and perceptual checks.
+The Phase 2 harness retains the 12 legacy effect goldens with no selected palette and validates policy boundaries. The Phase 3 harness adds exact layout maps, canonical RGBW palette round-trips, five palette-aware effects, mirror, status-preserving crossfade, no-black midpoint, and immediate alert interruption. Phase 4 adds exact scene/record wire vectors, built-in goldens, player bag/timer/override behavior, store fault injection and JSON round-trip/hostile-input tests. Physical strips still require orientation, current, write-gap, heap, timing, temperature and perceptual checks.
 
 ## Frame, transport, and power boundary
 
-Effects render RGB into a logical `LedFrame` containing branches A/B. `LedCompositor` produces the orientation-aware physical frame, then `LedBus` owns Adafruit NeoPixel and is the only layer that writes GPIO. Before transport, `PowerLimiter` evaluates both active buses as one load and applies the same scale to every RGBW channel.
+Effects render RGB into a logical `LedFrame` containing branches A/B. `SceneCatalog`/`ScenePlayer` provide only a validated recipe snapshot; they do not render or own pixels. `LedCompositor` applies its body level and produces the orientation-aware physical frame, then `LedBus` owns Adafruit NeoPixel and is the only layer that writes GPIO. Before transport, `PowerLimiter` evaluates both active buses as one load and applies the same scale to every RGBW channel.
 
-The effect renderer itself is `effect_registry.cpp`. It consumes explicit time, PRNG state, effect runtime, base/accent color, palette ID, parameters, and a bounded pixel span. It does not import GPS, Wi-Fi, geofence, NVS, Arduino time/random, or the physical bus. `led_ui.cpp` snapshots product domains and converts schema-6 `RangeEffect` records to `LedPolicyConfig`; `LedLayout`/`LedCompositor` own physical composition.
+The effect renderer itself is `effect_registry.cpp`. It consumes explicit time, PRNG state, effect runtime, base/accent color, palette ID, parameters, and a bounded pixel span. It does not import GPS, Wi-Fi, geofence, NVS, Arduino time/random, or the physical bus. `led_ui.cpp` snapshots product domains and converts schema-6 `RangeEffect` records plus the optional `ScenePlayer` snapshot to `LedPolicyConfig`; `LedLayout`/`LedCompositor` own physical composition. No function in the scene/render tick reads NVS or uses ArduinoJson/`String`/dynamic allocation.
 
 The limit is enabled by default. Its runtime profile is advanced configuration: total budget, non-LED base current, full R/G/B channel current, and full white-channel current. Reduction is immediate; recovery is gradual to reduce visible pumping. The estimate is intentionally rounded upward but remains a model rather than a current sensor.

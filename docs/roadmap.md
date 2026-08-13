@@ -5,9 +5,9 @@
 ## Baseline delivered
 
 - Modular ESP32-S3 firmware for GNSS, metrics, sessions, routes, LEDs, Wi-Fi, portal, storage, and optional BLE.
-- Four LED modes, a versioned 12-effect registry, eight RGBW palettes, semantic A/B layout with mirror, status-preserving crossfades/alerts, explicit LED state/policy, welcome animation, optional Day Mode, and one global estimated-current limiter across both LED buses.
+- Four LED modes, a versioned 12-effect registry, eight RGBW palettes, semantic A/B layout with mirror, status-preserving crossfades/alerts, explicit LED state/policy, four built-in plus four user scene slots, Show-by-scenes, welcome animation, optional Day Mode, and one global estimated-current limiter across both LED buses.
 - Local AP/STA portal with captive helpers, network scan, route preview/export, runtime configuration, diagnostics, and optional write PIN.
-- CRC-protected transactional persistence and dedicated two-hour route storage.
+- CRC-protected transactional persistence, an independent scene A/B bank, and dedicated two-hour route storage.
 - Pinned production/Wokwi builds, host contracts, portal smoke, Playwright/a11y coverage, and visual baselines.
 
 ## Milestone 1 — Physical MVP evidence (highest priority)
@@ -32,10 +32,11 @@
 - Revisit the delivered estimator only if physical calibration shows that the simple base/channel model needs voltage, temperature, or hardware-sensor inputs.
 - Evolve the delivered effect/palette registries only when a new entry has an honest control/safety contract and characterization vectors.
 - Physically validate the delivered A-forward/B-reverse layout, mirror, alert legibility and crossfade timing on the mounted strips.
-- Add small CRC-protected scenes/presets on top of the delivered state/palette/transition model; avoid effect-count inflation.
+- Exercise the delivered scene API/store against Wokwi runtime or hardware: seven HTTP routes, reboot recovery, heap after repeated writes, apply latency and maximum LED gap during NVS writes.
+- Build the optional graphical scene editor only from the delivered capabilities/catalog/import contract; do not duplicate registries or validation in JavaScript.
 - Consider compiling/compressing portal source assets if the embedded C++ strings become a maintenance or flash-size constraint.
 
-These remaining ideas are explored in the [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md). Phases 1–3 are delivered in software; Phase 3 still needs physical acceptance and later phases remain optional design directions.
+These remaining ideas are explored in the [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md). Phases 1–4 are delivered in software; Phases 3–4 still need physical/HIL acceptance and later phases remain optional design directions.
 
 ## Milestone 4 — Optional sensing
 

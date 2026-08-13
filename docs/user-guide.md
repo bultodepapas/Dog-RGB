@@ -51,7 +51,7 @@ See [LED UI](led_ui_spec.md) and [Color reference](color-reference.md) for the c
 | `/` | Daily metrics, current/completed sessions, and route preview/export |
 | `/wifi` | Nearby-network scan, home-network credentials, AP name/password, and connection state |
 | `/config` | LED mode, brightness, advanced LED power profile, Day Mode, GNSS gates, geofence home, effects, and optional write PIN |
-| `/dev` | Technical health, LED current estimate, counters, storage state, loop timing, GNSS parser statistics, and raw JSON |
+| `/dev` | Technical health, LED current estimate, scene store/player counters, storage state, loop timing, GNSS parser statistics, and raw JSON |
 
 When station mode is connected, use `http://<configured-mdns>.local/` (default `http://dog-collar.local/`) or the station IP shown by the portal. mDNS support depends on the client operating system and network.
 
@@ -59,10 +59,25 @@ When station mode is connected, use `http://<configured-mdns>.local/` (default `
 
 - **Speed** maps ten speed ranges to a color and independently configurable effect for strips A and B.
 - **Geofence** maps distance from the stored Home point into ten ranges. Home is set automatically after a stable fix when none exists, or manually from the current trusted position.
-- **Show** runs all 12 effects in shuffled order, without repeats within one bag, changing roughly every 30 seconds with a 500 ms crossfade and curated palettes where supported.
+- **Show** shuffles the four built-in scenes plus each eligible saved user scene. Every eligible scene appears once per bag, with no immediate repeat between bags, and changes after roughly 30 seconds of visible playback using its own transition.
 - **Simple** applies one effect and RGB base color to the body while retaining status.
 
 Brightness is 1–255 and defaults to 77 (about 30% of the software range). A global estimated-current limit is enabled by default at 1,000 mA total, with a provisional 200 mA base and 20/20 mA RGB/W channel profile. It scales both strips uniformly. This is a model rather than a sensor: higher budgets and profile changes still require physical current, rail, and temperature validation.
+
+### Scenes
+
+The built-in scene catalog is deliberately small:
+
+| Scene | Visual recipe | Relative body level |
+| --- | --- | ---: |
+| Alta visibilidad | Chase + Safety Amber | 255 |
+| Calmado | Breath + Night Red | 110 |
+| Activo | Comet + Forest | 200 |
+| Fiesta | Rainbow + Pride | 180 |
+
+Four additional user slots can be saved, exported, and imported through the [local HTTP API](api-reference.md#led-scenes-api-v1). Applying a scene manually is volatile: it does not change the configured mode or write flash, and it lasts until cancelled, another scene is applied, the LED mode changes, or the collar reboots. Day Mode can temporarily hide it and alerts remain visible.
+
+The current embedded portal does not yet contain a graphical scene editor; that UI belongs to the later portal-assets phase. Custom clients should read capabilities/catalog first and use the documented generation value when saving, deleting, or importing.
 
 ### Day Mode
 
@@ -100,14 +115,14 @@ Use the Wi-Fi page's explicit **Scan** action to list up to 20 unique visible ne
 
 The configuration page can enable a 4–8 digit PIN for write actions. It is off by default to keep DIY recovery simple.
 
-- The PIN protects configuration, reset, Home, Wi-Fi, scan, AP, and lock changes.
+- The PIN protects configuration, reset, Home, Wi-Fi, scan, AP, lock, and every scene mutation including volatile apply/cancel.
 - It does not encrypt traffic and does not hide read-only dashboard/diagnostic data from a client already on the local network.
 - A corrupt PIN record fails open so the local configuration surface cannot become permanently unreachable.
 - Changing or disabling the PIN requires the current PIN while the lock is enabled.
 
 ## Reset behavior
 
-**Restore defaults** resets the runtime LED/GNSS/AP/mDNS configuration through the same validated A/B persistence path. It does not erase route history, daily metrics, completed sessions, station credentials, or the separately stored Home record.
+**Restore defaults** resets the runtime LED/GNSS/AP/mDNS configuration through the same validated A/B persistence path. It does not erase user scenes, route history, daily metrics, completed sessions, station credentials, or the separately stored Home record. Scene slots use their own A/B store and must be deleted/imported through the scene API.
 
 Changing the AP name or password schedules an AP restart and disconnects the current phone. Rejoin with the new credentials.
 
@@ -128,5 +143,7 @@ The read-only BLE summary code and 16-byte wire format exist, but production bui
 | LEDs flicker/reset the board | Stop use and inspect 5 V sag, grounds, level shifting, data resistors, bulk capacitance, boost capacity, and wiring temperature |
 | A write returns `403 csrf` | Custom API clients must send `X-Dog-Portal`; the built-in UI already does |
 | A write returns `401 locked` | Supply the configured PIN via the UI or `X-Dog-Pin`; read-only requests do not need it |
+| A scene write returns `409 generation_conflict` | Read `/api/v1/led/scenes` again and retry deliberately with its current generation; another client changed the bank |
+| User scenes are unavailable but built-ins work | Inspect `scene_store.health` and recovery counters on `/api/dev`; do not force recovery until the store state is understood |
 
 For exact routes and payloads, see the [Local HTTP API](api-reference.md). For diagnostics and test procedures, see [Testing and simulation](testing.md).

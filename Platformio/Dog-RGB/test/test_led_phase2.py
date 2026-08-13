@@ -30,6 +30,8 @@ class LedPhase2Tests(unittest.TestCase):
                 str(ROOT / "src" / "led" / "led_policy.cpp"),
                 str(ROOT / "src" / "led" / "led_state.cpp"),
                 str(ROOT / "src" / "led" / "palette_registry.cpp"),
+                str(ROOT / "src" / "led" / "scene.cpp"),
+                str(ROOT / "src" / "led" / "scene_catalog.cpp"),
                 "-o",
                 str(executable),
             ]

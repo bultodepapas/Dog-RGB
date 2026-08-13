@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "led/led_state.h"
+#include "led/scene.h"
 
 namespace led {
 
@@ -37,12 +38,9 @@ struct LedPolicyInput {
   bool homogeneous_ready;
   float speed_kph;
   uint8_t geofence_range;
-  uint8_t show_effect;
-  uint8_t show_speed;
-  uint8_t show_intensity;
-  uint8_t show_palette;
-  Rgb show_base;
-  Rgb show_accent;
+  const SceneV1 *scene;
+  bool scene_manual;
+  uint32_t scene_activation_revision;
 };
 
 class LedPolicyEngine {

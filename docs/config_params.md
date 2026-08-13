@@ -85,7 +85,7 @@ The LED current values are a conservative software model, not measurements or co
 | Group | Current values |
 | --- | --- |
 | Day Mode | 06:00 inclusive to 16:00 exclusive; UTC-5; trusted time stale after 300 s |
-| Show Mode | 12 effects; 30 s per effect; base speed 150; intensity 200 |
+| Show Mode | Eligible-scene bag (4 built-ins + up to 4 user slots); 30 s active time per scene; per-scene speed/intensity/transition |
 | Geofence | auto-Home after 10 s stable fix; 3% hysteresis with 5 m minimum |
 | AP boot | channel 1 when not constrained by STA; max 2 clients; 3 boot attempts |
 | Station retry | 10 s initial/watchdog interval, bounded to 5 minutes |

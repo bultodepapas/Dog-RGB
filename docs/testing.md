@@ -9,8 +9,8 @@ Dog-RGB uses several layers because no single test environment can validate firm
 | Layer | What it catches | What it does not prove |
 | --- | --- | --- |
 | PlatformIO build | Toolchain, libraries, board target, partitions, compilation/linking | Runtime behavior or physical wiring |
-| Python host contracts | Persistence recovery, time rollover, track integrity/retention/streaming, Wi-Fi queue/backoff, Wokwi assets, LED source boundaries | Native execution of every target-specific C++ branch |
-| Native LED characterization | Pure renderer goldens, registry metadata, segment bounds, state/policy priorities | Physical color, timing jitter, electrical or thermal behavior |
+| Python host contracts | Persistence recovery, time rollover, track integrity/retention/streaming, Wi-Fi queue/backoff, Wokwi assets, LED/source/API boundaries | Native execution of every target-specific C++ branch |
+| Native LED/scene characterization | Pure renderer goldens, registry metadata, layout, policy, scene wire/player/store and JSON codec | Physical color, ESP32 heap/timing, electrical or thermal behavior |
 | Static portal smoke | Embedded page size budgets, escaping rules, required functions, write-header use | Browser layout or real ESP32 heap behavior |
 | Playwright | Portal interactions, accessibility assertions, mock API states, mobile layout | ESP32 networking/radio timing |
 | Visual regression | Pixel drift against reviewed Linux baselines | Usability judgment or physical display appearance |
@@ -57,9 +57,12 @@ The suite covers:
 - `millis()` rollover-safe intervals/deadlines;
 - Wi-Fi event queue ownership, saturation diagnostics, AP retry backoff, and reconciliation;
 - all 12 LED renderers at fixed times and seed, stable effect/palette metadata, segment guards, policy-priority boundaries, semantic layout/orientation, mirror, RGBW round-trip, crossfade and alert preemption;
+- `SceneV1` 44-byte wire goldens, four built-ins, ID/key/version rules, validation boundaries, manual/Show player semantics, stale snapshots, bag shuffle and `millis()` wrap;
+- the 196-byte scene-bank A/B machine against a fake backend, including torn/corrupt/future/ambiguous records, read/write/readback failure, generation wrap and 1,000 deterministic power-cycle/fault sequences;
+- strict scene JSON allowlists, types and ID/key consistency, exact 4096/4097-byte boundary, nesting 6/7, export/import round-trip, dry-run and negative secret scanning;
 - Wokwi diagrams, custom GNSS chip assets, scenarios, and analysis contracts.
 
-Most modules use source-contract assertions. Phase 2 compiles `effect_registry`, `led_policy`, and `led_state` as native C++17 with warnings treated as errors. Phase 3 adds a second native harness for `led_color`, `palette_registry`, `led_layout`, and `led_compositor`; it proves a non-black crossfade midpoint and next-frame alert interruption. Neither layer replaces target execution or physical validation.
+Most modules use source-contract assertions. Phase 2 compiles `effect_registry`, `led_policy`, and `led_state` as native C++17 with warnings treated as errors. Phase 3 adds a harness for `led_color`, `palette_registry`, `led_layout`, and `led_compositor`; it proves a non-black crossfade midpoint and next-frame alert interruption. Phase 4 compiles the scene model/catalog/player/store plus the ArduinoJson codec natively, with fault injection at the record backend. The complete local suite baseline is 131/131. None of these layers replaces target execution or physical validation.
 
 ## Portal checks
 
@@ -72,6 +75,14 @@ npx playwright test --project=iphone-13-pro-max-chromium
 ```
 
 `npm run smoke` runs `tools/web_pages_smoke.py`. The full Playwright command starts the local extracted-page server automatically and runs tests under `tests/`.
+
+The default preview port is 4173. If another project already owns it, select an isolated port instead of stopping an unrelated process:
+
+```powershell
+$env:AP_PORTAL_PREVIEW_PORT = '4184'
+npx playwright test --project=iphone-13-pro-max-chromium
+Remove-Item Env:AP_PORTAL_PREVIEW_PORT
+```
 
 Useful focused commands:
 
@@ -142,6 +153,8 @@ Focused scenarios:
 ```
 
 The wrapper builds the `wokwi` environment, compiles the custom NMEA chip, generates/validates the diagram, runs scenarios, captures serial/VCD evidence, and applies `tools/analyze_wokwi.py` checks. Transient backend WebSocket closures are retried; firmware assertions are not.
+
+Fase 4 adds software diagnostics for scene-save duration, LED gap during a write, store recovery and player counters. Its build is covered locally, but the HTTP/live-runtime gate still requires Wokwi CLI plus a token or a physical ESP32: exercise all seven scene routes, apply visibility within one LED tick, reboot recovery, heap after 100 save/import cycles and the 100 ms maximum write gap.
 
 For interactive controls, GNSS profiles, GDB, VCD channels, and portal-network limitations, read the detailed [Wokwi guide](../Platformio/Dog-RGB/docs/wokwi.md).
 

@@ -42,3 +42,14 @@ Velocidades reportadas por encima de 40 km/h se rechazan como picos y no cuentan
 Geofence divide `fence_max_m` en diez bandas y reutiliza la paleta de cian a rojo. Con el máximo inicial de 300 m, cada banda mide 30 m. Sin Home muestra respiración ámbar; sin fix confiable usa rainbow.
 
 La mayoría de efectos usa el RGB base. `BREATH`, `CHASE`, `COMET`, `RAINBOW` y `GRADIENT_WAVE` pueden consumir una de ocho paletas RGBW curadas; `FIRE` conserva su calor interno. Consulta el [catálogo de efectos](led_effects.md).
+
+## Escenas integradas
+
+| ID/clave | Nombre | Efecto/paleta | Base/acento | Nivel de cuerpo | Transición |
+| --- | --- | --- | --- | ---: | ---: |
+| `1/high_visibility` | Alta visibilidad | Chase / Safety Amber | `#FF5000` / `#FFDCA0` | 255 | 400 ms |
+| `2/calm` | Calmado | Breath / Night Red | `#780000` / `#FF280A` | 110 | 900 ms |
+| `3/active` | Activo | Comet / Forest | `#005A19` / `#64FFAA` | 200 | 500 ms |
+| `4/party` | Fiesta | Rainbow / Pride | `#C800C8` / `#00C8FF` | 180 | 650 ms |
+
+Show baraja estas cuatro escenas y cualquier slot de usuario elegible. El nivel es relativo al brillo global y escala solo el cuerpo antes del crossfade; nunca aumenta por encima del brillo/presupuesto configurado ni atenúa status o alertas. “Alta visibilidad” describe la estética y no es una certificación de seguridad.

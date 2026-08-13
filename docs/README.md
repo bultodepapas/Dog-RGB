@@ -33,8 +33,10 @@ The firmware and tests are the final source of truth. A document must never turn
 | [WLED Phase 1 baseline](baselines/fase-1-2026-08-12.md) | Current evidence | LED bus boundary, estimated-current limiter, persistence migration, portal controls, diagnostics, and verification |
 | [WLED Phase 2 baseline](baselines/fase-2-2026-08-13.md) | Current evidence | Effect registry, deterministic characterization, LED state/policy split, capabilities-driven portal, APIs, and verification |
 | [WLED Phase 3 baseline](baselines/fase-3-2026-08-13.md) | Current software evidence; physical checks pending | Semantic LED layout, RGBW palettes, mirror, crossfade, alert priority, resource delta, and verification |
+| [WLED Phase 4 baseline](baselines/fase-4-2026-08-13.md) | Current software evidence; HTTP live/HIL/physical checks pending | Scene model/catalog/player, A/B store, strict API/import/export, resource delta, verification, and remaining gates |
 | [ADR-0001: WLED clean-room and provenance](adr/0001-wled-clean-room-y-licencia-del-proyecto.md) | Current policy, amended | Prevents unreviewed literal reuse of WLED material; its former license-selection prerequisite is resolved |
 | [ADR-0002: MIT project license](adr/0002-project-license-mit.md) | Current decision | Licenses original project material under MIT and defines the third-party boundary |
+| [ADR-0003: LED scene model and store](adr/0003-scene-model-and-store.md) | Current decision | Freezes scene authority, IDs/wire, A/B recovery, player semantics, API limits and accepted resource budget |
 | [Requirements](requirements.md) | Current | Functional, safety, and quality requirements with verification state |
 | [Roadmap](roadmap.md) | Current | Implemented baseline and optional next phases |
 | [Work queue](tasks.md) | Current | Concrete remaining validation and engineering tasks |
@@ -83,8 +85,8 @@ The firmware and tests are the final source of truth. A document must never turn
 | Document | Status | Notes |
 | --- | --- | --- |
 | [Companion app MVP](app_mvp_spec.md) | Proposed | BLE reader concept; blocked while BLE remains disabled by default |
-| [Portal configuration presets](portal_config_presets.md) | Proposed | User-selectable profiles; no persistence/UI implementation yet |
-| [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–3 implemented in software; Phase 3 physical checks and later phases pending, Spanish | Current-limiting, effect-registry, palette, segment, preset, and web-asset roadmap |
+| [Portal configuration presets](portal_config_presets.md) | Proposed | Whole-runtime profiles distinct from implemented visual scenes; no selector/config-preset persistence |
+| [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–4 implemented in software; Phase 3/4 physical-HIL checks and later phases pending, Spanish | Current-limiting, effect-registry, palette, segment, scene, and web-asset roadmap |
 | [App wireframe and data flow](flow_wireframe.md) | Proposed | Companion-app concept, separate from the implemented local portal |
 | [Cloud portal master plan](PLANS/2026-08-01_cloud-portal-master-plan.md) | Proposed snapshot | Large optional plan; no cloud application exists in this repository |
 | [Software area](../software/README.md) | Proposed | Placeholder and boundaries for future companion/cloud software |

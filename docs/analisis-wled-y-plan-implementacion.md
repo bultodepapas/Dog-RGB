@@ -1,6 +1,6 @@
 # RGB Dog × WLED: análisis técnico y plan de implementación
 
-> Fecha del análisis: 2026-08-12
+> Fecha del análisis inicial: 2026-08-12 · última revisión de Fase 4: 2026-08-13
 >
 > RGB Dog analizado en: `eb8ab3e622a142422baeaaf32bf8cb5fcb4a0e30` (`main`)
 >
@@ -153,7 +153,7 @@ estado deseado
 | Segmentos, reverse y mirror | Dos regiones implícitas | Reducir a layout semántico fijo | 3 |
 | Paletas independientes del efecto | Colores A/B por rango | Adoptar un catálogo curado RGBW | 3 |
 | Transición que mezcla efecto viejo/nuevo | Fade-out seguido de fade-in | Adoptar crossfade por buffers | 3 |
-| Presets y playlists | Show aleatorio; perfiles diseñados pero pendientes | Adaptar a 4 built-ins + 4 slots A/B | 4 |
+| Presets y playlists | Show aleatorio; perfiles diseñados pero pendientes | Adaptar a 4 built-ins + 4 slots en un banco A/B | 4 |
 | Assets web generados y comprimidos | HTML/JS como strings C++ | Adoptar pipeline fuente → gzip → header | 5 |
 | Usermods | BLE opcional, futuros sensores | Reducir a hooks estáticos mínimos | 6, opcional |
 | OTA con particiones A/B | Particiones existen, updater no | Adaptar solo local, protegido y con rollback | 7, opcional |
@@ -253,13 +253,14 @@ El canal blanco debe tratarse intencionalmente. La conversión actual `W = min(R
 
 Los [presets de WLED](https://kno.wled.ge/features/presets/) guardan estados nombrados y pueden encadenarse en playlists. Es una gran idea de producto, con una adaptación importante: la propia documentación advierte que escrituras aleatorias de LittleFS pueden bloquear temporalmente el dispositivo. RGB Dog ya posee un patrón A/B con CRC que encaja mejor.
 
-Propuesta inicial:
+Propuesta inicial, concretada en el plan de Fase 4:
 
-- Cuatro escenas integradas, no editables: `Seguridad`, `Calmado`, `Activo`, `Fiesta`.
+- Cuatro escenas integradas, no editables: `Alta visibilidad`, `Calmado`, `Activo`, `Fiesta`.
 - Hasta cuatro escenas del usuario.
-- Una escena contiene efecto, paleta, brillo objetivo, velocidad, intensidad, transición y política de estado.
+- Una escena contiene effects/paletas por rama, colores base/acento, velocidad, intensidad, escala relativa del cuerpo, transición y mirror.
+- Nunca contiene ni puede sustituir status, alertas, Day Mode o decisiones de `LedPolicyEngine`.
 - Nunca contiene Wi-Fi, PIN, home/geocerca ni secretos.
-- Guardado transaccional A/B y esquema versionado.
+- Guardado transaccional A/B del banco completo y esquema versionado separado de `RuntimeConfig`.
 - Export/import JSON validado como comodidad, no como almacenamiento primario.
 
 Una playlist compleja no es necesaria al principio. El modo show existente puede migrar para consumir escenas y mantener su bolsa barajada.
@@ -268,15 +269,18 @@ Una playlist compleja no es necesaria al principio. El modo show existente puede
 
 La [JSON API de WLED](https://kno.wled.ge/interfaces/json-api/) separa estado mutable, información del dispositivo y catálogos de efectos/paletas. No conviene copiar su esquema, pero sí el principio de descubrimiento de capacidades.
 
-Agregar endpoints versionados y aditivos:
+Agregar endpoints versionados y aditivos. Las rutas de escenas se mantienen explícitas porque ese patrón encaja con el `WebServer` actual:
 
 ```text
 GET   /api/v1/led/state
-PATCH /api/v1/led/state
 GET   /api/v1/led/capabilities
-GET   /api/v1/scenes
-POST  /api/v1/scenes/:slot/apply
-PUT   /api/v1/scenes/:slot
+GET   /api/v1/led/scenes
+POST  /api/v1/led/scenes/apply
+POST  /api/v1/led/scenes/cancel
+POST  /api/v1/led/scenes/save
+POST  /api/v1/led/scenes/delete
+GET   /api/v1/led/scenes/export
+POST  /api/v1/led/scenes/import
 ```
 
 `/api/v1/led/capabilities` debería publicar:
@@ -510,30 +514,512 @@ Criterio de salida:
 
 ### Fase 4 — Escenas/presets pequeños y resistentes
 
-**Esfuerzo:** 3–6 días. **Prioridad:** media.
+**Esfuerzo revisado:** 7–11 días de software, más 0,5–1 día de aceptación HIL/física. **Prioridad:** media-alta después de Fase 3. El cálculo anterior de 3–6 días solo alcanzaba para cuatro structs y un CRUD feliz; no cubría recuperación transaccional, importación hostil, concurrencia entre pestañas, migración de Show, observabilidad ni pruebas de corte de energía.
 
-Trabajo:
+**Estado de implementación 2026-08-13:** completa en software; aceptación HTTP viva/HIL/física pendiente. Se entregaron `SceneV1`, catálogo, player, persistencia A/B, siete rutas HTTP, import/export estricto, diagnóstico y migración de Show. Producción y Wokwi compilan; la suite host pasa 131/131, smoke pasa y Playwright pasa 76/76. La evidencia y los pendientes medibles están en el [baseline de Fase 4](baselines/fase-4-2026-08-13.md); las decisiones congeladas están en [ADR-0003](adr/0003-scene-model-and-store.md).
 
-- Definir esquema `SceneV1` con IDs estables y validación estricta.
-- Implementar cuatro escenas integradas y cuatro slots de usuario.
-- Persistir slots de usuario con A/B, CRC y generación.
-- Migrar el modo show para operar sobre escenas o descriptores, manteniendo bolsa barajada.
-- Agregar listar, aplicar, guardar, borrar, exportar e importar.
-- Excluir secretos y configuración de geocerca de cualquier export.
-- Recuperar siempre el registro válido anterior ante corte o corrupción.
+La implementación confirmó el diseño con dos ajustes explícitos: nesting JSON máximo `6` —el propio documento canónico necesita esa profundidad— y presupuesto de flash revisado a `32 KiB`, con un delta final de `29.256 B`. RAM creció `576 B`, dentro del gate de `1 KiB`. No se sacrificaron validación, diagnóstico ni downgrade safety para forzar la estimación inicial de 20 KiB. La validación física pendiente de Fase 3 no bloqueó el desarrollo puro, pero ambas fases deben compartir la prueba final sobre el collar.
 
-Criterio de salida:
+#### 4.1 Veredicto: sí aporta producto, si “escena” significa receta visual y no snapshot total
 
-- Aplicar una escena no bloquea el loop.
-- Corte de alimentación simulado durante guardado conserva la generación previa.
-- Firmware nuevo puede leer `SceneV1`; versiones futuras tienen ruta explícita de migración.
-- El modo por defecto continúa siendo seguro y no usa efectos de alto parpadeo.
+El problema que resuelve no es “tener presets porque WLED los tiene”. Hoy Show fabrica combinaciones aleatorias dentro de `led_ui.cpp`; no existe una identidad nombrada que una persona pueda reconocer, repetir, compartir o recuperar. Esto limita tanto la experiencia —“quiero volver al look del paseo nocturno”— como la ingeniería —no hay una unidad estable para probar, exportar o mostrar en el futuro portal—.
+
+El resultado correcto es pequeño:
+
+```text
+receta visual validada
+        ↓
+catálogo de 4 integradas + 4 del usuario
+        ↓
+reproductor en RAM, sin escribir flash
+        ↓
+LedPolicyEngine conserva Day Mode, status y alertas
+        ↓
+compositor → limitador global → buses
+```
+
+Una escena **no** es un `LedState` serializado. `LedState` contiene datos transitorios de operación como alerta, prioridad, rango, intención y disponibilidad del cuerpo. Guardarlos permitiría que una importación intentara suplantar decisiones de GPS, geocerca, Wi-Fi o seguridad. `SceneV1` guarda únicamente la receta del cuerpo; la política del producto conserva la autoridad.
+
+Beneficios esperados y forma de comprobarlos:
+
+| Beneficio | Por qué importa en RGB Dog | Evidencia exigida |
+|---|---|---|
+| Repetibilidad | Un perfil bonito deja de depender del azar de Show | Mismo `scene_id` + seed produce la misma configuración inicial |
+| Operación simple | Cuatro looks útiles se aplican con una acción | Aplicación visible en el siguiente tick LED, sin NVS |
+| Personalización acotada | Cuatro slots cubren el caso DIY sin convertirse en editor profesional | Catálogo fijo de ocho IDs como máximo |
+| Resistencia | Una caída durante guardado no destruye la generación anterior | Inyección de escritura parcial + reboot simulado |
+| Portabilidad | El dueño puede respaldar sus cuatro escenas | Export→borrar→import conserva semántica y nombres |
+| Seguridad por composición | La estética no puede ocultar status ni alertas | Tests de prioridad con System, Geofence y Day Mode |
+| Base para Fase 5B | El portal consumirá un contrato real, no un catálogo duplicado | Capabilities y endpoints versionados |
+
+#### 4.2 Qué se aprende de WLED y qué se descarta conscientemente
+
+WLED demuestra tres patrones útiles. Sus [presets nombrados](https://kno.wled.ge/features/presets/) separan una configuración reutilizable del estado instantáneo; su [JSON API](https://kno.wled.ge/interfaces/json-api/) publica el preset activo y mantiene catálogos descubribles; y el código de [`presets.cpp` en v16.0.1](https://github.com/wled/WLED/blob/v16.0.1/wled00/presets.cpp) registra primero una solicitud de aplicar y la procesa posteriormente desde el loop. Una aplicación manual descarga la playlist activa, lo cual evita dos dueños simultáneos de la salida. El mismo archivo espera a que termine un frame y suspende el strip alrededor de un save: evidencia concreta de que persistencia y render compiten por tiempo, no una razón para fingir que una escritura es instantánea.
+
+[`playlist.cpp`](https://github.com/wled/WLED/blob/v16.0.1/wled00/playlist.cpp) también separa cada preset de la duración/transición de la secuencia, limita su longitud y puede barajarla. Esa separación es correcta. No se copiarán su almacenamiento JSON, memoria dinámica, playlists anidadas ni comandos HTTP embebidos en presets: son capacidades apropiadas para un controlador genérico, no para un collar con ocho escenas máximas.
+
+| Patrón observado | Decisión para RGB Dog | Motivo |
+|---|---|---|
+| Estado nombrado y reutilizable | Adoptar | Da identidad estable a una receta visual |
+| ID del preset activo en estado | Adoptar | UI y diagnóstico pueden explicar qué se está viendo |
+| Solicitud diferida de aplicación | Adaptar a un comando fijo consumido por el tick | El handler HTTP no toca runtimes de efectos |
+| Aplicación manual detiene playlist | Adoptar como “manual sustituye Show hasta cancelar” | Evita dos controladores del cuerpo |
+| Duración/transición viven en playlist | Adoptar solo la separación | Fase 4 usa una duración Show global y transición por escena; no crea playlists editables |
+| Hasta 250 presets en filesystem | Rechazar | Ocho IDs fijos caben en RAM/NVS y son auditables |
+| JSON o comandos HTTP arbitrarios como preset | Rechazar | Aumenta superficie de ataque y permitiría efectos fuera del dominio visual |
+| Arrays dinámicos de playlist | Rechazar | El hot path tendrá una bolsa fija de ocho bytes |
+| Escritura de filesystem alrededor del render | Rechazar | Aplicar/rotar escenas nunca toca almacenamiento |
+
+La implementación es independiente y clean-room: se reutilizan principios públicos, no código EUPL de WLED.
+
+#### 4.3 Línea base y restricciones reales del repositorio
+
+| Área | Estado al comenzar Fase 4 | Consecuencia de diseño |
+|---|---|---|
+| Motor LED | Dos frames, layout semántico, crossfade y overlays | Una escena puede entrar antes del compositor sin conocer pines |
+| Política | `LedPolicyEngine` decide intención, Day Mode y alertas | La escena se agrega como una fuente de cuerpo, no como bypass |
+| Show | Estado aleatorio y bolsa de 12 efectos dentro de `led_ui.cpp` | Debe moverse a `ScenePlayer`; se elimina el generador paralelo al final |
+| Persistencia | Configuración A/B, CRC32 y generación wrap-safe | Se conserva el patrón, en un dominio y esquema separados |
+| NVS general | Partición `nvs` de 0x5000 = 20 KiB compartida | No se reserva otra partición por 392 B de payload; sí se mide `freeEntries()` |
+| API LED | State/capabilities v1 aditivos, sin PATCH | Las escenas obtienen rutas propias; no se sobrecarga `/api/config` |
+| Seguridad web | Mutaciones pasan por CSRF y PIN opcional | Aplicar también es mutación, aunque no escriba flash |
+| Portal | UI aún vive en `pages.cpp`; Fase 5B consumirá escenas | Fase 4 entrega API, no agranda el editor HTML actual |
+| Baseline | 127 tests host; RAM 57.060 B; flash 1.194.103 B | Se comparan recursos y regresión contra estas cifras |
+
+La Fase 4 no incrementa `CONFIG_SCHEMA_VERSION` ni el `ConfigRecord`. El modo persistido `MODE_SHOW=2` conserva su ID. Las escenas tendrán esquema, generación y diagnósticos propios.
+
+#### 4.4 Alcance obligatorio y límites
+
+| Incluido | Deliberadamente fuera de Fase 4 |
+|---|---|
+| Cuatro escenas integradas inmutables | 250 presets o slots configurables |
+| Cuatro slots de usuario | Playlist editable, anidada o recursiva |
+| Aplicar/cancelar en RAM | Boot preset persistente |
+| Guardar, reemplazar y borrar con generación esperada | Auto-save de cada cambio visual |
+| Export/import JSON de escenas del usuario | Compatibilidad con JSON de WLED |
+| Show sobre escenas elegibles | Horarios, macros, MQTT o acciones HTTP |
+| Validación de safety metadata | Nuevos efectos o paletas |
+| Diagnóstico de store/player | UI final de escenas; pertenece a 5B |
+
+Tampoco se almacenan geometría, regiones, status, alertas, modo GPS/geocerca, brillo global, límite de corriente, parámetros eléctricos, Home, coordenadas, Wi-Fi, PIN, BLE ni secretos. El export se construye con allowlist; no se “limpia” después con una blacklist.
+
+#### 4.5 Arquitectura objetivo y ownership
+
+```text
+                       ┌──────────────── SceneCatalog ────────────────┐
+                       │ 4 built-ins en flash + 4 slots válidos RAM │
+                       └───────────────┬─────────────────────────────┘
+                                       │ lookup/copia
+HTTP → SceneJsonCodec → SceneStore ─────┤
+             │            │ A/B NVS     ↓
+             └──── request_apply → ScenePlayer ── visual seleccionada
+                                                ↓
+GPS/Wi-Fi/geocerca/config ───────────→ LedPolicyEngine
+                                                ↓
+                             LedState + scene metadata/body_level
+                                                ↓
+                             LedCompositor → PowerLimiter → LedBus
+```
+
+| Pieza | Responsabilidad | Prohibiciones |
+|---|---|---|
+| `SceneV1`/validador | Contrato lógico, IDs, flags y reglas semánticas | Arduino, HTTP, NVS, buffers LED |
+| `SceneCatalog` | Unir built-ins y slots ocupados; lookup por ID/key | Escrituras, tiempo, reproducción |
+| `SceneRecordBackend` | Leer/escribir exactamente dos blobs | Interpretar escenas o llamar render |
+| `SceneStore` | Selección A/B, CRC, generación, no-op y readback | Aplicar escenas o conocer GPS |
+| `ScenePlayer` | Override manual, comando pendiente y bolsa Show | NVS, JSON, `String`, asignación dinámica |
+| `SceneJsonCodec` | Parsear/serializar exclusivamente el schema público | Decidir prioridad LED o persistir directamente |
+| `LedPolicyEngine` | Combinar receta con modo, Day Mode y alertas | Resolver IDs desde NVS/HTTP |
+
+Reglas estructurales:
+
+- El catálogo devuelve copias o referencias de vida estática; el player mantiene un snapshot propio de la escena activa.
+- Editar el slot que está activo no cambia la salida hasta una nueva aplicación. `applied_generation` conserva cuándo se tomó el snapshot, pero `stale` solo se activa si el slot desapareció o sus bytes semánticos ya no coinciden; editar otro slot no produce un falso stale.
+- Ninguna función llamada por `led_ui::tick()` usa `Preferences`, ArduinoJson, `String`, `new`, `malloc` o espera activa.
+- El store puede usar una interfaz de backend virtual o callbacks porque solo opera en boot/HTTP; el costo no entra al hot path y permite fault injection real en host.
+- `portal_http.cpp` solo autentica, enruta y traduce resultados. El codec JSON queda en un archivo separado para no seguir inflando ese módulo.
+
+#### 4.6 Semántica de reproducción y prioridad
+
+Una aplicación manual crea un override **volátil**: no cambia `RuntimeConfig.mode`, no guarda “última escena” y desaparece al reiniciar. Se mantiene hasta que se cancela, se cambia explícitamente el modo LED o se aplica otra escena. Cambiar brillo global u otra configuración compatible no lo cancela. Day Mode puede ocultar temporalmente el cuerpo sin destruir el override; al salir de Day Mode reaparece. Las alertas solo ocupan `status` y tampoco lo destruyen.
+
+El modo persistido sigue visible en `LedState.mode`; un override manual usa un `LedIntent::SceneManual` nuevo, no un `LedMode` nuevo. Así API y logs pueden expresar simultáneamente “modo configurado Geofence” y “cuerpo temporalmente controlado por escena 128” sin alterar el schema persistido.
+
+Ownership por región:
+
+| Condición | `status` | `body` | Efecto sobre escena activa |
+|---|---|---|---|
+| Welcome | Welcome | Welcome | El comando se consume y el snapshot queda activo, pero Welcome lo enmascara hasta terminar |
+| System + Geofence simultáneas | System, prioridad 90 | Escena/política continúa | No cancela; System gana en status |
+| Geofence alert | Geofence, prioridad 90 | Escena/política continúa | No cancela |
+| Day Mode | Estado/alerta | Apagado | Override queda suspendido |
+| Manual scene | Estado normal | Snapshot manual | Sustituye Show/Speed/Geofence/Simple visualmente |
+| Show configurado | Estado normal | Siguiente escena elegible | Bolsa fija barajada |
+| Sin override | Estado normal | Política actual | Comportamiento heredado |
+
+Aplicar manualmente durante Show descarta la bolsa en curso, igual que WLED descarga su playlist al aplicar un preset directo. Cancelar el override reinicia una bolsa nueva si el modo configurado sigue siendo Show; no intenta “reanudar” un índice viejo.
+
+`body_level` es una escala 1–255 relativa al brillo global, no un brillo maestro. Se aplica únicamente al target del cuerpo antes del crossfade; status y alerta conservan legibilidad. La cadena sigue siendo `body_level → brillo global → PowerLimiter`, por lo que una escena nunca puede elevar la salida por encima de la configuración del dueño ni del presupuesto eléctrico.
+
+Welcome y Day Mode pausan el reloj de permanencia de Show; no se barajan escenas invisibles en segundo plano. Al reanudarse continúa el tiempo restante. Las alertas de status no lo pausan. Reaplicar manualmente el mismo ID sí reinicia sus runtimes de cuerpo y transición: es una acción explícita útil para volver a empezar una animación.
+
+#### 4.7 Contrato `SceneV1`
+
+IDs estables:
+
+| Rango | Uso |
+|---|---|
+| `0` | Ninguna escena activa |
+| `1..4` | Built-ins v1 |
+| `5..31` | Reservado para built-ins futuros; nunca reutilizar IDs retirados |
+| `32..127` | Reservado |
+| `128..131` | Slots públicos de usuario 1..4; índice interno `scene_id - 128` |
+| `132..254` | Reservado |
+| `255` | Inválido/sentinel interno |
+
+Los ejes de versión no se mezclan:
+
+| Constante/campo | v1 | Cambia cuando… |
+|---|---:|---|
+| `SCENE_SCHEMA_VERSION` | 1 | Cambian campos o semántica de `SceneV1` |
+| `SCENE_RECORD_VERSION` | 1 | Cambia la envoltura/banco NVS |
+| `SCENE_REGISTRY_VERSION` | 1 | Cambian built-ins, keys o estética congelada |
+| export `schema_version` | 1 | Cambia el contrato JSON import/export |
+
+Las versiones de effects y paletas continúan perteneciendo a sus registries; no se incrementa una versión de escenas para disimular un cambio incompatible allí.
+
+El modelo lógico usa campos con nombre; el wire format se codifica byte a byte en little-endian y **no** serializa memoria de un struct C++ con padding. Cada escena ocupa exactamente 44 bytes:
+
+| Campo wire | Bytes | Regla |
+|---|---:|---|
+| `scene_id` | 1 | Debe corresponder al slot o built-in |
+| `flags` | 1 | bit 0 `mirror`, bit 1 `show_eligible`; demás bits cero |
+| `effect_a`, `effect_b` | 2 | IDs existentes y persistentes del registry |
+| `palette_a`, `palette_b` | 2 | Compatibles con el modo de paleta de cada efecto |
+| `speed`, `intensity` | 2 | `0..255`; controles no soportados son ignorados, no reinterpretados |
+| `body_level` | 1 | `1..255`, escala relativa |
+| `transition_ms` | 2 | `0..5000`; `0` significa cambio inmediato solicitado |
+| `base_rgb`, `accent_rgb` | 6 | Colores lógicos RGB; RGBW sigue centralizado |
+| `name_utf8` | 24 | 1–23 bytes + NUL; UTF-8 válido, sin controles |
+| `reserved` | 3 | Debe ser cero |
+
+Validación fail-closed, común a API, built-ins, store e import:
+
+1. ID, longitud, terminador, UTF-8, flags y reservados válidos.
+2. Ambos effects existen; nunca se remapean silenciosamente a `solid`.
+3. `None` exige `PALETTE_NONE`; `Internal` exige la paleta interna declarada; `Selectable` exige una paleta del registry.
+4. Si `mirror=true`, A y B deben tener mismo effect y paleta; se rechaza un payload con datos ocultos contradictorios.
+5. `show_eligible=true` se rechaza si cualquiera de los efectos tiene safety `Advanced`. La aplicación manual sigue disponible como opción consciente.
+6. El nombre no se recorta silenciosamente y el JSON no admite números como strings.
+7. El candidato completo se valida antes de mutar RAM o NVS; no hay reparación parcial de campos.
+
+Built-ins implementadas —todas mirror y elegibles para Show—:
+
+| ID/key | Nombre visible | Effect/palette | Speed/intensity | `body_level` | Transición | Intención |
+|---|---|---|---:|---:|---:|---|
+| `1/high_visibility` | Alta visibilidad | Chase + Safety Amber | 120/180 | 255 | 400 ms | Ámbar reconocible para paseo; no constituye certificación de seguridad |
+| `2/calm` | Calmado | Breath + Night Red | 45/100 | 110 | 900 ms | Movimiento lento y discreto |
+| `3/active` | Activo | Comet + Forest | 140/170 | 200 | 500 ms | Movimiento claro sin clase Advanced |
+| `4/party` | Fiesta | Rainbow + Pride | 150/180 | 180 | 650 ms | Colorido, pero limitado por brillo/potencia globales |
+
+Los valores se congelan con goldens. Cambiar la estética de un built-in existente requiere subir `SCENE_REGISTRY_VERSION` y justificar compatibilidad; no se cambia su ID/key de forma oportunista.
+
+Para que el wire golden sea completo aunque una paleta no consuma esos colores, `base_rgb/accent_rgb` también quedan congelados: Alta visibilidad `#FF5000/#FFDCA0`, Calmado `#780000/#FF280A`, Activo `#005A19/#64FFAA` y Fiesta `#C800C8/#00C8FF`.
+
+#### 4.8 Persistencia A/B del banco completo
+
+Se usa un namespace nuevo `dogrgb_scn` dentro de la partición NVS general y dos keys cortas: `scene_a` y `scene_b`. No se usa SPIFFS ni `tracknvs`, y no cambia la tabla de particiones.
+
+`SceneBankRecordV1` tiene layout canónico de 196 bytes: magic ASCII `SCN1`, `record_version=1`, `record_size=196`, todo multi-byte en little-endian.
+
+| Sección | Bytes |
+|---|---:|
+| magic, record version y record size | 8 |
+| generación `uint32_t` | 4 |
+| scene schema, slot count, occupied mask y reserved | 4 |
+| cuatro `SceneV1` de 44 B | 176 |
+| CRC32 IEEE de todos los bytes anteriores | 4 |
+| **Total** | **196** |
+
+El record almacena solo los cuatro slots de usuario; los built-ins permanecen en flash. `slot_count` debe ser 4, solo son válidos los cuatro bits bajos de `occupied_mask` y todos los 44 bytes de un slot desocupado deben ser cero. La CRC reutiliza `util::crc32_ieee`; no se crea una segunda implementación.
+
+Los dos bancos suman un máximo de 392 bytes de payload. La documentación actual de [ESP-IDF NVS](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/storage/nvs_flash.html) indica que un blob consume dos entradas de overhead más una por cada 32 bytes: cada banco de 196 B requiere nueve entradas, 18 entre A/B antes de contar historial/namespace. La API [Preferences](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/preferences.html) expone `freeEntries()`, que se registrará antes y después; el gate no se basará solo en la aritmética.
+
+ESP-IDF recomienda NVS para conjuntos moderados, pequeños y relativamente estables, y declara que un corte durante una escritura debe perder como máximo el par nuevo. Cuatro escenas guardadas por una acción humana encajan en ese perfil; por eso ausencia = estado vacío generación 0 es un fallback válido para el primer write. A/B + CRC añade atomicidad del banco, detección semántica y downgrade safety, no intenta reemplazar las garantías internas de NVS.
+
+La envoltura `magic + record_version + record_size + generation + CRC final` es estable entre versiones. `SCENE_RECORD_READ_MAX=512` limita cualquier lectura. Un record futuro de hasta ese tamaño solo se considera creíble —y por tanto bloquea un downgrade— si tiene magic correcto, tamaño coherente con la longitud almacenada y CRC válido; bytes aleatorios con un campo version alto se clasifican como corrupción conocida. Una key mayor a 512 B entra en `oversized_unknown` read-only sin alojarla completa: se protege el posible dato futuro y se evita una reserva controlada desde flash.
+
+Se elige A/B del **banco**, no A/B por slot, porque:
+
+- importar o borrar varias escenas queda atómico como conjunto;
+- solo existen dos keys y una generación global para concurrencia;
+- leer/listar requiere un snapshot coherente;
+- reescribir 196 B es aceptable para una acción humana infrecuente;
+- cuatro A/B independientes multiplicarían estados parciales y recovery paths sin beneficio material.
+
+Algoritmo de carga:
+
+1. Leer longitud exacta de A/B; decodificar header, tamaño, versión, CRC, reservados y las cuatro escenas.
+2. Si aparece cualquier record con versión futura reconocible, entrar en `read_only_future`, servir built-ins y rechazar mutaciones aunque el otro banco sea v1 válido. Un firmware viejo nunca sobrescribe datos creados por uno nuevo.
+3. Elegir la generación v1 válida más nueva con aritmética serial wrap-safe; `0` queda reservado al estado vacío y el incremento lo salta. Una distancia exacta de `2^31` es ambigua y falla cerrada en vez de escoger arbitrariamente.
+4. Si un banco es válido y otro no, usar el válido, incrementar `recovery_count` y no escribir durante boot.
+5. Si ambos están ausentes, estado `empty`, generación 0; no gastar flash al arrancar.
+6. Un banco ausente actúa como fallback lógico vacío generación 0 frente a un único banco corrupto: estado `degraded_empty`, built-ins solamente y sin auto-reparar. Esto cubre un corte durante el primer guardado.
+7. Si ambos records v1 son válidos con la misma generación y contenido idéntico, elegir A determinísticamente. Si la generación coincide pero los bytes semánticos difieren —o la distancia es `2^31`—, exponer `ambiguous`; si no existe record válido y no queda un banco ausente, exponer `corrupt`. Estos estados publican generación activa 0, sirven built-ins y solo admiten importación de recuperación explícita; las generaciones crudas quedan únicamente en diagnóstico.
+
+Si abrir `dogrgb_scn` o consultar NVS falla, el catálogo entra en `unavailable`: los cuatro built-ins y su reproducción siguen funcionando porque viven en flash, pero no se inventan slots de usuario y cualquier mutación persistente responde servicio no disponible. Un fallo de escenas no impide arrancar GPS, Wi-Fi ni LEDs.
+
+Algoritmo de escritura:
+
+1. Comprobar `expected_generation`; conflicto produce `409` antes de tocar RAM.
+2. Construir una copia candidata del banco actual y validarla completa.
+3. Si sus bytes semánticos son iguales, devolver `no_change` sin incrementar generación ni escribir.
+4. Codificar la siguiente generación —saltando 0— en el banco inactivo. En la primera mutación se escribe una sola vez: la ausencia del otro banco representa el estado previo vacío.
+5. En `degraded_empty`, reintentar sobre el banco corrupto y conservar ausente el fallback vacío; no convertir un fallo repetido en dos records corruptos.
+6. `putBytes`, releer longitud/bytes, decodificar y comparar; solo entonces publicar banco/generación activos en RAM.
+7. Ante fallo corto, CRC, readback o falta de espacio, reconciliar inmediatamente leyendo otra vez A/B. Si el candidato quedó durable y válido, se confirma; si sobrevivió el anterior, se conserva; si no puede determinarse, el store entra fail-closed y la respuesta incluye la generación/salud observables. Nunca se inventa un commit solo en RAM.
+
+Guardar, borrar e importar pueden pagar una escritura NVS síncrona y deben medirse como control plane. Aplicar, cancelar, rotar Show y renderizar nunca escriben. No se promete que una escritura flash sea gratis para el loop; se promete que es infrecuente, de un solo banco y observable.
+
+#### 4.9 `ScenePlayer` y migración de Show
+
+El player mantiene estructuras fijas:
+
+- un comando pendiente de un solo slot (`Apply`, `Cancel` o `None`);
+- un snapshot `SceneV1` activo;
+- `active_scene_id`, origen `builtin|user`, playback `manual|show`, generación aplicada, snapshot semántico y flag `stale`;
+- una bolsa `uint8_t show_ids[8]`, longitud, cursor y último ID;
+- contadores de apply/cancel/superseded/show cycle/lookup failure.
+
+El comando HTTP se consume al principio de la siguiente actualización LED. Aplicar hace lookup, copia, reinicia únicamente los runtimes del cuerpo y deja que `LedCompositor` inicie la transición desde el frame visible. Su complejidad está acotada a ocho entradas.
+
+Migración de Show:
+
+1. El catálogo aporta los cuatro built-ins más cada slot válido con `show_eligible=true` y safety no Advanced.
+2. Fisher–Yates baraja el arreglo fijo; cada escena aparece una vez por bolsa.
+3. El primer elemento de una bolsa nueva no puede repetir el último de la anterior cuando hay más de una opción.
+4. `SHOW_EFFECT_MS` se renombra conceptualmente a `SHOW_SCENE_MS`, conservando inicialmente su valor y el ID persistido del modo.
+5. Cada escena aporta su transición; la duración global se cuenta desde su activación e incluye el crossfade. Playlist configurable queda fuera.
+6. Los timers usan resta unsigned y tienen pruebas al cruzar `millis()` wrap.
+7. Si un lookup falla tras editar/importar el catálogo, se salta como máximo ocho posiciones y se reconstruye la bolsa; nunca hay loop sin cota.
+8. Al completar la migración se eliminan `SHOW_PALETTE`, `random_show_color()`, `prepare_show_effect()` y los globals paralelos de effect/palette. No quedan dos motores Show.
+
+#### 4.10 Contrato HTTP/API
+
+Se mantienen rutas explícitas con `POST`, coherentes con el `WebServer` actual y más sencillas que paths dinámicos:
+
+| Método y ruta | Semántica | Flash | Respuesta principal |
+|---|---|---:|---|
+| `GET /api/v1/led/scenes` | Built-ins + cuatro slots, estado y generación | No | `200` catálogo |
+| `POST /api/v1/led/scenes/apply` | Encolar escena por ID | No | `202` pending |
+| `POST /api/v1/led/scenes/cancel` | Volver a política/modo configurado | No | `202` pending |
+| `POST /api/v1/led/scenes/save` | Crear/reemplazar un slot con `expected_generation` | Sí | `200/201` + nueva generación |
+| `POST /api/v1/led/scenes/delete` | Vaciar un slot de usuario | Sí | `200` + nueva generación |
+| `GET /api/v1/led/scenes/export` | Descargar solo escenas de usuario | No | JSON canónico + `no-store` |
+| `POST /api/v1/led/scenes/import` | Validar y reemplazar el banco completo | Sí, salvo `dry_run` | `200` + reporte |
+
+Todas las rutas `POST`, incluidas apply/cancel, pasan por `write_allowed()` —header CSRF y PIN si está habilitado— y requieren `Content-Type: application/json` con charset UTF-8 opcional, `Content-Length` presente entre 2 y 4096 bytes y nesting máximo 6. [ArduinoJson 7](https://arduinojson.org/v7/api/json/deserializejson/) documenta que el nesting profundo usa recursión; el límite se fija explícitamente y se prueba con payloads hostiles. Se eligió 6 porque la envoltura canónica alcanza `document.scenes[].branch_a.effect.id`; 5 rechazaba el propio export.
+
+Convenciones de mutación —campos desconocidos se rechazan en todos los niveles—:
+
+- El `slot` público es 1-based (`1..4`) y el firmware deriva `scene_id = 127 + slot`; el índice C++ interno es 0-based y nunca cruza la API.
+- Apply recibe exactamente `{"id": <1..4|128..131>}` y cancel recibe `{}`. Si ya hay comando pendiente, el más nuevo lo sustituye y aumenta `superseded_commands`; el state permite observar `pending_id`.
+- Save recibe `expected_generation`, `slot` y `scene`; `scene` no repite `id`/`slot`. Crear un slot vacío responde `201`; reemplazar, `200`; un no-op no escribe ni cambia generación.
+- Delete recibe exactamente `expected_generation` y `slot`; borrar un slot ya vacío es un no-op observable.
+- Import recibe `expected_generation`, `dry_run`, `recover_corrupt` y `document`; `document` es exactamente el formato producido por export. `expected_generation` es obligatorio salvo en `dry_run`. `degraded_empty` acepta una mutación normal con generación 0 y reintenta sobre el banco malo; `corrupt|ambiguous` exigen generación 0 más `recover_corrupt=true`. La recuperación jamás permite sobrescribir `read_only_future|oversized_unknown`.
+- Todos los enteros deben llegar como enteros JSON dentro de rango: no se aceptan negativos, fracciones, booleanos ni números codificados como texto.
+
+El límite de 4096 B se aplica **antes** de alojar o parsear el body. En Arduino-ESP32 3.3.11 se usa el callback raw del `WebServer`: primero valida auth, media type y `Content-Length`, luego reserva el buffer acotado y copia chunks sin `arg("plain")`. Multipart/form se rechazan; un upload multipart se corta en su primer callback. El marker de respuesta se limpia también al desconectar para que una solicitud abortada no contamine la siguiente.
+
+El export v1 es allowlist y autorreferenciable:
+
+```json
+{
+  "format": "dog-rgb-scenes",
+  "schema_version": 1,
+  "store_generation": 7,
+  "registry": {"effects": 2, "palettes": 1},
+  "scenes": [{
+    "id": 128,
+    "slot": 1,
+    "name": "Paseo azul",
+    "mirror": true,
+    "show_eligible": true,
+    "speed": 140,
+    "intensity": 170,
+    "body_level": 180,
+    "transition_ms": 600,
+    "base_rgb": {"r": 0, "g": 40, "b": 80},
+    "accent_rgb": {"r": 0, "g": 180, "b": 220},
+    "branch_a": {
+      "effect": {"id": 4, "key": "comet"},
+      "palette": {"id": 2, "key": "ocean"}
+    },
+    "branch_b": {
+      "effect": {"id": 4, "key": "comet"},
+      "palette": {"id": 2, "key": "ocean"}
+    }
+  }]
+}
+```
+
+Import exige `format` y schema exactos, máximo cuatro slots únicos y coincidencia ID/key cuando ambos aparecen. Las versiones de registry son informativas: una diferencia produce warning, pero se acepta si todos los pares ID/key y sus reglas actuales coinciden; cualquier referencia desconocida se rechaza. Primero construye un banco scratch, valida **todo** y solo después escribe. `dry_run=true` ejecuta el mismo parse/validation sin mutar. No hay merge en v1: replace-all evita semánticas parciales ambiguas.
+
+El listado devuelve `schema_version`, bloque `store {health,generation,read_only}`, bloque `active` y ocho entradas ordenadas. Los built-ins publican `editable:false`; cada slot de usuario aparece incluso vacío con `occupied`, ID y slot estables. Listado y export usan `Cache-Control: no-store`. Las respuestas de mutación comparten `{ok, code, no_change, store_generation, store_health}` y añaden `pending_id` o reporte de import según corresponda.
+
+Mapa de errores estable:
+
+| HTTP | `code` | Ejemplo |
+|---:|---|---|
+| 400 | `invalid_json` / `unknown_field` | Forma incorrecta |
+| 401 | `locked` | PIN ausente/incorrecto |
+| 403 | `csrf` | Header de mutación ausente |
+| 404 | `scene_not_found` | ID vacío o desconocido |
+| 409 | `generation_conflict` / `store_read_only` / `recovery_required` | Pestaña stale, versión futura o banco ambiguo/corrupto |
+| 411 | `length_required` | Falta `Content-Length` en un POST JSON |
+| 413 | `payload_too_large` | Más de 4096 bytes |
+| 415 | `unsupported_media_type` | Body de mutación no es JSON |
+| 422 | `invalid_scene` / `unsupported_schema` | Effect/palette/flag/name o formato incompatible |
+| 500 | `storage_write_failed` / `storage_verify_failed` / `storage_uncertain` | No se confirma un estado durable inequívoco |
+| 503 | `storage_unavailable` | NVS de escenas no abrió; built-ins siguen disponibles |
+| 507 | `storage_full` | NVS reporta espacio insuficiente |
+
+`/api/v1/led/capabilities` añade `scene_registry_version`, schema, IDs/slots, name/import/transition/record limits y flags `scenes`, `scene_import`, `scene_export`. `/api/v1/led/state` añade `scene.active_id`, key derivada (`builtin key|user_1..4`), name/origin/playback/pending/stale, `applied_generation` y `store_generation`. `/api/dev` publica salud A/B, banco, generación, free entries, fallos, recovery, tiempos de save/import y contadores del player. Todo es aditivo; `schema_version: 1` de los endpoints LED actuales no cambia hasta que se rompa un campo existente.
+
+#### 4.11 Movimiento de código realizado
+
+| Archivo/pieza | Cambio |
+|---|---|
+| Nuevo `include/led/scene.h`, `src/led/scene.cpp` | Modelo, IDs, validator y wire codec de 44 B |
+| Nuevo `scene_catalog.*` | Built-ins y vista unificada de ocho entradas |
+| Nuevo `scene_player.*` | Override, comando pendiente y bolsa Show fija |
+| Nuevo `scene_runtime.*` | Ownership único de catálogo/store/player y puente control-plane/runtime |
+| Nuevo `storage/scene_store.*` | Backend, record de 196 B, A/B, CRC y diagnósticos |
+| Nuevo `storage/scene_nvs_backend.*` | Adaptador concreto de los dos blobs en `Preferences` |
+| Nuevo `web/scene_json.*` | Allowlist JSON, import/export y errores de campo |
+| `storage/nvs_store.*` | Handle/namespace `dogrgb_scn`; sin tocar `tracknvs` |
+| `main.cpp` | Cargar store después de `config::load()` y antes de `led_ui::begin()` |
+| `led_state.*` | `SceneId`, source/playback, generación y `body_level` aditivos |
+| `led_policy.*` | Fuente de cuerpo opcional; reglas de prioridad siguen centralizadas |
+| `led_compositor.*` | Escalar solo el cuerpo antes de crossfade |
+| `led_ui.cpp` | Delegar Show/player y eliminar el generador aleatorio antiguo |
+| `portal_http.cpp` | Rutas finas, auth, mapping HTTP y capabilities/diagnóstico |
+| `runtime_config.*` | **Sin cambio**; `ScenePlayer` observa el modo ya validado y cancela el override cuando cambia |
+| `pages.cpp` | **Sin UI nueva**; Fase 5B consumirá la API |
+| Nuevo `docs/adr/0003-scene-model-and-store.md` | Decisiones congeladas de dominio, IDs, wire, A/B, compatibilidad y divergencias con WLED |
+| Nuevos tests/fixtures Phase 4 | Codec C++ nativo, backend con fault injection, contrato API y vectores binarios/JSON versionados |
+
+No se añadirá una segunda definición de effects/palettes al codec JSON. Toda resolución pasa por `EffectRegistry`/`PaletteRegistry`.
+
+#### 4.12 Secuencia ejecutada y gates
+
+| Etapa | Entrega | Estado/evidencia |
+|---|---|---|
+| 4A — Contrato y baseline | ADR, IDs, wire vectors y presupuestos | Completa; ADR-0003 y baseline fechado |
+| 4B — Modelo/catálogo | `SceneV1`, validator, codec binario, cuatro built-ins | Completa; tests nativos y goldens |
+| 4C — Store transaccional | Backend falso + Preferences, A/B, no-op, recovery | Completa; matriz de fallos, wrap, 196 puntos de corte y 1.000 secuencias |
+| 4D — Player/política/Show | Apply/cancel, snapshot, body level, Show por escenas | Completa; hot path sin NVS/JSON/allocations |
+| 4E — API/import/export | Siete rutas, schema, concurrencia y diagnósticos | Completa en código/host; HTTP vivo pendiente |
+| 4F — Integración software | Docs, builds, smoke, Playwright y baseline final | Completa en software; Wokwi runtime/HIL/físico pendiente |
+
+Cada etapa debe quedar en un cambio revisable. En particular, la sustitución de Show no se mezcla con el formato NVS ni con el parser de importación; así un fallo puede aislarse o revertirse sin tocar tres dominios.
+
+#### 4.13 Estrategia de pruebas
+
+| Nivel | Casos obligatorios |
+|---|---|
+| Codec/validator nativo | Vector byte exacto, endian, CRC, tamaño 44/196, todos los límites, UTF-8/control chars, flags/reservados, effect/palette, mirror y safety |
+| Catálogo | IDs/keys únicos e inmutables, 4 built-ins + 0/1/4 usuarios, lookup inválido, built-ins no editables |
+| Store con fake backend | A/B válido/ausente/corto/corrupto/futuro/ambiguo, generación wrap y skip-0, primer write, reconciliación incierta, no-op, delete, replace-all, los 196 puntos de corte posibles y 1.000 secuencias deterministas de fallos |
+| Player | Apply/cancel, último comando gana, snapshot stale, 4/5/8 elegibles, bolsa completa, no repetición, lookup eliminado y `millis()` wrap |
+| Policy/compositor | Manual vs cada modo, Day Mode, status preservado, System sobre Geofence, alerta durante crossfade, `body_level` no escala status/alerta |
+| Codec/API host | Allowlist y mapping puros: CSRF/PIN, códigos exactos, generation conflict, 4096/4097 B, depth 6/7, fields desconocidos, ID/key mismatch y JSON malformado |
+| Firmware HTTP vivo | Las siete rutas contra Wokwi/collar con `curl`: métodos, headers, content type/length, body real, 202 pending y state posterior; no se confunde con mocks de Playwright |
+| Seguridad de export | Búsqueda recursiva negativa de SSID, password, PIN, Home, lat/lon, fence y parámetros eléctricos |
+| Round-trip | Export→store vacío→import produce el mismo banco semántico; `dry_run` deja bytes/generación intactos |
+| Regresión | Suite host completa, 12 goldens Phase 2, Phase 3, smoke, Playwright y builds producción/Wokwi |
+| Wokwi/HIL | Aplicación ≤1 tick, cambio Show, alerta interrumpiendo fade, reboot con A/B dañado y medida de latencias/heap/NVS |
+
+Los tests del store no serán solo modelos Python que “parecen” el firmware: el codec y la máquina A/B se compilan como C++ nativo contra un backend falso capaz de truncar, corromper o fallar cada operación.
+
+#### 4.14 Presupuestos y observabilidad
+
+Presupuestos de merge, comparados con Fase 3:
+
+| Recurso | Límite propuesto |
+|---|---:|
+| Payload NVS de escenas | ≤ 392 B (máximo 2 × 196 B) |
+| RAM estática adicional | ≤ 1 KiB |
+| Heap transitorio import/save | ≤ 12 KiB sobre idle y sin pérdida tras 100 ciclos |
+| Flash de aplicación adicional | ≤ 32 KiB aprobado; medido +29.256 B (estimación inicial: 20 KiB) |
+| Bolsa Show | 8 bytes + metadata fija |
+| Import JSON | ≤ 4096 B, nesting ≤ 6 |
+| Lectura de record NVS | ≤ `SCENE_RECORD_READ_MAX` = 512 B |
+| Aplicación | Sin NVS/heap; state actualizado en ≤ `LED_UPDATE_MS` y salida visible en ese plazo cuando la política permite body |
+| Regresión fase LED | ≤ max(10 % del baseline, 100 µs) en HIL comparable |
+| Pausa por write de control plane | Gap LED máximo ≤ `2 × LED_UPDATE_MS` = 100 ms |
+
+La Etapa 4A registra el tiempo NVS real y 4F exige el límite observable de 100 ms de gap LED: si una compactación lo supera, la fase no se cierra hasta cambiar scheduling/backend o aprobar explícitamente otro SLO con evidencia. Una alerta que llegue durante la llamada flash se muestra en el primer tick posterior; esta ventana de control plane debe medirse y no ocultarse bajo la promesa normal de “siguiente frame”. Ninguna escritura puede disparar watchdog y no debe haber crecimiento tras 100 ciclos save/import. `/api/dev` debe permitir distinguir `last_save_us`, `max_save_us`, `max_led_gap_during_write_us`, `save_failures`, `verify_failures`, `recovery_count`, `store_health`, `free_entries`, `apply_count`, `superseded_commands`, `show_cycle_count` y `lookup_failures`.
+
+#### 4.15 Riesgos y mitigaciones
+
+| Riesgo | Fallo visible | Mitigación/gate |
+|---|---|---|
+| Serializar `LedState` completo | Una escena restaura alerta/modo/rango viejo | Schema visual allowlist separado |
+| Aplicar escribe NVS | Desgaste y glitches durante Show | Contador fake exige cero writes en apply/tick |
+| Dos pestañas guardan | Última pisa cambios sin aviso | `expected_generation` y HTTP 409 |
+| Versión futura se interpreta como corrupta | Downgrade destruye escenas nuevas | Estado `read_only_future`, jamás auto-reescribir |
+| Import parcialmente válido | Quedan slots de generaciones mezcladas | Scratch bank + validación total + un write A/B |
+| Escena Advanced entra a Show | Parpadeo no solicitado | Validator rechaza `show_eligible` |
+| Mirror oculta branch B incoherente | Export engañoso y cambio futuro sorpresivo | A/B deben coincidir cuando mirror |
+| JSON profundo/grande | Heap/stack agotados | 4096 B, nesting 6, cuatro items y pruebas 413/TooDeep |
+| `WebServer` aloja el body antes del handler | El check de 4096 B llega demasiado tarde | Guard temprano de longitud o reader streaming; medir heap con 4097 B y body muy grande |
+| Nombre malicioso llega al portal | XSS o UI rota | UTF-8/control validation, ArduinoJson y futuro `textContent` |
+| NVS compartida se agota | Guardado falla en campo | Dos blobs fijos, `freeEntries`, no-op y test con historia de updates |
+| Guardado síncrono congela salida | Salto visual puntual | Un banco pequeño, medida real y nunca guardar automáticamente |
+| Se mantienen dos Shows | Divergencias y globals muertos | Gate elimina generador aleatorio anterior |
+| Built-in cambia sin versión | Automatizaciones dejan de ser reproducibles | Goldens + registry version + IDs no reutilizables |
+
+#### 4.16 Criterios de salida — Definition of Done
+
+Funcional:
+
+- Existen exactamente cuatro built-ins inmutables y cuatro slots de usuario direccionables por IDs estables.
+- Apply/cancel no persisten, no asignan y se reflejan como máximo en el siguiente tick LED.
+- Show recorre todas las escenas elegibles una vez por bolsa y evita repetición inmediata.
+- Editar un slot activo conserva el snapshot visible y publica `stale`; reapply adopta la nueva generación.
+
+Seguridad y política:
+
+- Ninguna escena puede escribir o apagar status, alertas, Day Mode, límite de potencia o brillo global.
+- System conserva precedencia sobre Geofence; ambas aparecen en el siguiente frame aun durante transición.
+- Ningún built-in ni escena Show por defecto usa safety `Advanced`.
+- Export/import contienen exclusivamente campos visuales y todas las mutaciones respetan CSRF/PIN.
+
+Persistencia y compatibilidad:
+
+- Cada respuesta exitosa se confirma por readback; ante error se reconcilian ambos bancos y se publica el estado durable observado, nunca un candidato existente solo en RAM.
+- Corte simulado en cualquier punto recupera el estado lógico anterior —vacío generación 0 o banco completo válido— o el candidato completo; nunca una mezcla de slots.
+- Generation wrap, banco corrupto y record futuro tienen comportamiento probado y diagnosticable.
+- No cambian IDs de effects/palettes, `RuntimeConfig`, `ConfigRecord`, schema 6 ni modo Show 2.
+- Export v1 hace round-trip; un schema futuro desconocido se rechaza sin tocar NVS.
+
+Calidad y recursos:
+
+- Suite host, goldens, smoke, Playwright y builds producción/Wokwi quedan verdes.
+- `git diff --check`, documentación de API/color/uso/testing y baseline fechado quedan actualizados.
+- RAM/flash/NVS/heap/timing cumplen los presupuestos o el cambio no se integra hasta explicar y aprobar el delta.
+- En collar o Wokwi runtime se demuestra continuidad visual, alerta inmediata fuera de la ventana flash documentada, gap de write ≤100 ms, reboot recovery y ausencia de crecimiento de heap.
+
+La Fase 4 puede declararse **completa en software** con todos los gates host/build. Solo se declara **cerrada en producto** después de la aceptación HIL/física combinada con las de Fase 3. Fase 5B empieza su UI de escenas únicamente cuando este contrato HTTP esté implementado y estable; no debe diseñar un schema paralelo en JavaScript.
+
+**Resultado al 2026-08-13:** completa en software. Los gates de modelo, store, player, policy, codec, builds y regresión están verdes; el presupuesto de flash fue revisado y aprobado explícitamente. Permanecen abiertos los gates que exigen ejecución real: siete rutas sobre ESP32/Wokwi, heap tras 100 ciclos, latencia NVS, gap LED durante write, reboot con flash real y aceptación visual/eléctrica sobre el collar.
 
 ### Fase 5 — Portal generado desde fuentes web
 
 **Esfuerzo revisado:** 9–15 días en dos entregas: 5A, infraestructura y paridad, 5–8 días; 5B, UX de paletas/escenas/preview, 4–7 días. **Prioridad:** media, pero conviene ejecutar 5A antes de seguir agrandando `pages.cpp`.
 
-**Revisión de planificación 2026-08-13:** la dirección es correcta y tiene retorno real. Lo que no es realista es tratar extracción, toolchain reproducible, cambio de transporte HTTP, migración de cuatro páginas, nuevas funciones visuales, accesibilidad y validación física como una sola tarea de 4–7 días. La fase se divide para que pueda entregar valor y detenerse de forma segura después de 5A, sin exigir que la Fase 4 esté lista.
+**Revisión de planificación 2026-08-13:** la dirección es correcta y tiene retorno real. Lo que no es realista es tratar extracción, toolchain reproducible, cambio de transporte HTTP, migración de cuatro páginas, nuevas funciones visuales, accesibilidad y validación física como una sola tarea de 4–7 días. La fase se divide para que pueda entregar valor y detenerse de forma segura después de 5A. Fase 4 ya entrega el contrato que 5B debe consumir, pero 5A mantiene independencia funcional.
 
 #### 5.1 Veredicto: sí conviene, con un alcance más disciplinado
 
@@ -787,7 +1273,7 @@ Esta parte comienza después de conseguir paridad, no mezclada con la extracció
 - Construir effect controls exclusivamente desde `controls`, defaults, rangos y safety metadata publicados.
 - Mostrar paletas como swatches con nombre visible/accessible, ID estable y estado seleccionado; el color nunca es la única señal.
 - Mostrar transición solo cuando capability indique soporte y usar límites/defaults del firmware.
-- Mostrar escenas integradas/de usuario solo cuando existan endpoints de Fase 4; aplicar, guardar o borrar conserva estados pending/success/error independientes.
+- Mostrar escenas integradas/de usuario consumiendo los endpoints entregados por Fase 4; aplicar, guardar o borrar conserva estados pending/success/error independientes.
 - Mantener “uso normal” corto: modo, escena/efecto, paleta y brillo. Presupuesto, perfil eléctrico, corriente estimada y tuning viven en `details` Avanzado.
 - Añadir preview aproximado de dos ramas de 24 píxeles usando layout/paleta/estado, con etiqueta explícita de que no representa el limitador ni el frame físico exacto.
 - Si el schema de capabilities es desconocido, bloquear solo el editor LED con explicación; dashboard, Wi-Fi y diagnóstico deben seguir utilizables.
@@ -1055,26 +1541,26 @@ Estas ideas explotan la nueva arquitectura sin convertirla en requisito:
 - **Modo paseo nocturno:** cuerpo rojo tenue y status blanco/ámbar; alerta aumenta contraste sin llevar todo a brillo máximo.
 - **Geofence pulse:** overlay que viaja hacia afuera en ambas ramas cuando se acerca al límite y cambia a rojo al cruzarlo.
 - **Battery-aware show:** el presupuesto visual baja gradualmente con batería, sin saltos de brillo.
-- **Scene chips:** cuatro botones grandes —Seguridad, Calmado, Activo, Fiesta— en la portada.
+- **Scene chips:** cuatro botones grandes —Alta visibilidad, Calmado, Activo, Fiesta— en la portada.
 - **Paleta desde el perro:** dos colores personalizados y una paleta derivada, sin editor profesional de gradientes.
 - **Sync de varios collares por ESP-NOW:** laboratorio opcional para una caminata/evento, local y sin nube.
 - **Replay de ruta + luz:** correlacionar una sesión GPS con los cambios de escena para depuración o una demo.
 
 Las primeras cinco aprovechan piezas ya propuestas. ESP-NOW y replay son experimentos posteriores, no parte del roadmap base.
 
-## 9. Decisiones que deben quedar explícitas antes de programar
+## 9. Registro de decisiones abiertas y cerradas
 
-1. Presupuesto eléctrico real del hardware: corriente continua/pico admisible del regulador, batería, pistas, cables y conectores.
-2. Orientación física de cada tira en el collar.
-3. Política exacta de prioridad: geocerca, sin fix, Wi-Fi, BLE, batería y escena manual.
-4. Compatibilidad prometida para `/api/config` y valores numéricos de efectos.
-5. Número máximo de escenas de usuario y tamaño NVS asignado.
-6. Política de compatibilidad y atribución para material de terceros; RGB Dog ya adoptó MIT mediante ADR-0002.
-7. Si OTA es una necesidad real o solo una posibilidad futura.
+| Decisión | Estado 2026-08-13 | Resolución o gate pendiente |
+|---|---|---|
+| Presupuesto eléctrico real | Abierta en hardware | El software de Fase 1 ya es conservador; faltan corriente continua/pico, temperatura y peor caso sobre batería, regulador, pistas, cables y conectores |
+| Orientación de las tiras | Provisional | A `forward` y B `reverse`, derivado de la bienvenida histórica; confirmar físicamente y corregir solo los flags de layout si hace falta |
+| Prioridad LED aplicable a escenas | Cerrada para Fase 4 | Welcome 100; System/Geofence 90 en status; Day Mode 80 apaga body; escena manual solo sustituye body normal. BLE/batería se decidirán cuando existan |
+| Compatibilidad LED/API | Cerrada | IDs numéricos no se reutilizan, keys los verifican; cambios aditivos conservan v1 y `/api/config` no se reemplaza en Fase 4 |
+| Cantidad y persistencia de escenas | Cerrada para v1 | Cuatro built-ins + cuatro slots; banco A/B de 2 × 196 B en `dogrgb_scn`; sin migrar `RuntimeConfig` ni particiones |
+| Terceros/licencia | Cerrada | Implementación clean-room inspirada en principios de WLED; proyecto MIT según ADR-0002, sin copiar código EUPL |
+| OTA | Abierta y opcional | No condiciona Fases 4–5; solo se evalúa con caso de uso y revisión de amenaza propios |
 
-Ninguna de estas decisiones impide comenzar la Fase 0. Las tres primeras sí deben cerrarse antes de terminar las fases 1–3.
-
-**Resolución provisional de Fase 3:** la política de software queda en A `forward`, B `reverse`, derivada de la bienvenida histórica, y las alertas System/Geofence usan prioridad 90 sobre la región status sin destruir el cuerpo. La orientación continúa abierta únicamente como validación física; los flags compile-time permiten corregirla sin reescribir efectos.
+La Fase 4 ya no depende de una decisión arquitectónica abierta. Su Etapa 4A sí debe validar que los presupuestos NVS, heap y tiempo son ciertos en la toolchain/hardware reales; la aceptación combinada de Fases 3–4 sigue condicionada por orientación y pruebas físicas.
 
 ## 10. Conclusión
 
@@ -1093,6 +1579,8 @@ Si solo se implementan cuatro cosas, deberían ser: baseline verde en CI, `Power
 - [Efectos](https://kno.wled.ge/features/effects/)
 - [Paletas](https://kno.wled.ge/features/palettes/)
 - [Presets](https://kno.wled.ge/features/presets/)
+- [Implementación de presets de WLED v16.0.1](https://github.com/wled/WLED/blob/v16.0.1/wled00/presets.cpp)
+- [Implementación de playlists de WLED v16.0.1](https://github.com/wled/WLED/blob/v16.0.1/wled00/playlist.cpp)
 - [Ajustes y limitación de corriente](https://kno.wled.ge/features/settings/)
 - [Custom features y usermods](https://kno.wled.ge/advanced/custom-features/)
 - [WebSocket y live preview](https://kno.wled.ge/interfaces/websocket/)
@@ -1101,6 +1589,9 @@ Si solo se implementan cuatro cosas, deberían ser: baseline verde en CI, `Power
 - [Hook de build UI de WLED](https://github.com/wled/WLED/blob/v16.0.1/pio-scripts/build_ui.py)
 - [Servidor de contenido estático de WLED](https://github.com/wled/WLED/blob/v16.0.1/wled00/wled_server.cpp)
 - [API `WebServer::send_P` de Arduino-ESP32 3.3.11](https://github.com/espressif/arduino-esp32/blob/3.3.11/libraries/WebServer/src/WebServer.h)
+- [ESP-IDF: Non-Volatile Storage](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/storage/nvs_flash.html)
+- [Arduino-ESP32: Preferences](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/preferences.html)
+- [ArduinoJson 7: `deserializeJson`, input size y nesting limit](https://arduinojson.org/v7/api/json/deserializejson/)
 - [PlatformIO 6.1: `extra_scripts`](https://docs.platformio.org/en/stable/projectconf/sections/env/options/advanced/extra_scripts.html)
 - [npm: instalación reproducible con `npm ci`](https://docs.npmjs.com/cli/v11/commands/npm-ci/)
 - [Node.js: API oficial `node:zlib`](https://nodejs.org/api/zlib.html)

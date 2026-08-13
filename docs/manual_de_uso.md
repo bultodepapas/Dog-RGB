@@ -39,7 +39,7 @@ Los efectos usan el cuerpo semántico y no ocultan los indicadores. Day Mode con
 | `/` | Métricas del día, sesión actual, tres sesiones terminadas y ruta/exportación |
 | `/wifi` | Escaneo manual, credenciales STA, nombre/password del AP y estado |
 | `/config` | Modo LED, brillo, potencia LED avanzada, Day Mode, filtros GNSS, Home, efectos y PIN opcional |
-| `/dev` | Diagnóstico técnico, estimación de corriente, storage, parser GNSS, tiempos de loop y JSON |
+| `/dev` | Diagnóstico técnico, estimación de corriente, store/player de escenas, storage, parser GNSS, tiempos de loop y JSON |
 
 Cuando STA está conectado, abre `http://dog-collar.local/` o la IP indicada por el portal. mDNS puede no funcionar en algunas redes.
 
@@ -47,8 +47,10 @@ Cuando STA está conectado, abre `http://dog-collar.local/` o la IP indicada por
 
 - **Speed:** diez rangos de velocidad, cada uno con efecto configurable para ambas tiras.
 - **Geofence:** diez bandas según distancia al punto Home.
-- **Show:** recorre los 12 efectos en orden barajado, aproximadamente cada 30 segundos, con crossfade de 500 ms y paletas curadas donde aplican.
+- **Show:** baraja las cuatro escenas integradas más cada escena de usuario elegible. Recorre cada una una vez por bolsa, evita repetir entre bolsas y cambia tras unos 30 segundos visibles usando la transición de la receta.
 - **Simple:** aplica un efecto y color base al cuerpo y conserva status.
+
+Las escenas integradas son **Alta visibilidad** (Chase + Safety Amber), **Calmado** (Breath + Night Red), **Activo** (Comet + Forest) y **Fiesta** (Rainbow + Pride). Existen cuatro slots adicionales que se pueden guardar, exportar e importar mediante la [API local](api-reference.md#led-scenes-api-v1). Aplicar manualmente es volátil: no cambia el modo ni escribe flash, y termina al cancelar, cambiar el modo o reiniciar. El portal embebido todavía no incluye editor gráfico de escenas.
 
 El brillo por defecto es `77/255`. El limitador estimado viene activo con 1.000 mA totales, 200 mA base y perfil RGB/W de 20/20 mA. Está oculto en **Potencia LED (avanzado)** y protege ambas tiras con el mismo factor. Sigue siendo obligatorio medir el hardware real: no es un sensor ni certifica batería, boost, cableado o temperatura.
 
@@ -74,9 +76,11 @@ El escaneo es manual, devuelve hasta 20 redes únicas y puede interrumpir brevem
 
 Puedes proteger las acciones de escritura con un PIN de 4–8 dígitos. Viene desactivado para facilitar recuperación DIY. El PIN no cifra el tráfico ni oculta lecturas a alguien ya conectado a la red local. Un registro corrupto falla abierto para evitar bloquear permanentemente el portal.
 
+El PIN también protege todas las mutaciones de escenas, incluso apply/cancel aunque sean volátiles.
+
 ## Restore defaults
 
-La acción restaura la configuración runtime de LEDs, GNSS, AP y mDNS usando el storage validado. No borra rutas, métricas diarias, sesiones, credenciales STA, Home ni el PIN almacenado por separado. Si cambias nombre o password del AP, deberás reconectarte.
+La acción restaura la configuración runtime de LEDs, GNSS, AP y mDNS usando el storage validado. No borra escenas de usuario, rutas, métricas diarias, sesiones, credenciales STA, Home ni el PIN almacenado por separado. Las escenas tienen su propio banco A/B y se borran/importan por su API. Si cambias nombre o password del AP, deberás reconectarte.
 
 ## Solución rápida
 
@@ -90,5 +94,7 @@ La acción restaura la configuración runtime de LEDs, GNSS, AP y mDNS usando el
 | LEDs hacen flicker o reinician | Detén la prueba y revisa 5 V, GND, level shifter, resistencias, capacitancia y temperatura |
 | Una escritura devuelve `403 csrf` | Un cliente propio debe enviar `X-Dog-Portal` |
 | Una escritura devuelve `401 locked` | Envía el PIN desde la UI o en `X-Dog-Pin` |
+| Escenas devuelve `409 generation_conflict` | Lee de nuevo `/api/v1/led/scenes` y reintenta conscientemente con su generación actual |
+| Solo funcionan las escenas integradas | Revisa `scene_store.health` y sus contadores en `/api/dev` antes de forzar recuperación |
 
 Consulta la [referencia HTTP](api-reference.md) para payloads exactos.

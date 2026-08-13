@@ -213,6 +213,18 @@ void test_compositor_transition_and_alert() {
          "alert did not interrupt the decorative transition");
   expect(equal(physical.bus_a[2], led::Rgb{0, 0, 100}),
          "status alert destroyed the decorative body");
+
+  compositor.cancel_transition();
+  compositor.compose(logical, physical, 3000, true, true, false,
+                     led::Rgb{0, 0, 0}, 128);
+  expect(equal(physical.bus_a[0], led::Rgb{0, 40, 0}) &&
+             equal(physical.bus_b[1], led::Rgb{0, 0, 40}),
+         "scene body level scaled status pixels");
+  expect(physical.bus_a[2].b >= 49 && physical.bus_a[2].b <= 51,
+         "scene body level was not applied before physical output");
+  compositor.compose(logical, physical, 3050, true, true, true, alert, 32);
+  expect(equal(physical.bus_a[0], alert) && equal(physical.bus_b[1], alert),
+         "scene body level reduced the safety alert overlay");
 }
 
 }  // namespace

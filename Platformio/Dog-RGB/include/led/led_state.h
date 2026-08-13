@@ -23,6 +23,7 @@ enum class LedIntent : uint8_t {
   Show = 5,
   Simple = 6,
   CriticalAlert = 7,
+  SceneManual = 8,
 };
 
 enum class LedAlert : uint8_t {
@@ -49,7 +50,10 @@ struct LedState {
   uint8_t palette_b = PALETTE_PRIDE;
   uint8_t speed = 80;
   uint8_t intensity = 140;
+  uint8_t body_level = 255;
   uint16_t transition_ms = 0;
+  uint8_t scene_id = 0;
+  uint32_t scene_activation_revision = 0;
   Rgb base = {0, 60, 60};
   Rgb accent = {0, 60, 60};
 };

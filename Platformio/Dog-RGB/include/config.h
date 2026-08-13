@@ -115,11 +115,9 @@ static const uint16_t DAY_MODE_END_MIN = 16 * 60;
 static const int16_t DAY_MODE_TZ_OFFSET_MIN = -300; // America/Bogota (UTC-5).
 static const unsigned long DAY_MODE_TIME_STALE_MS = 300000; // Require recent trusted GPS time.
 
-// LED SHOW mode (demo).
+// LED Show rotates validated scenes, not raw effect/color combinations.
 static const uint8_t EFFECT_COUNT = 12; // IDs 0..11
-static const unsigned long SHOW_EFFECT_MS = 30000;
-static const uint8_t SHOW_SPEED = 150;
-static const uint8_t SHOW_INTENSITY = 200;
+static const unsigned long SHOW_SCENE_MS = 30000;
 static const uint8_t SINGLE_EFFECT_DEFAULT = 0; // SOLID
 static const uint8_t SINGLE_SPEED_DEFAULT = 80;
 static const uint8_t SINGLE_INTENSITY_DEFAULT = 140;

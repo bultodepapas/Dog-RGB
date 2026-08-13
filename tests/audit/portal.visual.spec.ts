@@ -86,11 +86,17 @@ test.describe('portal visual audit', () => {
     });
   }
 
-  test('no-JS behaviour', async ({ browser }) => {
-    const ctx = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 428, height: 926 } });
+  test('no-JS behaviour', async ({ browser }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL;
+    if (!baseURL) throw new Error('Playwright baseURL is required for the no-JS audit');
+    const ctx = await browser.newContext({
+      baseURL,
+      javaScriptEnabled: false,
+      viewport: { width: 428, height: 926 },
+    });
     const page = await ctx.newPage();
     for (const route of PAGES) {
-      await page.goto(`http://127.0.0.1:4173${route}`, { waitUntil: 'domcontentloaded' });
+      await page.goto(route, { waitUntil: 'domcontentloaded' });
       const state = await page.evaluate(() => ({
         placeholders: (document.body.innerText.match(/--/g) || []).length,
         hasNoscript: !!document.querySelector('noscript'),

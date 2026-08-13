@@ -17,6 +17,14 @@ npm run ap-portal:serve
 
 Open `http://127.0.0.1:4173/`. The server extracts pages at startup as well, so the explicit extract command is mainly useful for inspecting generated output.
 
+If that port is already in use, Playwright can start the preview on another one:
+
+```powershell
+$env:AP_PORTAL_PREVIEW_PORT = '4184'
+npx playwright test --project=iphone-13-pro-max-chromium
+Remove-Item Env:AP_PORTAL_PREVIEW_PORT
+```
+
 Generated files live under `tools/ap_portal_preview/generated/` and are ignored by Git.
 
 ## Tests and screenshots
