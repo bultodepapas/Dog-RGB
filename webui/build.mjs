@@ -121,16 +121,20 @@ function sha256(data) {
   return createHash('sha256').update(data).digest('hex');
 }
 
-function canonicalText(path) {
-  const bytes = readFileSync(path);
+export function canonicalizeTextInput(input, label = 'input') {
+  const bytes = Buffer.isBuffer(input) ? input : Buffer.from(input, 'utf8');
   if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    throw new Error(`${asRepoPath(path)}: UTF-8 BOM is not allowed`);
+    throw new Error(`${label}: UTF-8 BOM is not allowed`);
   }
-  const text = bytes.toString('utf8');
+  const text = bytes.toString('utf8').replaceAll('\r\n', '\n');
   if (text.includes('\r')) {
-    throw new Error(`${asRepoPath(path)}: use canonical LF line endings`);
+    throw new Error(`${label}: bare CR line endings are not allowed`);
   }
   return text;
+}
+
+function canonicalText(path) {
+  return canonicalizeTextInput(readFileSync(path), asRepoPath(path));
 }
 
 export function assertExpectedNode() {
@@ -192,7 +196,7 @@ function validatePageSource(page, source) {
 function inputInventory() {
   const inputs = INPUT_PATHS.map((repoPath) => {
     const absolutePath = join(ROOT, ...repoPath.split('/'));
-    const bytes = readFileSync(absolutePath);
+    const bytes = Buffer.from(canonicalText(absolutePath), 'utf8');
     return {
       path: repoPath,
       sha256: sha256(bytes),

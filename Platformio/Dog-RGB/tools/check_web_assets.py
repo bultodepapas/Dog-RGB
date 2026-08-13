@@ -20,6 +20,15 @@ def digest(data: bytes) -> str:
     return sha256(data).hexdigest()
 
 
+def canonical_input(data: bytes, repo_path: str) -> bytes:
+    if data.startswith(b"\xef\xbb\xbf"):
+        raise RuntimeError(f"Web asset input has a UTF-8 BOM: {repo_path}")
+    normalized = data.replace(b"\r\n", b"\n")
+    if b"\r" in normalized:
+        raise RuntimeError(f"Web asset input has a bare CR line ending: {repo_path}")
+    return normalized
+
+
 def safe_repo_file(repo_path: str) -> Path:
     candidate = (ROOT / Path(repo_path)).resolve()
     try:
@@ -48,9 +57,12 @@ for item in manifest.get("inputs", []):
     if not path.is_file():
         stale.append(f"missing {repo_path}")
         continue
-    actual = digest(path.read_bytes())
+    actual_bytes = canonical_input(path.read_bytes(), repo_path)
+    actual = digest(actual_bytes)
     if actual != item.get("sha256"):
         stale.append(repo_path)
+    if len(actual_bytes) != item.get("bytes"):
+        stale.append(f"{repo_path} canonical size")
     fingerprint_parts.append(f"{repo_path}\0{actual}\n")
 
 source_hash = digest("".join(fingerprint_parts).encode("utf-8"))

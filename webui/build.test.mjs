@@ -9,6 +9,7 @@ import test from 'node:test';
 import {
   PAGE_DEFINITIONS,
   buildArtifacts,
+  canonicalizeTextInput,
   canonicalGzip,
   renderCppArray,
 } from './build.mjs';
@@ -27,6 +28,16 @@ test('canonical gzip is deterministic and carries no variable metadata', () => {
   assert.deepEqual(first, second);
   assert.deepEqual([...first.subarray(0, 8)], [0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0]);
   assert.deepEqual(gunzipSync(first), source);
+});
+
+test('text fingerprints are stable across LF and CRLF checkouts', () => {
+  assert.equal(canonicalizeTextInput('alpha\r\nbeta\r\n'), 'alpha\nbeta\n');
+  assert.equal(canonicalizeTextInput('alpha\nbeta\n'), 'alpha\nbeta\n');
+  assert.throws(
+    () => canonicalizeTextInput(Buffer.from([0xef, 0xbb, 0xbf, 0x61])),
+    /UTF-8 BOM/,
+  );
+  assert.throws(() => canonicalizeTextInput('alpha\rbeta'), /bare CR/);
 });
 
 test('C++ array rendering preserves binary zeroes and stable width', () => {

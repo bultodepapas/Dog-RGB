@@ -1,6 +1,6 @@
 # Dog-RGB
 
-[English (canonical)](README.md) · [Español](README.es.md) · [Documentation](docs/README.md) · [Build guide](docs/manual_de_construccion.en.md)
+[English (canonical)](README.md) · [Español](README.es.md) · [Documentation](docs/README.md) · [Changelog](CHANGELOG.md) · [Build guide](docs/manual_de_construccion.en.md)
 
 Dog-RGB is an intentionally over-engineered DIY smart collar built around a simple idea: put high-visibility RGBW LEDs, GNSS telemetry, and an ESP32-S3 on a dog collar, then explore how far careful firmware and electronics can take it.
 
@@ -17,12 +17,12 @@ The active implementation is local-first. The collar records activity, drives tw
 | LEDs | Two 24-pixel SK6812 RGBW strips by default, semantic status/body/alert layout, mirror-aware orientation, 12 effects, 8 RGBW palettes, 4 built-in + 4 user scene slots, Show-by-scenes, status-preserving crossfades, four modes, and one global estimated-current limiter |
 | Power saving | Optional Day Mode turns off effect pixels from 06:00 to 16:00 in America/Bogota while keeping status LEDs, GNSS, storage, and the portal active |
 | Wi-Fi | SoftAP + station mode, captive-portal helpers, on-demand network scan, mDNS, bounded retry/backoff, and automatic AP availability policy |
-| Portal | Dashboard, route preview, Wi-Fi setup, runtime configuration (including optional LED power calibration), versioned scene API/import/export, diagnostics, optional write PIN, and safe configuration reset |
+| Portal | Dashboard, route preview, Wi-Fi setup, runtime configuration (including optional LED power calibration), capabilities-driven graphical scene/palette editor with approximate collar preview, versioned scene import/export, diagnostics, optional write PIN, and safe configuration reset |
 | Persistence | CRC-protected A/B records for runtime config, scenes, metrics, sessions, home, and Wi-Fi credentials; dedicated NVS partition for route points |
 | BLE | A read-only 16-byte daily summary is implemented but **disabled by default** because SoftAP/BLE coexistence is unreliable on the shared ESP32-S3 antenna |
 | Verification | PlatformIO build, Python host tests, static portal checks, Playwright behavior/a11y tests, committed visual baselines, and eight Wokwi scenarios |
 
-Not implemented: cloud sync, user accounts, a native mobile app, IMU/heart-rate input, battery telemetry, OTA updates, and the graphical portal scene editor. Scene storage/API is implemented; its embedded UI remains an optional later phase.
+Not implemented: cloud sync, user accounts, a native mobile app, IMU/heart-rate input, battery telemetry, and OTA updates.
 
 ## Hardware baseline
 

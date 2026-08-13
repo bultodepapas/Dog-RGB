@@ -42,14 +42,13 @@
 
 - [ ] Evaluate voltage/temperature compensation or a physical current sensor only if bench evidence shows that the delivered schema-6 estimator cannot remain conservative enough.
 - [ ] Validate the implemented RGBW palettes, A-forward/B-reverse layout, mirror, alert visibility and maximum LED tick time on the mounted collar; change only the orientation flags if physical direction differs.
-- [ ] Measure whether generated/compressed portal assets provide enough flash/maintenance benefit to justify a build step.
+- [ ] Revisit portal compression or budgets only if measured flash pressure or maintenance cost justifies changing the delivered deterministic pipeline.
 - [ ] Evaluate BLE in STA-only and AP-transition matrices before enabling `BLE_ENABLED` in normal builds.
 - [ ] Prototype IMU current/noise/mechanical impact before choosing a sensor.
-- [ ] Add a graphical scene editor/export/import workflow only if users need it; consume the implemented Fase-4 API and keep advanced controls optional.
 - [ ] Revisit companion/cloud work only with explicit privacy, retention, authentication, cost, and offline-recovery requirements.
 
 ## Completed baseline (reference)
 
-The repository already contains modular firmware, trusted GNSS metrics/date rollover, route/session persistence, Wi-Fi event ownership/retries/scanning, local portal security/UX remediation, four LED modes, Day Mode, a global estimated-current limiter with advanced calibration/diagnostics, semantic LED layout/mirror, versioned effects and eight RGBW palettes, status-preserving crossfades/alerts, four built-in plus four user scene slots with A/B recovery and strict API, optional portal PIN, host/Wokwi/Playwright tests, and visual regression baselines. Do not duplicate those items as open tasks without a concrete regression or enhancement.
+The repository already contains modular firmware, trusted GNSS metrics/date rollover, route/session persistence, Wi-Fi event ownership/retries/scanning, local portal security/UX remediation, four LED modes, Day Mode, a global estimated-current limiter with advanced calibration/diagnostics, semantic LED layout/mirror, versioned effects and eight RGBW palettes, status-preserving crossfades/alerts, four built-in plus four user scene slots with A/B recovery and strict API, a capabilities-driven graphical scene editor with import/export and approximate preview, deterministic compressed portal assets, optional portal PIN, host/Wokwi/Playwright tests, and visual regression baselines. Do not duplicate those items as open tasks without a concrete regression or enhancement.
 
 See [Roadmap](roadmap.md) for milestone ordering and [Requirements](requirements.md) for acceptance context.

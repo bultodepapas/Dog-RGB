@@ -9,7 +9,7 @@
 - JSON/CSV/GeoJSON route streaming that services GNSS around bounded socket writes.
 - Two SK6812 RGBW strips with reserved status pixels, 12 effects, eight palettes, four built-in plus four user scenes, Show-by-scenes, four modes, welcome animation, optional Day Mode, and one estimated-current limiter across both buses.
 - AP/STA Wi-Fi with captive DNS/probes, network scan, event-queue ownership, bounded retry/backoff, AP hold/idle policy, and mDNS.
-- Embedded dashboard, Wi-Fi/configuration/diagnostic pages, strict versioned scene API/import/export, CSRF-intent header, output escaping, response headers, and optional write PIN.
+- Embedded dashboard, Wi-Fi/configuration/diagnostic pages, capabilities-driven graphical scene/palette editor, strict versioned scene API/import/export, CSRF-intent header, output escaping, response headers, and optional write PIN.
 - A/B + CRC persistence for config, scenes, metrics, sessions, Home, and station credentials; dedicated route NVS partition.
 - Read-only BLE summary code, disabled by default for radio coexistence.
 - Wokwi production-image simulation with custom controllable NMEA chip and eight scenarios.

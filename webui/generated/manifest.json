@@ -3,7 +3,7 @@
   "generator": "webui/build.mjs",
   "node_version": "24.18.0",
   "html_minifier_terser_version": "7.2.0",
-  "source_sha256": "eaee401f1d99eeda4aff81d8606aa4c86b590f12f215544bfdc0e2ceceb2ea59",
+  "source_sha256": "7394fd1803293ab12d3dcba8d5a7e9740d1be12494643e09162ac7e38a78b7c0",
   "inputs": [
     {
       "path": ".node-version",
@@ -12,18 +12,18 @@
     },
     {
       "path": "package.json",
-      "sha256": "9fc9da1e50261fee02cd037a36971dc765f3a1f4bc5505b5b12d8f1f64bdbeb4",
-      "bytes": 1515
+      "sha256": "3a8906cabd292eac71e80e390d33e036e751a9f5914eac0813e9450922761192",
+      "bytes": 1496
     },
     {
       "path": "package-lock.json",
-      "sha256": "93e98d347dd41f642b01437ea46bec89e938921e5460735645a8af9bb2763c00",
-      "bytes": 12262
+      "sha256": "d10cad4eac8781bbba669380415957a416af5cb69ed6f66cbd6ee2186b837413",
+      "bytes": 11922
     },
     {
       "path": "webui/build.mjs",
-      "sha256": "293f1ae1a9f67e16406a04e42ef701d76c73f4a5b5038d38b41441a58b18db5a",
-      "bytes": 12481
+      "sha256": "3273bf1a721809cdf1b918ba0e667190e893287eed5cb84ac4f64d470bf300ec",
+      "bytes": 12691
     },
     {
       "path": "webui/src/styles/app.css",
@@ -58,7 +58,7 @@
     },
     {
       "path": "Platformio/Dog-RGB/src/web/generated_assets.cpp",
-      "sha256": "4d50c42824fb6248a756ec0888c5fb585e1ac80c0dbe4dee352f34cfc10990ed"
+      "sha256": "facf263b489a3b5ba37909ec71ca2bb42fbd95207a8815614f4573f55f021a86"
     }
   ],
   "totals": {

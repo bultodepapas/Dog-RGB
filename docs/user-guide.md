@@ -77,7 +77,7 @@ The built-in scene catalog is deliberately small:
 
 Four additional user slots can be saved, exported, and imported through the [local HTTP API](api-reference.md#led-scenes-api-v1). Applying a scene manually is volatile: it does not change the configured mode or write flash, and it lasts until cancelled, another scene is applied, the LED mode changes, or the collar reboots. Day Mode can temporarily hide it and alerts remain visible.
 
-The current embedded portal does not yet contain a graphical scene editor; that UI belongs to the later portal-assets phase. Custom clients should read capabilities/catalog first and use the documented generation value when saving, deleting, or importing.
+The embedded `/config` page includes a capabilities-driven scene and palette editor. It can apply built-ins, copy or edit the four user slots, control Show eligibility, save/delete, and export/import the complete user bank. Its dual-strip collar preview is intentionally approximate; it does not claim exact RGBW, power, or physical-strip behavior. Custom clients should still read capabilities/catalog first and use the documented generation value when saving, deleting, or importing.
 
 ### Day Mode
 

@@ -86,7 +86,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | --- | --- | --- |
 | [Companion app MVP](app_mvp_spec.md) | Proposed | BLE reader concept; blocked while BLE remains disabled by default |
 | [Portal configuration presets](portal_config_presets.md) | Proposed | Whole-runtime profiles distinct from implemented visual scenes; no selector/config-preset persistence |
-| [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–4 implemented in software; Phase 3/4 physical-HIL checks and later phases pending, Spanish | Current-limiting, effect-registry, palette, segment, scene, and web-asset roadmap |
+| [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–5 implemented in software; physical-HIL acceptance remains separate, Spanish | Current-limiting, effect-registry, palette, segment, scene, and web-asset roadmap |
 | [App wireframe and data flow](flow_wireframe.md) | Proposed | Companion-app concept, separate from the implemented local portal |
 | [Cloud portal master plan](PLANS/2026-08-01_cloud-portal-master-plan.md) | Proposed snapshot | Large optional plan; no cloud application exists in this repository |
 | [Software area](../software/README.md) | Proposed | Placeholder and boundaries for future companion/cloud software |

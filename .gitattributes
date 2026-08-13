@@ -4,3 +4,14 @@
 
 # Screenshot baselines are compared byte-wise; never let git touch them.
 *.png binary
+
+# Inputs and outputs of the deterministic portal generator are canonical LF.
+/.node-version text eol=lf
+/package.json text eol=lf
+/package-lock.json text eol=lf
+/webui/**/*.mjs text eol=lf
+/webui/**/*.html text eol=lf
+/webui/**/*.css text eol=lf
+/webui/**/*.json text eol=lf
+/Platformio/Dog-RGB/include/web/generated_assets.h text eol=lf
+/Platformio/Dog-RGB/src/web/generated_assets.cpp text eol=lf

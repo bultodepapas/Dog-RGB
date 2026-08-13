@@ -1466,7 +1466,7 @@ Baseline reproducible de esta implementación:
 | Build `seeed_xiao_esp32s3` | 57.636 B RAM (17,6 %) / 1.151.859 B flash de aplicación (34,5 %) |
 | Imagen combinada | 1.175.791 B |
 | Suite host | 131/131 |
-| Generador + smoke | 3/3; 4/4 páginas |
+| Generador + smoke | 4/4; 4/4 páginas |
 | Playwright funcional/a11y/responsive | 84/84 |
 | Comparación visual Linux fijada | 18/18 |
 

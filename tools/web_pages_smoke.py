@@ -53,6 +53,15 @@ def digest(data: bytes) -> str:
     return sha256(data).hexdigest()
 
 
+def canonical_input(data: bytes, repo_path: str) -> bytes:
+    if data.startswith(b"\xef\xbb\xbf"):
+        raise ValueError(f"UTF-8 BOM in {repo_path}")
+    normalized = data.replace(b"\r\n", b"\n")
+    if b"\r" in normalized:
+        raise ValueError(f"bare CR line ending in {repo_path}")
+    return normalized
+
+
 def repo_file(repo_path: str) -> Path:
     path = (ROOT / repo_path).resolve()
     path.relative_to(ROOT)
@@ -137,12 +146,15 @@ def main() -> int:
     for item in manifest.get("inputs", []):
         try:
             path = repo_file(item["path"])
-            actual = digest(path.read_bytes())
+            actual_bytes = canonical_input(path.read_bytes(), item["path"])
+            actual = digest(actual_bytes)
         except (KeyError, OSError, ValueError) as exc:
             failures.append(f"manifest input invalid: {exc}")
             continue
         if actual != item.get("sha256"):
             failures.append(f"stale manifest input: {item['path']}")
+        if len(actual_bytes) != item.get("bytes"):
+            failures.append(f"stale manifest input size: {item['path']}")
     for item in manifest.get("generated", []):
         try:
             path = repo_file(item["path"])
