@@ -45,20 +45,28 @@ class DayModeStaticTests(unittest.TestCase):
 
     def test_led_ui_keeps_status_leds_during_day_mode(self):
         led_cpp = read("src/led/led_ui.cpp")
+        policy_cpp = read("src/led/led_policy.cpp")
 
         self.assertIn('#include "power/day_mode.h"', led_cpp)
         self.assertIn("clear_body_leds()", led_cpp)
         self.assertIn("day_mode::active_now()", led_cpp)
         self.assertIn("paint_status_leds(now_ms, gps_ok, sta_ok, sta_try, critical_error)", led_cpp)
-        self.assertIn("const bool day_active = day_mode::active_now();", led_cpp)
+        self.assertIn("if (!active_led_state.body_enabled)", led_cpp)
+        self.assertIn("if (input.day_mode_active)", policy_cpp)
+        self.assertIn("state.intent = LedIntent::DayStatus", policy_cpp)
+        self.assertIn("state.body_enabled = false", policy_cpp)
 
     def test_welcome_runs_before_day_mode_gate(self):
         led_cpp = read("src/led/led_ui.cpp")
 
-        welcome_idx = led_cpp.index("if (welcome.active)")
-        day_idx = led_cpp.index("const bool day_active = day_mode::active_now();", welcome_idx)
-        self.assertLess(welcome_idx, day_idx)
-        self.assertIn("update_welcome(now_ms);\n    return;", led_cpp[welcome_idx:day_idx])
+        update_idx = led_cpp.index("static void update_led_ui()")
+        welcome_idx = led_cpp.index("if (welcome.active)", update_idx)
+        policy_idx = led_cpp.index("active_led_state = evaluate_policy", welcome_idx)
+        self.assertLess(welcome_idx, policy_idx)
+        self.assertIn(
+            "update_welcome(now_ms);\n    return;",
+            led_cpp[welcome_idx:policy_idx],
+        )
 
 
 if __name__ == "__main__":

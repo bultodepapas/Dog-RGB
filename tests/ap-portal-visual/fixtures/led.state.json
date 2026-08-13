@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "mode": "speed",
+  "intent": "range",
+  "priority": 30,
+  "body_enabled": true,
+  "status_enabled": true,
+  "homogeneous": false,
+  "critical_alert": false,
+  "range": 3,
+  "brightness": 180,
+  "effect_a": {"id": 1, "key": "pulse", "name": "PULSE", "speed": 128, "intensity": 200},
+  "effect_b": {"id": 2, "key": "breath", "name": "BREATH", "speed": 128, "intensity": 200},
+  "base_rgb": {"r": 0, "g": 60, "b": 0},
+  "power": {"budget_ma": 1000, "requested_ma": 640, "estimated_ma": 640, "scale": 255, "estimate_only": true}
+}

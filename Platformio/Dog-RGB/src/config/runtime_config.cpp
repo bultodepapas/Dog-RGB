@@ -5,6 +5,7 @@
 #include "config.h"
 #include "storage/nvs_store.h"
 #include "led/led_ui.h"
+#include "led/effect_registry.h"
 #include "util/crc32.h"
 #include "wifi/wifi_mgr.h"
 
@@ -113,7 +114,7 @@ void set_default_led_power_config(RuntimeConfig &cfg) {
 }
 
 bool validate_single_config(const SingleEffectConfig &cfg) {
-  return cfg.effect_id < EFFECT_COUNT;
+  return led::effect_id_valid(cfg.effect_id);
 }
 
 void load_single_config(RuntimeConfig &cfg) {
@@ -689,7 +690,8 @@ bool validate_ranges(const float *ranges) {
 
 bool validate_effects(const RangeEffect *effects) {
   for (int i = 0; i < 10; ++i) {
-    if (effects[i].effect_a > 11 || effects[i].effect_b > 11) {
+    if (!led::effect_id_valid(effects[i].effect_a) ||
+        !led::effect_id_valid(effects[i].effect_b)) {
       return false;
     }
   }

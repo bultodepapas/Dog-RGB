@@ -1162,7 +1162,7 @@ String web_pages::html_wifi_page() {
 }
 String web_pages::html_config_page() {
   String page;
-  page.reserve(58000);
+  page.reserve(62000);
   page += F(R"CFG(
 <!doctype html>
 <html lang="es">
@@ -1365,6 +1365,7 @@ String web_pages::html_config_page() {
           <div class="field">
             <label for="simple_effect">Efecto</label>
             <select id="simple_effect"></select>
+            <div class="help" id="simple_effect_hint"></div>
           </div>
         </div>
         <div class="grid grid-2">
@@ -1459,6 +1460,7 @@ String web_pages::html_config_page() {
     const gpsMaxMinSegment = $('gps_max_min_segment');
     const simpleTheme = $('simple_theme');
     const simpleEffect = $('simple_effect');
+    const simpleEffectHint = $('simple_effect_hint');
     const simpleSpeed = $('simple_speed');
     const simpleIntensity = $('simple_intensity');
     const simpleR = $('simple_r');
@@ -1503,11 +1505,7 @@ String web_pages::html_config_page() {
 
     const ZONE_COLORS = ['#00F0F0','#00F08C','#00F000','#64F000','#F0F000','#F0B400','#F07800','#F05000','#F02800','#F00000'];
     const ZONE_LABELS = ['Quieto','Paseo','Caminar','Ritmo','Trote','Carrera','Galope','Sprint','Sprint+','Maximo'];
-    const EFFECTS = [
-      {id:0,name:'SOLID'},{id:1,name:'PULSE'},{id:2,name:'BREATH'},{id:3,name:'CHASE'},
-      {id:4,name:'COMET'},{id:5,name:'SINELON'},{id:6,name:'CONFETTI'},{id:7,name:'JUGGLE'},
-      {id:8,name:'BPM'},{id:9,name:'RAINBOW'},{id:10,name:'FIRE'},{id:11,name:'GRADIENT_WAVE'}
-    ];
+    let EFFECTS = [];
 
     const SIMPLE_THEMES = {
       manual:null,
@@ -1551,6 +1549,38 @@ String web_pages::html_config_page() {
       sel.innerHTML = EFFECTS.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('');
     }
 
+    function effectMeta(id){
+      return EFFECTS.find(e=>e.id===parseInt(id,10)) || null;
+    }
+
+    function controlSummary(effect){
+      if (!effect) return '';
+      const names = [];
+      if (effect.controls && effect.controls.color) names.push('color base');
+      if (effect.controls && effect.controls.speed) names.push('velocidad');
+      if (effect.controls && effect.controls.intensity) names.push('intensidad');
+      return (names.length ? 'Usa ' + names.join(', ') : 'Sin controles') +
+             ' · seguridad ' + (effect.safety || 'unknown');
+    }
+
+    function updateLaneControls(i){
+      const a = effectMeta($('ln'+i+'_eff').value);
+      const advanced = $('ln'+i+'_adv').style.display !== 'none';
+      const b = advanced ? effectMeta($('ln'+i+'_effb').value) : a;
+      $('ln'+i+'_spd').disabled = !((a && a.controls.speed) || (b && b.controls.speed));
+      $('ln'+i+'_int').disabled = !((a && a.controls.intensity) || (b && b.controls.intensity));
+    }
+
+    function updateSimpleControls(){
+      const effect = effectMeta(simpleEffect.value);
+      simpleSpeed.disabled = !(effect && effect.controls.speed);
+      simpleIntensity.disabled = !(effect && effect.controls.intensity);
+      const usesColor = !!(effect && effect.controls.color);
+      [simpleR,simpleG,simpleB].forEach(el=>el.disabled=!usesColor);
+      document.querySelectorAll('.swatch').forEach(el=>el.disabled=!usesColor);
+      simpleEffectHint.textContent = controlSummary(effect);
+    }
+
     function buildSpeedLanes(){
       let html = '';
       for (let i=1;i<=10;i++){
@@ -1571,6 +1601,8 @@ String web_pages::html_config_page() {
       for (let i=1;i<=10;i++){
         fillEffectSelect($('ln'+i+'_eff'));
         fillEffectSelect($('ln'+i+'_effb'));
+        $('ln'+i+'_eff').onchange = ()=>updateLaneControls(i);
+        $('ln'+i+'_effb').onchange = ()=>updateLaneControls(i);
         if (i<10){ $('ln'+i+'_thr').oninput = updateLanePrevs; }
       }
     }
@@ -1591,6 +1623,7 @@ String web_pages::html_config_page() {
       adv.style.display = vis ? 'none' : 'flex';
       btn.textContent = vis ? '+ tira B independiente' : '- tira B independiente';
       if (!vis) $('ln'+i+'_effb').value = $('ln'+i+'_eff').value;
+      updateLaneControls(i);
     }
 
     function applyTheme(key){
@@ -1603,6 +1636,7 @@ String web_pages::html_config_page() {
       simpleG.value = t.g;
       simpleB.value = t.b;
       updateSwatchSelection();
+      updateSimpleControls();
     }
 
     function readSimple(){
@@ -1631,6 +1665,7 @@ String web_pages::html_config_page() {
       simpleTheme.value = match;
       document.querySelectorAll('[data-theme]').forEach(btn=>btn.classList.toggle('active',btn.dataset.theme===match));
       updateSwatchSelection();
+      updateSimpleControls();
     }
 
     function buildColorSwatches(){
@@ -1785,14 +1820,14 @@ String web_pages::html_config_page() {
       for (let i=1;i<=10;i++){
         const e = cfg.effects['range'+i];
         if (!e){ addError('speed_lanes_block','Efectos incompletos.'); break; }
-        if (e.a < 0 || e.a > 11) addError('ln'+i+'_eff','Z'+i+': efecto de tira A invalido.');
-        if (e.b < 0 || e.b > 11) addError('ln'+i+'_effb','Z'+i+': efecto de tira B invalido.');
+        if (!effectMeta(e.a)) addError('ln'+i+'_eff','Z'+i+': efecto de tira A invalido.');
+        if (!effectMeta(e.b)) addError('ln'+i+'_effb','Z'+i+': efecto de tira B invalido.');
         if (e.speed < 0 || e.speed > 255) addError('ln'+i+'_spd','Z'+i+': velocidad fuera de rango (0..255).');
         if (e.intensity < 0 || e.intensity > 255) addError('ln'+i+'_int','Z'+i+': intensidad fuera de rango (0..255).');
       }
 
       const s = cfg.single;
-      if (s.effect < 0 || s.effect > 11) addError('simple_effect','Efecto simple invalido.');
+      if (!effectMeta(s.effect)) addError('simple_effect','Efecto simple invalido.');
       if (s.speed < 0 || s.speed > 255) addError('simple_speed','Velocidad simple fuera de rango (0..255).');
       if (s.intensity < 0 || s.intensity > 255) addError('simple_intensity','Intensidad simple fuera de rango (0..255).');
       if (s.rgb.r < 0 || s.rgb.r > 255) addError('simple_r','R fuera de rango (0..255).');
@@ -2014,14 +2049,11 @@ String web_pages::html_config_page() {
     document.querySelectorAll('[data-mode-card]').forEach(btn=>btn.onclick=()=>selectMode(btn.dataset.modeCard));
     document.querySelectorAll('[data-theme]').forEach(btn=>btn.onclick=()=>{ markDirty(); simpleTheme.value=btn.dataset.theme; if(btn.dataset.theme !== 'manual') applyTheme(btn.dataset.theme); updateThemeSelection(); });
     simpleTheme.onchange = () => { if (simpleTheme.value !== 'manual') applyTheme(simpleTheme.value); updateThemeSelection(); };
-    [simpleEffect,simpleSpeed,simpleIntensity,simpleR,simpleG,simpleB].forEach(el=>el.oninput=updateThemeSelection);
+    simpleEffect.onchange = ()=>{ updateThemeSelection(); updateSimpleControls(); };
+    [simpleSpeed,simpleIntensity,simpleR,simpleG,simpleB].forEach(el=>el.oninput=updateThemeSelection);
     brightnessSlider.oninput = () => syncBrightness(brightnessSlider);
     brightness.oninput = () => syncBrightness(brightness);
     fenceMax.oninput = updateFenceRanges;
-
-    buildSpeedLanes();
-    fillEffectSelect(simpleEffect);
-    buildColorSwatches();
 
     function applyConfig(c){
       brightness.value = c.led.brightness;
@@ -2055,6 +2087,7 @@ String web_pages::html_config_page() {
           $('ln'+i+'_adv').style.display = 'flex';
           $('ln'+i+'_advbtn').textContent = '- tira B independiente';
         }
+        updateLaneControls(i);
       }
       updateLanePrevs();
       const s = c.single || {};
@@ -2069,6 +2102,7 @@ String web_pages::html_config_page() {
       updateFenceRanges();
       updateThemeSelection();
       updateSwatchSelection();
+      updateSimpleControls();
       loadHome();
     }
 
@@ -2091,7 +2125,41 @@ String web_pages::html_config_page() {
       }
     }
 
-    loadConfig();
+    async function loadCapabilities(){
+      try{
+        const response = await fetch('/api/v1/led/capabilities');
+        if (!response.ok) throw new Error('http ' + response.status);
+        const capabilities = await response.json();
+        const effects = Array.isArray(capabilities.effects) ? capabilities.effects : [];
+        const ids = new Set(effects.map(e=>e.id));
+        if (capabilities.schema_version !== 1 ||
+            capabilities.effect_count !== effects.length ||
+            capabilities.persistent_effect_ids !== true || effects.length === 0 ||
+            ids.size !== effects.length ||
+            effects.some(e=>!Number.isInteger(e.id) || e.id<0 || e.id>255 ||
+                            !e.key || !e.name || !e.controls)) {
+          throw new Error('capabilities invalidas');
+        }
+        EFFECTS = effects;
+        return true;
+      }catch(e){
+        errorsEl.innerHTML = '<div><strong>No se pudo leer el catalogo de efectos.</strong></div>' +
+          '<div>Los controles no se inventan localmente: reintenta cuando el collar responda.</div>' +
+          '<div class="actions"><button class="btn" type="button" onclick="bootstrapConfig()">Reintentar</button></div>';
+        setStatus('Sin capacidades LED.', 'error');
+        return false;
+      }
+    }
+
+    async function bootstrapConfig(){
+      if (!await loadCapabilities()) return;
+      buildSpeedLanes();
+      fillEffectSelect(simpleEffect);
+      buildColorSwatches();
+      await loadConfig();
+    }
+
+    bootstrapConfig();
   </script>
 </body>
 </html>

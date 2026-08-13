@@ -1,10 +1,13 @@
 import { test, type Page } from '@playwright/test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(__dirname, 'evidence');
+const fixturesDir = path.join(__dirname, '..', 'ap-portal-visual', 'fixtures');
+const fixtureJson = (name: string): unknown =>
+  JSON.parse(readFileSync(path.join(fixturesDir, name), 'utf-8'));
 mkdirSync(outDir, { recursive: true });
 
 const PAGES = ['/', '/wifi', '/config', '/dev'];
@@ -21,7 +24,17 @@ function ratio(a,b){const L1=lum(a),L2=lum(b);const hi=Math.max(L1,L2),lo=Math.m
 test.describe('portal visual audit', () => {
   for (const route of PAGES) {
     test(`contrast & focus :: ${route}`, async ({ page }: { page: Page }) => {
-      await page.route('**/api/**', (r) => r.fulfill({ json: {} }));
+      await page.route('**/api/**', (r) => {
+        const request = r.request();
+        const uri = new URL(request.url()).pathname;
+        if (uri === '/api/v1/led/capabilities') {
+          return r.fulfill({ json: fixtureJson('led.capabilities.json') });
+        }
+        if (uri === '/api/config' && request.method() === 'GET') {
+          return r.fulfill({ json: fixtureJson('config.speed.json') });
+        }
+        return r.fulfill({ json: {} });
+      });
       await page.goto(route, { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(300);
 

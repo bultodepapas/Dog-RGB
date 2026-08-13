@@ -17,10 +17,10 @@ PAGES = ROOT / "Platformio" / "Dog-RGB" / "src" / "web" / "pages.cpp"
 PAGE_BUDGETS = {
     "html_page": 33_000,
     "html_wifi_page": 36_000,
-    # Fase 1 adds persisted electrical calibration controls and live limiter
-    # diagnostics. Keep explicit ceilings, with headroom below each C++
-    # reserve, rather than silently dropping the guard as the pages grow.
-    "html_config_page": 58_000,
+    # Fases 1–2 add persisted electrical calibration and a capabilities-driven
+    # effect UI. Keep explicit ceilings, with headroom below each C++ reserve,
+    # rather than silently dropping the guard as the pages grow.
+    "html_config_page": 62_000,
     "html_dev_page": 35_000,
 }
 

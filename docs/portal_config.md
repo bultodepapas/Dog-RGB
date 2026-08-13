@@ -1,12 +1,14 @@
 # Runtime Configuration Reference
 
-**Status:** Current schema and validation, verified against firmware on 2026-08-12.
+**Status:** Current schema and validation, verified against firmware on 2026-08-13.
 
 The configuration UI is available at `/config`. The corresponding API is `GET/POST /api/config`; `POST /api/config/reset` restores compile-time runtime defaults. All writes require `X-Dog-Portal` and, when enabled, `X-Dog-Pin` as described in the [HTTP API reference](api-reference.md#write-guards).
 
 ## Read schema
 
 `GET /api/config` never returns a password. Presence flags distinguish “stored but hidden” from “not configured.” The current schema version is `6`.
+
+The configuration page loads `GET /api/v1/led/capabilities` before this record and builds effect options plus enabled controls from the registry metadata. This is a UI/discovery addition only: Phase 2 does not change the schema-6 JSON or packed NVS meaning, and saving still uses `POST /api/config`.
 
 ```json
 {
@@ -164,7 +166,7 @@ Full writable shape:
 | `speed_ranges_kph` | Exactly nine positive, strictly increasing numbers |
 | Effect `a` / `b` | Integer ID `0..11` |
 | Effect `speed` / `intensity` | Integer `0..255` |
-| `single.effect` | Integer ID `0..11` |
+| `single.effect` | Integer ID present in effect-registry version 1 (currently `0..11`) |
 | `single.speed`, `single.intensity`, RGB channels | Integer `0..255` |
 | `gps.min_fix_quality` | `0..8` |
 | `gps.min_sats` | `3..12` |

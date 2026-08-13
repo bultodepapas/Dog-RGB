@@ -7,13 +7,17 @@
 #include "config.h"
 #include "geofence/home.h"
 #include "gps/gps.h"
+#include "led/effect_registry.h"
 #include "led/led_bus.h"
+#include "led/led_policy.h"
 #include "pins.h"
 #include "power/day_mode.h"
 #include "wifi/wifi_mgr.h"
 
 namespace led_ui {
 namespace {
+static_assert(EFFECT_COUNT == led::EFFECT_REGISTRY_COUNT,
+              "Persisted effect IDs and registry entries must stay aligned");
 // LED strip configuration is defined in config.h.
 unsigned long last_led_update_ms = 0;
 
@@ -30,10 +34,7 @@ uint8_t heat_b[LED_STRIP_COUNT];
 led::LedBus led_bus(LED_STRIP_COUNT, PIN_LED_A_DATA, PIN_LED_B_DATA,
                     LED_STRIP_MODE == 2);
 
-struct EffectState {
-  uint8_t hue = 0;
-  uint16_t pos = 0;
-};
+using EffectState = led::EffectRuntime;
 
 EffectState state_a;
 EffectState state_b;
@@ -61,6 +62,11 @@ uint8_t last_simple_r = SINGLE_R_DEFAULT;
 uint8_t last_simple_g = SINGLE_G_DEFAULT;
 uint8_t last_simple_b = SINGLE_B_DEFAULT;
 uint8_t last_mode = MODE_SPEED;
+uint32_t effect_random_state = 0xD06F00D5UL;
+led::LedPolicyEngine policy_engine;
+led::LedState active_led_state = {
+    led::LedMode::Speed, led::LedIntent::Idle, 20, LED_BRIGHTNESS, true, true,
+    false, false, -1, 9, 9, 80, 140, {0, 60, 60}};
 
 struct WelcomeState {
   bool active = false;
@@ -145,12 +151,6 @@ static void fade_rgb(Rgb &c, uint8_t amount) {
   c.b = scale8(c.b, scale);
 }
 
-static void add_rgb(Rgb &dst, const Rgb &src) {
-  dst.r = clamp_u8(dst.r + src.r);
-  dst.g = clamp_u8(dst.g + src.g);
-  dst.b = clamp_u8(dst.b + src.b);
-}
-
 static uint8_t random8(uint8_t max_val = 255) {
   return static_cast<uint8_t>(random(0, static_cast<long>(max_val) + 1));
 }
@@ -160,15 +160,6 @@ static uint8_t random8(uint8_t min_val, uint8_t max_val) {
     return min_val;
   }
   return static_cast<uint8_t>(random(min_val, static_cast<long>(max_val) + 1));
-}
-
-static uint8_t qsub8(uint8_t i, uint8_t j) {
-  return (i > j) ? static_cast<uint8_t>(i - j) : 0;
-}
-
-static uint8_t qadd8(uint8_t i, uint8_t j) {
-  const uint16_t sum = static_cast<uint16_t>(i) + j;
-  return (sum > 255) ? 255 : static_cast<uint8_t>(sum);
 }
 
 static Rgb hsv_to_rgb(uint8_t hue, uint8_t sat, uint8_t val) {
@@ -187,20 +178,6 @@ static Rgb hsv_to_rgb(uint8_t hue, uint8_t sat, uint8_t val) {
     case 4: return make_rgb(t, p, val);
     default: return make_rgb(val, p, q);
   }
-}
-
-static uint8_t beat8(uint8_t bpm, uint8_t low, uint8_t high) {
-  const float t = millis() / 1000.0f;
-  const float phase = sinf(2.0f * 3.14159265f * (static_cast<float>(bpm) / 60.0f) * t);
-  const float norm = (phase + 1.0f) * 0.5f;
-  return static_cast<uint8_t>(low + (high - low) * norm);
-}
-
-static uint16_t beat16(uint16_t bpm, uint16_t low, uint16_t high) {
-  const float t = millis() / 1000.0f;
-  const float phase = sinf(2.0f * 3.14159265f * (static_cast<float>(bpm) / 60.0f) * t);
-  const float norm = (phase + 1.0f) * 0.5f;
-  return static_cast<uint16_t>(low + (high - low) * norm);
 }
 
 static float pulse_scale(unsigned long period_ms) {
@@ -279,17 +256,70 @@ static uint8_t step_from_speed(uint8_t speed, uint8_t divisor) {
   return step < 1 ? 1 : step;
 }
 
+static led::LedMode led_mode_from(uint8_t mode) {
+  switch (mode) {
+    case MODE_GEOFENCE: return led::LedMode::Geofence;
+    case MODE_SHOW: return led::LedMode::Show;
+    case MODE_SIMPLE: return led::LedMode::Simple;
+    default: return led::LedMode::Speed;
+  }
+}
+
+static led::LedPolicyConfig policy_config_from(const RuntimeConfig &cfg) {
+  led::LedPolicyConfig adapted = {};
+  adapted.brightness = cfg.brightness;
+  for (uint8_t i = 0; i < 9; ++i) {
+    adapted.speed_ranges_kph[i] = cfg.ranges[i];
+  }
+  for (uint8_t i = 0; i < 10; ++i) {
+    adapted.range_effects[i] = {cfg.effects[i].effect_a,
+                                cfg.effects[i].effect_b,
+                                cfg.effects[i].speed,
+                                cfg.effects[i].intensity};
+  }
+  adapted.simple = {cfg.single.effect_id, cfg.single.effect_id,
+                    cfg.single.speed, cfg.single.intensity};
+  adapted.simple_base = {cfg.single.base_r, cfg.single.base_g,
+                         cfg.single.base_b};
+  return adapted;
+}
+
+static led::LedState evaluate_policy(unsigned long now_ms, bool gps_ok,
+                                     bool critical_error,
+                                     const Rgb &active_show_base) {
+  const RuntimeConfig &cfg = config::get();
+  const led::LedPolicyConfig adapted = policy_config_from(cfg);
+  const bool home_set = geofence::is_set();
+  const float distance_m = home_set ? geofence::distance_to_home_m() : -1.0f;
+  uint8_t geofence_range = 1;
+  if (distance_m >= 0.0f) {
+    geofence_range = geofence::geofence_range(distance_m);
+    geofence_range = geofence::apply_hysteresis(geofence_range, distance_m);
+  }
+  const led::LedPolicyInput input = {
+      led_mode_from(cfg.mode),
+      &adapted,
+      welcome.active,
+      day_mode::active_now(),
+      gps_ok,
+      critical_error,
+      wifi_mgr::wifi_off(),
+      home_set,
+      distance_m >= 0.0f,
+      gps_fix_ms >= WIFI_OFF_GPS_FIX_MS,
+      gps::last_speed_kph(),
+      geofence_range,
+      show_effect_id,
+      show_speed,
+      show_intensity,
+      active_show_base};
+  (void)now_ms;
+  return policy_engine.evaluate(input);
+}
+
 uint8_t speed_range(float kph) {
-  if (kph <= config::get().ranges[0]) return 1;
-  if (kph <= config::get().ranges[1]) return 2;
-  if (kph <= config::get().ranges[2]) return 3;
-  if (kph <= config::get().ranges[3]) return 4;
-  if (kph <= config::get().ranges[4]) return 5;
-  if (kph <= config::get().ranges[5]) return 6;
-  if (kph <= config::get().ranges[6]) return 7;
-  if (kph <= config::get().ranges[7]) return 8;
-  if (kph <= config::get().ranges[8]) return 9;
-  return 10;
+  const led::LedPolicyConfig adapted = policy_config_from(config::get());
+  return led::policy_speed_range(adapted, kph);
 }
 
 void get_range_config(uint8_t range,
@@ -305,82 +335,12 @@ void get_range_config(uint8_t range,
 }
 
 Rgb base_color_for_range(uint8_t range) {
-  switch (range) {
-    case 1:
-      return make_rgb(0, 60, 60);
-    case 2:
-      return make_rgb(0, 60, 35);
-    case 3:
-      return make_rgb(0, 60, 0);
-    case 4:
-      return make_rgb(25, 60, 0);
-    case 5:
-      return make_rgb(60, 60, 0);
-    case 6:
-      return make_rgb(60, 45, 0);
-    case 7:
-      return make_rgb(60, 30, 0);
-    case 8:
-      return make_rgb(60, 20, 0);
-    case 9:
-      return make_rgb(60, 10, 0);
-    default:
-      return make_rgb(60, 0, 0);
-  }
+  return led::policy_range_base_color(range);
 }
 
 const char *effect_name(uint8_t effect_id) {
-  switch (effect_id) {
-    case 0: return "SOLID";
-    case 1: return "PULSE";
-    case 2: return "BREATH";
-    case 3: return "CHASE";
-    case 4: return "COMET";
-    case 5: return "SINELON";
-    case 6: return "CONFETTI";
-    case 7: return "JUGGLE";
-    case 8: return "BPM";
-    case 9: return "RAINBOW";
-    case 10: return "FIRE";
-    case 11: return "GRADIENT_WAVE";
-    default: return "UNKNOWN";
-  }
-}
-
-static Rgb heat_color(uint8_t temperature) {
-  const uint8_t t192 = static_cast<uint8_t>((temperature * 191) / 255);
-  const uint8_t heatramp = (t192 & 0x3F) << 2;
-  if (t192 > 0x80) {
-    return make_rgb(255, 255, heatramp);
-  }
-  if (t192 > 0x40) {
-    return make_rgb(255, heatramp, 0);
-  }
-  return make_rgb(heatramp, 0, 0);
-}
-
-static void apply_fire(Rgb *leds,
-                       uint8_t *heat,
-                       int start,
-                       int count,
-                       uint8_t intensity,
-                       uint8_t speed) {
-  const uint8_t cooling = map(255 - intensity, 0, 255, 20, 80);
-  const uint8_t sparking = map(intensity, 0, 255, 20, 120);
-  for (int i = start; i < start + count; ++i) {
-    heat[i] = qsub8(heat[i], random8(0, ((cooling * 10) / count) + 2));
-  }
-  for (int k = start + count - 1; k >= start + 2; --k) {
-    heat[k] = static_cast<uint8_t>((heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3);
-  }
-  if (random8() < sparking) {
-    const int y = start + random8(min(count, 7));
-    heat[y] = qadd8(heat[y], random8(160, 255));
-  }
-  for (int j = start; j < start + count; ++j) {
-    leds[j] = heat_color(heat[j]);
-  }
-  (void)speed;
+  const led::EffectDescriptor *descriptor = led::effect_descriptor(effect_id);
+  return descriptor == nullptr ? "UNKNOWN" : descriptor->label;
 }
 
 static void apply_effect(int effect_id,
@@ -392,94 +352,10 @@ static void apply_effect(int effect_id,
                          uint8_t speed,
                          uint8_t intensity,
                          EffectState &state) {
-  const uint8_t fade_amt = map(255 - intensity, 0, 255, 10, 80);
-  const uint8_t bpm = map(speed, 0, 255, 10, 90);
-
-  switch (effect_id) {
-    case 0: // SOLID
-      fill_range(leds, start, count, base);
-      break;
-    case 1: { // PULSE
-      const uint8_t beat = beat8(bpm, 10, 255);
-      Rgb c = base;
-      c.r = scale8(c.r, beat);
-      c.g = scale8(c.g, beat);
-      c.b = scale8(c.b, beat);
-      fill_range(leds, start, count, c);
-      break;
-    }
-    case 2: { // BREATH
-      const uint8_t beat = beat8(bpm, 20, 200);
-      Rgb c = base;
-      c.r = scale8(c.r, beat);
-      c.g = scale8(c.g, beat);
-      c.b = scale8(c.b, beat);
-      fill_range(leds, start, count, c);
-      break;
-    }
-    case 3: { // CHASE
-      fade_range(leds, start, count, fade_amt);
-      state.pos = (state.pos + step_from_speed(speed, 32)) % count;
-      leds[start + state.pos] = base;
-      break;
-    }
-    case 4: { // COMET
-      fade_range(leds, start, count, fade_amt);
-      state.pos = (state.pos + step_from_speed(speed, 24)) % count;
-      leds[start + state.pos] = base;
-      break;
-    }
-    case 5: { // SINELON
-      fade_range(leds, start, count, fade_amt);
-      const uint16_t pos = beat16(bpm, 0, count - 1);
-      add_rgb(leds[start + pos], base);
-      break;
-    }
-    case 6: { // CONFETTI
-      fade_range(leds, start, count, fade_amt);
-      const int pos = start + random8(count - 1);
-      add_rgb(leds[pos], base);
-      break;
-    }
-    case 7: { // JUGGLE
-      fade_range(leds, start, count, fade_amt);
-      for (int i = 0; i < 4; ++i) {
-        const uint16_t pos = beat16(bpm + i * 2, 0, count - 1);
-        add_rgb(leds[start + pos], base);
-      }
-      break;
-    }
-    case 8: { // BPM
-      const uint8_t beat = beat8(bpm, 64, 255);
-      for (int i = start; i < start + count; ++i) {
-        leds[i] = base;
-        leds[i].r = scale8(leds[i].r, beat);
-        leds[i].g = scale8(leds[i].g, beat);
-        leds[i].b = scale8(leds[i].b, beat);
-      }
-      break;
-    }
-    case 9: { // RAINBOW
-      state.hue += step_from_speed(speed, 16);
-      for (int i = start; i < start + count; ++i) {
-        leds[i] = hsv_to_rgb(static_cast<uint8_t>(state.hue + (i * 7)), 255, 255);
-      }
-      break;
-    }
-    case 10: // FIRE
-      apply_fire(leds, heat, start, count, intensity, speed);
-      break;
-    case 11: { // GRADIENT_WAVE
-      state.hue += step_from_speed(speed, 24);
-      for (int i = start; i < start + count; ++i) {
-        leds[i] = hsv_to_rgb(static_cast<uint8_t>(state.hue + (i * 8)), 200, 255);
-      }
-      break;
-    }
-    default:
-      fill_range(leds, start, count, base);
-      break;
-  }
+  led::EffectRenderContext context = {
+      leds, heat, static_cast<uint16_t>(start), static_cast<uint16_t>(count),
+      base, speed, intensity, millis(), &effect_random_state, &state};
+  led::render_effect(static_cast<uint8_t>(effect_id), context);
 }
 
 void start_welcome() {
@@ -493,6 +369,8 @@ void start_welcome() {
   if (LED_STRIP_MODE == 2) {
     fill_range(leds_b, 0, LED_STRIP_COUNT, make_rgb(0, 0, 0));
   }
+  active_led_state = evaluate_policy(millis(), gps::has_fix(), false,
+                                     show_base);
   show_leds();
 }
 
@@ -784,21 +662,25 @@ static void update_show_mode(unsigned long now_ms) {
 
   update_gps_fix_timer(now_ms, gps_ok);
   const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
-  const bool day_active = day_mode::active_now();
-  if (day_active) {
+  const Rgb active_show_base = current_show_base(now_ms);
+  active_led_state = evaluate_policy(now_ms, gps_ok, critical_error,
+                                     active_show_base);
+  if (!active_led_state.body_enabled) {
     render_day_mode_status(now_ms, gps_ok, sta_ok, sta_try, critical_error);
     return;
   }
-  const bool homogeneous_mode = (wifi_mgr::wifi_off() && gps_fix_ms >= WIFI_OFF_GPS_FIX_MS);
-  const Rgb active_show_base = current_show_base(now_ms);
   const uint8_t transition_scale = show_transition_scale(now_ms);
 
-  if (homogeneous_mode) {
-    apply_effect(show_effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, active_show_base, show_speed, show_intensity,
+  if (active_led_state.homogeneous) {
+    apply_effect(active_led_state.effect_a, leds_a, heat_a, 0, LED_STRIP_COUNT,
+                 active_led_state.base, active_led_state.speed,
+                 active_led_state.intensity,
                  show_state_a);
     scale_show_range(leds_a, 0, LED_STRIP_COUNT, transition_scale);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(show_effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, active_show_base, show_speed, show_intensity,
+      apply_effect(active_led_state.effect_b, leds_b, heat_b, 0,
+                   LED_STRIP_COUNT, active_led_state.base,
+                   active_led_state.speed, active_led_state.intensity,
                    show_state_b);
       scale_show_range(leds_b, 0, LED_STRIP_COUNT, transition_scale);
     }
@@ -809,20 +691,28 @@ static void update_show_mode(unsigned long now_ms) {
   const int seg_start = LED_STATUS_COUNT;
   const int seg_count = LED_STRIP_COUNT - LED_STATUS_COUNT;
   if (seg_count > 0) {
-    apply_effect(show_effect_id, leds_a, heat_a, seg_start, seg_count, active_show_base, show_speed, show_intensity,
+    apply_effect(active_led_state.effect_a, leds_a, heat_a, seg_start,
+                 seg_count, active_led_state.base, active_led_state.speed,
+                 active_led_state.intensity,
                  show_state_a);
     scale_show_range(leds_a, seg_start, seg_count, transition_scale);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(show_effect_id, leds_b, heat_b, seg_start, seg_count, active_show_base, show_speed, show_intensity,
+      apply_effect(active_led_state.effect_b, leds_b, heat_b, seg_start,
+                   seg_count, active_led_state.base, active_led_state.speed,
+                   active_led_state.intensity,
                    show_state_b);
       scale_show_range(leds_b, seg_start, seg_count, transition_scale);
     }
   } else {
-    apply_effect(show_effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, active_show_base, show_speed, show_intensity,
+    apply_effect(active_led_state.effect_a, leds_a, heat_a, 0,
+                 LED_STRIP_COUNT, active_led_state.base,
+                 active_led_state.speed, active_led_state.intensity,
                  show_state_a);
     scale_show_range(leds_a, 0, LED_STRIP_COUNT, transition_scale);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(show_effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, active_show_base, show_speed, show_intensity,
+      apply_effect(active_led_state.effect_b, leds_b, heat_b, 0,
+                   LED_STRIP_COUNT, active_led_state.base,
+                   active_led_state.speed, active_led_state.intensity,
                    show_state_b);
       scale_show_range(leds_b, 0, LED_STRIP_COUNT, transition_scale);
     }
@@ -871,18 +761,21 @@ static void update_simple_mode(unsigned long now_ms) {
   const bool sta_try = (!sta_ok && wifi_mgr::sta_connecting());
   update_gps_fix_timer(now_ms, gps_ok);
   const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
-  const bool day_active = day_mode::active_now();
-  if (day_active) {
+  active_led_state = evaluate_policy(now_ms, gps_ok, critical_error,
+                                     show_base);
+  if (!active_led_state.body_enabled) {
     render_day_mode_status(now_ms, gps_ok, sta_ok, sta_try, critical_error);
     return;
   }
 
-  const Rgb base = make_rgb(config::get().single.base_r, config::get().single.base_g, config::get().single.base_b);
-  apply_effect(config::get().single.effect_id, leds_a, heat_a, 0, LED_STRIP_COUNT, base,
-               config::get().single.speed, config::get().single.intensity, simple_state_a);
+  apply_effect(active_led_state.effect_a, leds_a, heat_a, 0, LED_STRIP_COUNT,
+               active_led_state.base, active_led_state.speed,
+               active_led_state.intensity, simple_state_a);
   if (LED_STRIP_MODE == 2) {
-    apply_effect(config::get().single.effect_id, leds_b, heat_b, 0, LED_STRIP_COUNT, base,
-                 config::get().single.speed, config::get().single.intensity, simple_state_b);
+    apply_effect(active_led_state.effect_b, leds_b, heat_b, 0,
+                 LED_STRIP_COUNT, active_led_state.base,
+                 active_led_state.speed, active_led_state.intensity,
+                 simple_state_b);
   }
   show_leds();
 }
@@ -923,71 +816,50 @@ static void update_led_ui() {
   const bool sta_try = (!sta_ok && wifi_mgr::sta_connecting());
   update_gps_fix_timer(now_ms, gps_ok);
   const bool critical_error = compute_critical_error(now_ms, gps_ok, sta_ok);
-  const bool day_active = day_mode::active_now();
-  if (day_active) {
+  active_led_state = evaluate_policy(now_ms, gps_ok, critical_error,
+                                     show_base);
+  if (!active_led_state.body_enabled) {
     render_day_mode_status(now_ms, gps_ok, sta_ok, sta_try, critical_error);
     return;
   }
-  const bool homogeneous_mode = (wifi_mgr::wifi_off() && gps_fix_ms >= WIFI_OFF_GPS_FIX_MS);
 
   const int seg_start = LED_STATUS_COUNT;
   const int seg_count = LED_STRIP_COUNT - LED_STATUS_COUNT;
-  bool body_idle = false;
-  bool home_missing = false;
-  uint8_t range = 1;
-  float geofence_dist_m = -1.0f;
+  const bool home_missing =
+      active_led_state.intent == led::LedIntent::HomeMissing;
+  const bool has_range = active_led_state.intent == led::LedIntent::Range &&
+                         active_led_state.range >= 1;
 
-  if (config::get().mode == MODE_GEOFENCE) {
-    if (!gps_ok) {
-      body_idle = true;
-    } else if (!geofence::is_set()) {
-      home_missing = true;
-    } else {
-      geofence_dist_m = geofence::distance_to_home_m();
-      if (geofence_dist_m < 0.0f) {
-        body_idle = true;
-      } else {
-        range = geofence::geofence_range(geofence_dist_m);
-        range = geofence::apply_hysteresis(range, geofence_dist_m);
-      }
-    }
-  } else {
-    if (!gps_ok) {
-      body_idle = true;
-    } else {
-      range = speed_range(gps::last_speed_kph());
-    }
-  }
-
-  const bool has_range = (!body_idle && !home_missing);
-  int effect_a = RANGE_1_EFFECT_A;
-  int effect_b = RANGE_1_EFFECT_B;
-  uint8_t eff_speed = RANGE_1_SPEED;
-  uint8_t eff_intensity = RANGE_1_INTENSITY;
-  if (has_range) {
-    get_range_config(range, effect_a, effect_b, eff_speed, eff_intensity);
-  }
-  const Rgb base = base_color_for_range(range);
-
-  if (homogeneous_mode && has_range) {
-    apply_effect(effect_a, leds_a, heat_a, 0, LED_STRIP_COUNT, base, eff_speed, eff_intensity, state_a);
+  if (active_led_state.homogeneous && has_range) {
+    apply_effect(active_led_state.effect_a, leds_a, heat_a, 0,
+                 LED_STRIP_COUNT, active_led_state.base,
+                 active_led_state.speed, active_led_state.intensity, state_a);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(effect_b, leds_b, heat_b, 0, LED_STRIP_COUNT, base, eff_speed, eff_intensity, state_b);
+      apply_effect(active_led_state.effect_b, leds_b, heat_b, 0,
+                   LED_STRIP_COUNT, active_led_state.base,
+                   active_led_state.speed, active_led_state.intensity, state_b);
     }
     show_leds();
     return;
   }
 
   if (home_missing && seg_count > 0) {
-    const Rgb home_base = make_rgb(60, 45, 0);
-    apply_effect(2, leds_a, heat_a, seg_start, seg_count, home_base, 60, 120, state_a);
+    apply_effect(active_led_state.effect_a, leds_a, heat_a, seg_start,
+                 seg_count, active_led_state.base, active_led_state.speed,
+                 active_led_state.intensity, state_a);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(2, leds_b, heat_b, seg_start, seg_count, home_base, 60, 120, state_b);
+      apply_effect(active_led_state.effect_b, leds_b, heat_b, seg_start,
+                   seg_count, active_led_state.base, active_led_state.speed,
+                   active_led_state.intensity, state_b);
     }
   } else if (has_range && seg_count > 0) {
-    apply_effect(effect_a, leds_a, heat_a, seg_start, seg_count, base, eff_speed, eff_intensity, state_a);
+    apply_effect(active_led_state.effect_a, leds_a, heat_a, seg_start,
+                 seg_count, active_led_state.base, active_led_state.speed,
+                 active_led_state.intensity, state_a);
     if (LED_STRIP_MODE == 2) {
-      apply_effect(effect_b, leds_b, heat_b, seg_start, seg_count, base, eff_speed, eff_intensity, state_b);
+      apply_effect(active_led_state.effect_b, leds_b, heat_b, seg_start,
+                   seg_count, active_led_state.base, active_led_state.speed,
+                   active_led_state.intensity, state_b);
     }
   } else if (seg_count > 0) {
     body_idle_hue = static_cast<uint8_t>(body_idle_hue + 2);
@@ -1006,6 +878,10 @@ static void update_led_ui() {
 }
 
 void begin() {
+  // The pure renderer advances an explicit PRNG state so tests can replay a
+  // fixed seed. Production still starts stochastic effects from fresh ESP32
+  // hardware entropy instead of repeating the same sequence after every boot.
+  effect_random_state = static_cast<uint32_t>(random(1, 0x7FFFFFFFL));
   led_begin();
 }
 
@@ -1028,6 +904,10 @@ void apply_power_config(bool enabled, uint16_t budget_ma,
 
 const led::PowerDiagnostics &power_diagnostics() {
   return led_bus.power_diagnostics();
+}
+
+const led::LedState &current_state() {
+  return active_led_state;
 }
 
 void set_transport_enabled(bool enabled) {

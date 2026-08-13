@@ -1,11 +1,11 @@
 # Dog-RGB Roadmap
 
-**Status:** Current priorities as of 2026-08-12. Future phases are optional; they do not redefine the local-first DIY baseline.
+**Status:** Current priorities as of 2026-08-13. Future phases are optional; they do not redefine the local-first DIY baseline.
 
 ## Baseline delivered
 
 - Modular ESP32-S3 firmware for GNSS, metrics, sessions, routes, LEDs, Wi-Fi, portal, storage, and optional BLE.
-- Four LED modes, 12 effects, status pixels, welcome animation, optional Day Mode, and one global estimated-current limiter across both LED buses.
+- Four LED modes, a versioned 12-effect registry, explicit LED state/policy, status pixels, welcome animation, optional Day Mode, and one global estimated-current limiter across both LED buses.
 - Local AP/STA portal with captive helpers, network scan, route preview/export, runtime configuration, diagnostics, and optional write PIN.
 - CRC-protected transactional persistence and dedicated two-hour route storage.
 - Pinned production/Wokwi builds, host contracts, portal smoke, Playwright/a11y coverage, and visual baselines.
@@ -30,12 +30,12 @@
 ## Milestone 3 — Optional LED and portal evolution
 
 - Revisit the delivered estimator only if physical calibration shows that the simple base/channel model needs voltage, temperature, or hardware-sensor inputs.
-- Replace duplicated effect knowledge with one metadata registry consumed by firmware diagnostics and the portal.
+- Evolve the delivered effect registry only when a new effect or palette has an honest control/safety contract and characterization vectors.
 - Explore a small semantic layout (`status`, `body A`, `body B`, `alert`) instead of a general-purpose segment editor.
 - Add RGBW-aware palettes and crossfades when they improve the collar's existing modes; avoid effect-count inflation.
 - Consider compiling/compressing portal source assets if the embedded C++ strings become a maintenance or flash-size constraint.
 
-These remaining ideas are explored in the [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md). Phase 1 current limiting is delivered in software; later phases remain optional design directions.
+These remaining ideas are explored in the [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md). Phases 1 and 2 are delivered in software; later phases remain optional design directions.
 
 ## Milestone 4 — Optional sensing
 

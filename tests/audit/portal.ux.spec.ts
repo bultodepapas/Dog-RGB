@@ -19,7 +19,7 @@ type Posted = { url: string; body: string };
 
 async function mockPortal(
   page: Page,
-  opts: { scan?: unknown; failConfig?: boolean; dev?: string; summary?: string } = {},
+  opts: { scan?: unknown; failConfig?: boolean; dev?: string; summary?: string; capabilities?: unknown } = {},
 ) {
   const posted: Posted[] = [];
   await page.route('**/api/**', async (route) => {
@@ -31,6 +31,10 @@ async function mockPortal(
     if (p === '/api/summary') return route.fulfill({ json: fx(opts.summary ?? 'summary.active.json') });
     if (p === '/api/status') return route.fulfill({ json: fx('status.connected.json') });
     if (p === '/api/dev') return route.fulfill({ json: fx(opts.dev ?? 'dev.healthy.json') });
+    if (p === '/api/v1/led/capabilities') {
+      return route.fulfill({ json: opts.capabilities ?? fx('led.capabilities.json') });
+    }
+    if (p === '/api/v1/led/state') return route.fulfill({ json: fx('led.state.json') });
     if (p === '/api/config' && m === 'GET') {
       if (opts.failConfig) return route.fulfill({ status: 503, json: { status: 'error' } });
       return route.fulfill({ json: fx('config.speed.json') });
@@ -597,6 +601,32 @@ test.describe('CC10 · the densest controls are not the smallest type', () => {
       return bad;
     });
     expect(tiny).toEqual([]);
+  });
+});
+
+test.describe('Fase 2 · controls come from LED capabilities', () => {
+  test('device metadata supplies names and enables only meaningful controls', async ({ page }) => {
+    const capabilities = fx('led.capabilities.json');
+    capabilities.effects[0].name = 'SOLID DESDE DEVICE';
+    await mockPortal(page, { capabilities });
+    await page.goto('/config');
+
+    const effect = page.locator('#simple_effect');
+    await expect(effect.locator('option')).toHaveCount(12);
+    await expect(effect.locator('option').first()).toHaveText('SOLID DESDE DEVICE');
+    await page.locator('[data-mode-card="simple"]').click();
+    await expect(page.locator('#simple_block')).toBeVisible();
+
+    await effect.selectOption('0');
+    await expect(page.locator('#simple_speed')).toBeDisabled();
+    await expect(page.locator('#simple_intensity')).toBeDisabled();
+    await expect(page.locator('#simple_r')).toBeEnabled();
+
+    await effect.selectOption('10');
+    await expect(page.locator('#simple_speed')).toBeDisabled();
+    await expect(page.locator('#simple_intensity')).toBeEnabled();
+    await expect(page.locator('#simple_r')).toBeDisabled();
+    await expect(page.locator('#simple_effect_hint')).toContainText('seguridad advanced');
   });
 });
 

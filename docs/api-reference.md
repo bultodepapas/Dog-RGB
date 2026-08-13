@@ -1,6 +1,6 @@
 # Dog-RGB Local HTTP API
 
-**Status:** Current firmware contract, verified on 2026-08-12.
+**Status:** Current firmware contract, verified on 2026-08-13.
 
 The ESP32-S3 serves a synchronous, local-only HTTP API on port 80. There is no TLS, cloud gateway, CORS API, or user-account layer. Use it only on a trusted local network or the collar's own AP.
 
@@ -46,6 +46,8 @@ Unknown non-API paths redirect relatively to `/`. Captive probes at `/generate_2
 | GET | `/api/summary` | Read-only | Daily metrics, current session, last completed day, and up to three completed sessions |
 | GET | `/api/status` | Read-only | Compact Wi-Fi, GNSS, Home, mode, and Day Mode state |
 | GET | `/api/dev` | Read-only | Detailed health, counters, storage recovery, LED power estimate, and loop timing |
+| GET | `/api/v1/led/state` | Read-only | Current selected LED intent, priority, effects, color, and limiter snapshot |
+| GET | `/api/v1/led/capabilities` | Read-only | Versioned effect metadata, layout, limits, and supported LED API features |
 | GET | `/api/track` | Read-only | Stream route snapshot as JSON |
 | GET | `/api/track.csv` | Read-only | Stream route snapshot as CSV |
 | GET | `/api/track.geojson` | Read-only | Stream route snapshot as GeoJSON |
@@ -160,6 +162,111 @@ Known API paths called with the wrong method return `405`; unknown `/api/*` path
 ```
 
 `requested_ma` is the pre-limit estimate and `estimated_ma` is the post-limit estimate for the last transported frame. `peak_requested_ma` and `frames_limited` accumulate since boot. These values are not sensor readings.
+
+## LED API v1
+
+The v1 endpoints are additive read contracts. Runtime writes continue through schema-6 `/api/config`; there is deliberately no `PATCH /api/v1/led/state` in Phase 2.
+
+### Current state
+
+`GET /api/v1/led/state` reports the state selected by the policy engine, rather than recomputing a second interpretation in the HTTP layer:
+
+```json
+{
+  "schema_version": 1,
+  "mode": "speed",
+  "intent": "range",
+  "priority": 30,
+  "body_enabled": true,
+  "status_enabled": true,
+  "homogeneous": false,
+  "critical_alert": false,
+  "range": 3,
+  "brightness": 180,
+  "effect_a": {
+    "id": 1,
+    "key": "pulse",
+    "name": "PULSE",
+    "speed": 128,
+    "intensity": 200
+  },
+  "effect_b": {
+    "id": 2,
+    "key": "breath",
+    "name": "BREATH",
+    "speed": 128,
+    "intensity": 200
+  },
+  "base_rgb": {"r": 0, "g": 60, "b": 0},
+  "power": {
+    "budget_ma": 1000,
+    "requested_ma": 640,
+    "estimated_ma": 640,
+    "scale": 255,
+    "estimate_only": true
+  }
+}
+```
+
+`intent` is one of `welcome`, `day_status`, `idle`, `home_missing`, `range`, `show`, `simple`, or `critical_alert`; current composition normally represents a critical condition with `critical_alert:true` alongside the underlying body intent. `range` is `-1` when no Speed/Geofence range is active.
+
+Priority values are part of schema 1: welcome `100`, critical overlay `90`, Day Mode `80`, active Range/Show/Simple scenes `30`, and idle/Home guidance `20`. Higher values win policy selection; consumers should still use the named fields instead of inferring the full scene from a number alone.
+
+### Capabilities and effect metadata
+
+`GET /api/v1/led/capabilities` returns exactly one descriptor for every valid persisted effect ID. A shortened response is:
+
+```json
+{
+  "schema_version": 1,
+  "effect_registry_version": 1,
+  "effect_count": 12,
+  "persistent_effect_ids": true,
+  "layout": {
+    "buses": 2,
+    "pixels_per_bus": 24,
+    "status_pixels_per_bus": 2,
+    "physical_format": "RGBW",
+    "logical_format": "RGB"
+  },
+  "limits": {
+    "brightness_min": 1,
+    "brightness_max": 255,
+    "speed_min": 0,
+    "speed_max": 255,
+    "intensity_min": 0,
+    "intensity_max": 255,
+    "current_budget_min_ma": 250,
+    "current_budget_max_ma": 5000
+  },
+  "features": {
+    "state_get": true,
+    "state_patch": false,
+    "transitions": false,
+    "palettes": false
+  },
+  "effects": [
+    {
+      "id": 0,
+      "key": "solid",
+      "name": "SOLID",
+      "controls": {"speed": false, "intensity": false, "color": true},
+      "defaults": {"speed": 80, "intensity": 140},
+      "useful_range": {
+        "speed_min": 0,
+        "speed_max": 255,
+        "intensity_min": 0,
+        "intensity_max": 255
+      },
+      "color_mode": "base",
+      "palette_mode": "none",
+      "safety": "calm"
+    }
+  ]
+}
+```
+
+The real `effects` array contains all 12 entries. `controls` says which stored parameters visibly affect that renderer, so clients should disable irrelevant inputs without deleting their persisted values. `color_mode` is `base` or `generated`; `palette_mode` is `none`, `internal`, or `selectable`. Phase 2 has one fixed internal heat palette (`FIRE`) and no user-selectable palette, hence `features.palettes:false`.
 
 ## Route exports
 

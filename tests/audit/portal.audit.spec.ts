@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(__dirname, 'evidence');
+const fixturesDir = path.join(__dirname, '..', 'ap-portal-visual', 'fixtures');
+const fixtureJson = (name: string): unknown =>
+  JSON.parse(readFileSync(path.join(fixturesDir, name), 'utf-8'));
 mkdirSync(outDir, { recursive: true });
 
 const PAGES = [
@@ -35,6 +38,13 @@ async function mockApis(page: Page) {
     const url = new URL(route.request().url());
     const p = url.pathname;
     const send = (json: unknown) => route.fulfill({ json });
+
+    if (p === '/api/v1/led/capabilities') {
+      return send(fixtureJson('led.capabilities.json'));
+    }
+    if (p === '/api/v1/led/state') {
+      return send(fixtureJson('led.state.json'));
+    }
 
     if (p === '/api/summary') {
       return send({

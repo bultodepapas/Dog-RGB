@@ -455,6 +455,8 @@ Criterio de salida:
 
 **Esfuerzo:** 4–7 días. **Prioridad:** alta.
 
+**Estado 2026-08-13:** implementación de software completa. Los 12 IDs persistidos se conservan en un `EffectRegistry` versionado; el renderer puro recibe tiempo y PRNG explícitos; `LedPolicyEngine` produce un `LedState` serializable con prioridades caracterizadas; `/api/v1/led/state` y `/api/v1/led/capabilities` son aditivos; y el portal construye opciones/controles desde capabilities. El esquema NVS permanece en 6 y el registro binario en 2. Build de producción, 124 pruebas host, smoke y 76 pruebas Playwright quedan verdes; véase el [registro de Fase 2](baselines/fase-2-2026-08-13.md).
+
 Trabajo:
 
 - Crear pruebas de caracterización de los 12 efectos actuales con tiempo y semilla fijos.

@@ -13,6 +13,7 @@
 #include "geofence/home.h"
 #include "gps/gps.h"
 #include "led/led_ui.h"
+#include "led/effect_registry.h"
 #include "power/day_mode.h"
 #include "storage/nvs_store.h"
 #include "util/time_utils.h"
@@ -152,7 +153,8 @@ static const char *API_ROUTES[] = {
     "/api/summary", "/api/status",      "/api/dev",       "/api/track",
     "/api/track.csv", "/api/track.geojson", "/api/config", "/api/config/reset",
     "/api/home",    "/api/home/set",    "/api/home/clear", "/api/wifi",
-    "/api/wifi/ap", "/api/wifi/scan", "/api/lock"};
+    "/api/wifi/ap", "/api/wifi/scan", "/api/lock",
+    "/api/v1/led/state", "/api/v1/led/capabilities"};
 
 bool is_known_api_route(const String &uri) {
   for (size_t i = 0; i < sizeof(API_ROUTES) / sizeof(API_ROUTES[0]); ++i) {
@@ -288,6 +290,114 @@ void handle_dev_page() {
 void handle_summary() {
   note_activity();
   server.send(200, "application/json", gps::build_summary_json());
+}
+
+void append_effect_descriptor(JsonObject out,
+                              const led::EffectDescriptor &descriptor) {
+  out["id"] = descriptor.id;
+  out["key"] = descriptor.key;
+  out["name"] = descriptor.label;
+  JsonObject controls = out["controls"].to<JsonObject>();
+  controls["speed"] =
+      (descriptor.controls & led::EFFECT_CONTROL_SPEED) != 0;
+  controls["intensity"] =
+      (descriptor.controls & led::EFFECT_CONTROL_INTENSITY) != 0;
+  controls["color"] =
+      (descriptor.controls & led::EFFECT_CONTROL_COLOR) != 0;
+  JsonObject defaults = out["defaults"].to<JsonObject>();
+  defaults["speed"] = descriptor.defaults.speed;
+  defaults["intensity"] = descriptor.defaults.intensity;
+  JsonObject useful = out["useful_range"].to<JsonObject>();
+  useful["speed_min"] = descriptor.useful.speed_min;
+  useful["speed_max"] = descriptor.useful.speed_max;
+  useful["intensity_min"] = descriptor.useful.intensity_min;
+  useful["intensity_max"] = descriptor.useful.intensity_max;
+  out["color_mode"] = led::effect_color_mode_name(descriptor.color_mode);
+  out["palette_mode"] =
+      led::effect_palette_mode_name(descriptor.palette_mode);
+  out["safety"] = led::effect_safety_name(descriptor.safety);
+}
+
+void handle_led_capabilities_get() {
+  note_activity();
+  JsonDocument doc;
+  doc["schema_version"] = 1;
+  doc["effect_registry_version"] = led::EFFECT_REGISTRY_VERSION;
+  doc["effect_count"] = led::effect_descriptor_count();
+  doc["persistent_effect_ids"] = true;
+  JsonObject layout = doc["layout"].to<JsonObject>();
+  layout["buses"] = LED_STRIP_MODE == 2 ? 2 : 1;
+  layout["pixels_per_bus"] = LED_STRIP_COUNT;
+  layout["status_pixels_per_bus"] = LED_STATUS_COUNT;
+  layout["physical_format"] = "RGBW";
+  layout["logical_format"] = "RGB";
+  JsonObject limits = doc["limits"].to<JsonObject>();
+  limits["brightness_min"] = 1;
+  limits["brightness_max"] = 255;
+  limits["speed_min"] = 0;
+  limits["speed_max"] = 255;
+  limits["intensity_min"] = 0;
+  limits["intensity_max"] = 255;
+  limits["current_budget_min_ma"] = LED_POWER_BUDGET_MA_MIN;
+  limits["current_budget_max_ma"] = LED_POWER_BUDGET_MA_MAX;
+  JsonObject features = doc["features"].to<JsonObject>();
+  features["state_get"] = true;
+  features["state_patch"] = false;
+  features["transitions"] = false;
+  features["palettes"] = false;
+  JsonArray effects = doc["effects"].to<JsonArray>();
+  for (size_t i = 0; i < led::effect_descriptor_count(); ++i) {
+    JsonObject item = effects.add<JsonObject>();
+    append_effect_descriptor(item, led::effect_descriptor_at(i));
+  }
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
+}
+
+void append_state_effect(JsonObject out, uint8_t effect_id, uint8_t speed,
+                         uint8_t intensity) {
+  out["id"] = effect_id;
+  const led::EffectDescriptor *descriptor = led::effect_descriptor(effect_id);
+  out["key"] = descriptor == nullptr ? "unknown" : descriptor->key;
+  out["name"] = descriptor == nullptr ? "UNKNOWN" : descriptor->label;
+  out["speed"] = speed;
+  out["intensity"] = intensity;
+}
+
+void handle_led_state_get() {
+  note_activity();
+  const led::LedState &state = led_ui::current_state();
+  const RuntimeConfig &cfg = config::get();
+  JsonDocument doc;
+  doc["schema_version"] = 1;
+  doc["mode"] = led::led_mode_name(state.mode);
+  doc["intent"] = led::led_intent_name(state.intent);
+  doc["priority"] = state.priority;
+  doc["body_enabled"] = state.body_enabled;
+  doc["status_enabled"] = state.status_enabled;
+  doc["homogeneous"] = state.homogeneous;
+  doc["critical_alert"] = state.critical_alert;
+  doc["range"] = state.range;
+  doc["brightness"] = state.brightness;
+  JsonObject effect_a = doc["effect_a"].to<JsonObject>();
+  append_state_effect(effect_a, state.effect_a, state.speed, state.intensity);
+  JsonObject effect_b = doc["effect_b"].to<JsonObject>();
+  append_state_effect(effect_b, state.effect_b, state.speed, state.intensity);
+  JsonObject base = doc["base_rgb"].to<JsonObject>();
+  base["r"] = state.base.r;
+  base["g"] = state.base.g;
+  base["b"] = state.base.b;
+  const led::PowerDiagnostics &power = led_ui::power_diagnostics();
+  JsonObject limiting = doc["power"].to<JsonObject>();
+  limiting["budget_ma"] = cfg.led_power_budget_ma;
+  limiting["requested_ma"] = power.requested_ma;
+  limiting["estimated_ma"] = power.estimated_ma;
+  limiting["scale"] = power.scale;
+  limiting["estimate_only"] = true;
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
 }
 
 void handle_status_get() {
@@ -504,8 +614,15 @@ void handle_dev_get() {
   geo["range"] = geo_range;
 
   JsonObject led = doc["led"].to<JsonObject>();
-  led["mode"] = config::mode_name(cfg.mode);
-  led["brightness"] = cfg.brightness;
+  const led::LedState &active_state = led_ui::current_state();
+  led["mode"] = led::led_mode_name(active_state.mode);
+  led["intent"] = led::led_intent_name(active_state.intent);
+  led["priority"] = active_state.priority;
+  led["body_enabled"] = active_state.body_enabled;
+  led["status_enabled"] = active_state.status_enabled;
+  led["homogeneous"] = active_state.homogeneous;
+  led["critical_alert"] = active_state.critical_alert;
+  led["brightness"] = active_state.brightness;
   const auto &power_diag = led_ui::power_diagnostics();
   JsonObject power = led["power"].to<JsonObject>();
   power["enabled"] = cfg.led_power_limit_enabled;
@@ -521,35 +638,17 @@ void handle_dev_get() {
       (static_cast<uint16_t>(power_diag.scale) * 100U) / 255U;
   power["frames_limited"] = power_diag.frames_limited;
   power["estimate_only"] = true;
-  int range = -1;
-  if (cfg.mode == MODE_SPEED && gps::has_fix()) {
-    range = static_cast<int>(led_ui::speed_range(gps::last_speed_kph()));
-  } else if (cfg.mode == MODE_GEOFENCE && geo_range > 0) {
-    range = geo_range;
-  }
-  led["range"] = range;
-  if (range >= 1 && range <= 10) {
-    int eff_a = 0;
-    int eff_b = 0;
-    uint8_t eff_speed = 0;
-    uint8_t eff_intensity = 0;
-    led_ui::get_range_config(static_cast<uint8_t>(range), eff_a, eff_b, eff_speed, eff_intensity);
-    JsonObject effA = led["effect_a"].to<JsonObject>();
-    effA["id"] = eff_a;
-    effA["name"] = led_ui::effect_name(static_cast<uint8_t>(eff_a));
-    effA["speed"] = eff_speed;
-    effA["intensity"] = eff_intensity;
-    JsonObject effB = led["effect_b"].to<JsonObject>();
-    effB["id"] = eff_b;
-    effB["name"] = led_ui::effect_name(static_cast<uint8_t>(eff_b));
-    effB["speed"] = eff_speed;
-    effB["intensity"] = eff_intensity;
-    const led_ui::Rgb base = led_ui::base_color_for_range(static_cast<uint8_t>(range));
-    JsonObject baseRgb = led["base_rgb"].to<JsonObject>();
-    baseRgb["r"] = base.r;
-    baseRgb["g"] = base.g;
-    baseRgb["b"] = base.b;
-  }
+  led["range"] = active_state.range;
+  JsonObject effA = led["effect_a"].to<JsonObject>();
+  append_state_effect(effA, active_state.effect_a, active_state.speed,
+                      active_state.intensity);
+  JsonObject effB = led["effect_b"].to<JsonObject>();
+  append_state_effect(effB, active_state.effect_b, active_state.speed,
+                      active_state.intensity);
+  JsonObject baseRgb = led["base_rgb"].to<JsonObject>();
+  baseRgb["r"] = active_state.base.r;
+  baseRgb["g"] = active_state.base.g;
+  baseRgb["b"] = active_state.base.b;
   JsonObject simple = led["simple"].to<JsonObject>();
   simple["effect"] = cfg.single.effect_id;
   simple["name"] = led_ui::effect_name(cfg.single.effect_id);
@@ -936,7 +1035,7 @@ void handle_config_post() {
       const int eff_b = r["b"] | next.effects[i].effect_b;
       const int eff_speed = r["speed"] | next.effects[i].speed;
       const int eff_intensity = r["intensity"] | next.effects[i].intensity;
-      if (eff_a < 0 || eff_a > 11 || eff_b < 0 || eff_b > 11 ||
+      if (!led::effect_id_valid(eff_a) || !led::effect_id_valid(eff_b) ||
           eff_speed < 0 || eff_speed > 255 || eff_intensity < 0 || eff_intensity > 255) {
         server.send(400, "application/json", "{\"status\":\"error\",\"reason\":\"effect values\"}");
         return;
@@ -970,7 +1069,7 @@ void handle_config_post() {
       single_g = rgb["g"] | single_g;
       single_b = rgb["b"] | single_b;
     }
-    if (single_eff < 0 || single_eff >= EFFECT_COUNT ||
+    if (!led::effect_id_valid(single_eff) ||
         single_speed < 0 || single_speed > 255 ||
         single_intensity < 0 || single_intensity > 255 ||
         single_r < 0 || single_r > 255 ||
@@ -1316,6 +1415,9 @@ void begin() {
   server.on("/api/summary", HTTP_GET, handle_summary);
   server.on("/api/status", HTTP_GET, handle_status_get);
   server.on("/api/dev", HTTP_GET, handle_dev_get);
+  server.on("/api/v1/led/state", HTTP_GET, handle_led_state_get);
+  server.on("/api/v1/led/capabilities", HTTP_GET,
+            handle_led_capabilities_get);
   server.on("/api/track", HTTP_GET, handle_track_get);
   server.on("/api/track.csv", HTTP_GET, handle_track_csv);
   server.on("/api/track.geojson", HTTP_GET, handle_track_geojson);

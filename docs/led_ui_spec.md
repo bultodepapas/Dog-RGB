@@ -1,6 +1,6 @@
 # LED User-Interface Specification
 
-**Status:** Current implemented behavior, verified 2026-08-12.
+**Status:** Current implemented behavior, verified 2026-08-13.
 
 The LED system combines activity effects with an always-visible local health interface wherever the selected mode allows it.
 
@@ -42,6 +42,16 @@ Speed/Geofence use the same ten effect records. Geofence changes the range selec
 
 ## Priority and composition
 
+`LedPolicyEngine` receives value-only inputs and produces the retained `LedState`. Priorities are explicit:
+
+| Priority | Intent/layer | Result |
+| ---: | --- | --- |
+| 100 | Welcome | Owns both complete strips during startup |
+| 90 | Critical alert | Sets the status override while preserving the underlying body intent where composition permits |
+| 80 | Day status | Disables the body and keeps status pixels; a simultaneous critical alert reports priority 90 |
+| 30 | Range, Show, Simple | Normal configured scene |
+| 20 | Idle, Home missing | Fallback/guidance behavior |
+
 The practical render order is:
 
 1. **Welcome** owns the strips until its startup sequence completes.
@@ -51,7 +61,7 @@ The practical render order is:
 5. **Homogeneous state**, when Wi-Fi is explicitly OFF and GNSS has been stable for five minutes, can extend the selected effect to all pixels.
 6. Otherwise status rendering paints the reserved pixels, including the critical red override.
 
-The critical override has priority within the status layer; it cannot appear while Simple owns the full strip, but Day Mode restores status rendering.
+The critical override has priority within the status layer; it cannot appear while Simple owns the full strip, but Day Mode restores status rendering. `critical_alert` is therefore a separate state flag rather than silently replacing `intent`.
 
 ## Day Mode
 
@@ -83,10 +93,14 @@ Default Speed colors progress from cyan at the lowest range to red at the highes
 
 ## Diagnostics and testing
 
-`/api/dev` exposes current mode, brightness, speed/geofence range, chosen effects/base color, Simple configuration, current Show effect, requested/limited current estimate, scale, peak, and frames limited. The Wokwi `modes` scenario and host Day Mode/power contracts validate mode selection, persistence, status preservation, RGBW conversion, and budget saturation; physical strips still require current/temperature/visual checks.
+`/api/v1/led/state` exposes the retained policy result: mode, intent, priority, composition flags, range, effects, parameters, base RGB, brightness, and latest limiter snapshot. `/api/dev` uses that same state instead of recomputing a second range/effect decision. `/api/v1/led/capabilities` exposes the registry and hardware/control limits used by the configuration portal.
+
+The native Phase 2 harness validates policy boundaries for Welcome, Day Mode, critical overlay, missing GNSS, missing Home, Speed/Geofence ranges, Show, Simple, and null configuration. The Wokwi `modes` scenario and host Day Mode/power contracts continue validating integration, persistence, status preservation, RGBW conversion, and budget saturation; physical strips still require current/temperature/visual checks.
 
 ## Frame, transport, and power boundary
 
 Effects render RGB into a fixed `LedFrame` containing buses A/B. `LedBus` owns Adafruit NeoPixel and is the only layer that converts RGB to physical RGBW or writes GPIO. Before transport, `PowerLimiter` evaluates both active buses as one load and applies the same scale to every RGBW channel.
+
+The effect renderer itself is `effect_registry.cpp`. It consumes explicit time, PRNG state, effect runtime, base color, parameters, and a bounded pixel span. It does not import GPS, Wi-Fi, geofence, NVS, Arduino time/random, or the physical bus. `led_ui.cpp` is the integration adapter that snapshots those product domains, converts schema-6 `RangeEffect` records to `LedPolicyConfig`, and composes status/transport.
 
 The limit is enabled by default. Its runtime profile is advanced configuration: total budget, non-LED base current, full R/G/B channel current, and full white-channel current. Reduction is immediate; recovery is gradual to reduce visible pumping. The estimate is intentionally rounded upward but remains a model rather than a current sensor.

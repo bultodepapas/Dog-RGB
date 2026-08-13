@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "effect_registry_version": 1,
+  "effect_count": 12,
+  "persistent_effect_ids": true,
+  "layout": {
+    "buses": 2,
+    "pixels_per_bus": 24,
+    "status_pixels_per_bus": 2,
+    "physical_format": "RGBW",
+    "logical_format": "RGB"
+  },
+  "limits": {
+    "brightness_min": 1,
+    "brightness_max": 255,
+    "speed_min": 0,
+    "speed_max": 255,
+    "intensity_min": 0,
+    "intensity_max": 255,
+    "current_budget_min_ma": 250,
+    "current_budget_max_ma": 5000
+  },
+  "features": {
+    "state_get": true,
+    "state_patch": false,
+    "transitions": false,
+    "palettes": false
+  },
+  "effects": [
+    {
+      "id": 0, "key": "solid", "name": "SOLID",
+      "controls": {"speed": false, "intensity": false, "color": true},
+      "defaults": {"speed": 80, "intensity": 140},
+      "useful_range": {"speed_min": 0, "speed_max": 255, "intensity_min": 0, "intensity_max": 255},
+      "color_mode": "base", "palette_mode": "none", "safety": "calm"
+    },
+    {
+      "id": 1, "key": "pulse", "name": "PULSE",
+      "controls": {"speed": true, "intensity": false, "color": true},
+      "defaults": {"speed": 80, "intensity": 140},
+      "useful_range": {"speed_min": 10, "speed_max": 180, "intensity_min": 0, "intensity_max": 255},
+      "color_mode": "base", "palette_mode": "none", "safety": "active"
+    },
+    {
+      "id": 2, "key": "breath", "name": "BREATH",
+      "controls": {"speed": true, "intensity": false, "color": true},
+      "defaults": {"speed": 60, "intensity": 90},
+      "useful_range": {"speed_min": 10, "speed_max": 140, "intensity_min": 0, "intensity_max": 255},
+      "color_mode": "base", "palette_mode": "none", "safety": "calm"
+    },
+    {
+      "id": 3, "key": "chase", "name": "CHASE",
+      "controls": {"speed": true, "intensity": true, "color": true},
+      "defaults": {"speed": 120, "intensity": 140},
+      "useful_range": {"speed_min": 32, "speed_max": 224, "intensity_min": 40, "intensity_max": 240},
+      "color_mode": "base", "palette_mode": "none", "safety": "active"
+    },
+    {
+      "id": 4, "key": "comet", "name": "COMET",
+      "controls": {"speed": true, "intensity": true, "color": true},
+      "defaults": {"speed": 120, "intensity": 140},
+      "useful_range": {"speed_min": 24, "speed_max": 216, "intensity_min": 40, "intensity_max": 240},
+      "color_mode": "base", "palette_mode": "none", "safety": "active"
+    },
+    {
+      "id": 5, "key": "sinelon", "name": "SINELON",
+      "controls": {"speed": true, "intensity": true, "color": true},
+      "defaults": {"speed": 110, "intensity": 150},
+      "useful_range": {"speed_min": 20, "speed_max": 180, "intensity_min": 40, "intensity_max": 240},
+      "color_mode": "base", "palette_mode": "none", "safety": "active"
+    },
+    {
+      "id": 6, "key": "confetti", "name": "CONFETTI",
+      "controls": {"speed": false, "intensity": true, "color": true},
+      "defaults": {"speed": 100, "intensity": 150},
+      "useful_range": {"speed_min": 0, "speed_max": 255, "intensity_min": 40, "intensity_max": 240},
+      "color_mode": "base", "palette_mode": "none", "safety": "active"
+    },
+    {
+      "id": 7, "key": "juggle", "name": "JUGGLE",
+      "controls": {"speed": true, "intensity": true, "color": true},
+      "defaults": {"speed": 150, "intensity": 180},
+      "useful_range": {"speed_min": 20, "speed_max": 200, "intensity_min": 40, "intensity_max": 240},
+      "color_mode": "base", "palette_mode": "none", "safety": "advanced"
+    },
+    {
+      "id": 8, "key": "bpm", "name": "BPM",
+      "controls": {"speed": true, "intensity": false, "color": true},
+      "defaults": {"speed": 100, "intensity": 150},
+      "useful_range": {"speed_min": 10, "speed_max": 180, "intensity_min": 0, "intensity_max": 255},
+      "color_mode": "base", "palette_mode": "none", "safety": "active"
+    },
+    {
+      "id": 9, "key": "rainbow", "name": "RAINBOW",
+      "controls": {"speed": true, "intensity": false, "color": false},
+      "defaults": {"speed": 120, "intensity": 180},
+      "useful_range": {"speed_min": 16, "speed_max": 224, "intensity_min": 0, "intensity_max": 255},
+      "color_mode": "generated", "palette_mode": "none", "safety": "active"
+    },
+    {
+      "id": 10, "key": "fire", "name": "FIRE",
+      "controls": {"speed": false, "intensity": true, "color": false},
+      "defaults": {"speed": 155, "intensity": 200},
+      "useful_range": {"speed_min": 80, "speed_max": 220, "intensity_min": 80, "intensity_max": 240},
+      "color_mode": "generated", "palette_mode": "internal", "safety": "advanced"
+    },
+    {
+      "id": 11, "key": "gradient_wave", "name": "GRADIENT_WAVE",
+      "controls": {"speed": true, "intensity": false, "color": false},
+      "defaults": {"speed": 120, "intensity": 180},
+      "useful_range": {"speed_min": 24, "speed_max": 224, "intensity_min": 0, "intensity_max": 255},
+      "color_mode": "generated", "palette_mode": "none", "safety": "active"
+    }
+  ]
+}

@@ -3,21 +3,9 @@
 #include <stdint.h>
 
 #include "config.h"
+#include "led/led_color.h"
 
 namespace led {
-
-struct Rgb {
-  uint8_t r;
-  uint8_t g;
-  uint8_t b;
-};
-
-struct Rgbw {
-  uint8_t r;
-  uint8_t g;
-  uint8_t b;
-  uint8_t w;
-};
 
 // Logical frame rendered by the effects engine. The transport layer owns all
 // hardware details and converts this RGB representation to the physical RGBW

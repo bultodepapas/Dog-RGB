@@ -45,6 +45,14 @@ async function mockPortalApis(page: Page, state: MockState = {}) {
       await route.fulfill({ json: fixtureJson(fixtures.status) });
       return;
     }
+    if (url.pathname === '/api/v1/led/capabilities') {
+      await route.fulfill({ json: fixtureJson('led.capabilities.json') });
+      return;
+    }
+    if (url.pathname === '/api/v1/led/state') {
+      await route.fulfill({ json: fixtureJson('led.state.json') });
+      return;
+    }
     if (url.pathname === '/api/config' && method === 'GET') {
       await route.fulfill({ json: fixtureJson(fixtures.config) });
       return;

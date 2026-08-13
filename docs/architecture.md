@@ -1,6 +1,6 @@
 # Dog-RGB Architecture
 
-**Status:** Current architecture, verified against the active firmware on 2026-08-12.
+**Status:** Current architecture, verified against the active firmware on 2026-08-13.
 
 Dog-RGB is a local-first embedded system. The ESP32-S3 owns GNSS acquisition, metrics, route/session persistence, LED rendering, Wi-Fi policy, the HTTP portal, and an optional BLE summary. No backend is required for normal operation.
 
@@ -42,7 +42,9 @@ The power drawing is conceptual. The real charger/BMS/boost/regulator topology m
 | Embedded pages | `include/web/pages.h`, `src/web/pages.cpp` | Dashboard, Wi-Fi, configuration, and diagnostics HTML/CSS/JavaScript |
 | Portal write lock | `include/web/portal_lock.h`, `src/web/portal_lock.cpp` | Optional 4–8 digit PIN, CRC record, constant-work comparison |
 | Runtime configuration | `include/config/runtime_config.h`, `src/config/runtime_config.cpp` | Defaults, schema migration, validation, A/B persistence, hot application |
-| LED UI/render | `include/led/led_ui.h`, `src/led/led_ui.cpp` | Status pixels, 12 effects, Speed/Geofence/Show/Simple renderers, welcome animation, logical `LedFrame` |
+| LED orchestration | `include/led/led_ui.h`, `src/led/led_ui.cpp` | Snapshot device-domain inputs, adapt schema-6 config, compose status/welcome/Show/Simple, retain current `LedState` |
+| LED state and policy | `include/led/led_state.h`, `include/led/led_policy.h`, `src/led/{led_state,led_policy}.cpp` | Pure priority/intent selection from value-only inputs; no GPS, Wi-Fi, geofence, NVS, or pixel ownership |
+| Effect registry/renderer | `include/led/effect_registry.h`, `src/led/effect_registry.cpp` | Stable ID/key metadata plus allocation-free RGB generation from explicit time, seed, runtime, and pixel span |
 | LED transport | `include/led/led_bus.h`, `src/led/led_bus.cpp` | NeoPixel ownership, centralized RGB→RGBW conversion, dual-strip output |
 | LED power model | `include/led/power_limiter.h`, `src/led/power_limiter.cpp` | Two-bus current estimate, global scale, slow release, diagnostics |
 | Day Mode | `include/power/day_mode.h`, `src/power/day_mode.cpp` | Pure evaluation of enabled/trusted-time/day-window state |
@@ -104,8 +106,9 @@ Queue high-water and overflow counters are exposed in diagnostics. On overflow, 
 2. RMC provides status, position, speed, UTC time/date; GGA provides fix quality, satellites, and HDOP.
 3. A trusted fix requires current/acceptable evidence under runtime GNSS gates.
 4. Trusted observations update speed usability, Haversine segments, active time, maximum speed, route points, and date-transition state.
-5. Metrics feed the dashboard summary, sessions, LED range selection, geofence distance, optional BLE payload, and diagnostics.
-6. Runtime configuration is validated as a complete semantic record, persisted, then applied to LEDs/Wi-Fi/mDNS.
+5. Metrics and device-domain snapshots feed `LedPolicyEngine`, which selects a value-only `LedState`; renderers consume that state without importing GNSS, Wi-Fi, or geofence modules.
+6. The selected effect descriptor and explicit render context produce logical RGB, then `LedBus` limits and converts the frame for physical RGBW transport.
+7. Runtime configuration is validated as a complete semantic record, persisted, then applied to LEDs/Wi-Fi/mDNS.
 
 Average speed is `distance / active_time`; it is not a mean of NMEA speed samples. Activity intervals require active evidence at both endpoints and reject gaps longer than the configured bound.
 
@@ -156,6 +159,20 @@ The default physical layout is two strips with 24 pixels each and two reserved s
 - Speed/Geofence/Show normally render the body then status;
 - after an explicit Wi-Fi-OFF state and five minutes of stable GNSS, the retained homogeneous-rendering path can use the full strip; automatic AP idle shutdown currently stops SoftAP without entering this state;
 - a critical status overrides normal status pixels where those pixels remain reserved.
+
+```mermaid
+flowchart LR
+    DOMAIN[GNSS · Wi-Fi · Home · Day Mode · runtime config] --> ADAPTER[led_ui adapter]
+    ADAPTER --> POLICY[LedPolicyEngine]
+    POLICY --> STATE[LedState]
+    STATE --> RENDER[EffectRegistry renderer]
+    RENDER --> FRAME[LedFrame RGB]
+    FRAME --> BUS[PowerLimiter + LedBus RGBW]
+```
+
+The policy priorities are explicit and native-tested: welcome `100`, critical status overlay `90`, Day Mode `80`, active scenes `30`, and idle/guidance `20`. A critical alert does not silently replace the decorative intent; it is a separate `critical_alert` flag so the status layer can override only the pixels it owns.
+
+The schema-6 `RangeEffect` records remain the persistence contract. `led_ui` copies them into a temporary pure `LedPolicyConfig`; this adapter deliberately avoids an NVS migration in Phase 2.
 
 See [LED UI](led_ui_spec.md) for exact behavior.
 

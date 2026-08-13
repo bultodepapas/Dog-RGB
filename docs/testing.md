@@ -1,6 +1,6 @@
 # Testing and Simulation
 
-**Status:** Current repository workflows, verified on 2026-08-12.
+**Status:** Current repository workflows, verified on 2026-08-13.
 
 Dog-RGB uses several layers because no single test environment can validate firmware logic, embedded HTML, radio behavior, and real electrical safety.
 
@@ -9,7 +9,8 @@ Dog-RGB uses several layers because no single test environment can validate firm
 | Layer | What it catches | What it does not prove |
 | --- | --- | --- |
 | PlatformIO build | Toolchain, libraries, board target, partitions, compilation/linking | Runtime behavior or physical wiring |
-| Python host contracts | Persistence recovery, time rollover, track integrity/retention/streaming, Wi-Fi queue/backoff, Wokwi assets | Native execution of every C++ branch |
+| Python host contracts | Persistence recovery, time rollover, track integrity/retention/streaming, Wi-Fi queue/backoff, Wokwi assets, LED source boundaries | Native execution of every target-specific C++ branch |
+| Native LED characterization | Pure renderer goldens, registry metadata, segment bounds, state/policy priorities | Physical color, timing jitter, electrical or thermal behavior |
 | Static portal smoke | Embedded page size budgets, escaping rules, required functions, write-header use | Browser layout or real ESP32 heap behavior |
 | Playwright | Portal interactions, accessibility assertions, mock API states, mobile layout | ESP32 networking/radio timing |
 | Visual regression | Pixel drift against reviewed Linux baselines | Usability judgment or physical display appearance |
@@ -55,9 +56,10 @@ The suite covers:
 - two-hour route retention and bounded streaming in three formats;
 - `millis()` rollover-safe intervals/deadlines;
 - Wi-Fi event queue ownership, saturation diagnostics, AP retry backoff, and reconciliation;
+- all 12 LED renderers at fixed times and seed, stable registry metadata, segment guards, and policy-priority boundaries;
 - Wokwi diagrams, custom GNSS chip assets, scenarios, and analysis contracts.
 
-These tests include source-contract assertions. They are useful regression guards, but are not a replacement for native C++ unit tests or target execution.
+Most modules use source-contract assertions. Phase 2 additionally compiles `effect_registry`, `led_policy`, and `led_state` as native C++17 with warnings treated as errors, then executes their characterization harness. Neither layer replaces target execution or physical validation.
 
 ## Portal checks
 
