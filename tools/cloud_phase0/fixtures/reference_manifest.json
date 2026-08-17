@@ -1,0 +1,85 @@
+{
+  "behavior_truth_available": false,
+  "deterministic_seed": null,
+  "fixture_schema": "dog-rgb-track-v3-synthetic-fixtures/1",
+  "fixtures": [
+    {
+      "cadence_s": [
+        60,
+        60,
+        60,
+        60,
+        60,
+        60,
+        60
+      ],
+      "caveat": "Stationary is an observation-state fixture, not proof of rest, sleep, or collar wear.",
+      "display_profile": "stationary",
+      "encoded_chunk_bytes": 220,
+      "encoded_chunk_sha256": "89601cb61de0246b611f2e4879a4433012a0c8a417b5ee3b47410a5b6d16a0aa",
+      "fixture_id": "stationary_observation",
+      "point_count": 8,
+      "truth_label": "synthetic_trusted_stationary_observations"
+    },
+    {
+      "cadence_s": [
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ],
+      "caveat": "The familiar profile name is test shorthand; speed alone cannot identify dog behavior.",
+      "display_profile": "walking",
+      "encoded_chunk_bytes": 284,
+      "encoded_chunk_sha256": "92e4a1b09b58c1088ecd8cb79ce620ae3dc3dfff7e53c633160732943562bbfa",
+      "fixture_id": "walking_kinematic",
+      "point_count": 12,
+      "truth_label": "synthetic_lower_speed_movement"
+    },
+    {
+      "cadence_s": [
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ],
+      "caveat": "The familiar profile name is test shorthand; speed alone cannot identify dog behavior.",
+      "display_profile": "running",
+      "encoded_chunk_bytes": 284,
+      "encoded_chunk_sha256": "84e79ac893a65df53d55c263a583039e61ca5dfe34b3f9625aee5564e67f14f5",
+      "fixture_id": "running_kinematic",
+      "point_count": 12,
+      "truth_label": "synthetic_higher_speed_movement"
+    },
+    {
+      "cadence_s": [
+        5,
+        5,
+        15,
+        5
+      ],
+      "caveat": "Coordinates with warnings and explicit gaps must not be converted into movement or inactivity.",
+      "display_profile": "poor-fix",
+      "encoded_chunk_bytes": 172,
+      "encoded_chunk_sha256": "00a00b0f2800500823fbb427f113abd3b69716a57ade4c1030ecabb5baada23b",
+      "fixture_id": "poor_fix_and_gap",
+      "point_count": 5,
+      "truth_label": "synthetic_low_quality_and_coverage_gap"
+    }
+  ],
+  "generator": "tools/cloud_phase0/reference_fixtures.py"
+}

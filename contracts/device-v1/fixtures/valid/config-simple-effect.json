@@ -1,0 +1,10 @@
+{
+  "resource_key": "simple_effect",
+  "resource_schema": 1,
+  "body": {
+    "effect_id": 0,
+    "speed": 80,
+    "intensity": 140,
+    "base_rgb": {"r": 0, "g": 60, "b": 60}
+  }
+}

@@ -1,0 +1,2795 @@
+{
+  "evidenceSchema": "dog-rgb-map-bakeoff/2",
+  "capturedAtUtc": "2026-08-14T01:18:37.735Z",
+  "captureIntent": "Phase 0 visual/technical provider bakeoff; synthetic fixtures only; no product or animal telemetry",
+  "environment": {
+    "platform": "win32",
+    "release": "10.0.26100",
+    "browser": "Chromium",
+    "browserVersion": "151.0.7922.34",
+    "nodeVersion": "v24.12.0",
+    "mapLibreVersion": "5.23.0"
+  },
+  "fixtureVersion": "2026-08-13.2",
+  "sourceSha256": {
+    "app.js": "bbeb10417f50276ce560b6a35a36f91ab780682d3a6668f1d1e41a55d29bf200",
+    "capture-evidence.mjs": "ff7f90ae9b79ad744f57a87fe86af9144d1d6796f9a2816f7f9346e639bb54f2",
+    "fixtures.mjs": "c3ab269dbfb809e524023f8df1042c868f251638d1a26b4fb5588c14d3e0dbb9",
+    "index.html": "3fa6f6750caaf076aca40faa6977b5e0c4e66f6355cb77c18335b5993bbb7cb3",
+    "server.mjs": "06da4a233c979796fbf0f4c858300460028de313d13cb3bd8a0702b965f5fdd2",
+    "styles.css": "92b9f9d248afd50e559188bdff08e3b39cb1fe5dc7ebd533cce49941cb96a2bd",
+    "test-harness.mjs": "12c9b5cd0b725d7b493cbfbcd4bced24c71bcda00f0d17c5856103a991b0f116"
+  },
+  "externalAssets": {
+    "https://unpkg.com/maplibre-gl@5.23.0/dist/maplibre-gl.css": {
+      "status": "captured",
+      "httpStatus": 200,
+      "sha256": "ab1e70d59ec40465bae7e7030da2f3ccf28133fd502e62bd598eefbadfd7a732",
+      "bytes": 70024
+    },
+    "https://unpkg.com/maplibre-gl@5.23.0/dist/maplibre-gl.js": {
+      "status": "captured",
+      "httpStatus": 200,
+      "sha256": "e5b398823af45165124aef0b7e43ade5e1fc28d22807a5646da3ba38b8bfdc55",
+      "bytes": 1054454
+    },
+    "https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json": {
+      "status": "captured",
+      "httpStatus": 200,
+      "sha256": "b9b2dc88efe6e0050e650cd9c3b6d73eb3637bc632247566dab08b072c363c3b",
+      "bytes": 29551
+    },
+    "https://tiles.stadiamaps.com/styles/alidade_smooth.json": {
+      "status": "captured",
+      "httpStatus": 200,
+      "sha256": "d46320583358502773b4e57768cd68e17b14426868e0814eaaf94de854471d43",
+      "bytes": 29607
+    },
+    "https://tiles.stadiamaps.com/styles/outdoors.json": {
+      "status": "captured",
+      "httpStatus": 200,
+      "sha256": "0ce6f71a6ea1bbf91ed2fe57b7061fa3e521cfb52c5eadbd251508c10113c531",
+      "bytes": 45552
+    }
+  },
+  "matrixDefinition": {
+    "providers": [
+      {
+        "id": "stadia-dark",
+        "variant": "dark",
+        "credentialMode": "keyless-loopback-only"
+      },
+      {
+        "id": "stadia-light",
+        "variant": "light",
+        "credentialMode": "keyless-loopback-only"
+      },
+      {
+        "id": "stadia-outdoor",
+        "variant": "outdoor",
+        "credentialMode": "keyless-loopback-only"
+      }
+    ],
+    "viewports": [
+      {
+        "name": "desktop-1280x720",
+        "width": 1280,
+        "height": 720,
+        "dpr": 1
+      },
+      {
+        "name": "desktop-1280x720",
+        "width": 1280,
+        "height": 720,
+        "dpr": 2
+      },
+      {
+        "name": "mobile-428x844",
+        "width": 428,
+        "height": 844,
+        "dpr": 1
+      },
+      {
+        "name": "mobile-428x844",
+        "width": 428,
+        "height": 844,
+        "dpr": 2
+      }
+    ],
+    "scenarios": [
+      {
+        "id": "urban",
+        "pointCount": 8,
+        "segmentCount": 7,
+        "gapCount": 1,
+        "durationSeconds": 210,
+        "distanceMeters": 1152
+      },
+      {
+        "id": "park",
+        "pointCount": 8,
+        "segmentCount": 7,
+        "gapCount": 1,
+        "durationSeconds": 210,
+        "distanceMeters": 1215
+      },
+      {
+        "id": "trail",
+        "pointCount": 8,
+        "segmentCount": 7,
+        "gapCount": 1,
+        "durationSeconds": 210,
+        "distanceMeters": 1283
+      },
+      {
+        "id": "rural",
+        "pointCount": 8,
+        "segmentCount": 7,
+        "gapCount": 1,
+        "durationSeconds": 210,
+        "distanceMeters": 3658
+      },
+      {
+        "id": "sparse-1km",
+        "pointCount": 11,
+        "segmentCount": 10,
+        "gapCount": 1,
+        "durationSeconds": 600,
+        "distanceMeters": 996
+      },
+      {
+        "id": "dense-2h",
+        "pointCount": 241,
+        "segmentCount": 240,
+        "gapCount": 2,
+        "durationSeconds": 7200,
+        "distanceMeters": 7951
+      }
+    ],
+    "standardCellCount": 12,
+    "diagnosticCellCount": 5,
+    "diagnostics": {
+      "labelMode": "provider symbol text opacity reduced to 0.24; actual modified-layer count asserted",
+      "cvdModes": "SVG color-matrix approximations for deuteranopia and protanopia; human review required",
+      "coldCache": "fresh context plus browser HTTP cache disabled through Chromium DevTools protocol",
+      "lowBandwidth": "browser cache disabled, 300 ms latency, 1.6 Mbps down, 0.75 Mbps up; diagnostic only"
+    }
+  },
+  "runSummary": {
+    "expectedRuns": 17,
+    "completedRuns": 17,
+    "passedRuns": 17,
+    "failedRuns": 0,
+    "fatalRunnerError": null,
+    "overallTechnicalPass": true
+  },
+  "runs": [
+    {
+      "id": "matrix-stadia-dark-desktop-1280x720-dpr1",
+      "kind": "matrix",
+      "provider": "stadia-dark",
+      "name": "desktop-1280x720",
+      "width": 1280,
+      "height": 720,
+      "dpr": 1,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 6756,
+      "screenshot": "matrix-stadia-dark-desktop-1280x720-dpr1.png",
+      "screenshotSha256": "4ce0d87c8a06bea8ceee93028e5ef767218a5a2154e5c7cdbe350cbd177234c2",
+      "screenshotDimensions": {
+        "width": 1280,
+        "height": 1856
+      },
+      "runnerError": null,
+      "externalRequestCount": 67,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 65
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-dark",
+        "providerVariant": "dark",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-dark-desktop-1280x720-dpr2",
+      "kind": "matrix",
+      "provider": "stadia-dark",
+      "name": "desktop-1280x720",
+      "width": 1280,
+      "height": 720,
+      "dpr": 2,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 3808,
+      "screenshot": "matrix-stadia-dark-desktop-1280x720-dpr2.png",
+      "screenshotSha256": "3ad6c32e122db470d1881dcd6d8f0ac3018c56e64711774548a092b7c4e0c628",
+      "screenshotDimensions": {
+        "width": 2560,
+        "height": 3712
+      },
+      "runnerError": null,
+      "externalRequestCount": 67,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 65
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "devicePixelRatio": 2,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-dark",
+        "providerVariant": "dark",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-dark-mobile-428x844-dpr1",
+      "kind": "matrix",
+      "provider": "stadia-dark",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 1,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 3160,
+      "screenshot": "matrix-stadia-dark-mobile-428x844-dpr1.png",
+      "screenshotSha256": "a0d082915fd61a364616c4a807acd067791c50b290ef3c7f4abefba513dd607a",
+      "screenshotDimensions": {
+        "width": 428,
+        "height": 3294
+      },
+      "runnerError": null,
+      "externalRequestCount": 64,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 62
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-dark",
+        "providerVariant": "dark",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-dark-mobile-428x844-dpr2",
+      "kind": "matrix",
+      "provider": "stadia-dark",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 2,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 3690,
+      "screenshot": "matrix-stadia-dark-mobile-428x844-dpr2.png",
+      "screenshotSha256": "a62d687d7a0ea3f63883ce6199a362d04f90e3fb7d89e6f995b01aa913238347",
+      "screenshotDimensions": {
+        "width": 856,
+        "height": 6588
+      },
+      "runnerError": null,
+      "externalRequestCount": 64,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 62
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 2,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-dark",
+        "providerVariant": "dark",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-light-desktop-1280x720-dpr1",
+      "kind": "matrix",
+      "provider": "stadia-light",
+      "name": "desktop-1280x720",
+      "width": 1280,
+      "height": 720,
+      "dpr": 1,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 3232,
+      "screenshot": "matrix-stadia-light-desktop-1280x720-dpr1.png",
+      "screenshotSha256": "835304e01b7a3aeebb2f4b85e44ab4a503e0ae6e865930506c8e22a3dc6d51ac",
+      "screenshotDimensions": {
+        "width": 1280,
+        "height": 1856
+      },
+      "runnerError": null,
+      "externalRequestCount": 67,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 65
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-light",
+        "providerVariant": "light",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-light-desktop-1280x720-dpr2",
+      "kind": "matrix",
+      "provider": "stadia-light",
+      "name": "desktop-1280x720",
+      "width": 1280,
+      "height": 720,
+      "dpr": 2,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 3405,
+      "screenshot": "matrix-stadia-light-desktop-1280x720-dpr2.png",
+      "screenshotSha256": "81ee4f2758fcf74bb391517cf108bd22e62ee6e5d1813c6047166da780e47017",
+      "screenshotDimensions": {
+        "width": 2560,
+        "height": 3712
+      },
+      "runnerError": null,
+      "externalRequestCount": 67,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 65
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "devicePixelRatio": 2,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-light",
+        "providerVariant": "light",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-light-mobile-428x844-dpr1",
+      "kind": "matrix",
+      "provider": "stadia-light",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 1,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 3142,
+      "screenshot": "matrix-stadia-light-mobile-428x844-dpr1.png",
+      "screenshotSha256": "0abbdd39c257f49b9615f6d2dd94804c11d52aa6b7c77512dd6bab0c3e48bc4e",
+      "screenshotDimensions": {
+        "width": 428,
+        "height": 3294
+      },
+      "runnerError": null,
+      "externalRequestCount": 64,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 62
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-light",
+        "providerVariant": "light",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-light-mobile-428x844-dpr2",
+      "kind": "matrix",
+      "provider": "stadia-light",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 2,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 3278,
+      "screenshot": "matrix-stadia-light-mobile-428x844-dpr2.png",
+      "screenshotSha256": "f6d79217bd932c6fc990039978b7f4b9d17ecc5d38e0f8012d328749bcc2b58e",
+      "screenshotDimensions": {
+        "width": 856,
+        "height": 6588
+      },
+      "runnerError": null,
+      "externalRequestCount": 64,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 62
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 2,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-light",
+        "providerVariant": "light",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-outdoor-desktop-1280x720-dpr1",
+      "kind": "matrix",
+      "provider": "stadia-outdoor",
+      "name": "desktop-1280x720",
+      "width": 1280,
+      "height": 720,
+      "dpr": 1,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 4706,
+      "screenshot": "matrix-stadia-outdoor-desktop-1280x720-dpr1.png",
+      "screenshotSha256": "cbd719c7caf747c74c344fd6f3d9419c9be0afeef567dcc8b8a6721a2ef6d96c",
+      "screenshotDimensions": {
+        "width": 1280,
+        "height": 1856
+      },
+      "runnerError": null,
+      "externalRequestCount": 73,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 71
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-outdoor",
+        "providerVariant": "outdoor",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-outdoor-desktop-1280x720-dpr2",
+      "kind": "matrix",
+      "provider": "stadia-outdoor",
+      "name": "desktop-1280x720",
+      "width": 1280,
+      "height": 720,
+      "dpr": 2,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 4709,
+      "screenshot": "matrix-stadia-outdoor-desktop-1280x720-dpr2.png",
+      "screenshotSha256": "ce3c683a35c6064e38ee6844ddffbc435fb541189b828ae792e722965bed43da",
+      "screenshotDimensions": {
+        "width": 2560,
+        "height": 3712
+      },
+      "runnerError": null,
+      "externalRequestCount": 73,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 71
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "devicePixelRatio": 2,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        },
+        {
+          "width": 610.5,
+          "height": 350
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-outdoor",
+        "providerVariant": "outdoor",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-outdoor-mobile-428x844-dpr1",
+      "kind": "matrix",
+      "provider": "stadia-outdoor",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 1,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 3378,
+      "screenshot": "matrix-stadia-outdoor-mobile-428x844-dpr1.png",
+      "screenshotSha256": "16ca53759236d69091cf85462306841c41e9cc2ab8115cf98da02d209821ae53",
+      "screenshotDimensions": {
+        "width": 428,
+        "height": 3294
+      },
+      "runnerError": null,
+      "externalRequestCount": 64,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 62
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-outdoor",
+        "providerVariant": "outdoor",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "matrix-stadia-outdoor-mobile-428x844-dpr2",
+      "kind": "matrix",
+      "provider": "stadia-outdoor",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 2,
+      "scenarioSet": "all",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 3595,
+      "screenshot": "matrix-stadia-outdoor-mobile-428x844-dpr2.png",
+      "screenshotSha256": "9b1fe011e3a97431f86dfa9e7b2fc3a3e4f8efb017ec98dc193cc3af17b4289c",
+      "screenshotDimensions": {
+        "width": 856,
+        "height": 6588
+      },
+      "runnerError": null,
+      "externalRequestCount": 64,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 62
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 6,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 2,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 6,
+      "focusableCanvasCount": 6,
+      "mapRegionCount": 6,
+      "uniqueMapAccessibleNameCount": 6,
+      "scenarioHeadingCount": 6,
+      "routeTablePresent": true,
+      "routeTableRowCount": 6,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-outdoor",
+        "providerVariant": "outdoor",
+        "scenarioSet": "all",
+        "scenarioFacts": [
+          {
+            "id": "urban",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1152
+          },
+          {
+            "id": "park",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1215
+          },
+          {
+            "id": "trail",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 1283
+          },
+          {
+            "id": "rural",
+            "pointCount": 8,
+            "segmentCount": 7,
+            "gapCount": 1,
+            "durationSeconds": 210,
+            "distanceMeters": 3658
+          },
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 47,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 44
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "diagnostic-label-deemphasis-stadia-dark-mobile-428-dpr1",
+      "kind": "diagnostic",
+      "provider": "stadia-dark",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 1,
+      "scenarioSet": "stress",
+      "labelMode": "deemphasized",
+      "cvdMode": "none",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 2139,
+      "screenshot": "diagnostic-label-deemphasis-stadia-dark-mobile-428-dpr1.png",
+      "screenshotSha256": "fbdc3b77bfe8f826098a840a92a4e26188216fc01d3d8abec12d7a012a09d07f",
+      "screenshotDimensions": {
+        "width": 428,
+        "height": 1480
+      },
+      "runnerError": null,
+      "externalRequestCount": 22,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 20
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 2,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 2,
+      "focusableCanvasCount": 2,
+      "mapRegionCount": 2,
+      "uniqueMapAccessibleNameCount": 2,
+      "scenarioHeadingCount": 2,
+      "routeTablePresent": true,
+      "routeTableRowCount": 2,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-dark",
+        "providerVariant": "dark",
+        "scenarioSet": "stress",
+        "scenarioFacts": [
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "deemphasized",
+        "cvdMode": "none",
+        "labelLayersModified": 48,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 19,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 16
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "diagnostic-cvd-deuteranopia-stadia-dark-mobile-428-dpr1",
+      "kind": "diagnostic",
+      "provider": "stadia-dark",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 1,
+      "scenarioSet": "stress",
+      "labelMode": "normal",
+      "cvdMode": "deuteranopia",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 2193,
+      "screenshot": "diagnostic-cvd-deuteranopia-stadia-dark-mobile-428-dpr1.png",
+      "screenshotSha256": "e5c96d57f9a1bd350f3750aadc9e17f1109e3123739c9b59e7100150ef753773",
+      "screenshotDimensions": {
+        "width": 428,
+        "height": 1480
+      },
+      "runnerError": null,
+      "externalRequestCount": 22,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 20
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 2,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 2,
+      "focusableCanvasCount": 2,
+      "mapRegionCount": 2,
+      "uniqueMapAccessibleNameCount": 2,
+      "scenarioHeadingCount": 2,
+      "routeTablePresent": true,
+      "routeTableRowCount": 2,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-dark",
+        "providerVariant": "dark",
+        "scenarioSet": "stress",
+        "scenarioFacts": [
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "deuteranopia",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "CSS/SVG diagnostic approximation; requires human review",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 19,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 16
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "diagnostic-cvd-protanopia-stadia-dark-mobile-428-dpr1",
+      "kind": "diagnostic",
+      "provider": "stadia-dark",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 1,
+      "scenarioSet": "stress",
+      "labelMode": "normal",
+      "cvdMode": "protanopia",
+      "networkProfile": "fresh-context",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "fresh isolated browser context; not explicitly disabled",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 2232,
+      "screenshot": "diagnostic-cvd-protanopia-stadia-dark-mobile-428-dpr1.png",
+      "screenshotSha256": "e997a0ae1de52ce7209a02fb7e746c671c4301e54c15757ec9201bf2af33c579",
+      "screenshotDimensions": {
+        "width": 428,
+        "height": 1480
+      },
+      "runnerError": null,
+      "externalRequestCount": 22,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 20
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 2,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 2,
+      "focusableCanvasCount": 2,
+      "mapRegionCount": 2,
+      "uniqueMapAccessibleNameCount": 2,
+      "scenarioHeadingCount": 2,
+      "routeTablePresent": true,
+      "routeTableRowCount": 2,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-dark",
+        "providerVariant": "dark",
+        "scenarioSet": "stress",
+        "scenarioFacts": [
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "protanopia",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "CSS/SVG diagnostic approximation; requires human review",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 19,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 16
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "diagnostic-cold-cache-stadia-dark-mobile-428-dpr1",
+      "kind": "diagnostic",
+      "provider": "stadia-dark",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 1,
+      "scenarioSet": "stress",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "browser-cache-disabled",
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "disabled with Chromium DevTools protocol",
+        "serviceWorkers": "blocked",
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 2161,
+      "screenshot": "diagnostic-cold-cache-stadia-dark-mobile-428-dpr1.png",
+      "screenshotSha256": "53670b6e49f7f69ddbed47893343e07b511b4dab393185705eb65d9d480b5ed9",
+      "screenshotDimensions": {
+        "width": 428,
+        "height": 1480
+      },
+      "runnerError": null,
+      "externalRequestCount": 22,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 20
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 2,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 2,
+      "focusableCanvasCount": 2,
+      "mapRegionCount": 2,
+      "uniqueMapAccessibleNameCount": 2,
+      "scenarioHeadingCount": 2,
+      "routeTablePresent": true,
+      "routeTableRowCount": 2,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-dark",
+        "providerVariant": "dark",
+        "scenarioSet": "stress",
+        "scenarioFacts": [
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 19,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 16
+      },
+      "hardGateFailures": []
+    },
+    {
+      "id": "diagnostic-low-bandwidth-stadia-dark-mobile-428-dpr1",
+      "kind": "diagnostic",
+      "provider": "stadia-dark",
+      "name": "mobile-428x844",
+      "width": 428,
+      "height": 844,
+      "dpr": 1,
+      "scenarioSet": "stress",
+      "labelMode": "normal",
+      "cvdMode": "none",
+      "networkProfile": "cache-disabled-1.6mbps-300ms-rtt",
+      "timeoutMs": 120000,
+      "status": "passed",
+      "mapLibreVersion": "5.23.0",
+      "networkConditions": {
+        "browserCache": "disabled with Chromium DevTools protocol",
+        "serviceWorkers": "blocked",
+        "latencyMs": 300,
+        "downloadBitsPerSecond": 1600000,
+        "uploadBitsPerSecond": 750000,
+        "osAndUpstreamCaches": "uncontrolled"
+      },
+      "readyMs": 10088,
+      "screenshot": "diagnostic-low-bandwidth-stadia-dark-mobile-428-dpr1.png",
+      "screenshotSha256": "53670b6e49f7f69ddbed47893343e07b511b4dab393185705eb65d9d480b5ed9",
+      "screenshotDimensions": {
+        "width": 428,
+        "height": 1480
+      },
+      "runnerError": null,
+      "externalRequestCount": 22,
+      "requestsByOrigin": [
+        {
+          "origin": "https://unpkg.com",
+          "count": 2
+        },
+        {
+          "origin": "https://tiles.stadiamaps.com",
+          "count": 20
+        }
+      ],
+      "failedRequests": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "rawCoordinateLeaks": [],
+      "dataReady": "true",
+      "declaredScenarioCount": 2,
+      "browserUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+      "viewport": {
+        "width": 428,
+        "height": 844
+      },
+      "devicePixelRatio": 1,
+      "reducedMotionActive": true,
+      "mapLibreRuntimeVersion": null,
+      "canvasCount": 2,
+      "focusableCanvasCount": 2,
+      "mapRegionCount": 2,
+      "uniqueMapAccessibleNameCount": 2,
+      "scenarioHeadingCount": 2,
+      "routeTablePresent": true,
+      "routeTableRowCount": 2,
+      "tableColumnHeaderCount": 5,
+      "mapBoxes": [
+        {
+          "width": 394,
+          "height": 330
+        },
+        {
+          "width": 394,
+          "height": 330
+        }
+      ],
+      "attributionVisible": true,
+      "horizontalOverflowPx": 0,
+      "rawCoordinateRenderedInText": false,
+      "evidence": {
+        "fixtureVersion": "2026-08-13.2",
+        "providerId": "stadia-dark",
+        "providerVariant": "dark",
+        "scenarioSet": "stress",
+        "scenarioFacts": [
+          {
+            "id": "sparse-1km",
+            "pointCount": 11,
+            "segmentCount": 10,
+            "gapCount": 1,
+            "durationSeconds": 600,
+            "distanceMeters": 996
+          },
+          {
+            "id": "dense-2h",
+            "pointCount": 241,
+            "segmentCount": 240,
+            "gapCount": 2,
+            "durationSeconds": 7200,
+            "distanceMeters": 7951
+          }
+        ],
+        "labelMode": "normal",
+        "cvdMode": "none",
+        "labelLayersModified": 0,
+        "colorVisionSimulation": "none",
+        "qualityGapUsesDashPattern": true,
+        "routeWidthAlsoVariesBySpeedBand": true,
+        "rawRouteCoordinatesRenderedInDom": false
+      },
+      "fatalError": "",
+      "resourceTiming": {
+        "entries": 19,
+        "reportedTransferBytes": 22771,
+        "zeroTransferSizeEntries": 16
+      },
+      "hardGateFailures": []
+    }
+  ],
+  "credentialGates": [
+    {
+      "provider": "maptiler-dark",
+      "status": "blocked_missing_credential_as_expected",
+      "runnerError": null,
+      "message": "MapTiler requires a temporary testing key in the URL fragment: #key=<key>",
+      "screenshot": "maptiler-dark-missing-credential-428-dpr1.png",
+      "screenshotSha256": "da506434d7fc7dcbb6592b651ea5df28018152fc8e5b320a7801549a482ca417",
+      "maptilerRequestCountBeforeGate": 0
+    },
+    {
+      "provider": "maptiler-light",
+      "status": "blocked_missing_credential_as_expected",
+      "runnerError": null,
+      "message": "MapTiler requires a temporary testing key in the URL fragment: #key=<key>",
+      "screenshot": "maptiler-light-missing-credential-428-dpr1.png",
+      "screenshotSha256": "fa8cd18adfba2eb37e00f21fb163c646f74c109b711b36fe49fe9b7c265236a2",
+      "maptilerRequestCountBeforeGate": 0
+    },
+    {
+      "provider": "maptiler-outdoor",
+      "status": "blocked_missing_credential_as_expected",
+      "runnerError": null,
+      "message": "MapTiler requires a temporary testing key in the URL fragment: #key=<key>",
+      "screenshot": "maptiler-outdoor-missing-credential-428-dpr1.png",
+      "screenshotSha256": "92804e9c4e0e17d92c909c3ac5b052836047c373a0602d79aa9bf05dea17ed2e",
+      "maptilerRequestCountBeforeGate": 0
+    },
+    {
+      "provider": "maptiler-all-visual-comparison",
+      "status": "blocked_missing_credential",
+      "reason": "No MapTiler testing key was provided; no MapTiler basemap request was attempted."
+    },
+    {
+      "provider": "stadia-domain-authentication",
+      "status": "blocked_no_property_credential",
+      "reason": "The requested no-credential bakeoff cannot exercise a Stadia property key or unapproved-origin rejection. Keyless loopback development is the only Stadia mode captured."
+    }
+  ],
+  "automatedAccessibilityEvidence": {
+    "status": "passed_structural_checks",
+    "note": "Structural assertions do not decide aesthetics, CVD distinguishability, screen-reader usability, or touch ergonomics."
+  },
+  "manualReviewChecklist": [
+    {
+      "id": "outdoor-cartography-aesthetic",
+      "status": "pending_human_review",
+      "artifacts": [
+        "matrix-stadia-outdoor-desktop-1280x720-dpr1.png",
+        "matrix-stadia-outdoor-mobile-428x844-dpr2.png"
+      ],
+      "acceptance": "Two reviewers agree terrain, trail hierarchy, attribution, and route salience remain legible without looking visually noisy."
+    },
+    {
+      "id": "label-deemphasis-usefulness",
+      "status": "pending_human_review",
+      "artifacts": [
+        "matrix-stadia-dark-mobile-428x844-dpr1.png",
+        "diagnostic-label-deemphasis-stadia-dark-mobile-428-dpr1.png"
+      ],
+      "acceptance": "Reduced labels lower distraction while retaining enough place and road context to orient the route."
+    },
+    {
+      "id": "cvd-deuteranopia-route-cues",
+      "status": "pending_human_review",
+      "artifacts": [
+        "diagnostic-cvd-deuteranopia-stadia-dark-mobile-428-dpr1.png"
+      ],
+      "acceptance": "Route remains traceable; gaps are recognizable by dashes and speed bands retain a useful non-color width cue. Simulation is diagnostic, not certification."
+    },
+    {
+      "id": "cvd-protanopia-route-cues",
+      "status": "pending_human_review",
+      "artifacts": [
+        "diagnostic-cvd-protanopia-stadia-dark-mobile-428-dpr1.png"
+      ],
+      "acceptance": "Route remains traceable; start/end and quality gaps do not rely on hue alone. Record any ambiguous pair as a design finding."
+    },
+    {
+      "id": "mobile-428-touch-and-label-density",
+      "status": "pending_human_review",
+      "artifacts": [
+        "matrix-stadia-dark-mobile-428x844-dpr1.png",
+        "matrix-stadia-light-mobile-428x844-dpr2.png",
+        "matrix-stadia-outdoor-mobile-428x844-dpr2.png"
+      ],
+      "acceptance": "At 428 CSS px, route casing, endpoints, legend, attribution, and text alternative remain readable without page-level horizontal clipping."
+    }
+  ],
+  "legacyEvidence": {
+    "status": "preserved_v1_390px_regression_evidence",
+    "evidenceSchema": "dog-rgb-map-bakeoff/1",
+    "capturedAtUtc": "2026-08-13T22:26:07.235Z",
+    "artifacts": [
+      {
+        "screenshot": "stadia-dark-desktop.png",
+        "recordedSha256": "18265974926c5943dec50ca08165865d314d950a80c38758381c49bc143287a4",
+        "currentSha256": "18265974926c5943dec50ca08165865d314d950a80c38758381c49bc143287a4",
+        "hashStillMatches": true,
+        "viewport": "1280x720",
+        "dpr": 1
+      },
+      {
+        "screenshot": "stadia-dark-mobile.png",
+        "recordedSha256": "1affdbfe36dd553bf943255934d5ccb388e5e1f08f24289b35e9d4db3af4d23f",
+        "currentSha256": "1affdbfe36dd553bf943255934d5ccb388e5e1f08f24289b35e9d4db3af4d23f",
+        "hashStillMatches": true,
+        "viewport": "390x844",
+        "dpr": 1
+      },
+      {
+        "screenshot": "stadia-light-desktop.png",
+        "recordedSha256": "1cd0df0254d56e3fb77ab62506734381040322a90dc9b24d90f6de722df2a2be",
+        "currentSha256": "1cd0df0254d56e3fb77ab62506734381040322a90dc9b24d90f6de722df2a2be",
+        "hashStillMatches": true,
+        "viewport": "1280x720",
+        "dpr": 1
+      },
+      {
+        "screenshot": "stadia-light-mobile.png",
+        "recordedSha256": "2e5a22bfe27996f325f2a67328433a9b3495427066308c55416f033fd34a719b",
+        "currentSha256": "2e5a22bfe27996f325f2a67328433a9b3495427066308c55416f033fd34a719b",
+        "hashStillMatches": true,
+        "viewport": "390x844",
+        "dpr": 1
+      }
+    ]
+  },
+  "serverProcess": {
+    "stdout": "Map bakeoff: http://127.0.0.1:4174/?provider=stadia-dark",
+    "stderr": "",
+    "exitCodeAtManifestTime": null
+  },
+  "limitations": [
+    "All coordinates form synthetic test fixtures; they are not dog, owner, or production telemetry.",
+    "Provider tile requests necessarily disclose viewed tile bounds, but the runner asserts that raw route coordinates are absent from provider URLs and DOM text.",
+    "PerformanceResourceTiming may report zero transfer bytes when a cross-origin server omits Timing-Allow-Origin.",
+    "Browser cache controls do not control OS, recursive DNS, provider edge, or upstream CDN caches; readyMs is not a product SLO.",
+    "Network emulation controls browser throughput and latency, not provider-side variability.",
+    "CVD matrices are review aids, not medical models or WCAG certification.",
+    "MapTiler aesthetics and rejected-origin authentication cannot be evaluated without explicitly supplied restricted credentials.",
+    "Any live CDN failure is retained as a failed run with its screenshot and diagnostics; it is never converted to a pass."
+  ]
+}

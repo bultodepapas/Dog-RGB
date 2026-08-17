@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:user-v1-issue-claim-request",
+  "title": "Issue a one-time Dog RGB collar claim",
+  "type": "object",
+  "required": ["protocol_version", "request_id", "dog_id"],
+  "properties": {
+    "protocol_version": {"const": 1},
+    "request_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "dog_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuid"}
+  },
+  "additionalProperties": false
+}

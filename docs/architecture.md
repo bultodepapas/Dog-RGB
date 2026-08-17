@@ -1,8 +1,8 @@
 # Dog-RGB Architecture
 
-**Status:** Current architecture, verified against the active firmware on 2026-08-13.
+**Status:** Current local architecture plus accepted optional-cloud target, verified/reviewed 2026-08-13. Cloud runtime, database, website, and firmware sync are not implemented.
 
-Dog-RGB is a local-first embedded system. The ESP32-S3 owns GNSS acquisition, metrics, route/session persistence, LED rendering, Wi-Fi policy, the HTTP portal, and an optional BLE summary. No backend is required for normal operation.
+Dog-RGB is a local-first embedded system. The ESP32-S3 owns GNSS acquisition, metrics, route/session persistence, LED rendering, Wi-Fi policy, the HTTP portal, and an optional BLE summary. No backend is required for normal operation. The accepted web platform is an opt-in extension: it may delay synchronization when unavailable, but may never become a boot, tracking, LED, AP recovery, configuration, or local-export dependency.
 
 ## System context
 
@@ -22,11 +22,38 @@ flowchart TB
 
 The power drawing is conceptual. The real charger/BMS/boost/regulator topology must be validated for the selected modules; do not infer a safe current path solely from this diagram.
 
+The accepted future cloud boundary is shown separately so it is not mistaken for current firmware:
+
+```mermaid
+flowchart LR
+    COLLAR[ESP32 collar\ncurrent local system]
+    AP[Local AP/LAN portal]
+    EDGE[Supabase Edge device gateway\nfuture]
+    DB[(Supabase Postgres/PostGIS\nfuture)]
+    AUTH[Supabase Auth\nfuture]
+    WEB[Vercel Next.js web app\nfuture]
+    USER[Owner/editor/viewer browser]
+    MAP[Basemap provider\nfuture]
+
+    USER <-->|local HTTP; always available| AP
+    AP <--> COLLAR
+    COLLAR -. opt-in verified HTTPS; delayed sync .-> EDGE
+    EDGE -. narrow service-only transactions .-> DB
+    AUTH -. user session .-> USER
+    USER -. membership-scoped RLS .-> DB
+    WEB -. application assets/SSR .-> USER
+    USER -. style/tiles only; route overlay stays in browser .-> MAP
+```
+
+There is no realtime/cellular path: the website can show only the last successfully synchronized state and timestamp.
+
 ## Repository boundaries
 
 - [`Platformio/Dog-RGB`](../Platformio/Dog-RGB/) is the active embedded project.
 - [`webui`](../webui/) owns the editable portal sources and deterministic generator; [`tests`](../tests/) and [`tools`](../tools/) exercise the generated bundles in a host browser.
 - [`docs`](.) contains current references plus dated design history.
+- [`contracts/device-v1`](../contracts/device-v1/) contains Phase 0 protocol schemas/fixtures. They are design/test artifacts until firmware/gateway code consumes them. The complete protocol, including dedicated revoke, passes 48/48 and is reconciled with the frozen v3 codec; the full match remains a permanent regression gate.
+- [`tools/cloud_phase0`](../tools/cloud_phase0/) contains the deterministic v3/storage feasibility artifacts. Its corrected 664-slot byte-addressed candidate is non-production; the five reproduced adversarial failures now have passing regressions, while independent host recovery/reclaim acceptance remains open. [`tools/map_bakeoff`](../tools/map_bakeoff/) is the synthetic Colombian cartography harness; its full credentialed provider comparison and origin-control tests remain open. Neither is production runtime code, and Phase 1 is not authorized.
 - [`software`](../software/) is only a placeholder for optional future companion/cloud work.
 - [`hardware`](../hardware/) is a hardware-area entry point; the authoritative pin/default values are currently in firmware headers.
 
@@ -95,7 +122,7 @@ flowchart LR
     I --> A
 ```
 
-Each phase records maximum observed time for `/api/dev`. There is no RTOS application task graph; the design relies on short cooperative ticks plus the framework's radio tasks.
+Each phase records maximum observed time for the serial-only periodic `[SYS]` diagnostics; `/api/dev` does not expose loop/phase timings. There is no RTOS application task graph; the design relies on short cooperative ticks plus the framework's radio tasks.
 
 Two blocking risks receive special treatment:
 
@@ -161,7 +188,75 @@ The HTTP layer adds:
 
 This is proportionate protection for a local DIY portal, not a claim of Internet-safe administration. There is no TLS, account system, encrypted application payload, or authorization on reads.
 
-### Generated portal pipeline
+## Optional cloud target (not implemented)
+
+### Runtime boundaries
+
+- **Website:** a future Next.js application on Vercel serves account/dog/history/configuration UX. The browser uses a Supabase publishable key plus its authenticated user session; it never receives server secret/service-role material.
+- **User identity/data:** Supabase Auth and an explicitly exposed `api` schema use dog memberships and RLS. Owners, editors, and viewers receive only documented permissions. Public IDs are never treated as authorization.
+- **Device gateway:** collars call versioned Supabase Edge Functions directly, not Vercel routes and not broad PostgREST. `user-v1-issue-claim`, `device-v1-claim`, consolidated `device-v1-sync`, and idempotent `device-v1-revoke` are the narrow accepted surface.
+- **Private data:** claim/credential digests and replay receipts live in a non-exposed `private` schema. Device credentials are random, per-collar and revocable; plaintext persists only on the collar and is transient at the Edge gateway while a verified-TLS claim body or sync/revoke Authorization header is authenticated. It is never stored/logged server-side. The collar never stores human login or Supabase project keys.
+- **Stable endpoint:** the default Supabase hostname is allowed for laboratory evidence. An owned `api.<domain>` Supabase custom domain is mandatory before field firmware so a project/provider move does not permanently pin devices to a provider-owned hostname.
+- **Maps:** MapLibre consumes a provider style and an application-owned segmented GeoJSON view model. Route data stays in the authenticated browser; providers receive only normal style/tile requests and viewport/network metadata. Stadia Dark is provisional until the full MapTiler/Stadia credentialed bake-off and unapproved-origin tests are retained/scored.
+
+See [ADR-0005](adr/0005-device-cloud-gateway-and-stable-hostname.md), [ADR-0006](adr/0006-cloud-data-model-and-access-boundaries.md), and [ADR-0009](adr/0009-map-renderer-provider-and-colombia-bakeoff.md).
+
+### Telemetry flow and storage
+
+Current route v2 is a ten-byte coordinate/minute record with a two-hour local window; it cannot support per-point speed/quality, stationary coverage, exact seconds, stable replay identity, or explicit gaps. It remains readable/exportable and can only enter cloud history as visibly limited legacy evidence.
+
+The accepted target adds a fixed v3 observation/chunk format and a durable raw-partition outbox on the currently unused `0x150000` data partition:
+
+```mermaid
+flowchart LR
+    GNSS[GNSS observation + quality/time evidence]
+    V3[V3 fixed encoder]
+    OUTBOX[(sealed raw flash ring)]
+    SYNC[bounded device-v1-sync]
+    INGEST[transactional validate/dedupe]
+    RAW[(immutable points/recordings)]
+    DERIVE[versioned dirty-day analytics]
+    SUMMARY[(daily summaries + coverage)]
+
+    GNSS --> V3 --> OUTBOX
+    OUTBOX -->|retry same stable chunk until ACK| SYNC
+    SYNC --> INGEST --> RAW --> DERIVE --> SUMMARY
+    INGEST -->|ACK only after commit| OUTBOX
+```
+
+A sealed chunk is immutable and retained until a durable post-commit ACK. Identical replay returns one logical result; the same ID with another hash is rejected. Full storage never overwrites unacknowledged observations: it reduces optional sampling/stops ordinary capture and records an explicit loss interval. Gaps remain gaps in maps and analytics.
+
+The raw ring remains an accepted design direction with provisional deterministic model output, including simulated write/metadata/reclaim cuts. The corrected 664-slot byte-addressed candidate is **not yet accepted**: its five reproduced adversarial fallback/loss/corruption failures now pass as regressions, but independent recovery/reclaim review is still open. Even after that gate closes, randomized ESP32 power removal, timing, wear distribution, and energy must be measured before firmware acceptance. See [ADR-0007](adr/0007-durable-telemetry-outbox-and-storage.md) and the [feasibility report](cloud/phase0-storage-feasibility.md).
+
+### Cloud data model
+
+The future database separates:
+
+- normalized users/dogs/memberships/collars and roles;
+- stable recordings, immutable accepted telemetry, chunks/receipts and explicit loss markers;
+- device-reported summaries versus independently versioned cloud-derived summaries;
+- current configuration winners, append-only revisions, and desired/apply outcomes;
+- private claim-code/device-credential/request state.
+
+Canonical telemetry preserves exact wire integers plus time/quality/provenance. PostGIS `geography(Point,4326)` is derived for spatial work; normal playback first filters/orders by recording/time/sequence. Initial indexes are relational/time/idempotency indexes. Table partitioning and GiST wait for the one-million-point/query evidence rather than being added speculatively.
+
+Each dog has an IANA timezone. Local days can be 23, 24, or 25 hours; missing evidence becomes unknown, never inactivity. Raw points expire after 12 months by default while summaries/recording metadata remain until dog/account deletion. See [ADR-0006](adr/0006-cloud-data-model-and-access-boundaries.md), [ADR-0010](adr/0010-retention-and-truthful-activity-vocabulary.md), and the [field matrix](cloud/phase0-field-matrix.md).
+
+### Bidirectional configuration
+
+Configuration converges at coherent resource granularity with HLC LWW and a deterministic actor tie-break. AP writes and downloaded winners pass through the same firmware validation and A/B persistence path. The server stores desired state; the collar separately reports pending/applied/rejected for an exact server version.
+
+Brightness is the first proof resource. Later resources group visual mode/Day Mode, all speed thresholds/effects, Simple effect, GPS quality gates, and fence distance. Home coordinates and LED power calibration are local-only for the first release, as are Wi-Fi/AP credentials, mDNS, and the local PIN. The device secret is excluded from configuration/history and used only as verified-TLS device authentication. See [ADR-0008](adr/0008-resource-level-hlc-lww-configuration-sync.md).
+
+### Security and privacy boundary
+
+The local AP remains plain HTTP and exposes documented reads to local-network clients. Internet mode introduces a different mandatory baseline: certificate/hostname verification, unique device credentials, claim expiry/rate limits, bounded/replay-safe requests, explicit database grants/RLS, revocation, and coordinate/secret-free logs. Secure Boot, flash encryption, eFuse/debug policy, signed OTA, and manufacturing key infrastructure remain optional later hardening.
+
+Normal AP unlink is a two-phase state transition, not local credential deletion first. `REVOKE_PENDING` stops ordinary exchange and retries one exact `device-v1-revoke` request until the server has transactionally revoked the link and stored the replay receipt. Its schema-valid `200` disposition is `newly_revoked` or `already_revoked`; either valid result for the pending request permits local erasure. Exact replay returns the persisted original result, while a prior website/different-request revoke authenticates through the revoke-only tombstone and creates an `already_revoked` receipt. Generic errors never permit erasure. Offline force-clear remains available with an explicit warning that website-side revocation is still required.
+
+The full controls and processors are in the [threat model](cloud/threat-model.md), [privacy/data-flow inventory](cloud/privacy-data-flow.md), [retention policy](cloud/retention-policy.md), and [credential checklist](cloud/credential-checklist.md).
+
+## Generated local portal pipeline
 
 The portal has no runtime template engine and does not interpolate configuration into HTML. `webui/src/pages/*.html` plus the shared CSS are the only editable sources. With the exact Node version from `.node-version`, `webui/build.mjs`:
 
@@ -222,10 +317,12 @@ See [Testing and simulation](testing.md) for commands and limitations.
 
 ## Deliberate constraints
 
-- Local-first; no required cloud/backend.
+- Local-first; no required cloud/backend. Optional sync is off by default and cannot remove AP/local operation.
 - BLE remains compile-time optional and off by default.
-- Advanced security/production provisioning remains optional for this DIY phase.
+- Internet-facing cloud security has a mandatory minimum in the threat model; hardware-rooted/production hardening remains optional for this DIY phase.
 - No battery percentage is invented without a gauge/divider and calibrated measurements.
+- No walk/run/inactivity/sleep or continuous-route claim is invented from current route v2, missing samples, or GNSS-only thresholds.
+- Home and LED power calibration remain local-only in the first cloud release.
 - No runtime, thermal, waterproofing, or pet-safety claim is accepted from simulation alone.
 - Cooperative loop and synchronous `WebServer` are retained while bounded work and diagnostics satisfy the prototype needs.
 

@@ -1,8 +1,10 @@
-# Dog-RGB Local HTTP API
+# Dog-RGB APIs
 
-**Status:** Current firmware contract, verified on 2026-08-13.
+**Status:** Current local firmware contract plus a reserved optional-cloud contract, reviewed 2026-08-13. Only the local HTTP routes are implemented.
 
 The ESP32-S3 serves a synchronous, local-only HTTP API on port 80. There is no TLS, cloud gateway, CORS API, or user-account layer. Use it only on a trusted local network or the collar's own AP.
+
+Sections through the local error model describe shipping firmware. The final cloud section is an implementation target and must not be used as evidence that any Internet endpoint is deployed.
 
 ## Base addresses
 
@@ -57,7 +59,7 @@ ETag: "sha256-<compressed-content-sha256>"
 | --- | --- | --- | --- |
 | GET | `/api/summary` | Read-only | Daily metrics, current session, last completed day, and up to three completed sessions |
 | GET | `/api/status` | Read-only | Compact Wi-Fi, GNSS, Home, mode, and Day Mode state |
-| GET | `/api/dev` | Read-only | Detailed health, counters, storage recovery, LED power estimate, and loop timing |
+| GET | `/api/dev` | Read-only | Detailed health/counters, storage recovery, and LED power estimate; loop timing is emitted only on serial `[SYS]` logs |
 | GET | `/api/v1/led/state` | Read-only | Current selected LED intent, priority, effects, color, and limiter snapshot |
 | GET | `/api/v1/led/capabilities` | Read-only | Versioned effect metadata, layout, limits, and supported LED API features |
 | GET | `/api/v1/led/scenes` | Read-only | Four built-ins, four user slots, active scene, store health, and generation |
@@ -93,7 +95,7 @@ Known API paths called with the wrong method return `405`; unknown `/api/*` path
 {
   "date": 20260812,
   "distance_m": 1843,
-  "avg_speed_cmps": 176,
+  "avg_speed_cmps": 114,
   "max_speed_cmps": 612,
   "last_update_min": 643,
   "gps_fix": true,
@@ -103,13 +105,13 @@ Known API paths called with the wrong method return `405`; unknown `/api/*` path
   "last_completed_day": null,
   "history": [],
   "session_current": {
-    "flags": 1,
+    "flags": 7,
     "start_date": 20260812,
     "start_min": 602,
     "end_date": 20260812,
     "end_min": 643,
     "distance_m": 1843,
-    "avg_speed_cmps": 176,
+    "avg_speed_cmps": 114,
     "max_speed_cmps": 612,
     "active_s": 1610
   }
@@ -589,7 +591,7 @@ No route returns `{"count":0,"status":"no_data"}` for JSON, a header-only CSV, o
 ssid=HomeNetwork&pass=secret
 ```
 
-Station SSIDs are 1–32 bytes. Passwords may be empty for an open network; the validator also accommodates legacy short keys and future raw 64-byte PSKs. A successful save persists SSID/password as one CRC-protected A/B record before starting station mode.
+Station SSIDs are 1–32 bytes. The current password validator accepts an empty value for an open network or `1..63` printable characters (including legacy short keys), and rejects control/DEL characters. It does **not** accept a raw 64-hex-character PSK. A successful save persists SSID/password as one CRC-protected A/B record before starting station mode.
 
 `POST /api/wifi/ap` uses JSON:
 
@@ -659,3 +661,97 @@ Scene routes use a stricter shape:
 Their additional statuses are `411 length_required`, `413 payload_too_large`, `415 unsupported_media_type`, `422 invalid_scene`/schema or field errors, `409 generation_conflict`/`recovery_required`/`store_read_only`, `500 storage_write_failed`/`storage_verify_failed`/`storage_uncertain`, `503 storage_unavailable`, and `507 storage_full`.
 
 Do not parse human portal copy as an API. Prefer documented fields and tolerate new diagnostic fields.
+
+## Reserved optional-cloud API — not implemented
+
+The future collar endpoint is deliberately separate from the local `/api/*` surface. It uses verified HTTPS, a versioned Supabase Edge Function gateway, and bounded JSON. No current firmware route, Supabase project, account, or Vercel application implements it.
+
+### Base hostname and routes
+
+Laboratory evidence may use the development Supabase hostname. Before field firmware, the stable base must be an owned Supabase custom domain such as:
+
+```text
+https://api.<owned-domain>/functions/v1
+```
+
+The accepted paths are:
+
+| Method | Path | Authentication | Purpose |
+| --- | --- | --- | --- |
+| POST | `/user-v1-issue-claim` | valid Supabase user access token plus owner/editor authorization | create one short-lived, one-use claim code for an authorized dog/collar |
+| POST | `/device-v1-claim` | one-use claim plus already-persisted candidate device identity/credential | atomically pair and acknowledge the collar capability manifest |
+| POST | `/device-v1-sync` | unique per-collar bearer credential | transactionally exchange telemetry ACKs, loss markers/summaries, capability state, configuration mutations/reports/winners, and a bounded server time anchor |
+| POST | `/device-v1-revoke` | unique per-collar bearer credential | idempotently revoke that credential/collar cloud link during normal device-initiated unlink |
+
+The Vercel web hostname is not a device-ingestion proxy. Collars do not call PostgREST, arbitrary RPCs, or database tables directly.
+
+### Transport and authentication
+
+All four operations require hostname/certificate-verified HTTPS, `POST`, UTF-8 JSON without BOM, and `Content-Type: application/json`. Device requests require `Content-Length` and send `Accept-Encoding: identity`; v1 does not require a compressed-response decoder.
+
+Routine synchronization uses the exact future credential grammar:
+
+```http
+Authorization: Bearer drgb_v1_<credential-uuid>.<unpadded-base64url-32-byte-secret>
+Content-Type: application/json
+Accept-Encoding: identity
+User-Agent: DogRGB/<firmware-version> (<hardware-revision>)
+```
+
+The UUID selects one credential record and the server compares a versioned-pepper HMAC digest of the secret in constant time. The bearer authorizes only that collar's narrow sync/revoke behavior; it cannot read history. The collar contains no account password or Supabase publishable/secret/service-role key.
+
+### Hard structural bounds
+
+The gateway rejects method/media/length violations before general JSON allocation or database work:
+
+| Boundary | Maximum |
+| --- | ---: |
+| issue-claim request / success | 4 KiB / 4 KiB |
+| device-claim request / success | 32 KiB / 8 KiB |
+| sync request / success | 128 KiB / 64 KiB |
+| device-revoke request / success | 4 KiB / 4 KiB |
+| problem response | 16 KiB |
+| JSON nesting | 12 |
+| telemetry chunks per sync | 8 |
+| points per chunk / across request | 96 / 384 |
+| summaries / loss markers per sync | 16 / 16 |
+| config mutations / reports / returned outcomes | 16 each |
+| overall device request deadline | 30 seconds, with bounded DNS/connect/TLS/send/receive phases |
+
+The exact schemas, semantic checks, hashes, fixtures, problem catalog, HLC vectors, and compatibility rules live under [`contracts/device-v1`](../contracts/device-v1/). Firmware/gateway code must consume or generate from them rather than copy constants. On 2026-08-13 the complete JSON contract—including dedicated revoke—and [`tools/cloud_phase0/track_v3.py`](../tools/cloud_phase0/track_v3.py) were reconciled on every point flag, six-value time-quality mapping, chunk/hash/exact ACK identity, out-of-order-hole behavior, legacy rule, revoke identity/disposition, and fixture. The protocol result is 48/48. The superseded RAM-only storage model's 20/20 result is invalid historical evidence. A corrected 664-slot byte-addressed candidate exists, but its expanded suite remains non-accepting after independent adversarial failures and the host recovery/reclaim gate is rejected/open. Cross-compatibility remains a hard regression gate; none of this is firmware/outbox acceptance or authorization for Phase 1.
+
+### Request identity, replay, and transaction
+
+Every device request persists a UUID `request_id` with the exact selected body. `request_sha256` is SHA-256 of the exact UTF-8 HTTP body bytes; the Authorization header is excluded.
+
+- unseen `(collar, request_id)`: run one transaction;
+- same ID and identical hash: return the previously committed logical result without rerunning effects;
+- same ID with another hash: `409 request_id_reused`, no automatic replacement.
+
+Firmware therefore persists and resends the exact serialized request until it durably processes the response. A single database transaction authenticates/locks the collar, deduplicates chunk/point/summary/loss/config identities, resolves resource LWW, stores a bounded replay response, and commits before HTTP success.
+
+Normal AP unlink follows the same replay rule through `device-v1-revoke`, using a small schema-bound body containing a durable `request_id` and bounded reason. The server transaction revokes the authenticated credential and collar cloud link and stores the idempotent result before responding. A schema-valid `200` has `disposition: newly_revoked|already_revoked`. Exact replay returns the persisted original logical response; if a website or different request already revoked the link, revoke-only tombstone authentication permits a new receipt with `already_revoked`. The collar remains in `REVOKE_PENDING` and retains the credential until either valid matching disposition. A generic `401`, `403`, timeout, malformed, or lost response never authorizes local erasure. Website-side revoke is a separate authenticated user/RLS/service operation; offline force-clear warns that server-side revoke remains necessary.
+
+The server stores the request digest and bounded logical replay response, not the successful raw request body. Validated chunks become exact integer point rows plus chunk identity/header/hash metadata; they are not duplicated into Supabase Storage or logs.
+
+HTTP `200` alone is not a telemetry ACK. Firmware reclaims a sealed chunk only after matching its authenticated collar, boot/chunk identity, accepted point count/through-sequence, and canonical content hash, then durably persisting that ACK. Out-of-order chunks may be accepted while holes remain; a later chunk never implicitly acknowledges an earlier missing one. Non-2xx, truncated, unrecognized, lost, or hash-mismatched responses delete nothing.
+
+Telemetry can commit even when a configuration mutation loses LWW or a desired value is rejected/unsupported. Those are per-resource outcomes inside a successful response, so a usable telemetry ACK is not trapped behind an unrelated `409`.
+
+### Telemetry/configuration truth
+
+- Native cloud telemetry is schema 3; current local Track v2 cannot impersonate it. A frozen converter may emit only visibly marked `LEGACY_V2`/minute-precision records with unavailable speed and no invented movement/stationary evidence.
+- The frozen advisory-summary field `inactive_s` means observed stationary/inactive seconds inside `observed_s`, with `moving_s + inactive_s == observed_s`. It never means the reporting window or civil day minus moving time; gaps, missing/off-collar time, power-off, and lost samples remain unknown.
+- Raw point identity is stable by authenticated collar, boot, chunk and point sequence; a known identity with another hash is an integrity rejection.
+- Configuration schema 7 contains only `brightness`, `visual_mode`, `speed_profile`, `simple_effect`, `gps_quality`, and `geofence_policy` coherent resources.
+- Home, power calibration, scenes, Wi-Fi/AP credentials, mDNS, local PIN, API host, and developer controls are absent from device-v1 configuration/history bodies by design. The device bearer credential appears only in the verified-TLS claim body or Authorization header needed to authenticate claim/sync/revoke; it is never a configuration resource or returned read field.
+- Desired config is not applied config. The collar validates/A-B-commits a winner, then reports the exact version/hash as pending/applied/rejected/unsupported.
+- The device gateway never returns route history; user history access goes through authenticated membership/RLS in the web application.
+
+See the [configuration sync ADR](adr/0008-resource-level-hlc-lww-configuration-sync.md), [field matrix](cloud/phase0-field-matrix.md), and [threat model](cloud/threat-model.md).
+
+### Cloud problem responses
+
+Non-2xx cloud failures use `application/problem+json` and the checked `problem-catalog.json`, with types `urn:dog-rgb:problem:<code>`. Details are server-authored and contain no token, claim, body, coordinate, dog/email, SQL, or stack trace. When supplied, HTTP `Retry-After` and JSON `retry_after_seconds` must agree.
+
+An unknown code never authorizes deletion. Firmware falls back conservatively to status class: retain data; honor `429`; retry `5xx`/timeouts with full jitter; cool down `401`; and stop routine upload on authenticated `403 device_revoked` while preserving all local collar behavior.

@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:capabilities",
+  "title": "Dog RGB device-v1 capability manifest",
+  "type": "object",
+  "required": [
+    "manifest_schema",
+    "hardware_revision",
+    "protocol_versions",
+    "telemetry",
+    "config_schemas",
+    "config_resources",
+    "excluded_resources",
+    "led",
+    "limits",
+    "features"
+  ],
+  "properties": {
+    "manifest_schema": {"const": 1},
+    "hardware_revision": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/hardwareRevision"},
+    "protocol_versions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "integer", "minimum": 1, "maximum": 255}
+    },
+    "telemetry": {
+      "type": "object",
+      "required": ["schemas", "point_format", "flags_mask", "max_chunk_points"],
+      "properties": {
+        "schemas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 1, "maximum": 255}
+        },
+        "point_format": {"const": "track-point-v3-le-16"},
+        "flags_mask": {"const": 127},
+        "max_chunk_points": {"const": 96}
+      },
+      "additionalProperties": false
+    },
+    "config_schemas": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "integer", "minimum": 1, "maximum": 255}
+    },
+    "config_resources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": ["resource_key", "resource_schema", "sync_mode"],
+        "properties": {
+          "resource_key": {"$ref": "urn:dog-rgb:contract:device-v1:config-resource#/$defs/resourceKey"},
+          "resource_schema": {"const": 1},
+          "sync_mode": {"const": "bidirectional"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "excluded_resources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "station_wifi",
+          "access_point",
+          "mdns_hostname",
+          "portal_pin",
+          "cloud_credential",
+          "api_hostname",
+          "home_location",
+          "power_model",
+          "scenes",
+          "scene_preview",
+          "developer_controls"
+        ]
+      }
+    },
+    "led": {
+      "type": "object",
+      "required": ["effect_registry_version", "palette_registry_version", "effects", "palettes"],
+      "properties": {
+        "effect_registry_version": {"type": "integer", "minimum": 1, "maximum": 255},
+        "palette_registry_version": {"type": "integer", "minimum": 1, "maximum": 255},
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {"$ref": "#/$defs/effect"}
+        },
+        "palettes": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {"$ref": "#/$defs/palette"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "brightness_min",
+        "brightness_max",
+        "effect_control_min",
+        "effect_control_max",
+        "max_chunks_per_sync",
+        "max_points_per_sync",
+        "max_config_mutations_per_sync"
+      ],
+      "properties": {
+        "brightness_min": {"const": 1},
+        "brightness_max": {"const": 255},
+        "effect_control_min": {"const": 0},
+        "effect_control_max": {"const": 255},
+        "max_chunks_per_sync": {"type": "integer", "minimum": 1, "maximum": 8},
+        "max_points_per_sync": {"type": "integer", "minimum": 1, "maximum": 384},
+        "max_config_mutations_per_sync": {"type": "integer", "minimum": 1, "maximum": 16}
+      },
+      "additionalProperties": false
+    },
+    "features": {
+      "type": "object",
+      "required": ["configuration_reporting", "telemetry_loss_markers", "legacy_v2_upload"],
+      "properties": {
+        "configuration_reporting": {"const": true},
+        "telemetry_loss_markers": {"const": true},
+        "legacy_v2_upload": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "controlName": {"enum": ["speed", "intensity", "color"]},
+    "effect": {
+      "type": "object",
+      "required": [
+        "id",
+        "key",
+        "label",
+        "controls",
+        "default_speed",
+        "default_intensity",
+        "speed_min",
+        "speed_max",
+        "intensity_min",
+        "intensity_max",
+        "color_mode",
+        "palette_mode",
+        "default_palette_id",
+        "safety"
+      ],
+      "properties": {
+        "id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "key": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$", "maxLength": 32},
+        "label": {"type": "string", "minLength": 1, "maxLength": 48},
+        "controls": {
+          "type": "array",
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/controlName"}
+        },
+        "default_speed": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "default_intensity": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "speed_min": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "speed_max": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "intensity_min": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "intensity_max": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "color_mode": {"enum": ["base", "generated"]},
+        "palette_mode": {"enum": ["none", "internal", "selectable"]},
+        "default_palette_id": {
+          "oneOf": [
+            {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+            {"type": "null"}
+          ]
+        },
+        "safety": {"enum": ["calm", "active", "advanced"]}
+      },
+      "additionalProperties": false
+    },
+    "palette": {
+      "type": "object",
+      "required": ["id", "key", "label"],
+      "properties": {
+        "id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "key": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$", "maxLength": 32},
+        "label": {"type": "string", "minLength": 1, "maxLength": 48}
+      },
+      "additionalProperties": false
+    }
+  }
+}

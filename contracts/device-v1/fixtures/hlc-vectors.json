@@ -1,0 +1,164 @@
+{
+  "parameters": {
+    "uint32_max": 4294967295,
+    "max_wire_physical_ms": 4102444800000,
+    "trusted_skew_ms": 600000,
+    "server_actor_id": "00000000-0000-4000-8000-0000000000ff"
+  },
+  "ticks": [
+    {
+      "name": "physical time advances",
+      "last": {"physical_ms": 1000, "logical": 9},
+      "now": 1001,
+      "trusted": true,
+      "expected": {"physical_ms": 1001, "logical": 0}
+    },
+    {
+      "name": "same physical millisecond increments logical",
+      "last": {"physical_ms": 1000, "logical": 9},
+      "now": 1000,
+      "trusted": true,
+      "expected": {"physical_ms": 1000, "logical": 10}
+    },
+    {
+      "name": "clock rollback preserves physical and increments logical",
+      "last": {"physical_ms": 1000, "logical": 9},
+      "now": 900,
+      "trusted": true,
+      "expected": {"physical_ms": 1000, "logical": 10}
+    },
+    {
+      "name": "unknown time increments persisted state",
+      "last": {"physical_ms": 1000, "logical": 9},
+      "now": null,
+      "trusted": false,
+      "expected": {"physical_ms": 1000, "logical": 10}
+    }
+  ],
+  "merges": [
+    {
+      "name": "equal physical uses maximum logical plus one",
+      "local": {"physical_ms": 100, "logical": 4},
+      "received": {"physical_ms": 100, "logical": 7},
+      "now": 99,
+      "trusted": true,
+      "expected": {"physical_ms": 100, "logical": 8}
+    },
+    {
+      "name": "local physical wins",
+      "local": {"physical_ms": 120, "logical": 3},
+      "received": {"physical_ms": 110, "logical": 9},
+      "now": 115,
+      "trusted": true,
+      "expected": {"physical_ms": 120, "logical": 4}
+    },
+    {
+      "name": "received physical wins",
+      "local": {"physical_ms": 120, "logical": 3},
+      "received": {"physical_ms": 130, "logical": 9},
+      "now": 125,
+      "trusted": true,
+      "expected": {"physical_ms": 130, "logical": 10}
+    },
+    {
+      "name": "wall clock wins",
+      "local": {"physical_ms": 120, "logical": 3},
+      "received": {"physical_ms": 130, "logical": 9},
+      "now": 140,
+      "trusted": true,
+      "expected": {"physical_ms": 140, "logical": 0}
+    }
+  ],
+  "comparisons": [
+    {
+      "name": "physical wins before logical",
+      "left": {"physical_ms": 1001, "logical": 0, "actor_id": "00000000-0000-4000-8000-000000000001"},
+      "right": {"physical_ms": 1000, "logical": 4294967295, "actor_id": "00000000-0000-4000-8000-000000000002"},
+      "expected": 1
+    },
+    {
+      "name": "logical breaks physical tie",
+      "left": {"physical_ms": 1000, "logical": 8, "actor_id": "00000000-0000-4000-8000-000000000001"},
+      "right": {"physical_ms": 1000, "logical": 7, "actor_id": "00000000-0000-4000-8000-000000000002"},
+      "expected": 1
+    },
+    {
+      "name": "actor bytes break full clock tie",
+      "left": {"physical_ms": 1000, "logical": 7, "actor_id": "00000000-0000-4000-8000-000000000001"},
+      "right": {"physical_ms": 1000, "logical": 7, "actor_id": "00000000-0000-4000-8000-000000000002"},
+      "expected": -1
+    },
+    {
+      "name": "identical stamp is replay equality",
+      "left": {"physical_ms": 1000, "logical": 7, "actor_id": "00000000-0000-4000-8000-000000000001"},
+      "right": {"physical_ms": 1000, "logical": 7, "actor_id": "00000000-0000-4000-8000-000000000001"},
+      "expected": 0
+    }
+  ],
+  "overflows": [
+    {
+      "name": "trusted tick advances one millisecond",
+      "operation": "tick",
+      "last": {"physical_ms": 1000, "logical": 4294967295},
+      "now": 1000,
+      "trusted": true,
+      "expected": {"physical_ms": 1001, "logical": 0}
+    },
+    {
+      "name": "unknown tick fails closed",
+      "operation": "tick",
+      "last": {"physical_ms": 1000, "logical": 4294967295},
+      "now": null,
+      "trusted": false,
+      "expected_error": "hlc_logical_overflow"
+    },
+    {
+      "name": "merge overflow advances one millisecond",
+      "operation": "merge",
+      "local": {"physical_ms": 1000, "logical": 4294967295},
+      "received": {"physical_ms": 1000, "logical": 3},
+      "now": 1000,
+      "trusted": true,
+      "expected": {"physical_ms": 1001, "logical": 0}
+    },
+    {
+      "name": "wire physical maximum fails closed",
+      "operation": "tick",
+      "last": {"physical_ms": 4102444800000, "logical": 4294967295},
+      "now": 4102444800000,
+      "trusted": true,
+      "expected_error": "hlc_logical_overflow"
+    }
+  ],
+  "trust_boundaries": [
+    {"quality": "gnss_trusted", "authored_ms": 1000000, "received_ms": 1600000, "expected_trusted": true},
+    {"quality": "sntp_synced", "authored_ms": 2200000, "received_ms": 1600000, "expected_trusted": true},
+    {"quality": "server_anchored", "authored_ms": 2200001, "received_ms": 1600000, "expected_trusted": false},
+    {"quality": "approximate_persisted", "authored_ms": 1600000, "received_ms": 1600000, "expected_trusted": false},
+    {"quality": "unknown", "authored_ms": 0, "received_ms": 1600000, "expected_trusted": false}
+  ],
+  "unknown_time_rebase": {
+    "server_last": {"physical_ms": 2000, "logical": 5},
+    "received_at_ms": 2100,
+    "input": [
+      {"mutation_id": "00000000-0000-4000-8000-000000000009", "local_sequence": 9},
+      {"mutation_id": "00000000-0000-4000-8000-000000000007", "local_sequence": 7},
+      {"mutation_id": "00000000-0000-4000-8000-000000000008", "local_sequence": 8}
+    ],
+    "expected": [
+      {
+        "mutation_id": "00000000-0000-4000-8000-000000000007",
+        "accepted_hlc": {"physical_ms": 2100, "logical": 0, "actor_id": "00000000-0000-4000-8000-0000000000ff"}
+      },
+      {
+        "mutation_id": "00000000-0000-4000-8000-000000000008",
+        "accepted_hlc": {"physical_ms": 2100, "logical": 1, "actor_id": "00000000-0000-4000-8000-0000000000ff"}
+      },
+      {
+        "mutation_id": "00000000-0000-4000-8000-000000000009",
+        "accepted_hlc": {"physical_ms": 2100, "logical": 2, "actor_id": "00000000-0000-4000-8000-0000000000ff"}
+      }
+    ],
+    "replay_must_equal_expected": true
+  }
+}

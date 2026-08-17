@@ -1,0 +1,217 @@
+{
+  "manifest_version": 1,
+  "cases": [
+    {
+      "file": "valid/capabilities.json",
+      "schema": "urn:dog-rgb:contract:device-v1:capabilities",
+      "semantic": "capabilities",
+      "valid": true
+    },
+    {
+      "file": "valid/config-speed-profile.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": true
+    },
+    {
+      "file": "valid/config-brightness.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": true
+    },
+    {
+      "file": "valid/config-visual-mode.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": true
+    },
+    {
+      "file": "valid/config-simple-effect.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": true
+    },
+    {
+      "file": "valid/config-gps-quality.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": true
+    },
+    {
+      "file": "valid/config-geofence-policy.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": true
+    },
+    {
+      "file": "valid/user-v1-issue-claim-request.json",
+      "schema": "urn:dog-rgb:contract:device-v1:user-v1-issue-claim-request",
+      "semantic": "issue_claim_request",
+      "valid": true
+    },
+    {
+      "file": "valid/user-v1-issue-claim-success.json",
+      "schema": "urn:dog-rgb:contract:device-v1:user-v1-issue-claim-success",
+      "semantic": "issue_claim_success",
+      "valid": true
+    },
+    {
+      "file": "valid/device-v1-claim-request.json",
+      "schema": "urn:dog-rgb:contract:device-v1:device-v1-claim-request",
+      "semantic": "claim_request",
+      "valid": true
+    },
+    {
+      "file": "valid/device-v1-claim-success.json",
+      "schema": "urn:dog-rgb:contract:device-v1:device-v1-claim-success",
+      "semantic": "claim_success",
+      "valid": true
+    },
+    {
+      "file": "valid/telemetry-upload.json",
+      "schema": "urn:dog-rgb:contract:device-v1:telemetry",
+      "semantic": "telemetry",
+      "valid": true
+    },
+    {
+      "file": "valid/telemetry-legacy-upload.json",
+      "schema": "urn:dog-rgb:contract:device-v1:telemetry",
+      "semantic": "telemetry",
+      "valid": true
+    },
+    {
+      "file": "valid/device-v1-sync-request.json",
+      "schema": "urn:dog-rgb:contract:device-v1:device-v1-sync-request",
+      "semantic": "sync_request",
+      "valid": true
+    },
+    {
+      "file": "valid/device-v1-sync-success.json",
+      "schema": "urn:dog-rgb:contract:device-v1:device-v1-sync-success",
+      "semantic": "sync_success",
+      "valid": true
+    },
+    {
+      "file": "valid/device-v1-revoke-request.json",
+      "schema": "urn:dog-rgb:contract:device-v1:device-v1-revoke-request",
+      "semantic": "revoke_request",
+      "valid": true
+    },
+    {
+      "file": "valid/device-v1-revoke-success.json",
+      "schema": "urn:dog-rgb:contract:device-v1:device-v1-revoke-success",
+      "semantic": "revoke_success",
+      "valid": true
+    },
+    {
+      "file": "valid/device-v1-revoke-success-already-revoked.json",
+      "schema": "urn:dog-rgb:contract:device-v1:device-v1-revoke-success",
+      "semantic": "revoke_success",
+      "valid": true
+    },
+    {
+      "file": "valid/problem-details.json",
+      "schema": "urn:dog-rgb:contract:device-v1:problem-details",
+      "semantic": "problem",
+      "valid": true
+    },
+    {
+      "file": "invalid/issue-claim-success-ambiguous-code.json",
+      "schema": "urn:dog-rgb:contract:device-v1:user-v1-issue-claim-success",
+      "semantic": "issue_claim_success",
+      "valid": false,
+      "expected_error": "schema.pattern"
+    },
+    {
+      "file": "invalid/config-resource-key-body-mismatch.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": false,
+      "expected_error": "schema.required"
+    },
+    {
+      "file": "invalid/config-brightness-zero.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": false,
+      "expected_error": "schema.minimum"
+    },
+    {
+      "file": "invalid/config-gps-segment-bounds-inverted.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": false,
+      "expected_error": "semantic.gps_segment_bounds_inverted"
+    },
+    {
+      "file": "invalid/config-speed-profile-not-increasing.json",
+      "schema": "urn:dog-rgb:contract:device-v1:config-resource",
+      "semantic": "config_resource",
+      "valid": false,
+      "expected_error": "semantic.ranges_not_strictly_increasing"
+    },
+    {
+      "file": "invalid/capabilities-duplicate-effect-id.json",
+      "schema": "urn:dog-rgb:contract:device-v1:capabilities",
+      "semantic": "capabilities",
+      "valid": false,
+      "expected_error": "semantic.duplicate_effect_id"
+    },
+    {
+      "file": "invalid/telemetry-coordinate-out-of-range.json",
+      "schema": "urn:dog-rgb:contract:device-v1:telemetry",
+      "semantic": "telemetry",
+      "valid": false,
+      "expected_error": "schema.maximum"
+    },
+    {
+      "file": "invalid/telemetry-content-hash-mismatch.json",
+      "schema": "urn:dog-rgb:contract:device-v1:telemetry",
+      "semantic": "telemetry",
+      "valid": false,
+      "expected_error": "semantic.chunk_hash_mismatch"
+    },
+    {
+      "file": "invalid/telemetry-time-flag-mismatch.json",
+      "schema": "urn:dog-rgb:contract:device-v1:telemetry",
+      "semantic": "telemetry",
+      "valid": false,
+      "expected_error": "semantic.time_flag_mismatch"
+    },
+    {
+      "file": "invalid/telemetry-summary-invariant.json",
+      "schema": "urn:dog-rgb:contract:device-v1:telemetry",
+      "semantic": "telemetry",
+      "valid": false,
+      "expected_error": "semantic.summary_duration_mismatch"
+    },
+    {
+      "file": "invalid/telemetry-too-many-chunks.json",
+      "schema": "urn:dog-rgb:contract:device-v1:telemetry",
+      "semantic": "telemetry",
+      "valid": false,
+      "expected_error": "schema.max_items"
+    },
+    {
+      "file": "invalid/problem-status-mismatch.json",
+      "schema": "urn:dog-rgb:contract:device-v1:problem-details",
+      "semantic": "problem",
+      "valid": false,
+      "expected_error": "semantic.problem_status_mismatch"
+    },
+    {
+      "file": "invalid/device-v1-revoke-unknown-reason.json",
+      "schema": "urn:dog-rgb:contract:device-v1:device-v1-revoke-request",
+      "semantic": "revoke_request",
+      "valid": false,
+      "expected_error": "schema.enum"
+    },
+    {
+      "file": "invalid/device-v1-revoke-future-timestamp.json",
+      "schema": "urn:dog-rgb:contract:device-v1:device-v1-revoke-success",
+      "semantic": "revoke_success",
+      "valid": false,
+      "expected_error": "semantic.revoked_at_after_server_time"
+    }
+  ]
+}

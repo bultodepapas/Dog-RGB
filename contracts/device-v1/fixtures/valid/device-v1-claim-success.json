@@ -1,0 +1,14 @@
+{
+  "protocol_version": 1,
+  "request_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+  "server_time": "2026-08-13T17:01:00.000Z",
+  "pairing": {
+    "device_id": "11111111-1111-4111-8111-111111111111",
+    "credential_id": "44444444-4444-4444-8444-444444444444",
+    "collar_id": "55555555-5555-4555-8555-555555555555",
+    "dog_id": "22222222-2222-4222-8222-222222222222",
+    "state": "paired",
+    "accepted_capability_hash": "axujEtmjJJG2KBuvFLVzLiEyoy-Nv4PBSrA2Y5EG1WI"
+  },
+  "next_sync_after_seconds": 30
+}

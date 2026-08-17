@@ -38,6 +38,10 @@ The firmware and tests are the final source of truth. A document must never turn
 | [ADR-0001: WLED clean-room and provenance](adr/0001-wled-clean-room-y-licencia-del-proyecto.md) | Current policy, amended | Prevents unreviewed literal reuse of WLED material; its former license-selection prerequisite is resolved |
 | [ADR-0002: MIT project license](adr/0002-project-license-mit.md) | Current decision | Licenses original project material under MIT and defines the third-party boundary |
 | [ADR-0003: LED scene model and store](adr/0003-scene-model-and-store.md) | Current decision | Freezes scene authority, IDs/wire, A/B recovery, player semantics, API limits and accepted resource budget |
+| [ADR index](adr/README.md) | Current decisions | Cloud ADRs 0005–0010 and their implementation/evidence maturity |
+| [Device-v1 contract](../contracts/device-v1/README.md) | Phase 0 frozen target | Schemas, fixtures, HLC, error catalog, compatibility, and executable cross-codec checks; not deployed |
+| [Cloud Phase 0 field matrix](cloud/phase0-field-matrix.md) | Phase 0 evidence | Unit/range/privacy/ownership/sync disposition for current config and telemetry fields |
+| [Cloud Phase 0 documentation index](cloud/README.md) | Phase 0 evidence | Storage/capacity, threat, privacy, retention, and credential artifacts with remaining gates |
 | [Requirements](requirements.md) | Current | Functional, safety, and quality requirements with verification state |
 | [Roadmap](roadmap.md) | Current | Implemented baseline and optional next phases |
 | [Work queue](tasks.md) | Current | Concrete remaining validation and engineering tasks |
@@ -89,7 +93,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Portal configuration presets](portal_config_presets.md) | Proposed | Whole-runtime profiles distinct from implemented visual scenes; no selector/config-preset persistence |
 | [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–5 implemented in software; physical-HIL acceptance remains separate, Spanish | Current-limiting, effect-registry, palette, segment, scene, and web-asset roadmap |
 | [App wireframe and data flow](flow_wireframe.md) | Proposed | Companion-app concept, separate from the implemented local portal |
-| [Cloud platform and bidirectional sync plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) | Proposed | Current detailed implementation plan; no cloud application exists yet |
+| [Cloud platform and bidirectional sync plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) | Accepted optional direction; Phase 0 in progress | Current detailed implementation plan; device-v1 passes 48/48, but no cloud application exists, the corrected 664-slot host candidate is rejected/open and non-accepting, and the physical-storage/credentialed-map gates remain open; Phase 1 is unauthorized |
 | [Cloud portal master plan](PLANS/2026-08-01_cloud-portal-master-plan.md) | Superseded proposed snapshot | Older upload-oriented design retained for history |
 | [Software area](../software/README.md) | Proposed | Placeholder and boundaries for future companion/cloud software |
 

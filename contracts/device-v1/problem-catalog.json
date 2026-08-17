@@ -1,0 +1,252 @@
+{
+  "catalog_version": 1,
+  "type_prefix": "urn:dog-rgb:problem:",
+  "entries": [
+    {
+      "code": "malformed_json",
+      "status": 400,
+      "title": "Malformed JSON",
+      "retry_class": "never",
+      "device_action": "fix_client_and_retain",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "invalid_envelope",
+      "status": 400,
+      "title": "Invalid request envelope",
+      "retry_class": "never",
+      "device_action": "fix_client_and_retain",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "authentication_required",
+      "status": 401,
+      "title": "Authentication required",
+      "retry_class": "operator",
+      "device_action": "browser_reauthenticate",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim"]
+    },
+    {
+      "code": "claim_unavailable",
+      "status": 401,
+      "title": "Claim unavailable",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair_claim",
+      "retry_after_allowed": false,
+      "applies_to": ["claim"]
+    },
+    {
+      "code": "device_credential_invalid",
+      "status": 401,
+      "title": "Device credential invalid",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair_claim",
+      "device_action_overrides": {"revoke": "retain_revoke_pending"},
+      "retry_after_allowed": false,
+      "applies_to": ["sync", "revoke"]
+    },
+    {
+      "code": "device_credential_expired",
+      "status": 401,
+      "title": "Device credential expired",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair_claim",
+      "device_action_overrides": {"revoke": "retain_revoke_pending"},
+      "retry_after_allowed": false,
+      "applies_to": ["sync", "revoke"]
+    },
+    {
+      "code": "email_not_verified",
+      "status": 403,
+      "title": "Verified email required",
+      "retry_class": "operator",
+      "device_action": "browser_reauthenticate",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim"]
+    },
+    {
+      "code": "dog_access_denied",
+      "status": 403,
+      "title": "Dog access denied",
+      "retry_class": "operator",
+      "device_action": "browser_reauthenticate",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim"]
+    },
+    {
+      "code": "device_revoked",
+      "status": 403,
+      "title": "Device revoked",
+      "retry_class": "never",
+      "device_action": "mark_revoked_and_stop",
+      "retry_after_allowed": false,
+      "applies_to": ["sync"]
+    },
+    {
+      "code": "method_not_allowed",
+      "status": 405,
+      "title": "Method not allowed",
+      "retry_class": "never",
+      "device_action": "fix_client_and_retain",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "request_id_reused",
+      "status": 409,
+      "title": "Request identifier reused",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair_identity",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "device_identity_conflict",
+      "status": 409,
+      "title": "Device identity conflict",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair_identity",
+      "retry_after_allowed": false,
+      "applies_to": ["claim", "sync", "revoke"]
+    },
+    {
+      "code": "active_claim_exists",
+      "status": 409,
+      "title": "Active claim already exists",
+      "retry_class": "operator",
+      "device_action": "browser_refresh_and_retry",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim"]
+    },
+    {
+      "code": "length_required",
+      "status": 411,
+      "title": "Content length required",
+      "retry_class": "never",
+      "device_action": "fix_client_and_retain",
+      "retry_after_allowed": false,
+      "applies_to": ["claim", "sync", "revoke"]
+    },
+    {
+      "code": "payload_too_large",
+      "status": 413,
+      "title": "Payload too large",
+      "retry_class": "operator",
+      "device_action": "split_and_retain",
+      "device_action_overrides": {"revoke": "retain_revoke_pending"},
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "unsupported_media_type",
+      "status": 415,
+      "title": "Unsupported media type",
+      "retry_class": "never",
+      "device_action": "fix_client_and_retain",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "unsupported_protocol",
+      "status": 422,
+      "title": "Unsupported protocol version",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair",
+      "retry_after_allowed": false,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "unsupported_schema",
+      "status": 422,
+      "title": "Unsupported device schema",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair",
+      "retry_after_allowed": false,
+      "applies_to": ["claim", "sync"]
+    },
+    {
+      "code": "invalid_capabilities",
+      "status": 422,
+      "title": "Invalid capability manifest",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair",
+      "retry_after_allowed": false,
+      "applies_to": ["claim", "sync"]
+    },
+    {
+      "code": "invalid_telemetry",
+      "status": 422,
+      "title": "Invalid telemetry",
+      "retry_class": "operator",
+      "device_action": "quarantine_identified_data",
+      "retry_after_allowed": false,
+      "applies_to": ["sync"]
+    },
+    {
+      "code": "clock_skew",
+      "status": 422,
+      "title": "Device clock is implausible",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair",
+      "retry_after_allowed": false,
+      "applies_to": ["claim", "sync"]
+    },
+    {
+      "code": "rate_limited",
+      "status": 429,
+      "title": "Too many requests",
+      "retry_class": "retry_after",
+      "device_action": "retain_and_honor_retry_after",
+      "retry_after_allowed": true,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "quota_exceeded",
+      "status": 429,
+      "title": "Device quota exceeded",
+      "retry_class": "retry_after",
+      "device_action": "retain_and_honor_retry_after",
+      "retry_after_allowed": true,
+      "applies_to": ["sync"]
+    },
+    {
+      "code": "internal_error",
+      "status": 500,
+      "title": "Internal server error",
+      "retry_class": "backoff",
+      "device_action": "retain_and_retry_with_jitter",
+      "retry_after_allowed": true,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "transaction_conflict",
+      "status": 503,
+      "title": "Transaction temporarily conflicted",
+      "retry_class": "backoff",
+      "device_action": "retain_and_retry_with_jitter",
+      "retry_after_allowed": true,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "server_busy",
+      "status": 503,
+      "title": "Service temporarily unavailable",
+      "retry_class": "backoff",
+      "device_action": "retain_and_retry_with_jitter",
+      "retry_after_allowed": true,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    },
+    {
+      "code": "gateway_timeout",
+      "status": 504,
+      "title": "Gateway timeout",
+      "retry_class": "backoff",
+      "device_action": "retain_and_retry_with_jitter",
+      "retry_after_allowed": true,
+      "applies_to": ["issue_claim", "claim", "sync", "revoke"]
+    }
+  ]
+}

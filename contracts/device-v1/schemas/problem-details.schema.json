@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:problem-details",
+  "title": "Dog RGB RFC 9457 problem details",
+  "type": "object",
+  "required": ["type", "title", "status", "code", "detail", "request_id"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "pattern": "^urn:dog-rgb:problem:[a-z][a-z0-9_]{0,63}$",
+      "minLength": 22,
+      "maxLength": 85
+    },
+    "title": {"type": "string", "minLength": 1, "maxLength": 80},
+    "status": {"type": "integer", "minimum": 400, "maximum": 599},
+    "code": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/machineCode"},
+    "detail": {"type": "string", "minLength": 1, "maxLength": 240},
+    "request_id": {
+      "oneOf": [
+        {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+        {"type": "null"}
+      ]
+    },
+    "retry_after_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
+    "errors": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": ["path", "code"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^/", "minLength": 1, "maxLength": 128},
+          "code": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/machineCode"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "supported": {
+      "type": "object",
+      "properties": {
+        "protocol_versions": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 1, "maximum": 255}
+        },
+        "telemetry_schemas": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 1, "maximum": 255}
+        },
+        "config_schemas": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 1, "maximum": 255}
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:device-v1-claim-request",
+  "title": "Dog RGB collar claim request",
+  "type": "object",
+  "required": [
+    "protocol_version",
+    "request_id",
+    "claim_code",
+    "credential_id",
+    "credential_secret",
+    "device",
+    "capabilities"
+  ],
+  "properties": {
+    "protocol_version": {"const": 1},
+    "request_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "claim_code": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{16}$",
+      "minLength": 16,
+      "maxLength": 16
+    },
+    "credential_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "credential_secret": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/secret256Base64Url"},
+    "device": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/deviceDescriptor"},
+    "capabilities": {"$ref": "urn:dog-rgb:contract:device-v1:capabilities"}
+  },
+  "additionalProperties": false
+}

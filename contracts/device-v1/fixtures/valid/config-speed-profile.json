@@ -1,0 +1,19 @@
+{
+  "resource_key": "speed_profile",
+  "resource_schema": 1,
+  "body": {
+    "ranges_kph": [2, 4, 6, 8, 10, 12, 14, 16, 18],
+    "effects": [
+      {"effect_a": 7, "effect_b": 7, "speed": 40, "intensity": 80},
+      {"effect_a": 7, "effect_b": 7, "speed": 58, "intensity": 95},
+      {"effect_a": 7, "effect_b": 7, "speed": 76, "intensity": 110},
+      {"effect_a": 7, "effect_b": 7, "speed": 94, "intensity": 125},
+      {"effect_a": 7, "effect_b": 7, "speed": 112, "intensity": 140},
+      {"effect_a": 7, "effect_b": 7, "speed": 130, "intensity": 155},
+      {"effect_a": 7, "effect_b": 7, "speed": 148, "intensity": 170},
+      {"effect_a": 7, "effect_b": 7, "speed": 166, "intensity": 180},
+      {"effect_a": 7, "effect_b": 7, "speed": 184, "intensity": 190},
+      {"effect_a": 7, "effect_b": 7, "speed": 200, "intensity": 200}
+    ]
+  }
+}

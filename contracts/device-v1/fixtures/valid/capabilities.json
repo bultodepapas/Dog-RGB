@@ -1,0 +1,75 @@
+{
+  "manifest_schema": 1,
+  "hardware_revision": "xiao-s3-r1",
+  "protocol_versions": [1],
+  "telemetry": {
+    "schemas": [3],
+    "point_format": "track-point-v3-le-16",
+    "flags_mask": 127,
+    "max_chunk_points": 96
+  },
+  "config_schemas": [7],
+  "config_resources": [
+    {"resource_key": "brightness", "resource_schema": 1, "sync_mode": "bidirectional"},
+    {"resource_key": "visual_mode", "resource_schema": 1, "sync_mode": "bidirectional"},
+    {"resource_key": "speed_profile", "resource_schema": 1, "sync_mode": "bidirectional"},
+    {"resource_key": "simple_effect", "resource_schema": 1, "sync_mode": "bidirectional"},
+    {"resource_key": "gps_quality", "resource_schema": 1, "sync_mode": "bidirectional"},
+    {"resource_key": "geofence_policy", "resource_schema": 1, "sync_mode": "bidirectional"}
+  ],
+  "excluded_resources": [
+    "station_wifi",
+    "access_point",
+    "mdns_hostname",
+    "portal_pin",
+    "cloud_credential",
+    "api_hostname",
+    "home_location",
+    "power_model",
+    "scenes",
+    "scene_preview",
+    "developer_controls"
+  ],
+  "led": {
+    "effect_registry_version": 2,
+    "palette_registry_version": 1,
+    "effects": [
+      {"id": 0, "key": "solid", "label": "SOLID", "controls": ["color"], "default_speed": 80, "default_intensity": 140, "speed_min": 0, "speed_max": 255, "intensity_min": 0, "intensity_max": 255, "color_mode": "base", "palette_mode": "none", "default_palette_id": null, "safety": "calm"},
+      {"id": 1, "key": "pulse", "label": "PULSE", "controls": ["speed", "color"], "default_speed": 80, "default_intensity": 140, "speed_min": 10, "speed_max": 180, "intensity_min": 0, "intensity_max": 255, "color_mode": "base", "palette_mode": "none", "default_palette_id": null, "safety": "active"},
+      {"id": 2, "key": "breath", "label": "BREATH", "controls": ["speed", "color"], "default_speed": 60, "default_intensity": 90, "speed_min": 10, "speed_max": 140, "intensity_min": 0, "intensity_max": 255, "color_mode": "base", "palette_mode": "selectable", "default_palette_id": 7, "safety": "calm"},
+      {"id": 3, "key": "chase", "label": "CHASE", "controls": ["speed", "intensity", "color"], "default_speed": 120, "default_intensity": 140, "speed_min": 32, "speed_max": 224, "intensity_min": 40, "intensity_max": 240, "color_mode": "base", "palette_mode": "selectable", "default_palette_id": 7, "safety": "active"},
+      {"id": 4, "key": "comet", "label": "COMET", "controls": ["speed", "intensity", "color"], "default_speed": 120, "default_intensity": 140, "speed_min": 24, "speed_max": 216, "intensity_min": 40, "intensity_max": 240, "color_mode": "base", "palette_mode": "selectable", "default_palette_id": 7, "safety": "active"},
+      {"id": 5, "key": "sinelon", "label": "SINELON", "controls": ["speed", "intensity", "color"], "default_speed": 110, "default_intensity": 150, "speed_min": 20, "speed_max": 180, "intensity_min": 40, "intensity_max": 240, "color_mode": "base", "palette_mode": "none", "default_palette_id": null, "safety": "active"},
+      {"id": 6, "key": "confetti", "label": "CONFETTI", "controls": ["intensity", "color"], "default_speed": 100, "default_intensity": 150, "speed_min": 0, "speed_max": 255, "intensity_min": 40, "intensity_max": 240, "color_mode": "base", "palette_mode": "none", "default_palette_id": null, "safety": "active"},
+      {"id": 7, "key": "juggle", "label": "JUGGLE", "controls": ["speed", "intensity", "color"], "default_speed": 150, "default_intensity": 180, "speed_min": 20, "speed_max": 200, "intensity_min": 40, "intensity_max": 240, "color_mode": "base", "palette_mode": "none", "default_palette_id": null, "safety": "advanced"},
+      {"id": 8, "key": "bpm", "label": "BPM", "controls": ["speed", "color"], "default_speed": 100, "default_intensity": 150, "speed_min": 10, "speed_max": 180, "intensity_min": 0, "intensity_max": 255, "color_mode": "base", "palette_mode": "none", "default_palette_id": null, "safety": "active"},
+      {"id": 9, "key": "rainbow", "label": "RAINBOW", "controls": ["speed"], "default_speed": 120, "default_intensity": 180, "speed_min": 16, "speed_max": 224, "intensity_min": 0, "intensity_max": 255, "color_mode": "generated", "palette_mode": "selectable", "default_palette_id": 4, "safety": "active"},
+      {"id": 10, "key": "fire", "label": "FIRE", "controls": ["intensity"], "default_speed": 155, "default_intensity": 200, "speed_min": 80, "speed_max": 220, "intensity_min": 80, "intensity_max": 240, "color_mode": "generated", "palette_mode": "internal", "default_palette_id": 5, "safety": "advanced"},
+      {"id": 11, "key": "gradient_wave", "label": "GRADIENT WAVE", "controls": ["speed"], "default_speed": 120, "default_intensity": 180, "speed_min": 24, "speed_max": 224, "intensity_min": 0, "intensity_max": 255, "color_mode": "generated", "palette_mode": "selectable", "default_palette_id": 2, "safety": "active"}
+    ],
+    "palettes": [
+      {"id": 0, "key": "safety_amber", "label": "Safety Amber"},
+      {"id": 1, "key": "night_red", "label": "Night Red"},
+      {"id": 2, "key": "ocean", "label": "Ocean"},
+      {"id": 3, "key": "forest", "label": "Forest"},
+      {"id": 4, "key": "pride", "label": "Pride"},
+      {"id": 5, "key": "heat", "label": "Heat"},
+      {"id": 6, "key": "ice", "label": "Ice"},
+      {"id": 7, "key": "custom_ab", "label": "Custom A-B"}
+    ]
+  },
+  "limits": {
+    "brightness_min": 1,
+    "brightness_max": 255,
+    "effect_control_min": 0,
+    "effect_control_max": 255,
+    "max_chunks_per_sync": 8,
+    "max_points_per_sync": 384,
+    "max_config_mutations_per_sync": 16
+  },
+  "features": {
+    "configuration_reporting": true,
+    "telemetry_loss_markers": true,
+    "legacy_v2_upload": false
+  }
+}

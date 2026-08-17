@@ -1,0 +1,384 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:config-resource",
+  "title": "Dog RGB device-v1 configuration resources",
+  "$ref": "#/$defs/resource",
+  "$defs": {
+    "resourceKey": {
+      "enum": [
+        "brightness",
+        "visual_mode",
+        "speed_profile",
+        "simple_effect",
+        "gps_quality",
+        "geofence_policy"
+      ]
+    },
+    "rgb": {
+      "type": "object",
+      "required": ["r", "g", "b"],
+      "properties": {
+        "r": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "g": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "b": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"}
+      },
+      "additionalProperties": false
+    },
+    "brightnessBody": {
+      "type": "object",
+      "required": ["brightness"],
+      "properties": {
+        "brightness": {"type": "integer", "minimum": 1, "maximum": 255}
+      },
+      "additionalProperties": false
+    },
+    "visualModeBody": {
+      "type": "object",
+      "required": ["mode", "day_mode_enabled"],
+      "properties": {
+        "mode": {"enum": ["speed", "geofence", "show", "simple"]},
+        "day_mode_enabled": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "rangeEffect": {
+      "type": "object",
+      "required": ["effect_a", "effect_b", "speed", "intensity"],
+      "properties": {
+        "effect_a": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "effect_b": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "speed": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "intensity": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"}
+      },
+      "additionalProperties": false
+    },
+    "speedProfileBody": {
+      "type": "object",
+      "required": ["ranges_kph", "effects"],
+      "properties": {
+        "ranges_kph": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 200
+          }
+        },
+        "effects": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": {"$ref": "#/$defs/rangeEffect"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "simpleEffectBody": {
+      "type": "object",
+      "required": ["effect_id", "speed", "intensity", "base_rgb"],
+      "properties": {
+        "effect_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "speed": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "intensity": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        "base_rgb": {"$ref": "#/$defs/rgb"}
+      },
+      "additionalProperties": false
+    },
+    "gpsQualityBody": {
+      "type": "object",
+      "required": [
+        "min_fix_quality",
+        "min_satellites",
+        "max_hdop",
+        "max_gga_age_ms",
+        "min_segment_m",
+        "hdop_factor",
+        "max_min_segment_m"
+      ],
+      "properties": {
+        "min_fix_quality": {"type": "integer", "minimum": 0, "maximum": 8},
+        "min_satellites": {"type": "integer", "minimum": 3, "maximum": 12},
+        "max_hdop": {"type": "number", "minimum": 0.5, "maximum": 20},
+        "max_gga_age_ms": {"type": "integer", "minimum": 500, "maximum": 10000},
+        "min_segment_m": {"type": "number", "minimum": 0.5, "maximum": 20},
+        "hdop_factor": {"type": "number", "minimum": 0, "maximum": 5},
+        "max_min_segment_m": {"type": "number", "minimum": 1, "maximum": 50}
+      },
+      "additionalProperties": false
+    },
+    "geofencePolicyBody": {
+      "type": "object",
+      "required": ["fence_max_m"],
+      "properties": {
+        "fence_max_m": {"type": "integer", "minimum": 50, "maximum": 5000}
+      },
+      "additionalProperties": false
+    },
+    "body": {
+      "oneOf": [
+        {"$ref": "#/$defs/brightnessBody"},
+        {"$ref": "#/$defs/visualModeBody"},
+        {"$ref": "#/$defs/speedProfileBody"},
+        {"$ref": "#/$defs/simpleEffectBody"},
+        {"$ref": "#/$defs/gpsQualityBody"},
+        {"$ref": "#/$defs/geofencePolicyBody"}
+      ]
+    },
+    "resource": {
+      "type": "object",
+      "required": ["resource_key", "resource_schema", "body"],
+      "properties": {
+        "resource_key": {"$ref": "#/$defs/resourceKey"},
+        "resource_schema": {"const": 1},
+        "body": {"$ref": "#/$defs/body"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"resource_key": {"const": "brightness"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/brightnessBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "visual_mode"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/visualModeBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "speed_profile"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/speedProfileBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "simple_effect"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/simpleEffectBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "gps_quality"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/gpsQualityBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "geofence_policy"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/geofencePolicyBody"}}}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "mutation": {
+      "type": "object",
+      "required": [
+        "mutation_id",
+        "local_sequence",
+        "resource_key",
+        "resource_schema",
+        "base_server_version",
+        "authored_hlc",
+        "time_quality",
+        "origin",
+        "body",
+        "body_sha256"
+      ],
+      "properties": {
+        "mutation_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+        "local_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "resource_key": {"$ref": "#/$defs/resourceKey"},
+        "resource_schema": {"const": 1},
+        "base_server_version": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/safeNonNegativeInteger"},
+        "authored_hlc": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/hlc"},
+        "time_quality": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/timeQuality"},
+        "origin": {"const": "ap"},
+        "body": {"$ref": "#/$defs/body"},
+        "body_sha256": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/sha256Base64Url"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"resource_key": {"const": "brightness"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/brightnessBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "visual_mode"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/visualModeBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "speed_profile"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/speedProfileBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "simple_effect"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/simpleEffectBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "gps_quality"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/gpsQualityBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "geofence_policy"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/geofencePolicyBody"}}}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "reported": {
+      "type": "object",
+      "required": [
+        "resource_key",
+        "server_version",
+        "body_sha256",
+        "status",
+        "error_code",
+        "device_applied_at"
+      ],
+      "properties": {
+        "resource_key": {"$ref": "#/$defs/resourceKey"},
+        "server_version": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/safeNonNegativeInteger"},
+        "body_sha256": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/sha256Base64Url"},
+        "status": {
+          "enum": ["applied", "rejected_unsupported", "rejected_invalid", "storage_failed"]
+        },
+        "error_code": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/machineCode"}
+          ]
+        },
+        "device_applied_at": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcDateTime"}
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "applied"}}, "required": ["status"]},
+          "then": {"properties": {"error_code": {"type": "null"}}},
+          "else": {"properties": {"error_code": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/machineCode"}}}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "desired": {
+      "type": "object",
+      "required": [
+        "resource_key",
+        "resource_schema",
+        "server_version",
+        "accepted_hlc",
+        "body",
+        "body_sha256"
+      ],
+      "properties": {
+        "resource_key": {"$ref": "#/$defs/resourceKey"},
+        "resource_schema": {"const": 1},
+        "server_version": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/safeNonNegativeInteger"},
+        "accepted_hlc": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/hlc"},
+        "body": {"$ref": "#/$defs/body"},
+        "body_sha256": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/sha256Base64Url"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"resource_key": {"const": "brightness"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/brightnessBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "visual_mode"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/visualModeBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "speed_profile"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/speedProfileBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "simple_effect"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/simpleEffectBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "gps_quality"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/gpsQualityBody"}}}
+        },
+        {
+          "if": {"properties": {"resource_key": {"const": "geofence_policy"}}, "required": ["resource_key"]},
+          "then": {"properties": {"body": {"$ref": "#/$defs/geofencePolicyBody"}}}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "outcome": {
+      "type": "object",
+      "required": [
+        "mutation_id",
+        "resource_key",
+        "disposition",
+        "replayed",
+        "ordering",
+        "server_version",
+        "accepted_hlc",
+        "error_code"
+      ],
+      "properties": {
+        "mutation_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+        "resource_key": {"$ref": "#/$defs/resourceKey"},
+        "disposition": {"enum": ["winning", "superseded", "rejected"]},
+        "replayed": {"type": "boolean"},
+        "ordering": {
+          "oneOf": [
+            {"enum": ["authored", "fallback_received"]},
+            {"type": "null"}
+          ]
+        },
+        "server_version": {
+          "oneOf": [
+            {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/safeNonNegativeInteger"},
+            {"type": "null"}
+          ]
+        },
+        "accepted_hlc": {
+          "oneOf": [
+            {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/hlc"},
+            {"type": "null"}
+          ]
+        },
+        "error_code": {
+          "oneOf": [
+            {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/machineCode"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"disposition": {"const": "winning"}}, "required": ["disposition"]},
+          "then": {
+            "properties": {
+              "ordering": {"enum": ["authored", "fallback_received"]},
+              "server_version": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/safeNonNegativeInteger"},
+              "accepted_hlc": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/hlc"},
+              "error_code": {"type": "null"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"disposition": {"const": "superseded"}}, "required": ["disposition"]},
+          "then": {
+            "properties": {
+              "ordering": {"enum": ["authored", "fallback_received"]},
+              "server_version": {"type": "null"},
+              "accepted_hlc": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/hlc"},
+              "error_code": {"type": "null"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"disposition": {"const": "rejected"}}, "required": ["disposition"]},
+          "then": {
+            "properties": {
+              "ordering": {"type": "null"},
+              "server_version": {"type": "null"},
+              "accepted_hlc": {"type": "null"},
+              "error_code": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/machineCode"}
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:telemetry",
+  "title": "Dog RGB Track v3 upload",
+  "$ref": "#/$defs/upload",
+  "$defs": {
+    "pointV3": {
+      "type": "array",
+      "description": "[lat_e7, lon_e7, utc_s, speed_cmps, satellites, flags]",
+      "minItems": 6,
+      "maxItems": 6,
+      "prefixItems": [
+        {"type": "integer", "minimum": -900000000, "maximum": 900000000},
+        {"type": "integer", "minimum": -1800000000, "maximum": 1800000000},
+        {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint16"},
+        {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint8"},
+        {"type": "integer", "minimum": 0, "maximum": 127}
+      ],
+      "items": false
+    },
+    "chunkV3": {
+      "type": "object",
+      "required": [
+        "telemetry_schema",
+        "boot_sequence",
+        "chunk_sequence",
+        "first_point_sequence",
+        "point_count",
+        "time_quality",
+        "content_sha256",
+        "is_final",
+        "points"
+      ],
+      "properties": {
+        "telemetry_schema": {"const": 3},
+        "boot_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "chunk_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "first_point_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "point_count": {"type": "integer", "minimum": 1, "maximum": 96},
+        "time_quality": {
+          "description": "Track v3 chunk-header uint8: 0 unknown, 1 approximate persisted, 2 server anchored, 3 SNTP synced, 4 GNSS trusted, 5 legacy minute",
+          "enum": [0, 1, 2, 3, 4, 5]
+        },
+        "content_sha256": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/sha256Base64Url"},
+        "is_final": {"type": "boolean"},
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 96,
+          "items": {"$ref": "#/$defs/pointV3"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "summary_id",
+        "local_date",
+        "timezone",
+        "source_revision",
+        "window_start",
+        "window_end",
+        "observed_s",
+        "moving_s",
+        "inactive_s",
+        "distance_m",
+        "max_speed_cmps",
+        "valid_points",
+        "gap_count",
+        "dropped_points",
+        "time_quality"
+      ],
+      "properties": {
+        "summary_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+        "local_date": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/localDate"},
+        "timezone": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/ianaTimezone"},
+        "source_revision": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "window_start": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcDateTime"},
+        "window_end": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcDateTime"},
+        "observed_s": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "moving_s": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "inactive_s": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "distance_m": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "max_speed_cmps": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0, "maximum": 65534},
+            {"type": "null"}
+          ]
+        },
+        "valid_points": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "gap_count": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "dropped_points": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "time_quality": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/timeQuality"}
+      },
+      "additionalProperties": false
+    },
+    "lossMarker": {
+      "type": "object",
+      "required": [
+        "marker_id",
+        "boot_sequence",
+        "first_missing_point_sequence",
+        "last_missing_point_sequence",
+        "lost_points",
+        "reason",
+        "recorded_utc_ms"
+      ],
+      "properties": {
+        "marker_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+        "boot_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "first_missing_point_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "last_missing_point_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "lost_points": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "reason": {
+          "enum": ["storage_pressure", "corrupt_chunk", "user_reset", "legacy_unavailable"]
+        },
+        "recorded_utc_ms": {
+          "oneOf": [
+            {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcMilliseconds"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "upload": {
+      "type": "object",
+      "required": ["chunks", "summaries", "loss_markers"],
+      "properties": {
+        "chunks": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {"$ref": "#/$defs/chunkV3"}
+        },
+        "summaries": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {"$ref": "#/$defs/summary"}
+        },
+        "loss_markers": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {"$ref": "#/$defs/lossMarker"}
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

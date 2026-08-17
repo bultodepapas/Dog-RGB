@@ -1,0 +1,61 @@
+{
+  "contract": "device-v1",
+  "protocol_version": 1,
+  "capability_manifest_schema": 1,
+  "required_device_schemas": {
+    "telemetry_schema": 3,
+    "config_schema": 7
+  },
+  "resource_schemas": {
+    "brightness": 1,
+    "visual_mode": 1,
+    "speed_profile": 1,
+    "simple_effect": 1,
+    "gps_quality": 1,
+    "geofence_policy": 1
+  },
+  "combinations": [
+    {
+      "protocol_version": 1,
+      "telemetry_schema": 3,
+      "config_schema": 7,
+      "capability_manifest_schema": 1,
+      "result": "supported"
+    },
+    {
+      "protocol_version": 1,
+      "telemetry_schema": 2,
+      "config_schema": 6,
+      "capability_manifest_schema": null,
+      "result": "firmware_upgrade_required"
+    },
+    {
+      "protocol_version": 1,
+      "telemetry_schema": 2,
+      "config_schema": 7,
+      "capability_manifest_schema": 1,
+      "result": "unsupported_telemetry_schema"
+    },
+    {
+      "protocol_version": 1,
+      "telemetry_schema": 3,
+      "config_schema": 6,
+      "capability_manifest_schema": 1,
+      "result": "unsupported_config_schema"
+    },
+    {
+      "protocol_version": 2,
+      "telemetry_schema": 3,
+      "config_schema": 7,
+      "capability_manifest_schema": 1,
+      "result": "unsupported_protocol"
+    }
+  ],
+  "legacy_policy": {
+    "track_v2_upload": "supported_only_as_schema3_legacy_conversion",
+    "track_v2_local_export": "preserve",
+    "config_v6_cloud_sync": "not_supported",
+    "unknown_resource": "reject_resource_not_request",
+    "unknown_problem_code": "retain_data_and_use_http_status_class"
+  }
+}

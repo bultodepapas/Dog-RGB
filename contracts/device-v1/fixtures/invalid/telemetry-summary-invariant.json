@@ -1,0 +1,23 @@
+{
+  "chunks": [],
+  "summaries": [
+    {
+      "summary_id": "77777777-7777-4777-8777-777777777777",
+      "local_date": "2026-08-13",
+      "timezone": "America/Bogota",
+      "source_revision": 1,
+      "window_start": "2026-08-13T17:10:00.000Z",
+      "window_end": "2026-08-13T17:11:05.000Z",
+      "observed_s": 65,
+      "moving_s": 60,
+      "inactive_s": 60,
+      "distance_m": 15,
+      "max_speed_cmps": 140,
+      "valid_points": 3,
+      "gap_count": 0,
+      "dropped_points": 0,
+      "time_quality": "sntp_synced"
+    }
+  ],
+  "loss_markers": []
+}

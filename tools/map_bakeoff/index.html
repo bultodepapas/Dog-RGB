@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" data-ready="false">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Dog RGB · map bakeoff</title>
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.23.0/dist/maplibre-gl.css" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">DOG RGB / PHASE 0 EVIDENCE</p>
+          <h1>Route cartography bakeoff</h1>
+        </div>
+        <div class="provider-block">
+          <span>Candidate</span>
+          <strong id="provider-name">Loading…</strong>
+          <small id="evidence-state">Synthetic routes · fixed viewport</small>
+        </div>
+      </header>
+
+      <aside class="diagnostic-note" aria-label="Evidence limitation">
+        <strong>Fixture only.</strong>
+        <span>Every route is generated or hand-invented. No dog, owner, or production coordinate appears here.</span>
+      </aside>
+
+      <section class="map-grid" id="map-grid" aria-label="Deterministic synthetic route scenarios"></section>
+
+      <footer>
+        <div class="legend" aria-label="Speed legend">
+          <span><i class="stationary"></i>stationary</span>
+          <span><i class="steady"></i>steady</span>
+          <span><i class="fast"></i>fast</span>
+          <span><i class="gap"></i>quality gap</span>
+        </div>
+        <p>Score legibility, label noise, terrain context, brand fit, and mobile clarity. Never infer behavior from these synthetic bands.</p>
+      </footer>
+
+      <section class="data-ledger" aria-labelledby="route-data-title">
+        <div>
+          <p class="eyebrow">NON-MAP ALTERNATIVE</p>
+          <h2 id="route-data-title">Route fixture summary</h2>
+          <p>Text preserves the test facts when color, canvas, or map interaction is unavailable.</p>
+        </div>
+        <div class="table-scroll" tabindex="0" aria-label="Scrollable route fixture data">
+          <table>
+            <caption class="sr-only">Synthetic route fixture point, duration, distance, and gap counts</caption>
+            <thead><tr><th scope="col">Fixture</th><th scope="col">Points</th><th scope="col">Duration</th><th scope="col">Distance</th><th scope="col">Gaps</th></tr></thead>
+            <tbody id="route-data-body"></tbody>
+          </table>
+        </div>
+      </section>
+      <div id="fatal-error" role="alert" hidden></div>
+    </main>
+    <svg class="cvd-filter-definitions" width="0" height="0" aria-hidden="true" focusable="false">
+      <filter id="cvd-deuteranopia" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.367322 0.860646 -0.227968 0 0  0.280085 0.672501 0.047413 0 0  -0.011820 0.042940 0.968881 0 0  0 0 0 1 0" />
+      </filter>
+      <filter id="cvd-protanopia" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="0.152286 1.052583 -0.204868 0 0  0.114503 0.786281 0.099216 0 0  -0.003882 -0.048116 1.051998 0 0  0 0 0 1 0" />
+      </filter>
+    </svg>
+    <script src="https://unpkg.com/maplibre-gl@5.23.0/dist/maplibre-gl.js"></script>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

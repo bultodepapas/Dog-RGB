@@ -1,0 +1,13 @@
+{
+  "resource_key": "gps_quality",
+  "resource_schema": 1,
+  "body": {
+    "min_fix_quality": 1,
+    "min_satellites": 6,
+    "max_hdop": 2.5,
+    "max_gga_age_ms": 2000,
+    "min_segment_m": 3,
+    "hdop_factor": 2,
+    "max_min_segment_m": 10
+  }
+}

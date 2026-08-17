@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:device-v1-revoke-request",
+  "title": "Dog RGB device-v1 credential revocation request",
+  "type": "object",
+  "required": [
+    "protocol_version",
+    "request_id",
+    "device_id",
+    "credential_id",
+    "reason"
+  ],
+  "properties": {
+    "protocol_version": {"const": 1},
+    "request_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "device_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "credential_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "reason": {"enum": ["local_unlink", "factory_reset"]}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,5 @@
+{
+  "resource_key": "brightness",
+  "resource_schema": 1,
+  "body": {"brightness": 96}
+}

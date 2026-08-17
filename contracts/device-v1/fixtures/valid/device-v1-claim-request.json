@@ -1,0 +1,81 @@
+{
+  "protocol_version": 1,
+  "request_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+  "claim_code": "0123ABCD4567EFGH",
+  "credential_id": "44444444-4444-4444-8444-444444444444",
+  "credential_secret": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+  "device": {
+    "device_id": "11111111-1111-4111-8111-111111111111",
+    "boot_sequence": 42,
+    "firmware_version": "2.0.0-cloud.1",
+    "hardware_revision": "xiao-s3-r1",
+    "telemetry_schema": 3,
+    "config_schema": 7,
+    "capability_hash": "axujEtmjJJG2KBuvFLVzLiEyoy-Nv4PBSrA2Y5EG1WI"
+  },
+  "capabilities": {
+    "manifest_schema": 1,
+    "hardware_revision": "xiao-s3-r1",
+    "protocol_versions": [1],
+    "telemetry": {
+      "schemas": [3],
+      "point_format": "track-point-v3-le-16",
+      "flags_mask": 127,
+      "max_chunk_points": 96
+    },
+    "config_schemas": [7],
+    "config_resources": [
+      {"resource_key": "brightness", "resource_schema": 1, "sync_mode": "bidirectional"}
+    ],
+    "excluded_resources": [
+      "station_wifi",
+      "access_point",
+      "mdns_hostname",
+      "portal_pin",
+      "cloud_credential",
+      "api_hostname",
+      "home_location",
+      "power_model",
+      "scenes",
+      "scene_preview",
+      "developer_controls"
+    ],
+    "led": {
+      "effect_registry_version": 2,
+      "palette_registry_version": 1,
+      "effects": [
+        {
+          "id": 0,
+          "key": "solid",
+          "label": "SOLID",
+          "controls": ["color"],
+          "default_speed": 80,
+          "default_intensity": 140,
+          "speed_min": 0,
+          "speed_max": 255,
+          "intensity_min": 0,
+          "intensity_max": 255,
+          "color_mode": "base",
+          "palette_mode": "none",
+          "default_palette_id": null,
+          "safety": "calm"
+        }
+      ],
+      "palettes": []
+    },
+    "limits": {
+      "brightness_min": 1,
+      "brightness_max": 255,
+      "effect_control_min": 0,
+      "effect_control_max": 255,
+      "max_chunks_per_sync": 8,
+      "max_points_per_sync": 384,
+      "max_config_mutations_per_sync": 16
+    },
+    "features": {
+      "configuration_reporting": true,
+      "telemetry_loss_markers": true,
+      "legacy_v2_upload": false
+    }
+  }
+}

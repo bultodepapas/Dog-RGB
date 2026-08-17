@@ -1,0 +1,9 @@
+{
+  "type": "urn:dog-rgb:problem:rate_limited",
+  "title": "Too many requests",
+  "status": 503,
+  "code": "rate_limited",
+  "detail": "Retry after the indicated delay.",
+  "request_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3",
+  "retry_after_seconds": 120
+}

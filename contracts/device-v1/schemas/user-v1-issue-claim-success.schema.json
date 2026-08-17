@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:user-v1-issue-claim-success",
+  "title": "One-time Dog RGB collar claim result",
+  "type": "object",
+  "required": ["protocol_version", "request_id", "server_time", "claim"],
+  "properties": {
+    "protocol_version": {"const": 1},
+    "request_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "server_time": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcDateTime"},
+    "claim": {
+      "type": "object",
+      "required": ["claim_id", "dog_id", "code", "expires_at", "expires_in_seconds"],
+      "properties": {
+        "claim_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+        "dog_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuid"},
+        "code": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{16}$",
+          "minLength": 16,
+          "maxLength": 16
+        },
+        "expires_at": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcDateTime"},
+        "expires_in_seconds": {"const": 900}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

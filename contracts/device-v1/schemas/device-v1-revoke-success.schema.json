@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:device-v1-revoke-success",
+  "title": "Dog RGB device-v1 credential revocation result",
+  "type": "object",
+  "required": [
+    "protocol_version",
+    "request_id",
+    "server_time",
+    "device_id",
+    "credential_id",
+    "state",
+    "disposition",
+    "revoked_at"
+  ],
+  "properties": {
+    "protocol_version": {"const": 1},
+    "request_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "server_time": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcDateTime"},
+    "device_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "credential_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "state": {"const": "revoked"},
+    "disposition": {"enum": ["newly_revoked", "already_revoked"]},
+    "revoked_at": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcDateTime"}
+  },
+  "additionalProperties": false
+}

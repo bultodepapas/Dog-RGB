@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:device-v1-sync-success",
+  "title": "Dog RGB device-v1 committed synchronization result",
+  "type": "object",
+  "required": [
+    "protocol_version",
+    "request_id",
+    "server_time",
+    "server_hlc",
+    "accepted_capability_hash",
+    "telemetry",
+    "configuration",
+    "next_sync_after_seconds"
+  ],
+  "properties": {
+    "protocol_version": {"const": 1},
+    "request_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "server_time": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcDateTime"},
+    "server_hlc": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/hlc"},
+    "accepted_capability_hash": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/sha256Base64Url"},
+    "telemetry": {
+      "type": "object",
+      "required": [
+        "accepted_chunks",
+        "rejected_chunks",
+        "accepted_summary_ids",
+        "rejected_summaries",
+        "accepted_loss_marker_ids",
+        "rejected_loss_markers"
+      ],
+      "properties": {
+        "accepted_chunks": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {"$ref": "#/$defs/acceptedChunk"}
+        },
+        "rejected_chunks": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {"$ref": "#/$defs/rejectedChunk"}
+        },
+        "accepted_summary_ids": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"}
+        },
+        "rejected_summaries": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {"$ref": "#/$defs/rejectedIdentity"}
+        },
+        "accepted_loss_marker_ids": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"}
+        },
+        "rejected_loss_markers": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {"$ref": "#/$defs/rejectedIdentity"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "configuration": {
+      "type": "object",
+      "required": ["outcomes", "desired_resources"],
+      "properties": {
+        "outcomes": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {"$ref": "urn:dog-rgb:contract:device-v1:config-resource#/$defs/outcome"}
+        },
+        "desired_resources": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {"$ref": "urn:dog-rgb:contract:device-v1:config-resource#/$defs/desired"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "next_sync_after_seconds": {"type": "integer", "minimum": 30, "maximum": 86400}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "acceptedChunk": {
+      "type": "object",
+      "required": [
+        "boot_sequence",
+        "chunk_sequence",
+        "through_point_sequence",
+        "accepted_point_count",
+        "content_sha256"
+      ],
+      "properties": {
+        "boot_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "chunk_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "through_point_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "accepted_point_count": {"type": "integer", "minimum": 1, "maximum": 96},
+        "content_sha256": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/sha256Base64Url"}
+      },
+      "additionalProperties": false
+    },
+    "rejectedChunk": {
+      "type": "object",
+      "required": [
+        "boot_sequence",
+        "chunk_sequence",
+        "content_sha256",
+        "code",
+        "retryable",
+        "point_offsets"
+      ],
+      "properties": {
+        "boot_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "chunk_sequence": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "content_sha256": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/sha256Base64Url"},
+        "code": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/machineCode"},
+        "retryable": {"type": "boolean"},
+        "point_offsets": {
+          "type": "array",
+          "maxItems": 96,
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0, "maximum": 95}
+        }
+      },
+      "additionalProperties": false
+    },
+    "rejectedIdentity": {
+      "type": "object",
+      "required": ["id", "code", "retryable"],
+      "properties": {
+        "id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+        "code": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/machineCode"},
+        "retryable": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

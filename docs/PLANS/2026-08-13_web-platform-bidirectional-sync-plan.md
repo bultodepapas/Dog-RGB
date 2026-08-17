@@ -1,6 +1,6 @@
 # Dog RGB cloud web platform and bidirectional synchronization
 
-**Status:** Proposed implementation plan; no cloud functionality described here is implemented yet.  
+**Status:** Accepted optional implementation direction; Phase 0 contracts, ADRs, and local evidence are in progress. No website, Supabase schema/Edge runtime, or firmware cloud synchronization is implemented. The complete device-v1 contract passes 48/48. The corrected 664-slot byte-addressed host outbox candidate now covers the five reproduced fallback/loss/corruption failures and passes 49/49, but its independent recovery/reclaim acceptance review remains open. Physical ESP32 outbox evidence and the credentialed provider comparison/origin-control/two-reviewer map gate are also missing, so Phase 0 has not exited and Phase 1 is not authorized.
 **Prepared:** 2026-08-13 (America/Bogota).  
 **Repository baseline:** commit `efc9329e0053551f4be8fcb1ab964aad08e5238d`.  
 **Research/pricing snapshot:** 2026-08-13; recheck service limits, prices, and terms before purchasing or deploying.  
@@ -276,8 +276,10 @@ supabase/
   migrations/                  # authoritative reviewed SQL migrations
   seed.sql                     # deterministic non-sensitive development data
   functions/
+    user-v1-issue-claim/
     device-v1-claim/
     device-v1-sync/
+    device-v1-revoke/
   tests/                       # pgTAP/RLS/RPC tests
 tools/
   device-simulator/            # loss/retry/config/clock simulator
@@ -360,10 +362,10 @@ User-Agent: DogRGB/<firmware-version> (<hardware-revision>)
 ```
 
 - The credential ID performs indexed lookup; compare the HMAC digest in constant time.
-- One credential can access only its collar's sync operation and current desired config. It cannot query historical routes or other devices.
+- One credential can access only its collar's sync and revoke operations plus current desired config. It cannot query historical routes or other devices.
 - Support `active`, `rotating`, `revoked`, and `expired` states. Rotation allows old and new credentials to overlap for one confirmed round trip.
 - A website unlink revokes the server credential immediately. An offline collar learns this on its next sync, marks `REVOKED`, stops aggressive retries, and keeps all local collar functionality.
-- A local unlink first enters `REVOKE_PENDING`: stop telemetry uploads, retain the credential only for the bounded revoke call, and clear it only after the server confirms revocation. A separate force-clear action is allowed offline only after an explicit warning that the website must still revoke the server-side credential; erasing the only local copy cannot invalidate a copied/stolen bearer token.
+- A local unlink first enters `REVOKE_PENDING`: stop ordinary exchange, persist one exact bounded `device-v1-revoke` request, and retain the credential until a schema-valid matching `200` with disposition `newly_revoked` or `already_revoked`. Exact replay returns the persisted original result; a prior website/different-request revoke authenticates through a revoke-only tombstone and creates an `already_revoked` receipt. Generic auth/network failures never authorize local erasure. A separate force-clear action is allowed offline only after an explicit warning that the website must still revoke the server-side credential; erasing the only local copy cannot invalidate a copied/stolen bearer token.
 - A stolen bearer token is bounded to one collar but can still forge its uploads. Revocation is mandatory; device-generated P-256 request signatures or mTLS are optional later hardening.
 
 Never use a MAC address, serial number, Supabase publishable key, one fleet token, or a human refresh token as device authentication. RFC 6750 describes the confidentiality requirements and bearer-token risk model: [Bearer Token Usage](https://www.rfc-editor.org/rfc/rfc6750.html).
@@ -449,9 +451,9 @@ Do not ship a design based only on a desktop model. The physical spike must test
 Required ring behavior:
 
 - one mutable tail chunk; all uploadable chunks are immutable and sealed;
-- 48–128 points/chunk selected by measured write amplification and RAM, not assumption;
+- at most 96 fixed v3 points/chunk, as frozen by the codec/contract; a future size change requires a versioned layout and new retention/RAM evidence;
 - CRC catches corruption; SHA-256 gives a stable cross-cloud content identity;
-- durable `acked_through` watermarks are stored in verified A/B metadata only after a valid server response is parsed;
+- persist exact ACK evidence only after a schema-valid post-commit response matches a chunk in the sent manifest by stable boot/chunk identity, accepted count, through-point bound, and canonical content hash; any compact contiguous reclaim prefix is derived solely from those durable per-chunk proofs and stops at every hole;
 - reclaim only fully acknowledged chunks;
 - never mutate a chunk while the networking task reads it;
 - expose total, used, free, sealed, unacknowledged, oldest age, corruption, recovery, and dropped-observation counters;
@@ -503,9 +505,12 @@ Initial endpoints:
 POST https://<api-host>/functions/v1/user-v1-issue-claim
 POST https://<api-host>/functions/v1/device-v1-claim
 POST https://<api-host>/functions/v1/device-v1-sync
+POST https://<api-host>/functions/v1/device-v1-revoke
 ```
 
-`user-v1-issue-claim` requires the owner's Supabase user JWT, verifies dog ownership, generates/HMACs the code with the claim pepper inside Supabase's server environment, stores only the digest transactionally, and returns the raw code once. The Next.js UI invokes it from an authenticated server action. `device-v1-claim` is the separate custom-auth/bootstrap endpoint used by the collar. Centralizing both sides of the claim digest in the Supabase server environment avoids copying the claim pepper into Vercel.
+`user-v1-issue-claim` requires a validated Supabase user JWT and verified email, re-checks owner/editor membership for the dog, generates/HMACs the code with the claim pepper inside Supabase's server environment, stores only the digest transactionally, and returns the raw code once. The Next.js UI invokes it from an authenticated server action. `device-v1-claim` is the separate custom-auth/bootstrap endpoint used by the collar. Centralizing both sides of the claim digest in the Supabase server environment avoids copying the claim pepper into Vercel.
+
+`device-v1-revoke` is the separate custom-auth endpoint for normal AP-initiated unlink; do not overload sync or erase the only local credential first. Its small schema-bound request carries a durable request ID and bounded reason. One transaction revokes that credential and collar cloud link and stores the idempotent receipt before responding. Its schema-valid `200` disposition is `newly_revoked` or `already_revoked`. Exact replay returns the persisted original logical response; a prior website/different-request revoke authenticates through a revoke-only tombstone and creates an `already_revoked` receipt. While in `REVOKE_PENDING`, the collar stops ordinary upload/config exchange and resends the exact request. It clears local credential/cloud metadata only on either valid matching disposition, never a generic `401`/`403`, timeout, malformed, or lost response. Website-initiated revoke remains a user-authenticated/RLS/service operation; offline force-clear warns that server revoke is still required.
 
 Trigger sync when:
 
@@ -557,10 +562,13 @@ Protocol limits for v1:
 
 | Limit | Initial value | Rationale |
 | --- | --- | --- |
-| Request body | 128 KiB | Safely below platform limits and bounds ESP/Edge memory |
-| Response body | 64 KiB | Desired config is small; prevents accidental catalog dumps |
+| Issue-claim request / success | 4 KiB / 4 KiB | Small authenticated user operation |
+| Device-claim request / success | 32 KiB / 8 KiB | Bounded capabilities/bootstrap document |
+| Sync request / success | 128 KiB / 64 KiB | Bounds ESP/Edge memory and desired-state response |
+| Device-revoke request / success | 4 KiB / 4 KiB | Request ID/reason and compact committed outcome only |
+| Problem response | 16 KiB | Prevent accidental detail/debug dumps |
 | Chunks/request | 8 | Bounded transaction and parse time |
-| Points/request | 384 | Matches existing 48-point chunking while allowing batching |
+| Points/request | 384 | Bounds a request to four maximum-size 96-point v3 chunks; up to eight smaller/partial chunks may still fit |
 | Config mutations/request | 16 | More than all initial resource groups |
 | Summaries/request | 16 | Allows backlog without unbounded arrays |
 | Strings | field-specific, generally 32–128 bytes | Prevents log/DB abuse |
@@ -627,7 +635,7 @@ The PostgreSQL transaction then:
 - A chunk becomes reclaimable only after the matching ACK is written to verified local metadata.
 - A lost response means resend the same request. A crash after server commit but before local ACK cannot duplicate a logical point.
 - The ACK identifies accepted point/chunk ranges; an HTTP 200 alone is not an ACK.
-- A partially rejected chunk remains retained or is split/quarantined according to the rejection detail. Never advance a watermark past an unexplained hole.
+- A partially rejected chunk remains retained or is split/quarantined according to the rejection detail. Never treat a caller/server numeric watermark as ACK proof or derive a reclaim frontier past an unexplained hole.
 - Cursors optimize selection only. Unique constraints and receipts provide correctness.
 - If a known chunk identity arrives under a new request ID with a different content hash, reject that chunk as an integrity conflict; never treat identity alone as proof that its contents match.
 - When telemetry committed successfully but one configuration mutation/resource is invalid or loses LWW, return `200` with a per-resource outcome so the telemetry ACK remains usable. Reserve non-2xx responses for fatal authentication, envelope, request-integrity, or whole-transaction failures.
@@ -641,6 +649,7 @@ Return `application/problem+json` following [RFC 9457](https://www.rfc-editor.or
 | `400` malformed envelope | Quarantine request builder fault; do not hot-loop |
 | `401 device_credential_invalid` | Retain data; long cooldown; show re-pair/revoke state |
 | `403 device_revoked` | Mark revoked; stop routine retry; local operation continues |
+| schema-valid `200` revoke result with `newly_revoked` or `already_revoked` | Treat the pending revoke as committed and clear local cloud credential/metadata; exact replay returns its persisted original disposition |
 | `409 request_id_reused` | Generate no replacement automatically; surface firmware integrity fault |
 | `413 payload_too_large` | Split batch down to one chunk; treat one-chunk failure as protocol bug |
 | `422 unsupported_schema` / invalid point | Quarantine only identified data; keep diagnostic counters |
@@ -879,7 +888,7 @@ The exact filenames may change after an ADR, but ownership should be explicit be
 | `portal_http.cpp` | register `/cloud` and redacted APIs; route config writes through mutation service |
 | `nvs_store.*` | independent cloud identity/sync namespaces or handles; failure counters |
 | `webui/build.mjs` | fifth page descriptor, gzip budget, deterministic generation |
-| portal fixtures/tests | claim/sync states, secret redaction, new navigation, visual baselines |
+| portal fixtures/tests | claim/sync/revoke states, secret redaction, new navigation, visual baselines |
 | partition CSV | rename/retype unused SPIFFS only after storage ADR and migration analysis |
 
 ### 10.3 `/cloud` local page
@@ -1218,8 +1227,9 @@ Required database entry points:
 | `api.issue_device_claim_v1(...)` | authenticated user Edge Function/service role | re-check supplied authenticated user ID against ownership; create bounded expiring digest; return no reusable secret |
 | `api.consume_device_claim_v1(...)` | claim Edge Function/service role | lock/consume claim; idempotently link device/credential |
 | `api.device_sync_v1(...)` | sync Edge Function/service role | credential check, request replay, telemetry/config/report commit and response |
+| `api.device_revoke_v1(...)` | device-revoke Edge Function/service role | authenticate the still-present device credential; deduplicate exact request ID/body; atomically revoke that credential/collar link and store the stable replay result before response |
 | `api.mutate_config_resource_v1(...)` | authenticated owner/editor | base-version check, validation, server HLC, immutable revision/head update |
-| `api.revoke_collar_v1(collar_id)` | owner or authenticated Edge Function | revoke every active credential and collar state atomically |
+| `api.revoke_collar_v1(collar_id)` | authenticated owner/editor workflow | website-side authorization; revoke every active credential and collar state atomically, independently of the device endpoint |
 | `recompute_dirty_summaries_v1(limit)` | Cron-owned role | claim dirty days with `FOR UPDATE SKIP LOCKED`, recompute deterministically |
 | `request_account_export_v1(...)` | authenticated owner | later bounded export job creation |
 
@@ -1279,13 +1289,13 @@ The current Supabase Free plan advertises 500 MB database size, 5 GB egress, and
 
 Suggested product policy to validate with the owner:
 
-- private raw telemetry: 12 months by default, with export and a `forever` option only after cost disclosure;
+- private raw telemetry: 12 months by default; a later UI may offer shorter retention, while any longer or infinite option requires a new privacy/cost decision and explicit consent;
 - daily/recording summaries: retain until dog/account deletion;
 - sync receipts: 30 days;
 - security/config revision audit: at least 12 months;
 - precise route deletion propagates to derived geometry/exports and backup-retention documentation.
 
-Do not activate automatic deletion until export, deletion tests, policy copy, and the owner's explicit retention choice exist.
+Do not activate automatic deletion until export/deletion tests and policy copy exist. Pairing must disclose and affirm the 12-month default; a future shorter choice applies at the next bounded purge after a destructive-change confirmation.
 
 ## 12. Edge Function and API implementation
 
@@ -1304,7 +1314,7 @@ HTTP/TLS gateway
 
 Do not implement business transactions as a series of Supabase client inserts from the function. A timeout between separate calls would create partial success. One PostgreSQL function is the commit/ACK boundary.
 
-The device claim/sync functions do not accept Supabase user JWTs. Disable automatic JWT enforcement only for those functions and immediately require custom claim/device authentication in code. The separate `user-v1-issue-claim` function does require and verify a Supabase user JWT. Supabase explicitly warns that a function without JWT verification must implement its own authorization: [Edge Function authentication](https://supabase.com/docs/guides/functions/auth).
+The device claim/sync/revoke functions do not accept Supabase user JWTs. Disable automatic JWT enforcement only for those functions and immediately require custom claim/device authentication in code. The separate `user-v1-issue-claim` function does require and verify a Supabase user JWT. Supabase explicitly warns that a function without JWT verification must implement its own authorization: [Edge Function authentication](https://supabase.com/docs/guides/functions/auth).
 
 ### 12.2 Validation layers
 
@@ -1322,6 +1332,7 @@ Start with conservative server-side limits, configurable without a firmware rele
 - claim issue: 5/user/hour and one active claim/dog;
 - claim consume: five attempts/claim plus IP/device cooldown;
 - sync: one concurrent request/collar, short burst of 6/minute while draining backlog, sustained average below one/minute;
+- revoke: one in-flight durable request/collar, exact replay permitted with bounded retry/cooldown; a new body under the same ID is rejected;
 - maximum accepted points/collar/day based on the configured cadence plus safety margin;
 - maximum future/past timestamp windows per time-quality class;
 - maximum stored request receipts and rejection diagnostics;
@@ -1536,7 +1547,7 @@ Keep domain GeoJSON/provider-independent metadata outside the adapter. Do not ab
 | Provider | Aesthetic/technical fit | Current entry allowance | Decision |
 | --- | --- | --- | --- |
 | **Stadia Maps + MapLibre** | Alidade Smooth intentionally reduces visual noise/POIs; light/dark/outdoors styles; domain auth | Free noncommercial: 200,000 credits/month; Starter about USD 20/month and 1M credits | **Provisional first choice** |
-| **MapTiler Cloud + MapLibre** | Strong dark/DataViz/outdoor catalog, visual editor/custom styles, origin-restricted keys | Free noncommercial: 5,000 sessions + 100,000 requests; Flex about USD 30/month, 25,000 sessions + 500,000 requests | Bakeoff finalist; choose if styling/Colombian detail is materially better |
+| **MapTiler Cloud + MapLibre** | Strong dark/DataViz/outdoor catalog, visual editor/custom styles, origin-restricted keys | Free noncommercial: 5,000 sessions + 100,000 requests; Flex USD 25/month, 25,000 sessions + 500,000 requests, then USD 2/1,000 sessions or USD 0.10/1,000 requests | Bakeoff finalist; choose if styling/Colombian detail is materially better |
 | Mapbox GL | Highly polished and generous initial map-load tier, but more SDK/provider coupling | Up to 50,000 GL JS map loads/month before usage pricing | Not first choice; retain as alternative |
 | Google Maps JS | Familiar, excellent POI/imagery ecosystem; later requested migration path | Dynamic Maps: 10,000 free monthly events, then currently USD 7/1,000 in first paid tier | Later adapter after credentials/business need |
 | OpenFreeMap | No key and easy MapLibre styles, visually promising | Community/donation-funded public service | Development/bakeoff only until SLA/terms fit is proven |
@@ -1704,7 +1715,8 @@ Select the Supabase primary region only after testing latency from the actual co
 | Device-credential HMAC pepper | Phase 1 | Edge Function secret | different from claim pepper; rotation runbook |
 | Vercel project + website domain | Phase 3 | Vercel | production and preview domain allowlists |
 | SMTP host/user/password/from domain | Phase 3 prod | Supabase Auth settings/secret manager | SPF/DKIM/DMARC, link tracking off |
-| Stadia or MapTiler browser key | Phase 6 | Vercel public env | exact-origin/domain restricted, quota alerts |
+| Temporary map bake-off credentials | Phase 0 exit | origin-restricted MapTiler key plus Stadia test property/domain auth, used only by the checked harness | temporary, never Git/screenshots/logs; required to complete the identical Colombia comparison and prove unapproved-origin rejection for both candidates |
+| Selected basemap browser key | Phase 6 product integration | Vercel public env | exact-origin/domain restricted, quota alerts; issue only after the Phase 0 provider decision |
 | Supabase custom API domain/DNS | Before field deployment | DNS + Supabase | paid production gate, stable firmware endpoint |
 | Cron/job configuration | Phase 4 | migration SQL | no Vercel Hobby dependency |
 | Google Maps key/billing | Later only | Google/Vercel public env | app+API restricted; not requested now |
@@ -1747,6 +1759,7 @@ Use pgTAP plus API-level tests against the local Supabase stack:
 - direct telemetry/config-head mutation is denied;
 - claim consume is atomic under concurrent requests;
 - credential revoke racing a sync cannot admit a post-revocation commit;
+- device revoke atomically changes credential/link state and stores its idempotent receipt before response; exact replay returns the same logical result and same ID/different reason is rejected;
 - identical request produces one point/chunk/revision and the same logical response;
 - request ID with different hash is rejected;
 - duplicate/out-of-order chunks and holes behave as specified;
@@ -1764,6 +1777,7 @@ Use pgTAP plus API-level tests against the local Supabase stack:
 - `400/401/403/409/413/422/429/5xx` bodies follow the documented problem contract;
 - timeout before DB, during RPC, and lost response after DB commit;
 - same exact request concurrently from two clients;
+- revoke success lost after commit and exact retry returning the persisted original disposition; prior website/different-request revoke returning `already_revoked`; generic auth failure retaining `REVOKE_PENDING`; and website-revoke/device-revoke races;
 - rate/quota behavior and `Retry-After`;
 - logs contain no token, email, dog name, raw coordinate, or payload;
 - function secret is absent from response, source map, and client bundle;
@@ -1862,7 +1876,7 @@ No phase begins until the preceding gate is evidenced. Estimates are engineering
 
 ### Phase 0 — Contract, evidence, and decision lock (1–2 weeks)
 
-**Dependencies:** current firmware/docs/tests only; no cloud account credentials required.
+**Dependencies:** current firmware/docs/tests; no Supabase or Vercel implementation credentials required. Formal Phase 0 exit does require temporary origin-restricted MapTiler and Stadia test setups for the checked comparative bake-off and unapproved-origin proofs.
 
 #### 0A. Make the project contract current
 
@@ -1887,7 +1901,7 @@ No phase begins until the preceding gate is evidenced. Estimates are engineering
 - Run the Stadia/MapTiler Colombian-route visual bakeoff and write the map ADR.
 - Write threat model, privacy/data-flow inventory, retention proposal, and credentials checklist.
 
-**Exit gate:** every field has unit/range/ownership/privacy/sync policy; v3/outbox retention and power-cut behavior are measured; protocol/LWW/map ADRs accepted; no unresolved ambiguity can change the Phase 1 schema.
+**Exit gate:** every field has unit/range/ownership/privacy/sync policy; the complete protocol/LWW contracts pass; the corrected host outbox recovery/reclaim model passes review and regenerates its checked evidence; v3/outbox retention and physical ESP32 power-cut/timing/wear/energy behavior are measured; credentialed MapTiler/Stadia runs, origin-rejection proofs, and two-reviewer scoring complete the identical Colombia bake-off and the provider ADR records its decision; no unresolved ambiguity can change the Phase 1 schema.
 
 ### Phase 1 — Local cloud foundation and simulator (2–3 weeks)
 
@@ -1907,7 +1921,7 @@ No phase begins until the preceding gate is evidenced. Estimates are engineering
 
 #### 1C. Implement device gateway/simulator
 
-- Implement local claim/sync Edge Functions with bounded validation and safe errors.
+- Implement local issue-claim/device-claim/sync/revoke Edge Functions with bounded validation and safe errors.
 - Simulator pairs, uploads one real v3 fixture, loses the response, resends exactly, uploads out of order, and proves one database result.
 - Simulator performs AP-origin brightness mutation, receives a web-origin winner, reports apply/reject, and exercises every LWW matrix case.
 
@@ -2072,12 +2086,12 @@ Suggested reviewable commit/PR sequence:
 3. ownership schema + RLS tests;
 4. telemetry schema + ingest transaction/idempotency tests;
 5. config schema/HLC transaction tests;
-6. claim/sync Edge Functions + safe error tests;
+6. issue-claim/device-claim/sync/revoke Edge Functions + safe error tests;
 7. simulator failure matrix;
 8. firmware identity/time foundation;
 9. firmware v3/outbox + migration tests;
 10. unified config mutation service;
-11. verified TLS/claim/sync + physical fault evidence;
+11. verified TLS/claim/sync/revoke + physical fault evidence;
 12. minimal Auth/dog/claim portal;
 13. Today/history/plain route;
 14. full desired/reported safe resources + `/cloud` AP page;
@@ -2111,7 +2125,7 @@ The foundation is complete only when all statements are true:
 
 ## 21. Decisions and inputs needed from the owner
 
-These do not block Phase 0/local implementation, but each has a latest decision point:
+Most of these inputs do not block current local work, but rows marked Phase 0 exit do block the formal exit review:
 
 | Decision/input | Recommended default | Needed by |
 | --- | --- | --- |
@@ -2120,7 +2134,7 @@ These do not block Phase 0/local implementation, but each has a latest decision 
 | Units | Metric default | Phase 1 schema |
 | Cloud opt-in copy/retention | 12-month raw proposal, summaries until deletion | Phase 7 activation |
 | Hosted Supabase region | benchmark São Paulo vs North Virginia from target networks | project creation before real data |
-| Initial map provider | Stadia provisional; bake off MapTiler | Phase 6 |
+| Initial map provider | Stadia provisional; complete the full credentialed provider bake-off, origin-control checks, and two-reviewer score before selection | Phase 0 exit |
 | Map usage type | confirm personal/noncommercial versus commercial | provider signup |
 | Website and API domains | reserve both early; stable API before field flash | Phase 7/field firmware |
 | SMTP provider/from address | any reputable provider with SPF/DKIM/DMARC | production Auth |

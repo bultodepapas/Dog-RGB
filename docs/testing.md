@@ -16,6 +16,10 @@ Dog-RGB uses several layers because no single test environment can validate firm
 | Visual regression | Pixel drift against reviewed Linux baselines | Usability judgment or physical display appearance |
 | Wokwi scenarios | Real firmware image, GNSS UART, LED buses, resets, modes, faults, loop diagnostics | Battery, boost, antenna, waterproofing, heat, comfort |
 | Physical bench/field tests | Electrical, RF, GNSS, thermal, runtime, mechanical, and weather behavior | Only the exact tested build and conditions |
+| Phase 0 cloud protocol suite | JSON schemas/refs, valid/invalid fixtures, semantic hashes/identities, problem catalog, HLC vectors and compatibility matrix | Deployed Edge/Postgres behavior or firmware integration |
+| Phase 0 v3/storage model | Exact byte codec, retention arithmetic, deterministic seal/ACK/reclaim/cut/migration behavior | Physical ESP32 flash timing, actual LittleFS trace, brownout, wear or energy |
+| PostgreSQL capacity fixture | One-million-point local storage/index/query-plan comparison | Hosted Supabase latency, RLS concurrency, egress, plan price or service limits |
+| Map bake-off harness | Identical synthetic Colombian overlays/styles at fixed viewports | Real route/trail accuracy, full provider comparison without both credentials, or product usability |
 
 ## Prerequisites
 
@@ -172,6 +176,92 @@ For interactive controls, GNSS profiles, GDB, VCD channels, and portal-network l
 - **Firmware:** pinned PlatformIO production build, size report, environment/package inventory, hashes, and downloadable binary/ELF/partition evidence.
 
 Failure artifacts retain Playwright reports or visual diffs for seven days; firmware baseline artifacts are retained for 14 days. Wokwi is intentionally not a default CI job because it needs an external token/service and can be run explicitly.
+
+## Optional cloud Phase 0 evidence
+
+No command in this section deploys a website, database, Edge Function, or firmware cloud client. These are contract/design gates only.
+
+### V3 codec and outbox model
+
+From the repository root:
+
+```powershell
+python -m unittest discover -s tools/cloud_phase0 -p "test_*.py" -v
+python tools/cloud_phase0/generate_evidence.py --format markdown
+```
+
+The superseded RAM-only suite passed 20/20, but that historical green result is invalid recovery/reclaim evidence: it accepted `acknowledge_through(999)` after only chunks `0..2` existed and then reclaimed all three. It also recovered from retained Python objects instead of constructing a fresh runtime from persisted flash bytes.
+
+A corrected byte-addressed candidate now reconstructs from a NOR image, carries globally monotonic outbox identities, requires exact manifest-bound per-slot ACK evidence, derives reclaim only across a contiguous proven prefix, journals metadata A/B, and reserves two independently erasable emergency sectors. Its provisional geometry is 664 chunks/63,744 points. The expanded 49/49 suite now covers destructive stale-intent fallback, sequence reuse after tombstone/journal fallback, bounded recovery of maximum loss intervals, durable loss capture during ACK transitions, and ACKed-corrupt-payload classification. The host recovery/reclaim gate remains **review/open** until independent acceptance; keep every reproduction, rerun from fresh immutable images, and regenerate the [storage feasibility report](cloud/phase0-storage-feasibility.md) after storage changes.
+
+Passing this model does not close the hardware gate. Before Phase 2 firmware acceptance, execute at least 10,000 production-codec seal/ACK/reclaim cycles on the target ESP32-S3 with randomized physical reset/power removal at data/header/metadata/ACK/erase boundaries. Record mount/recovery latency, maximum GNSS/LED/cooperative-loop gap, watchdog margin, heap, programmed/erased bytes and sector distribution, current/energy by cadence, full-pressure/loss-marker behavior, and legacy preservation. The raw-ring ADR must be revisited if metadata wear concentration or timing is unsafe.
+
+### Device-v1 protocol
+
+```powershell
+node --test contracts/device-v1/test-contracts.mjs
+```
+
+This dependency-free suite must validate every schema/reference, positive/negative fixture, canonical hash, point/chunk/ACK identity, sequence hole/final rule, LWW/HLC vector, problem behavior, local-only exclusion, and compatibility tuple.
+
+Phase 0 requires a cross-implementation gate, not two independently green suites. The protocol tuple/hash/flags/time-quality/chunk bounds/legacy encoding must exactly match `tools/cloud_phase0/track_v3.py`; generated native payload bytes must validate under the JSON semantic tests and vice versa. Any future disagreement stops schema work. On 2026-08-13 the complete protocol suite passed 48/48. The contract tests cover the six-value time-quality mapping, exact chunk ACK identity, out-of-order holes, and dedicated revoke identity/exact-replay/disposition behavior; their wire-vector check matches the Python codec. This closes protocol reconciliation only. The corrected Python storage candidate passes 49/49 but still awaits independent host acceptance; it does not validate physical storage, the map provider, or any implementation gate.
+
+### PostgreSQL capacity evidence
+
+The [capacity report](cloud/phase0-capacity-benchmark.md) records the exact container/image/environment and runner. It loaded one million synthetic Track-v3-shaped points and measured heap/index sizes and representative plans. It supports an initially unpartitioned table and no GiST index until a spatial query justifies one.
+
+Reproduction provisions a disposable local PostgreSQL container and one million rows, so review the runner and Docker resources before executing:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/cloud_capacity/run.ps1
+```
+
+The result is local sizing evidence only. Phase 1 must repeat representative authenticated/RLS queries in the selected Supabase environment and recheck current plan storage, egress, backup, Edge limits, and pricing. A free development tier is not a field-retention commitment.
+
+### Colombian map bake-off
+
+Start the checked synthetic harness:
+
+```powershell
+node tools/map_bakeoff/server.mjs --port 4174
+```
+
+For the complete repeatable Chromium capture, use the runner instead; it owns an isolated local server and writes screenshots plus a hashed manifest:
+
+```powershell
+node tools/map_bakeoff/capture-evidence.mjs
+```
+
+Then render the same six invented urban, park, steep-trail, rural, sparse approximately-one-kilometre, and dense two-hour fixtures at `1280×720` desktop and exact `428×844` mobile, both at DPR `1` and `2`, across dark/light/outdoor variants. Run the label-deemphasis, CVD-approximation, cache-disabled, and throttled-network diagnostics. Use the exact provider URLs in [`tools/map_bakeoff/README.md`](../tools/map_bakeoff/README.md). Temporary provider credentials belong only in the documented local secret path and never in source, screenshots, or server logs.
+
+For every provider/style retain:
+
+- exact date, browser/version, DPR/screenshot scale, MapLibre/style version and URLs;
+- cold/warm state, screenshots, all-maps-idle/fatal state, attribution and overflow checks;
+- console/CORS/tile errors, request/tile failure counts, transferred bytes and readiness timings;
+- two independent weighted rubric sheets and current price/terms/origin-restriction evidence;
+- a network proof that route coordinates never enter provider requests.
+
+The checked schema-v2 [2026-08-13 evidence manifest](../tools/map_bakeoff/evidence/2026-08-13/manifest.json), SHA-256 `4509749e573e27a2d82e6ba2247bccb1c0d6a9d87f4f0f4f1fecd3f4b968decb`, records Chromium `151.0.7922.34`, pinned MapLibre `5.23.0`, source/style/screenshot hashes, all viewports/DPRs, network profiles/origins/failures, console/page errors, route-coordinate leak assertions, accessible regions/table, layout, attribution, and credential blockers. The harness passes 7/7 unit tests and 17/17 requested Stadia matrix/diagnostic cells. These readiness/byte values are one-run diagnostics under incompletely controlled OS/CDN caching, not a performance SLO; CVD filters require human review. MapTiler was not rendered and Stadia unapproved-origin rejection was not exercised because temporary provider credentials were unavailable. Therefore MapLibre is accepted, Stadia Dark is only provisional, and the credentialed/two-reviewer map gate remains open; no score/result may be fabricated. See [ADR-0009](adr/0009-map-renderer-provider-and-colombia-bakeoff.md).
+
+## Future cloud verification strategy — not implemented
+
+Every phase adds its tests without weakening the current local suite:
+
+| Layer | Required evidence before the phase exits |
+| --- | --- |
+| Local Supabase migrations | clean reset from zero; explicit grants/default privileges; private schema not exposed; service-only wrapper denial to public/anon/authenticated; constraints/indexes; migration lint |
+| RLS/Auth | anonymous, other user, former member, viewer/editor/owner, user-controlled metadata, crafted URL/REST/RPC, delete/cascade, email confirmation/recovery/session/logout cases |
+| Edge gateway/device simulator | claim expiry/attempt/concurrent consume; unique credential; website revoke; device `REVOKE_PENDING`; exact replay returning original disposition; lost response; prior website/different-request revoke returning `already_revoked`; generic error retaining state; forced-clear warning; content/depth bounds; same-ID/different-hash; out-of-order chunks/holes/finals; transaction rollback; safe problems/logs |
+| Configuration | every AP/web/sync order; all HLC ties/trust/rebase/overflow cases; no-op/stale editor; capability mismatch; validation/storage rejection; reboot at each A/B boundary; desired versus reported truth |
+| Physical firmware sync | DNS/TLS/hostname/bad clock/CA/interception; known-Wi-Fi outage/backoff; full outbox; response/ACK cuts; loop/heap/energy; seven-day accelerated run; cloud kill switch and offline regression |
+| Analytics | stationary/movement/poor-fix/gap/offline reference data; interval conservation; no gap→inactivity; algorithm versions/recompute; device/cloud discrepancy; 23/24/25-hour days, leap day, current day and timezone changes |
+| Web/maps | auth/RLS server/client boundaries; loading/empty/stale/error/legacy states; route gaps/speed/quality/timeline; map provider/WebGL/offline failure; keyboard table alternative; mobile, a11y, visual and performance budgets |
+| Security/privacy/operations | secret/bundle/binary/log/network scans; rate/load/cost alerts; credential rotation/lost-device revoke; export/delete/24-hour purge; backup restore plus deletion replay; DNS/certificate/custom-domain migration; rollback |
+
+Cloud-disabled regression is a hard gate in every firmware phase: run the complete host suite, production build, Wokwi/HIL scenarios, AP portal behavior/a11y/visual checks, route export, scenes, GNSS metrics, storage recovery and physical loop/power measurements with no cloud credentials/network. An unavailable cloud must never become a failing local test dependency.
+
+The detailed security cases are in the [threat model](cloud/threat-model.md); field ownership/exclusions are in the [Phase 0 matrix](cloud/phase0-field-matrix.md). Phase 0 remains open, and Phase 1 is not authorized, until the corrected host outbox candidate passes its adversarial acceptance matrix and independent review, physical outbox evidence is collected, and the full credentialed provider comparison plus unapproved-origin tests are completed.
 
 ## Physical validation checklist
 

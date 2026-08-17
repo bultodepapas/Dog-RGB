@@ -1,0 +1,8 @@
+{
+  "resource_key": "brightness",
+  "resource_schema": 1,
+  "body": {
+    "mode": "speed",
+    "day_mode_enabled": false
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "chunks": [
+    {
+      "telemetry_schema": 3,
+      "boot_sequence": 42,
+      "chunk_sequence": 8,
+      "first_point_sequence": 0,
+      "point_count": 1,
+      "time_quality": 4,
+      "content_sha256": "JGI4aHqGSsX63uDvqAj-I5vC0ZoGsIDCrAe1occO2PI",
+      "is_final": false,
+      "points": [
+        [468123456, -740123456, 1786641000, 125, 9, 1]
+      ]
+    }
+  ],
+  "summaries": [],
+  "loss_markers": []
+}

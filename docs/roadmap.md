@@ -10,6 +10,25 @@
 - CRC-protected transactional persistence, an independent scene A/B bank, and dedicated two-hour route storage.
 - Pinned production/Wokwi builds, host contracts, portal smoke, Playwright/a11y coverage, and visual baselines.
 
+## Optional cloud workstream — Phase 0 in progress
+
+The [dated web-platform plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) is now an accepted optional direction. It does not supersede the physical/local milestones below: cloud stays off by default, and all current collar/AP/export behavior remains mandatory without an account or Internet connection.
+
+Phase 0 records decisions and evidence; it does **not** implement a website, Supabase project, account system, firmware networking, or synchronization.
+
+| Phase 0 item | State on 2026-08-13 | Evidence / remaining gate |
+| --- | --- | --- |
+| 0A project contract | Documentation complete in this workstream | Requirements/architecture/roadmap/API/testing, six accepted ADRs, and the [field matrix](cloud/phase0-field-matrix.md) now define opt-in/offline behavior and local-only Home/power/secrets. |
+| 0B v3/storage feasibility | **Host independent review open; physical acceptance open** | The [storage report](cloud/phase0-storage-feasibility.md) supports the raw-ring capacity/design direction only. A corrected byte-addressed candidate reconstructs from flash bytes, uses exact ACK evidence and reserves two metadata plus two emergency sectors, leaving a provisional 664 chunks/63,744 points. All five reproduced adversarial fallback/loss/corruption cases are permanent regressions and the suite passes 49/49; independent acceptance remains required. The superseded RAM-only 20/20 run is invalid historical evidence. Random physical ESP32 power removal, latency, wear distribution, and energy remain mandatory. |
+| 0C protocol/LWW evidence | Reconciled contract evidence complete | Versioned schemas/fixtures/HLC vectors, including dedicated revoke, agree with the frozen v3 codec, exact chunk ACK identity and out-of-order-hole semantics. Protocol result: 48/48. This closes protocol reconciliation only; the separate 0B host-storage independent review remains open. |
+| 0C database capacity | Deterministic fixture evidence available; hosted costs/plans must be rechecked | See [capacity benchmark](cloud/phase0-capacity-benchmark.md); validate plans/query shape again on the selected hosted environment before production. |
+| 0C security/privacy/retention/credentials | Documentation complete; implementation tests pending | [Threat model](cloud/threat-model.md), [privacy flow](cloud/privacy-data-flow.md), [retention policy](cloud/retention-policy.md), and [credentials checklist](cloud/credential-checklist.md). |
+| 0C map bake-off | Durable technical matrix complete; external credential/human gate open | MapLibre accepted; 7/7 harness tests and 17/17 Stadia matrix/diagnostic cells cover six synthetic fixtures, dark/light/outdoor, desktop/428 px mobile at DPR 1/2, label/CVD/cache/network stress. No MapTiler visual result, unapproved-origin proof, or two-reviewer score exists because temporary credentials/reviewers were unavailable; rerun the same matrix with restricted provider setups before selection. |
+
+**Phase 0 exit is not reached, and Phase 1 is not authorized.** The corrected host outbox candidate awaits independent acceptance, physical ESP32 storage evidence is missing, and the credentialed comparative map/origin-control gate remains unresolved. Work that resolves those gates may continue without changing the local product baseline.
+
+The consolidated evidence and gate state are in the [Phase 0 execution report](cloud/phase0-execution-report.md). The corrected candidate now carries passing regressions for every reproduced adversarial failure; independent host acceptance must still complete before the exit review. This is an in-repository review gate rather than an external hardware/credential blocker.
+
 ## Milestone 1 — Physical MVP evidence (highest priority)
 
 - Freeze the actual schematic/BOM with exact charger, protection, boost, regulator, connectors, cell, and strip part numbers.
@@ -48,7 +67,9 @@ These remaining ideas are explored in the [WLED lessons and implementation plan]
 
 - Reassess BLE only with an explicit SoftAP/STA coexistence strategy and phone matrix.
 - Build the read-only companion app only after BLE is a supported runtime mode.
-- Treat cloud sync, accounts, maps, remote ingestion, and retention/privacy controls as a separate product architecture. The dated cloud plan is research, not a commitment.
+- Continue the separately gated optional web platform only in the order defined by its dated plan: Phase 0 contract/evidence; local Supabase/simulator; offline firmware data foundation; one-collar hosted vertical slice; reliable configuration; truthful analytics; product UI/maps; then operations/privacy completion.
+- Keep the first vertical slice deliberately small: real claim/upload, Today/recording history, a plain route, and brightness desired/applied state. Do not expand configuration or analytics until physical retry/power-cut and cross-user tests pass.
+- Treat live/cellular tracking, advanced analytics, sharing, Google Maps, OTA, and new sensors as later independent decisions, not foundation work.
 
 ## Milestone 6 — Optional product hardening
 
