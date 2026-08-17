@@ -6,6 +6,7 @@ export class HttpProblem extends Error {
     readonly code: string,
     readonly title: string,
     readonly detail: string,
+    readonly retryAfterSeconds?: number,
   ) {
     super(detail);
   }
@@ -15,6 +16,13 @@ export function problem(error: unknown, requestId: string | null = null): Respon
   const value = error instanceof HttpProblem
     ? error
     : new HttpProblem(500, "internal_error", "Internal error", "The request could not be completed.");
+  const headers: Record<string, string> = {
+    "content-type": "application/problem+json",
+    "cache-control": "no-store",
+  };
+  if (value.retryAfterSeconds !== undefined) {
+    headers["retry-after"] = String(value.retryAfterSeconds);
+  }
   return Response.json({
     type: `urn:dog-rgb:problem:${value.code}`,
     title: value.title,
@@ -24,7 +32,7 @@ export function problem(error: unknown, requestId: string | null = null): Respon
     request_id: requestId,
   }, {
     status: value.status,
-    headers: { "content-type": "application/problem+json", "cache-control": "no-store" },
+    headers,
   });
 }
 
@@ -83,10 +91,10 @@ export async function hmacSha256(secret: string, value: string | Uint8Array): Pr
 }
 
 export function base64UrlDecode(value: string): Uint8Array {
-  if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new HttpProblem(401, "invalid_device_credential", "Invalid credential", "Device authentication failed.");
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new HttpProblem(401, "device_credential_invalid", "Device credential invalid", "Device authentication failed.");
   const padded = value.replaceAll("-", "+").replaceAll("_", "/") + "=".repeat((4 - value.length % 4) % 4);
   try { return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)); } catch {
-    throw new HttpProblem(401, "invalid_device_credential", "Invalid credential", "Device authentication failed.");
+    throw new HttpProblem(401, "device_credential_invalid", "Device credential invalid", "Device authentication failed.");
   }
 }
 
@@ -99,7 +107,7 @@ export function base64UrlEncode(value: Uint8Array): string {
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value === "boolean" || typeof value === "string") return JSON.stringify(value);
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new HttpProblem(400, "invalid_request", "Invalid request", "JSON numbers must be finite.");
+    if (!Number.isFinite(value)) throw new HttpProblem(400, "invalid_envelope", "Invalid request envelope", "JSON numbers must be finite.");
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
@@ -109,17 +117,27 @@ export function canonicalJson(value: unknown): string {
       .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`);
     return `{${entries.join(",")}}`;
   }
-  throw new HttpProblem(400, "invalid_request", "Invalid request", "JSON contains an unsupported value.");
+  throw new HttpProblem(400, "invalid_envelope", "Invalid request envelope", "JSON contains an unsupported value.");
 }
 
-async function assertHash(expected: unknown, bytes: string | Uint8Array, code: string) {
+async function assertHash(
+  expected: unknown,
+  bytes: string | Uint8Array,
+  code: "invalid_capabilities" | "invalid_telemetry" | "invalid_envelope",
+) {
   if (typeof expected !== "string" || base64UrlEncode(await sha256(bytes)) !== expected) {
-    throw new HttpProblem(400, code, "Integrity check failed", "A payload digest does not match its content.");
+    const status = code === "invalid_envelope" ? 400 : 422;
+    const title = code === "invalid_capabilities"
+      ? "Invalid capability manifest"
+      : code === "invalid_telemetry"
+      ? "Invalid telemetry"
+      : "Invalid request envelope";
+    throw new HttpProblem(status, code, title, "A payload digest does not match its content.");
   }
 }
 
 export async function validateCapabilityHash(device: Record<string, unknown>, capabilities: unknown) {
-  await assertHash(device.capability_hash, canonicalJson(capabilities), "capability_hash_mismatch");
+  await assertHash(device.capability_hash, canonicalJson(capabilities), "invalid_capabilities");
 }
 
 export async function validateSyncSemantics(body: Record<string, unknown>) {
@@ -127,7 +145,7 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
   const upload = body.upload as Record<string, unknown> | undefined;
   const configuration = body.configuration as Record<string, unknown> | undefined;
   if (!device || !upload || !configuration || typeof device.device_id !== "string") {
-    throw new HttpProblem(400, "invalid_sync_request", "Invalid sync request", "Required sync sections are missing.");
+    throw new HttpProblem(400, "invalid_envelope", "Invalid request envelope", "Required sync sections are missing.");
   }
   const chunks = Array.isArray(upload.chunks) ? upload.chunks as Array<Record<string, unknown>> : [];
   let totalPoints = 0;
@@ -136,16 +154,16 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
     const points = Array.isArray(chunk.points) ? chunk.points : [];
     totalPoints += points.length;
     if (points.length < 1 || points.length > 96 || chunk.point_count !== points.length) {
-      throw new HttpProblem(400, "invalid_chunk", "Invalid telemetry chunk", "A chunk point count is invalid.");
+      throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A chunk point count is invalid.");
     }
     const identity = `${chunk.boot_sequence}:${chunk.chunk_sequence}`;
-    if (identities.has(identity)) throw new HttpProblem(400, "duplicate_chunk", "Duplicate telemetry chunk", "A chunk identity occurs more than once.");
+    if (identities.has(identity)) throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A chunk identity occurs more than once.");
     identities.add(identity);
     const raw = new Uint8Array(points.length * 16);
     const view = new DataView(raw.buffer);
     points.forEach((candidate, index) => {
       if (!Array.isArray(candidate) || candidate.length !== 6 || !candidate.every(Number.isInteger)) {
-        throw new HttpProblem(400, "invalid_point", "Invalid telemetry point", "A Track v3 point is malformed.");
+        throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A Track v3 point is malformed.");
       }
       const [lat, lon, utc, speed, satellites, flags] = candidate as number[];
       const validFix = (flags & 1) !== 0;
@@ -155,7 +173,7 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
           flags < 0 || flags > 127 || ((utc !== 0) !== ((flags & 4) !== 0)) ||
           ((flags & 2) !== 0 && (flags & 8) !== 0) || (gap && (validFix || (flags & 10) !== 0)) ||
           (!validFix && (lat !== 0 || lon !== 0 || speed !== 65535))) {
-        throw new HttpProblem(400, "invalid_point", "Invalid telemetry point", "A Track v3 point violates its flag or range invariants.");
+        throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A Track v3 point violates its flag or range invariants.");
       }
       const offset = index * 16;
       view.setInt32(offset, lat, true);
@@ -165,10 +183,10 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
       view.setUint8(offset + 14, satellites);
       view.setUint8(offset + 15, flags);
     });
-    await assertHash(chunk.content_sha256, raw, "telemetry_hash_mismatch");
+    await assertHash(chunk.content_sha256, raw, "invalid_telemetry");
   }
   if (chunks.length > 8 || totalPoints > 384) {
-    throw new HttpProblem(400, "sync_batch_too_large", "Sync batch too large", "The sync batch exceeds the device-v1 limits.");
+    throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "The sync batch exceeds the device-v1 limits.");
   }
   const mutations = Array.isArray(configuration.mutations) ? configuration.mutations as Array<Record<string, unknown>> : [];
   const mutationIds = new Set<unknown>();
@@ -176,11 +194,11 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
   for (const mutation of mutations) {
     if (mutationIds.has(mutation.mutation_id) || sequences.has(mutation.local_sequence) ||
         (mutation.authored_hlc as Record<string, unknown> | undefined)?.actor_id !== device.device_id) {
-      throw new HttpProblem(400, "invalid_mutation", "Invalid configuration mutation", "Mutation identity, sequence, or actor is invalid.");
+      throw new HttpProblem(400, "invalid_envelope", "Invalid request envelope", "Mutation identity, sequence, or actor is invalid.");
     }
     mutationIds.add(mutation.mutation_id);
     sequences.add(mutation.local_sequence);
-    await assertHash(mutation.body_sha256, canonicalJson(mutation.body), "config_hash_mismatch");
+    await assertHash(mutation.body_sha256, canonicalJson(mutation.body), "invalid_envelope");
   }
 }
 
@@ -188,15 +206,15 @@ export function parseDeviceBearer(req: Request): { credentialId: string; secret:
   const match = req.headers.get("authorization")?.match(
     /^Bearer drgb_v1_([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([A-Za-z0-9_-]{43})$/i,
   );
-  if (!match) throw new HttpProblem(401, "invalid_device_credential", "Invalid credential", "Device authentication failed.");
+  if (!match) throw new HttpProblem(401, "device_credential_invalid", "Device credential invalid", "Device authentication failed.");
   const secret = base64UrlDecode(match[2]);
-  if (secret.byteLength !== 32) throw new HttpProblem(401, "invalid_device_credential", "Invalid credential", "Device authentication failed.");
+  if (secret.byteLength !== 32) throw new HttpProblem(401, "device_credential_invalid", "Device credential invalid", "Device authentication failed.");
   return { credentialId: match[1].toLowerCase(), secret };
 }
 
 export function requiredEnv(name: string): string {
   const value = Deno.env.get(name);
-  if (!value) throw new HttpProblem(503, "gateway_not_configured", "Gateway unavailable", "The local gateway is not configured.");
+  if (!value) throw new HttpProblem(503, "server_busy", "Service temporarily unavailable", "The gateway is not configured.", 30);
   return value;
 }
 
@@ -224,11 +242,32 @@ export async function serviceRpc(
   if (["device_already_linked", "device_identity_mismatch"].includes(message)) {
     throw new HttpProblem(409, "device_identity_conflict", "Device identity conflict", "The supplied device identity conflicts with an existing link.");
   }
+  if (message === "active_claim_exists") {
+    throw new HttpProblem(409, "active_claim_exists", "Active claim already exists", "Use or expire the active claim before requesting another.");
+  }
   if (message === "claim_not_available") {
     throw new HttpProblem(401, "claim_unavailable", "Claim unavailable", "The supplied claim is unavailable or expired.");
   }
   if (message === "invalid_device_credential") {
     throw new HttpProblem(401, "device_credential_invalid", "Device credential invalid", "Device authentication failed.");
+  }
+  if (message === "device_credential_expired") {
+    throw new HttpProblem(401, "device_credential_expired", "Device credential expired", "The device credential has expired.");
+  }
+  if (message === "device_revoked") {
+    throw new HttpProblem(403, "device_revoked", "Device revoked", "This collar has been revoked and can no longer synchronize.");
+  }
+  if (message === "rate_limited_claim_issue") {
+    throw new HttpProblem(429, "rate_limited", "Too many requests", "The claim issue limit was reached.", 3600);
+  }
+  if (message === "rate_limited_sync_burst") {
+    throw new HttpProblem(429, "rate_limited", "Too many requests", "The collar sync limit was reached.", 60);
+  }
+  if (message === "rate_limited_sync_sustained") {
+    throw new HttpProblem(429, "rate_limited", "Too many requests", "The collar sustained sync limit was reached.", 3600);
+  }
+  if (message === "quota_exceeded") {
+    throw new HttpProblem(429, "quota_exceeded", "Device quota exceeded", "The collar telemetry quota was reached.", 3600);
   }
   if (message === "not_authorized") {
     throw new HttpProblem(403, "dog_access_denied", "Dog access denied", "The authenticated user cannot modify this dog.");

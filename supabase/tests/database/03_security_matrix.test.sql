@@ -64,7 +64,7 @@ select is(
     join pg_catalog.pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('api', 'private')
       and p.proname in (
-        'issue_device_claim_v1', 'consume_device_claim_v1', 'device_sync_v1',
+        'issue_device_claim_v1', 'consume_device_claim_v1', 'device_sync_v1', 'device_sync_gateway_v1',
         'device_revoke_v1', 'recompute_dirty_summaries_v1', 'secure_digest_equal'
       )
       and has_function_privilege('authenticated', p.oid, 'EXECUTE')

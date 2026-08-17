@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(15);
 
 select is(
   (select count(*) from private.extension_inventory where extension_name in ('pgcrypto', 'postgis')),
@@ -18,16 +18,20 @@ select ok(not has_table_privilege('authenticated', 'api.telemetry_points', 'inse
 select ok(not has_table_privilege('authenticated', 'api.config_resource_heads', 'update'), 'browser users cannot update desired heads directly');
 
 select ok(
-  not has_function_privilege('anon', 'api.device_sync_v1(uuid,bytea,uuid,bytea,jsonb)', 'execute'),
+  not has_function_privilege('anon', 'api.device_sync_gateway_v1(uuid,bytea,uuid,bytea,jsonb)', 'execute'),
   'anonymous role cannot execute device sync'
 );
 select ok(
-  not has_function_privilege('authenticated', 'api.device_sync_v1(uuid,bytea,uuid,bytea,jsonb)', 'execute'),
+  not has_function_privilege('authenticated', 'api.device_sync_gateway_v1(uuid,bytea,uuid,bytea,jsonb)', 'execute'),
   'user role cannot execute device sync'
 );
 select ok(
-  has_function_privilege('service_role', 'api.device_sync_v1(uuid,bytea,uuid,bytea,jsonb)', 'execute'),
-  'service role can execute the narrow device sync RPC'
+  has_function_privilege('service_role', 'api.device_sync_gateway_v1(uuid,bytea,uuid,bytea,jsonb)', 'execute'),
+  'service role can execute the narrow device sync gateway RPC'
+);
+select ok(
+  not has_function_privilege('service_role', 'api.device_sync_v1(uuid,bytea,uuid,bytea,jsonb)', 'execute'),
+  'service role cannot bypass credential-state locking through the internal sync RPC'
 );
 
 set local role authenticated;

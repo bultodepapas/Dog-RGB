@@ -17,7 +17,7 @@ export default {
       ({ requestId } = assertProtocolRequest(body));
       validateContractRequest("device-sync", body);
       await validateSyncSemantics(body);
-      const response = await serviceRpc(ctx.supabaseAdmin, "device_sync_v1", {
+      const response = await serviceRpc(ctx.supabaseAdmin, "device_sync_gateway_v1", {
         p_credential_id: auth.credentialId,
         p_secret_digest: postgresBytea(await deviceDigest(auth.secret)),
         p_request_id: requestId,

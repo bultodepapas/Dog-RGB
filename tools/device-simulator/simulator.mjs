@@ -27,13 +27,14 @@ async function json(response) {
   return body;
 }
 
-async function problem(response, status, code, requestId) {
+async function problem(response, status, code, requestId, retryAfter = null) {
   const body = await response.json();
   assert.equal(response.status, status, JSON.stringify(body));
   assert.equal(response.headers.get("content-type")?.startsWith("application/problem+json"), true);
   assert.equal(body.status, status);
   assert.equal(body.code, code);
   assert.equal(body.request_id, requestId);
+  if (retryAfter !== null) assert.equal(response.headers.get("retry-after"), String(retryAfter));
   return body;
 }
 
@@ -64,6 +65,18 @@ async function main() {
     apikey: publishableKey,
     authorization: `Bearer ${login.access_token}`,
   }));
+
+  const duplicateClaimIssue = structuredClone(claimIssue);
+  duplicateClaimIssue.request_id = randomUUID();
+  await problem(
+    await post("/functions/v1/user-v1-issue-claim", duplicateClaimIssue, {
+      apikey: publishableKey,
+      authorization: `Bearer ${login.access_token}`,
+    }),
+    409,
+    "active_claim_exists",
+    duplicateClaimIssue.request_id,
+  );
 
   const claim = await readFixture("device-v1-claim-request.json");
   const deviceId = randomUUID();
@@ -223,16 +236,97 @@ async function main() {
   revoke.request_id = randomUUID();
   revoke.device_id = deviceId;
   revoke.credential_id = credentialId;
-  const revoked = await json(await post("/functions/v1/device-v1-revoke", revoke, { authorization: bearer }));
+  const raceSync = emptySync();
+  const [raceSyncResponse, revokeResponse] = await Promise.all([
+    post("/functions/v1/device-v1-sync", raceSync, { authorization: bearer }),
+    post("/functions/v1/device-v1-revoke", revoke, { authorization: bearer }),
+  ]);
+  const revoked = await json(revokeResponse);
   assert.equal(revoked.state, "revoked");
+  if (raceSyncResponse.ok) {
+    await json(raceSyncResponse);
+  } else {
+    await problem(raceSyncResponse, 403, "device_revoked", raceSync.request_id);
+  }
+  const afterRevoke = emptySync();
+  await problem(
+    await post("/functions/v1/device-v1-sync", afterRevoke, { authorization: bearer }),
+    403,
+    "device_revoked",
+    afterRevoke.request_id,
+  );
+
+  const secondIssue = structuredClone(claimIssue);
+  secondIssue.request_id = randomUUID();
+  const secondIssued = await json(await post("/functions/v1/user-v1-issue-claim", secondIssue, {
+    apikey: publishableKey,
+    authorization: `Bearer ${login.access_token}`,
+  }));
+  const secondClaim = await readFixture("device-v1-claim-request.json");
+  const secondDeviceId = randomUUID();
+  const secondCredentialId = randomUUID();
+  const secondSecret = randomBytes(32).toString("base64url");
+  secondClaim.request_id = randomUUID();
+  secondClaim.claim_code = secondIssued.claim.code;
+  secondClaim.credential_id = secondCredentialId;
+  secondClaim.credential_secret = secondSecret;
+  secondClaim.device.device_id = secondDeviceId;
+  const secondPaired = await json(await post("/functions/v1/device-v1-claim", secondClaim));
+  assert.equal(secondPaired.pairing.device_id, secondDeviceId);
+  const secondBearer = `Bearer drgb_v1_${secondCredentialId}.${secondSecret}`;
+  const rateProbe = () => {
+    const value = structuredClone(sync);
+    value.request_id = randomUUID();
+    value.device.device_id = secondDeviceId;
+    value.upload = { chunks: [], summaries: [], loss_markers: [] };
+    value.configuration = { mutations: [], reported: [] };
+    return value;
+  };
+  let replayableProbe;
+  let replayableResponse;
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const probe = rateProbe();
+    const response = await json(await post("/functions/v1/device-v1-sync", probe, { authorization: secondBearer }));
+    if (attempt === 6) {
+      replayableProbe = probe;
+      replayableResponse = response;
+    }
+  }
+  const limitedProbe = rateProbe();
+  await problem(
+    await post("/functions/v1/device-v1-sync", limitedProbe, { authorization: secondBearer }),
+    429,
+    "rate_limited",
+    limitedProbe.request_id,
+    60,
+  );
+  const exactReplayAfterLimit = await json(
+    await post("/functions/v1/device-v1-sync", replayableProbe, { authorization: secondBearer }),
+  );
+  assert.deepEqual(
+    exactReplayAfterLimit,
+    replayableResponse,
+    "an exact committed replay must bypass the rate limit",
+  );
+
+  const secondRevoke = structuredClone(revoke);
+  secondRevoke.request_id = randomUUID();
+  secondRevoke.device_id = secondDeviceId;
+  secondRevoke.credential_id = secondCredentialId;
+  assert.equal(
+    (await json(await post("/functions/v1/device-v1-revoke", secondRevoke, { authorization: secondBearer }))).state,
+    "revoked",
+  );
 
   console.log(JSON.stringify({
     ok: true,
     scenarios: [
-      "pair", "concurrent-claim-replay", "claim-request-id-conflict",
+      "pair", "one-active-claim", "concurrent-claim-replay", "claim-request-id-conflict",
       "schema-invalid-envelope", "unsupported-protocol-problem",
       "concurrent-exact-replay", "lost-response", "single-database-effect",
-      "out-of-order-upload", "ap-mutation", "web-winner", "reported-applied", "revoke",
+      "out-of-order-upload", "ap-mutation", "web-winner", "reported-applied",
+      "revoke-sync-race", "revoked-credential", "per-collar-rate-limit",
+      "retry-after", "exact-replay-after-rate-limit", "revoke",
     ],
     points: points.length,
   }));
