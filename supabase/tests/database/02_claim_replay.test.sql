@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(9);
+select plan(10);
 
 select ok(
   private.secure_digest_equal(decode(repeat('aa', 32), 'hex'), decode(repeat('aa', 32), 'hex')),
@@ -20,12 +20,20 @@ select ok(
   'anonymous role cannot consume a device claim'
 );
 select ok(
-  has_function_privilege(
+  not has_function_privilege(
     'service_role',
     'api.consume_device_claim_v1(bytea,uuid,bytea,uuid,uuid,bytea,jsonb,jsonb)',
     'execute'
   ),
-  'service role can execute only the claim transaction boundary'
+  'service role cannot bypass claim-attempt accounting through the internal RPC'
+);
+select ok(
+  has_function_privilege(
+    'service_role',
+    'api.consume_device_claim_gateway_v1(bytea,bytea,bytea,uuid,bytea,uuid,uuid,bytea,jsonb,jsonb)',
+    'execute'
+  ),
+  'service role can execute the narrow claim gateway RPC'
 );
 
 insert into private.device_claims (

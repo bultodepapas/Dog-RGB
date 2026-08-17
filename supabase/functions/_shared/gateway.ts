@@ -1,14 +1,25 @@
 const encoder = new TextEncoder();
 
 export class HttpProblem extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly title: string;
+  readonly detail: string;
+  readonly retryAfterSeconds?: number;
+
   constructor(
-    readonly status: number,
-    readonly code: string,
-    readonly title: string,
-    readonly detail: string,
-    readonly retryAfterSeconds?: number,
+    status: number,
+    code: string,
+    title: string,
+    detail: string,
+    retryAfterSeconds?: number,
   ) {
     super(detail);
+    this.status = status;
+    this.code = code;
+    this.title = title;
+    this.detail = detail;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -23,6 +34,14 @@ export function problem(error: unknown, requestId: string | null = null): Respon
   if (value.retryAfterSeconds !== undefined) {
     headers["retry-after"] = String(value.retryAfterSeconds);
   }
+  if (value.status === 405) {
+    headers.allow = "POST";
+  }
+  if (value.status === 401) {
+    headers["www-authenticate"] = value.code === "claim_unavailable"
+      ? 'DogRGBClaim realm="dog-rgb-pairing"'
+      : 'Bearer realm="dog-rgb-device"';
+  }
   return Response.json({
     type: `urn:dog-rgb:problem:${value.code}`,
     title: value.title,
@@ -36,33 +55,86 @@ export function problem(error: unknown, requestId: string | null = null): Respon
   });
 }
 
-function maxDepth(value: unknown, depth = 0): number {
-  if (value === null || typeof value !== "object") return depth;
-  const values = Array.isArray(value) ? value : Object.values(value);
-  return values.reduce((max, child) => Math.max(max, maxDepth(child, depth + 1)), depth);
+function exceedsDepth(value: unknown, limit: number): boolean {
+  const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    if (current.value === null || typeof current.value !== "object") continue;
+    if (current.depth >= limit) return true;
+    const children = Array.isArray(current.value) ? current.value : Object.values(current.value);
+    for (const child of children) pending.push({ value: child, depth: current.depth + 1 });
+  }
+  return false;
+}
+
+async function drainRequestBody(req: Request): Promise<void> {
+  if (!req.body) return;
+  const reader = req.body.getReader();
+  try {
+    while (!(await reader.read()).done) { /* Drain without retaining attacker-controlled bytes. */ }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function readBoundedBytes(req: Request, maxBytes: number): Promise<Uint8Array> {
+  if (!req.body) return new Uint8Array();
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let tooLarge = false;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) tooLarge = true;
+      if (!tooLarge) chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (tooLarge) {
+    throw new HttpProblem(413, "payload_too_large", "Payload too large", "The request exceeds the endpoint limit.");
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 export async function boundedJson(req: Request, maxBytes: number, requireLength = true) {
-  if (req.method !== "POST") throw new HttpProblem(405, "method_not_allowed", "Method not allowed", "Use POST.");
-  if (!req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+  if (req.method !== "POST") {
+    await drainRequestBody(req);
+    throw new HttpProblem(405, "method_not_allowed", "Method not allowed", "Use POST.");
+  }
+  const mediaType = req.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+  if (mediaType !== "application/json") {
+    await drainRequestBody(req);
     throw new HttpProblem(415, "unsupported_media_type", "Unsupported media type", "Content-Type must be application/json.");
   }
   const declared = req.headers.get("content-length");
   if (requireLength && declared === null) {
+    await drainRequestBody(req);
     throw new HttpProblem(411, "length_required", "Content length required", "Content-Length is required.");
   }
   if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > maxBytes)) {
+    await drainRequestBody(req);
     throw new HttpProblem(413, "payload_too_large", "Payload too large", "The request exceeds the endpoint limit.");
   }
-  const raw = await req.text();
-  if (encoder.encode(raw).byteLength > maxBytes) {
-    throw new HttpProblem(413, "payload_too_large", "Payload too large", "The request exceeds the endpoint limit.");
+  const bytes = await readBoundedBytes(req, maxBytes);
+  let raw: string;
+  try { raw = new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch {
+    throw new HttpProblem(400, "malformed_json", "Malformed JSON", "The body must be valid UTF-8 JSON.");
   }
   let body: unknown;
   try { body = JSON.parse(raw); } catch {
     throw new HttpProblem(400, "malformed_json", "Malformed JSON", "The body must be valid UTF-8 JSON.");
   }
-  if (maxDepth(body) > 12) throw new HttpProblem(400, "malformed_json", "Malformed JSON", "JSON nesting is too deep.");
+  if (exceedsDepth(body, 12)) throw new HttpProblem(400, "malformed_json", "Malformed JSON", "JSON nesting is too deep.");
   if (!body || Array.isArray(body) || typeof body !== "object") {
     throw new HttpProblem(400, "invalid_envelope", "Invalid request envelope", "The body must be a JSON object.");
   }
@@ -88,6 +160,25 @@ export async function hmacSha256(secret: string, value: string | Uint8Array): Pr
   );
   const bytes = typeof value === "string" ? encoder.encode(value) : value;
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, bytes));
+}
+
+export async function claimAttemptKeys(
+  req: Request,
+  deviceId: string,
+): Promise<{ source: Uint8Array; device: Uint8Array }> {
+  const forwardedChain = req.headers.get("x-forwarded-for")
+    ?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  // The final address is the hop appended by the trusted Supabase gateway.
+  // If the local runtime supplies none, one shared non-identifying bucket keeps
+  // protection enabled without storing an address or other raw request data.
+  const source = forwardedChain?.at(-1)?.slice(0, 128) ?? "unavailable";
+  const pepper = requiredEnv("CLAIM_HMAC_PEPPER");
+  return {
+    source: await hmacSha256(pepper, `claim-source:v1\0${source}`),
+    device: await hmacSha256(pepper, `claim-device:v1\0${deviceId.toLowerCase()}`),
+  };
 }
 
 export function base64UrlDecode(value: string): Uint8Array {

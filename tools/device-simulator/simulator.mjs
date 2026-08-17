@@ -318,6 +318,108 @@ async function main() {
     "revoked",
   );
 
+  const raceIssue = structuredClone(claimIssue);
+  raceIssue.request_id = randomUUID();
+  const raceIssued = await json(await post("/functions/v1/user-v1-issue-claim", raceIssue, {
+    apikey: publishableKey,
+    authorization: `Bearer ${login.access_token}`,
+  }));
+  const raceClaim = await readFixture("device-v1-claim-request.json");
+  const raceDeviceId = randomUUID();
+  const raceCredentialId = randomUUID();
+  const raceSecret = randomBytes(32).toString("base64url");
+  raceClaim.request_id = randomUUID();
+  raceClaim.claim_code = raceIssued.claim.code;
+  raceClaim.credential_id = raceCredentialId;
+  raceClaim.credential_secret = raceSecret;
+  raceClaim.device.device_id = raceDeviceId;
+  const raceBearer = `Bearer drgb_v1_${raceCredentialId}.${raceSecret}`;
+  const claimRevoke = await readFixture("device-v1-revoke-request.json");
+  claimRevoke.request_id = randomUUID();
+  claimRevoke.device_id = raceDeviceId;
+  claimRevoke.credential_id = raceCredentialId;
+
+  const [claimRaceResponse, revokeRaceResponse] = await Promise.all([
+    post("/functions/v1/device-v1-claim", raceClaim),
+    post("/functions/v1/device-v1-revoke", claimRevoke, { authorization: raceBearer }),
+  ]);
+  const racePaired = await json(claimRaceResponse);
+  let firstRaceRevoke = null;
+  if (revokeRaceResponse.ok) {
+    firstRaceRevoke = await json(revokeRaceResponse);
+  } else {
+    await problem(revokeRaceResponse, 401, "device_credential_invalid", claimRevoke.request_id);
+  }
+
+  const settledRaceRevoke = await json(
+    await post("/functions/v1/device-v1-revoke", claimRevoke, { authorization: raceBearer }),
+  );
+  assert.equal(settledRaceRevoke.disposition, "newly_revoked");
+  if (firstRaceRevoke !== null) {
+    assert.deepEqual(
+      settledRaceRevoke,
+      firstRaceRevoke,
+      "an exact revoke replay after a concurrent claim must preserve its first committed response",
+    );
+  }
+  const claimReplayAfterRevoke = await json(
+    await post("/functions/v1/device-v1-claim", raceClaim),
+  );
+  assert.deepEqual(
+    claimReplayAfterRevoke,
+    racePaired,
+    "an exact claim replay must preserve its committed response after a concurrent revoke",
+  );
+  const racedCollar = await fetch(
+    `${apiUrl}/rest/v1/collars?id=eq.${racePaired.pairing.collar_id}&select=state`,
+    {
+      headers: {
+        apikey: publishableKey,
+        authorization: `Bearer ${login.access_token}`,
+        "accept-profile": "api",
+      },
+    },
+  ).then(json);
+  assert.deepEqual(racedCollar, [{ state: "revoked" }], "the claim/revoke race must settle revoked");
+
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const invalidClaim = await readFixture("device-v1-claim-request.json");
+    invalidClaim.request_id = randomUUID();
+    invalidClaim.claim_code = randomBytes(10).toString("hex").toUpperCase()
+      .replaceAll("I", "A").replaceAll("L", "B").replaceAll("O", "C").replaceAll("U", "D")
+      .slice(0, 16);
+    invalidClaim.device.device_id = randomUUID();
+    invalidClaim.credential_id = randomUUID();
+    invalidClaim.credential_secret = randomBytes(32).toString("base64url");
+    await problem(
+      await post("/functions/v1/device-v1-claim", invalidClaim),
+      401,
+      "claim_unavailable",
+      invalidClaim.request_id,
+    );
+  }
+  const cooldownClaim = await readFixture("device-v1-claim-request.json");
+  cooldownClaim.request_id = randomUUID();
+  cooldownClaim.claim_code = "0123456789ABCDEF";
+  cooldownClaim.device.device_id = randomUUID();
+  cooldownClaim.credential_id = randomUUID();
+  cooldownClaim.credential_secret = randomBytes(32).toString("base64url");
+  const cooldownResponse = await post("/functions/v1/device-v1-claim", cooldownClaim);
+  await problem(cooldownResponse, 429, "rate_limited", cooldownClaim.request_id);
+  const claimRetryAfter = Number(cooldownResponse.headers.get("retry-after"));
+  assert.equal(
+    Number.isInteger(claimRetryAfter) && claimRetryAfter >= 895 && claimRetryAfter <= 900,
+    true,
+    `unexpected claim Retry-After: ${claimRetryAfter}`,
+  );
+
+  const claimReplayDuringCooldown = await json(await sendExactClaim());
+  assert.deepEqual(
+    claimReplayDuringCooldown,
+    paired,
+    "an exact committed claim replay must bypass a later source cooldown",
+  );
+
   console.log(JSON.stringify({
     ok: true,
     scenarios: [
@@ -327,6 +429,8 @@ async function main() {
       "out-of-order-upload", "ap-mutation", "web-winner", "reported-applied",
       "revoke-sync-race", "revoked-credential", "per-collar-rate-limit",
       "retry-after", "exact-replay-after-rate-limit", "revoke",
+      "concurrent-claim-revoke", "claim-replay-after-revoke",
+      "failed-claim-accounting", "claim-source-cooldown", "claim-replay-during-cooldown",
     ],
     points: points.length,
   }));

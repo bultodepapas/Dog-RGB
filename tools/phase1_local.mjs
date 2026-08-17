@@ -61,7 +61,7 @@ async function waitForGateway(url) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
       const response = await fetch(`${url}/functions/v1/device-v1-sync`);
-      if (response.status === 401 && response.headers.get("content-type")?.includes("application/problem+json")) return;
+      if (response.status === 405 && response.headers.get("content-type")?.includes("application/problem+json")) return;
       throw new Error(`Edge Function readiness probe returned unexpected HTTP ${response.status}.`);
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("Edge Function readiness")) throw error;
@@ -92,6 +92,7 @@ try {
   const environment = localEnvironment();
   console.log("Checking the Edge Function gateway started by Supabase...");
   await waitForGateway(environment.SUPABASE_URL);
+  run("node", ["tools/device-simulator/boundary-matrix.mjs"], { env: environment });
   run("node", ["tools/device-simulator/simulator.mjs"], { env: environment });
   console.log("Phase 1 local foundation passed from a clean database reset.");
 } finally {

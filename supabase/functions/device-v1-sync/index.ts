@@ -11,9 +11,9 @@ export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
     let requestId: string | null = null;
     try {
-      const auth = parseDeviceBearer(req);
       const { raw, body } = await boundedJson(req, 128 * 1024);
       requestId = requestIdFrom(body);
+      const auth = parseDeviceBearer(req);
       ({ requestId } = assertProtocolRequest(body));
       validateContractRequest("device-sync", body);
       await validateSyncSemantics(body);

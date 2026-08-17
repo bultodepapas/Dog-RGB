@@ -10,9 +10,9 @@ export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
     let requestId: string | null = null;
     try {
-      const auth = parseDeviceBearer(req);
       const { raw, body } = await boundedJson(req, 4096);
       requestId = requestIdFrom(body);
+      const auth = parseDeviceBearer(req);
       ({ requestId } = assertProtocolRequest(body));
       validateContractRequest("device-revoke", body);
       if (body.credential_id !== auth.credentialId || typeof body.device_id !== "string" ||
