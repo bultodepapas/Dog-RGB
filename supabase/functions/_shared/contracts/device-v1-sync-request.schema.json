@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dog-rgb:contract:device-v1:device-v1-sync-request",
+  "title": "Dog RGB device-v1 synchronization request",
+  "type": "object",
+  "required": [
+    "protocol_version",
+    "request_id",
+    "device",
+    "clock",
+    "capabilities",
+    "diagnostics",
+    "upload",
+    "configuration"
+  ],
+  "properties": {
+    "protocol_version": {"const": 1},
+    "request_id": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uuidV4"},
+    "device": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/deviceDescriptor"},
+    "clock": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/clock"},
+    "capabilities": {
+      "oneOf": [
+        {"$ref": "urn:dog-rgb:contract:device-v1:capabilities"},
+        {"type": "null"}
+      ]
+    },
+    "diagnostics": {"$ref": "#/$defs/diagnostics"},
+    "upload": {"$ref": "urn:dog-rgb:contract:device-v1:telemetry#/$defs/upload"},
+    "configuration": {
+      "type": "object",
+      "required": ["mutations", "reported"],
+      "properties": {
+        "mutations": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {"$ref": "urn:dog-rgb:contract:device-v1:config-resource#/$defs/mutation"}
+        },
+        "reported": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {"$ref": "urn:dog-rgb:contract:device-v1:config-resource#/$defs/reported"}
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "diagnostics": {
+      "type": "object",
+      "required": [
+        "outbox_chunks",
+        "outbox_points",
+        "outbox_used_bytes",
+        "outbox_capacity_bytes",
+        "oldest_unacknowledged_utc_ms",
+        "dropped_points_total",
+        "last_error_code"
+      ],
+      "properties": {
+        "outbox_chunks": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "outbox_points": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "outbox_used_bytes": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "outbox_capacity_bytes": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "oldest_unacknowledged_utc_ms": {
+          "oneOf": [
+            {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/utcMilliseconds"},
+            {"type": "null"}
+          ]
+        },
+        "dropped_points_total": {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/uint32"},
+        "last_error_code": {
+          "oneOf": [
+            {"$ref": "urn:dog-rgb:contract:device-v1:common#/$defs/machineCode"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # Dog RGB cloud web platform and bidirectional synchronization
 
-**Status:** Accepted optional implementation direction; Phase 0 contracts, ADRs, and local evidence are in progress. No website, Supabase schema/Edge runtime, or firmware cloud synchronization is implemented. The complete device-v1 contract passes 48/48. The corrected 664-slot byte-addressed host outbox candidate now covers the five reproduced fallback/loss/corruption failures and passes 49/49, but its independent recovery/reclaim acceptance review remains open. Physical ESP32 outbox evidence and the credentialed provider comparison/origin-control/two-reviewer map gate are also missing, so Phase 0 has not exited and Phase 1 is not authorized.
+**Status:** Accepted optional implementation direction. Phase 0 contracts, ADRs, and local evidence remain in progress; its physical ESP32 outbox evidence, independent recovery/reclaim review, and credentialed map-provider gate are still missing. Under explicit owner direction, Phase 1 local-cloud work has started in parallel without waiving those Phase 0 exit requirements and without authorizing Phase 2. The repository now contains the portal scaffold, Supabase migrations/Edge Functions, shared analytics/contracts packages, and a device simulator. The complete device-v1 contract passes 48/48; the current Phase 1 clean-room gate passes 32 pgTAP assertions, schema drift checks, lint/type/unit/secret checks, database lint/advisors, and the local Edge/simulator scenarios documented below. Phase 1 remains in progress until its remaining adversarial matrix and operational items are closed.
 **Prepared:** 2026-08-13 (America/Bogota).  
 **Repository baseline:** commit `efc9329e0053551f4be8fcb1ab964aad08e5238d`.  
 **Research/pricing snapshot:** 2026-08-13; recheck service limits, prices, and terms before purchasing or deploying.  
@@ -1906,6 +1906,10 @@ No phase begins until the preceding gate is evidenced. Estimates are engineering
 ### Phase 1 — Local cloud foundation and simulator (2–3 weeks)
 
 **Dependencies:** Phase 0 schemas/ADRs; Docker/Supabase CLI; no firmware network code.
+
+**Implementation evidence — 2026-08-17:** `npm run phase1:local -- --clean` now requires explicit authorization before replacing this repository's disposable local database. From a stopped stack it creates the environment, applies all three migrations, seeds synthetic accounts, passes 32 pgTAP assertions, checks only project-owned `api`/`private` schemas with database lint, returns no local Security/Performance Advisor findings, verifies eight generated Edge schema copies against the frozen contract, runs the 48 contract cases plus workspace checks, and completes the device simulator without infrastructure retries. The simulator covers concurrent exact claim replay, claim request-ID/body conflict, normative invalid-envelope and unsupported-protocol problems, concurrent exact sync replay with one logical result, simulated lost response, out-of-order chunks, AP/web brightness conflict, reported apply, and device revoke. The final Edge log audit found no error-like lines, known secret/identity/coordinate patterns, or runtime restarts; the ephemeral function `.env` was removed after startup.
+
+**Still open:** complete the endpoint boundary/problem matrix, server-side rate/quota enforcement, claim-attempt accounting, concurrent claim/revoke and revoke/sync race tests, full chunk overlap/finality/hole/loss/summary invariants, every simulator LWW case plus randomized failing-seed retention, CI evidence on a clean remote runner, and the remaining capacity/retention and operational drills. Phase 1 is not complete while these items remain.
 
 #### 1A. Scaffold reproducibly
 

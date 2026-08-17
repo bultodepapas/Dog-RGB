@@ -1,0 +1,10 @@
+{
+  "name": "@dog-rgb/device-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test simulator.test.mjs",
+    "run": "node simulator.mjs"
+  }
+}

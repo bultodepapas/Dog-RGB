@@ -10,6 +10,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cloud-foundation:
+    name: Cloud foundation (local Supabase)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - run: npm ci
+
+      - name: Run clean local foundation gate
+        run: npm run phase1:local -- --clean
+
+      - name: Stop local stack
+        if: always()
+        run: supabase stop --no-backup
+
   host-tests:
     name: Firmware (host tests)
     runs-on: ubuntu-latest

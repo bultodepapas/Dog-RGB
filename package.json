@@ -1,9 +1,15 @@
 {
-  "name": "dog-rgb-ap-portal-tools",
+  "name": "dog-rgb",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
   "type": "module",
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "tools/device-simulator"
+  ],
   "engines": {
     "node": ">=24.0.0 <25"
   },
@@ -21,7 +27,22 @@
     "ap-portal:visual": "AP_PORTAL_VISUAL=1 playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium",
     "ap-portal:visual:update": "AP_PORTAL_VISUAL=1 playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --update-snapshots",
     "ap-portal:visual:baseline": "bash tools/ap_portal_preview/gen_baselines.sh",
-    "ap-portal:ui": "playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --ui"
+    "ap-portal:ui": "playwright test tests/ap-portal-visual/ap-portal.visual.spec.ts --project=iphone-13-pro-max-chromium --ui",
+    "contracts:test": "node --test contracts/device-v1/test-contracts.mjs",
+    "contracts:edge:sync": "node tools/sync_edge_contract_schemas.mjs --write",
+    "contracts:edge:check": "node tools/sync_edge_contract_schemas.mjs",
+    "portal:dev": "npm run dev --workspace @dog-rgb/portal",
+    "portal:build": "npm run build --workspace @dog-rgb/portal",
+    "lint": "npm run lint --workspace @dog-rgb/portal",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:unit": "npm run contracts:test && npm run test --workspace @dog-rgb/analytics && npm run test --workspace @dog-rgb/device-simulator",
+    "cloud:db:reset": "supabase db reset",
+    "cloud:test:db": "supabase test db",
+    "cloud:functions": "supabase functions serve --env-file supabase/functions/.env.example",
+    "cloud:simulate": "npm run run --workspace @dog-rgb/device-simulator",
+    "secrets:scan": "node tools/secret_scan.mjs",
+    "phase1:check": "npm run contracts:edge:check && npm run contracts:test && npm run lint && npm run typecheck && npm run test:unit && npm run secrets:scan",
+    "phase1:local": "node tools/phase1_local.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
