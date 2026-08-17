@@ -1,3 +1,36 @@
+create or replace function private.reverse_bytes(p_value bytea)
+returns bytea
+language sql
+immutable
+strict
+set search_path = ''
+as $$
+  select decode(
+    string_agg(lpad(to_hex(get_byte(p_value, position)), 2, '0'), '' order by position desc),
+    'hex'
+  )
+  from generate_series(0, octet_length(p_value) - 1) as position
+$$;
+
+create or replace function private.track_v3_point_bytes(p_point jsonb)
+returns bytea
+language sql
+immutable
+strict
+set search_path = ''
+as $$
+  select
+    private.reverse_bytes(pg_catalog.int4send((p_point ->> 0)::integer)) ||
+    private.reverse_bytes(pg_catalog.int4send((p_point ->> 1)::integer)) ||
+    private.reverse_bytes(substring(pg_catalog.int8send((p_point ->> 2)::bigint) from 5 for 4)) ||
+    private.reverse_bytes(substring(pg_catalog.int4send((p_point ->> 3)::integer) from 3 for 2)) ||
+    decode(lpad(to_hex((p_point ->> 4)::integer), 2, '0'), 'hex') ||
+    decode(lpad(to_hex((p_point ->> 5)::integer), 2, '0'), 'hex')
+$$;
+
+revoke execute on function private.reverse_bytes(bytea) from public, anon, authenticated, service_role;
+revoke execute on function private.track_v3_point_bytes(jsonb) from public, anon, authenticated, service_role;
+
 create or replace function private.apply_device_mutation_v1(
   p_collar_id uuid,
   p_device_id uuid,
@@ -180,6 +213,7 @@ declare
   v_point jsonb;
   v_ordinal bigint;
   v_chunk_hash bytea;
+  v_calculated_chunk_hash bytea;
   v_existing_hash bytea;
   v_new_chunk boolean;
   v_recording_id uuid;
@@ -253,6 +287,14 @@ begin
       raise exception using errcode = '22023', message = 'invalid_chunk_point_count';
     end if;
     v_chunk_hash := private.base64url_decode(v_chunk ->> 'content_sha256');
+    select extensions.digest(
+      string_agg(private.track_v3_point_bytes(value), ''::bytea order by ordinality),
+      'sha256'
+    ) into v_calculated_chunk_hash
+    from jsonb_array_elements(v_chunk -> 'points') with ordinality;
+    if not private.secure_digest_equal(v_chunk_hash, v_calculated_chunk_hash) then
+      raise exception using errcode = '22023', message = 'telemetry_hash_mismatch';
+    end if;
     select content_sha256 into v_existing_hash
     from private.telemetry_chunks
     where collar_id = v_collar.id
