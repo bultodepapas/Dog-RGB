@@ -52,6 +52,16 @@ function pointHash(points) {
   return createHash("sha256").update(bytes).digest("base64url");
 }
 
+function canonicalJson(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+}
+
+function bodyHash(body) {
+  return createHash("sha256").update(canonicalJson(body)).digest("base64url");
+}
+
 async function main() {
   const login = await json(await post("/auth/v1/token?grant_type=password", {
     email: "owner@example.test",
@@ -325,6 +335,182 @@ async function main() {
     afterRevoke.request_id,
   );
 
+  const lwwIssue = structuredClone(claimIssue);
+  lwwIssue.request_id = randomUUID();
+  const lwwIssued = await json(await post("/functions/v1/user-v1-issue-claim", lwwIssue, {
+    apikey: publishableKey,
+    authorization: `Bearer ${login.access_token}`,
+  }));
+  const lwwClaim = await readFixture("device-v1-claim-request.json");
+  const lwwDeviceId = "ffffffff-ffff-4fff-bfff-ffffffffffff";
+  const lwwCredentialId = randomUUID();
+  const lwwSecret = randomBytes(32).toString("base64url");
+  lwwClaim.request_id = randomUUID();
+  lwwClaim.claim_code = lwwIssued.claim.code;
+  lwwClaim.credential_id = lwwCredentialId;
+  lwwClaim.credential_secret = lwwSecret;
+  lwwClaim.device.device_id = lwwDeviceId;
+  const lwwPaired = await json(await post("/functions/v1/device-v1-claim", lwwClaim));
+  const lwwBearer = `Bearer drgb_v1_${lwwCredentialId}.${lwwSecret}`;
+  const lwwSync = () => {
+    const value = structuredClone(sync);
+    value.request_id = randomUUID();
+    value.device.device_id = lwwDeviceId;
+    value.upload = { chunks: [], summaries: [], loss_markers: [] };
+    value.configuration = { mutations: [], reported: [] };
+    return value;
+  };
+  const webConfig = async (resourceKey, body, baseServerVersion) => json(await post(
+    "/rest/v1/rpc/mutate_config_resource_v1",
+    {
+      p_collar_id: lwwPaired.pairing.collar_id,
+      p_resource_key: resourceKey,
+      p_resource_schema: 1,
+      p_mutation_id: randomUUID(),
+      p_base_server_version: baseServerVersion,
+      p_body: body,
+      p_body_sha256: `\\x${Buffer.from(bodyHash(body), "base64url").toString("hex")}`,
+    },
+    {
+      apikey: publishableKey,
+      authorization: `Bearer ${login.access_token}`,
+      "content-profile": "api",
+    },
+  ));
+  const configHead = async (resourceKey) => {
+    const result = await fetch(
+      `${apiUrl}/rest/v1/config_resource_heads?collar_id=eq.${lwwPaired.pairing.collar_id}` +
+        `&resource_key=eq.${resourceKey}&select=resource_key,server_version,body,accepted_hlc_physical_ms,accepted_hlc_logical,accepted_actor_id`,
+      {
+        headers: {
+          apikey: publishableKey,
+          authorization: `Bearer ${login.access_token}`,
+          "accept-profile": "api",
+        },
+      },
+    ).then(json);
+    assert.equal(result.length, 1, `missing ${resourceKey} head`);
+    return result[0];
+  };
+  const deviceMutation = (resourceKey, body, localSequence, authoredHlc, timeQuality, baseServerVersion) => ({
+    mutation_id: randomUUID(),
+    local_sequence: localSequence,
+    resource_key: resourceKey,
+    resource_schema: 1,
+    base_server_version: baseServerVersion,
+    authored_hlc: { ...authoredHlc, actor_id: lwwDeviceId },
+    time_quality: timeQuality,
+    origin: "ap",
+    body,
+    body_sha256: bodyHash(body),
+  });
+
+  await webConfig("brightness", { brightness: 80 }, 0);
+  const webFirst = await configHead("brightness");
+  const webThenAp = lwwSync();
+  webThenAp.configuration.mutations = [deviceMutation(
+    "brightness", { brightness: 100 }, 1,
+    { physical_ms: webFirst.accepted_hlc_physical_ms + 1, logical: 0 },
+    "sntp_synced", webFirst.server_version,
+  )];
+  const webThenApResult = await json(await post("/functions/v1/device-v1-sync", webThenAp, { authorization: lwwBearer }));
+  assert.equal(webThenApResult.configuration.outcomes[0].disposition, "winning");
+  assert.equal(webThenApResult.configuration.outcomes[0].ordering, "authored");
+  assert.deepEqual((await configHead("brightness")).body, { brightness: 100 }, "later trusted AP must beat web");
+
+  const apVisual = lwwSync();
+  const visualBody = { day_mode_enabled: true, mode: "speed" };
+  apVisual.configuration.mutations = [deviceMutation(
+    "visual_mode", visualBody, 2,
+    { physical_ms: Date.now(), logical: 0 }, "gnss_trusted", 0,
+  )];
+  assert.equal(
+    (await json(await post("/functions/v1/device-v1-sync", apVisual, { authorization: lwwBearer })))
+      .configuration.outcomes[0].disposition,
+    "winning",
+  );
+  const webVisualBody = { day_mode_enabled: false, mode: "show" };
+  await webConfig("visual_mode", webVisualBody, 1);
+  assert.deepEqual((await configHead("visual_mode")).body, webVisualBody, "web must beat an earlier trusted AP edit");
+
+  const gpsBody = {
+    hdop_factor: 1.5,
+    max_gga_age_ms: 3000,
+    max_hdop: 4,
+    max_min_segment_m: 20,
+    min_fix_quality: 1,
+    min_satellites: 5,
+    min_segment_m: 2,
+  };
+  await webConfig("gps_quality", gpsBody, 0);
+  assert.deepEqual((await configHead("brightness")).body, { brightness: 100 });
+  assert.deepEqual((await configHead("gps_quality")).body, gpsBody, "different LWW resources must survive independently");
+
+  const beforeTie = await configHead("brightness");
+  await webConfig("brightness", { brightness: 90 }, beforeTie.server_version);
+  const tiedWeb = await configHead("brightness");
+  const actorTie = lwwSync();
+  actorTie.configuration.mutations = [deviceMutation(
+    "brightness", { brightness: 110 }, 3,
+    {
+      physical_ms: tiedWeb.accepted_hlc_physical_ms,
+      logical: tiedWeb.accepted_hlc_logical,
+    },
+    "server_anchored", tiedWeb.server_version,
+  )];
+  const actorTieResult = await json(await post("/functions/v1/device-v1-sync", actorTie, { authorization: lwwBearer }));
+  assert.equal(actorTieResult.configuration.outcomes[0].disposition, "winning");
+  assert.equal(actorTieResult.configuration.outcomes[0].accepted_hlc.actor_id, lwwDeviceId);
+  assert.deepEqual((await configHead("brightness")).body, { brightness: 110 }, "actor UUID must break a full HLC tie");
+
+  await webConfig("geofence_policy", { fence_max_m: 400 }, 0);
+  const fallbackBatch = lwwSync();
+  const unknownMutation = deviceMutation(
+    "geofence_policy", { fence_max_m: 500 }, 7,
+    { physical_ms: 0, logical: 1 }, "unknown", 1,
+  );
+  const implausibleTrusted = deviceMutation(
+    "geofence_policy", { fence_max_m: 600 }, 9,
+    { physical_ms: Date.now() + 700_000, logical: 0 }, "sntp_synced", 1,
+  );
+  fallbackBatch.configuration.mutations = [implausibleTrusted, unknownMutation];
+  const fallbackResult = await json(await post("/functions/v1/device-v1-sync", fallbackBatch, { authorization: lwwBearer }));
+  assert.deepEqual(
+    fallbackResult.configuration.outcomes.map((outcome) => outcome.mutation_id),
+    [unknownMutation.mutation_id, implausibleTrusted.mutation_id],
+    "fallback mutations must use persisted local_sequence instead of array order",
+  );
+  assert.equal(fallbackResult.configuration.outcomes.every((outcome) => outcome.ordering === "fallback_received"), true);
+  assert.equal(fallbackResult.configuration.outcomes.every(
+    (outcome) => outcome.accepted_hlc.actor_id === "00000000-0000-4000-8000-0000000000ff"
+  ), true);
+  assert.equal(
+    fallbackResult.configuration.outcomes[1].accepted_hlc.logical,
+    fallbackResult.configuration.outcomes[0].accepted_hlc.logical + 1,
+  );
+  assert.deepEqual((await configHead("geofence_policy")).body, { fence_max_m: 600 });
+
+  const mutationReplay = lwwSync();
+  mutationReplay.configuration.mutations = [structuredClone(implausibleTrusted)];
+  const mutationReplayResult = await json(
+    await post("/functions/v1/device-v1-sync", mutationReplay, { authorization: lwwBearer }),
+  );
+  assert.equal(mutationReplayResult.configuration.outcomes[0].replayed, true);
+  assert.deepEqual(
+    mutationReplayResult.configuration.outcomes[0].accepted_hlc,
+    fallbackResult.configuration.outcomes[1].accepted_hlc,
+    "a mutation replay under a new request must preserve its accepted HLC",
+  );
+
+  const lwwRevoke = await readFixture("device-v1-revoke-request.json");
+  lwwRevoke.request_id = randomUUID();
+  lwwRevoke.device_id = lwwDeviceId;
+  lwwRevoke.credential_id = lwwCredentialId;
+  assert.equal(
+    (await json(await post("/functions/v1/device-v1-revoke", lwwRevoke, { authorization: lwwBearer }))).state,
+    "revoked",
+  );
+
   const secondIssue = structuredClone(claimIssue);
   secondIssue.request_id = randomUUID();
   const secondIssued = await json(await post("/functions/v1/user-v1-issue-claim", secondIssue, {
@@ -498,6 +684,10 @@ async function main() {
       "persisted-overlap-rejected", "out-of-order-upload", "loss-marker-persisted",
       "persisted-finality", "artifact-replay", "artifact-identity-conflict",
       "ap-mutation", "web-winner", "reported-applied",
+      "lww-web-then-trusted-ap", "lww-trusted-ap-then-web",
+      "lww-independent-resources", "lww-actor-tie-break",
+      "lww-unknown-time-fallback", "lww-implausible-clock-fallback-order",
+      "lww-mutation-replay",
       "revoke-sync-race", "revoked-credential", "per-collar-rate-limit",
       "retry-after", "exact-replay-after-rate-limit", "revoke",
       "concurrent-claim-revoke", "claim-replay-after-revoke",
