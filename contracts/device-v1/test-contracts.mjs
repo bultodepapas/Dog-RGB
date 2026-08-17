@@ -385,8 +385,19 @@ function semanticTelemetry(upload, path = "$") {
 
   if (totalPoints > 384) errors.push(semantic("total_points_exceeded", `${path}/chunks`, `${totalPoints} exceeds 384`));
 
+  const summaryIds = new Set();
+  const summaryRevisions = new Set();
   for (const [index, summary] of upload.summaries.entries()) {
     const summaryPath = `${path}/summaries/${index}`;
+    const revisionIdentity = `${summary.local_date}:${summary.source_revision}`;
+    if (summaryIds.has(summary.summary_id)) {
+      errors.push(semantic("duplicate_summary_identity", summaryPath, "summary_id occurs more than once"));
+    }
+    if (summaryRevisions.has(revisionIdentity)) {
+      errors.push(semantic("duplicate_summary_revision", summaryPath, `duplicate ${revisionIdentity}`));
+    }
+    summaryIds.add(summary.summary_id);
+    summaryRevisions.add(revisionIdentity);
     if (summary.moving_s + summary.inactive_s !== summary.observed_s) {
       errors.push(semantic("summary_duration_mismatch", summaryPath, "moving plus inactive must equal observed"));
     }
@@ -398,12 +409,32 @@ function semanticTelemetry(upload, path = "$") {
     }
   }
 
+  const lossIds = new Set();
+  const lossRanges = new Map();
   for (const [index, marker] of upload.loss_markers.entries()) {
     const markerPath = `${path}/loss_markers/${index}`;
+    const ranges = lossRanges.get(marker.boot_sequence) ?? [];
+    if (lossIds.has(marker.marker_id)) {
+      errors.push(semantic("duplicate_loss_marker_identity", markerPath, "marker_id occurs more than once"));
+    }
+    lossIds.add(marker.marker_id);
     if (marker.last_missing_point_sequence < marker.first_missing_point_sequence) {
       errors.push(semantic("loss_range_inverted", markerPath, "loss range is inverted"));
     } else if (marker.last_missing_point_sequence - marker.first_missing_point_sequence + 1 !== marker.lost_points) {
       errors.push(semantic("loss_count_mismatch", markerPath, "inclusive range differs from lost_points"));
+    } else {
+      if (ranges.some(([first, last]) => first <= marker.last_missing_point_sequence && last >= marker.first_missing_point_sequence)) {
+        errors.push(semantic("overlapping_loss_range", markerPath, "loss markers overlap"));
+      }
+      if (upload.chunks.some((chunk) =>
+        chunk.boot_sequence === marker.boot_sequence &&
+        chunk.first_point_sequence <= marker.last_missing_point_sequence &&
+        chunk.first_point_sequence + chunk.point_count - 1 >= marker.first_missing_point_sequence
+      )) {
+        errors.push(semantic("loss_overlaps_point", markerPath, "a loss marker covers an uploaded point"));
+      }
+      ranges.push([marker.first_missing_point_sequence, marker.last_missing_point_sequence]);
+      lossRanges.set(marker.boot_sequence, ranges);
     }
   }
   return errors;

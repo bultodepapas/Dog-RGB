@@ -241,17 +241,40 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
   const chunks = Array.isArray(upload.chunks) ? upload.chunks as Array<Record<string, unknown>> : [];
   let totalPoints = 0;
   const identities = new Set<string>();
+  const pointRanges = new Map<number, Array<[number, number]>>();
+  const finals = new Map<number, number>();
   for (const chunk of chunks) {
     const points = Array.isArray(chunk.points) ? chunk.points : [];
+    const bootSequence = chunk.boot_sequence as number;
+    const chunkSequence = chunk.chunk_sequence as number;
+    const firstPointSequence = chunk.first_point_sequence as number;
+    const lastPointSequence = firstPointSequence + points.length - 1;
     totalPoints += points.length;
     if (points.length < 1 || points.length > 96 || chunk.point_count !== points.length) {
       throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A chunk point count is invalid.");
     }
-    const identity = `${chunk.boot_sequence}:${chunk.chunk_sequence}`;
+    if (lastPointSequence > 4294967295) {
+      throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A chunk point sequence overflows uint32.");
+    }
+    const identity = `${bootSequence}:${chunkSequence}`;
     if (identities.has(identity)) throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A chunk identity occurs more than once.");
     identities.add(identity);
+    const ranges = pointRanges.get(bootSequence) ?? [];
+    if (ranges.some(([first, last]) => first <= lastPointSequence && last >= firstPointSequence)) {
+      throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "Chunk point ranges overlap.");
+    }
+    ranges.push([firstPointSequence, lastPointSequence]);
+    pointRanges.set(bootSequence, ranges);
+    if (chunk.is_final === true) {
+      if (finals.has(bootSequence)) {
+        throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A boot has more than one final chunk.");
+      }
+      finals.set(bootSequence, chunkSequence);
+    }
     const raw = new Uint8Array(points.length * 16);
     const view = new DataView(raw.buffer);
+    const timestamps: number[] = [];
+    let hasLegacyPoint = false;
     points.forEach((candidate, index) => {
       if (!Array.isArray(candidate) || candidate.length !== 6 || !candidate.every(Number.isInteger)) {
         throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A Track v3 point is malformed.");
@@ -259,6 +282,9 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
       const [lat, lon, utc, speed, satellites, flags] = candidate as number[];
       const validFix = (flags & 1) !== 0;
       const gap = (flags & 32) !== 0;
+      const legacy = (flags & 64) !== 0;
+      hasLegacyPoint ||= legacy;
+      timestamps.push(utc);
       if (lat < -900000000 || lat > 900000000 || lon < -1800000000 || lon > 1800000000 ||
           utc < 0 || utc > 4294967295 || speed < 0 || speed > 65535 || satellites < 0 || satellites > 255 ||
           flags < 0 || flags > 127 || ((utc !== 0) !== ((flags & 4) !== 0)) ||
@@ -274,10 +300,61 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
       view.setUint8(offset + 14, satellites);
       view.setUint8(offset + 15, flags);
     });
+    const timeQuality = chunk.time_quality as number;
+    if ((timeQuality === 0 && timestamps.some((utc) => utc !== 0)) ||
+        (timeQuality !== 0 && timestamps.some((utc) => utc === 0)) ||
+        timestamps.some((utc, index) => index > 0 && utc !== 0 && utc < timestamps[index - 1])) {
+      throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "Chunk time quality is inconsistent.");
+    }
+    if ((bootSequence === 0 && (timeQuality !== 5 || !points.every((point) => ((point as number[])[5] & 64) !== 0))) ||
+        (bootSequence !== 0 && hasLegacyPoint) ||
+        (timeQuality === 5 && !points.every((point) => ((point as number[])[5] & 64) !== 0))) {
+      throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "Legacy telemetry uses an invalid namespace.");
+    }
     await assertHash(chunk.content_sha256, raw, "invalid_telemetry");
   }
   if (chunks.length > 8 || totalPoints > 384) {
     throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "The sync batch exceeds the device-v1 limits.");
+  }
+  for (const [bootSequence, finalChunkSequence] of finals) {
+    if (chunks.some((chunk) => chunk.boot_sequence === bootSequence && (chunk.chunk_sequence as number) > finalChunkSequence)) {
+      throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A chunk occurs after the final chunk.");
+    }
+  }
+
+  const summaries = Array.isArray(upload.summaries) ? upload.summaries as Array<Record<string, unknown>> : [];
+  const summaryIds = new Set<unknown>();
+  const summaryRevisions = new Set<string>();
+  for (const summary of summaries) {
+    const summaryRevision = `${summary.local_date}:${summary.source_revision}`;
+    const windowStart = Date.parse(summary.window_start as string);
+    const windowEnd = Date.parse(summary.window_end as string);
+    if (summaryIds.has(summary.summary_id) || summaryRevisions.has(summaryRevision) ||
+        (summary.moving_s as number) + (summary.inactive_s as number) !== summary.observed_s ||
+        !(windowEnd > windowStart) ||
+        (summary.observed_s as number) > Math.floor((windowEnd - windowStart) / 1000)) {
+      throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A daily summary violates its identity or duration invariants.");
+    }
+    summaryIds.add(summary.summary_id);
+    summaryRevisions.add(summaryRevision);
+  }
+
+  const lossMarkers = Array.isArray(upload.loss_markers) ? upload.loss_markers as Array<Record<string, unknown>> : [];
+  const lossIds = new Set<unknown>();
+  const lossRanges = new Map<number, Array<[number, number]>>();
+  for (const marker of lossMarkers) {
+    const bootSequence = marker.boot_sequence as number;
+    const first = marker.first_missing_point_sequence as number;
+    const last = marker.last_missing_point_sequence as number;
+    const ranges = lossRanges.get(bootSequence) ?? [];
+    if (lossIds.has(marker.marker_id) || last < first || last - first + 1 !== marker.lost_points ||
+        ranges.some(([rangeFirst, rangeLast]) => rangeFirst <= last && rangeLast >= first) ||
+        (pointRanges.get(bootSequence) ?? []).some(([rangeFirst, rangeLast]) => rangeFirst <= last && rangeLast >= first)) {
+      throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "A loss marker violates its identity or range invariants.");
+    }
+    lossIds.add(marker.marker_id);
+    ranges.push([first, last]);
+    lossRanges.set(bootSequence, ranges);
   }
   const mutations = Array.isArray(configuration.mutations) ? configuration.mutations as Array<Record<string, unknown>> : [];
   const mutationIds = new Set<unknown>();
@@ -327,7 +404,14 @@ export async function serviceRpc(
   if (!error) return data;
 
   const message = error.message ?? "database_rejected_request";
-  if (["request_id_conflict", "mutation_id_conflict", "chunk_identity_conflict"].includes(message)) {
+  if ([
+    "request_id_conflict",
+    "mutation_id_conflict",
+    "chunk_identity_conflict",
+    "summary_identity_conflict",
+    "summary_revision_identity_conflict",
+    "loss_marker_identity_conflict",
+  ].includes(message)) {
     throw new HttpProblem(409, "request_id_reused", "Request identifier reused", "The request identity was already used with different content.");
   }
   if (["device_already_linked", "device_identity_mismatch"].includes(message)) {
@@ -369,7 +453,8 @@ export async function serviceRpc(
   if (message.includes("capabilit")) {
     throw new HttpProblem(422, "invalid_capabilities", "Invalid capability manifest", "The capability manifest failed validation.");
   }
-  if (message.includes("telemetry") || message.includes("chunk") || message.includes("point")) {
+  if (message.includes("telemetry") || message.includes("chunk") || message.includes("point") ||
+      message.includes("summary") || message.includes("loss")) {
     throw new HttpProblem(422, "invalid_telemetry", "Invalid telemetry", "The telemetry payload failed validation.");
   }
   throw new HttpProblem(400, "invalid_envelope", "Invalid request envelope", "The request failed validation.");

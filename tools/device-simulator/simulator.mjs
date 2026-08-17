@@ -169,24 +169,86 @@ async function main() {
     value.configuration = { mutations: [], reported: [] };
     return value;
   };
-  const makeChunkSync = (chunkSequence, pointSequence, point) => {
+  const makeChunkSync = (chunkSequence, pointSequence, point, bootSequence = 42, isFinal = false) => {
     const value = emptySync();
     value.upload.chunks = [{
       telemetry_schema: 3,
-      boot_sequence: 42,
+      boot_sequence: bootSequence,
       chunk_sequence: chunkSequence,
       first_point_sequence: pointSequence,
       point_count: 1,
       time_quality: 4,
       content_sha256: pointHash([point]),
-      is_final: false,
+      is_final: isFinal,
       points: [point],
     }];
     return value;
   };
   const nowSeconds = Math.floor(Date.now() / 1000);
-  await json(await post("/functions/v1/device-v1-sync", makeChunkSync(10, 6, [468123700, -740123100, nowSeconds, 110, 9, 7]), { authorization: bearer }));
-  await json(await post("/functions/v1/device-v1-sync", makeChunkSync(9, 3, [468123600, -740123300, nowSeconds - 5, 100, 9, 7]), { authorization: bearer }));
+  const persistedOverlap = makeChunkSync(9, 1, [468123600, -740123300, nowSeconds - 5, 100, 9, 7]);
+  await problem(
+    await post("/functions/v1/device-v1-sync", persistedOverlap, { authorization: bearer }),
+    422,
+    "invalid_telemetry",
+    persistedOverlap.request_id,
+  );
+
+  const lossMarker = {
+    marker_id: randomUUID(),
+    boot_sequence: 42,
+    first_missing_point_sequence: 4,
+    last_missing_point_sequence: 5,
+    lost_points: 2,
+    reason: "storage_pressure",
+    recorded_utc_ms: Date.now(),
+  };
+  const integritySync = emptySync();
+  integritySync.upload.chunks = [
+    makeChunkSync(10, 6, [468123700, -740123100, nowSeconds, 110, 9, 7]).upload.chunks[0],
+    makeChunkSync(9, 3, [468123600, -740123300, nowSeconds - 5, 100, 9, 7]).upload.chunks[0],
+    makeChunkSync(1, 0, [468123500, -740123400, nowSeconds, 90, 8, 7], 43, true).upload.chunks[0],
+  ];
+  integritySync.upload.loss_markers = [lossMarker];
+  const integrityResult = await json(
+    await post("/functions/v1/device-v1-sync", integritySync, { authorization: bearer }),
+  );
+  assert.deepEqual(integrityResult.telemetry.accepted_loss_marker_ids, [lossMarker.marker_id]);
+
+  const afterFinal = makeChunkSync(2, 1, [468123510, -740123390, nowSeconds + 1, 90, 8, 7], 43);
+  await problem(
+    await post("/functions/v1/device-v1-sync", afterFinal, { authorization: bearer }),
+    422,
+    "invalid_telemetry",
+    afterFinal.request_id,
+  );
+
+  const artifactReplay = emptySync();
+  artifactReplay.upload.summaries = [structuredClone(sync.upload.summaries[0])];
+  artifactReplay.upload.loss_markers = [structuredClone(lossMarker)];
+  const replayedArtifacts = await json(
+    await post("/functions/v1/device-v1-sync", artifactReplay, { authorization: bearer }),
+  );
+  assert.deepEqual(replayedArtifacts.telemetry.accepted_summary_ids, [sync.upload.summaries[0].summary_id]);
+  assert.deepEqual(replayedArtifacts.telemetry.accepted_loss_marker_ids, [lossMarker.marker_id]);
+
+  const changedSummary = emptySync();
+  changedSummary.upload.summaries = [structuredClone(sync.upload.summaries[0])];
+  changedSummary.upload.summaries[0].distance_m += 1;
+  await problem(
+    await post("/functions/v1/device-v1-sync", changedSummary, { authorization: bearer }),
+    409,
+    "request_id_reused",
+    changedSummary.request_id,
+  );
+
+  const changedLoss = emptySync();
+  changedLoss.upload.loss_markers = [{ ...lossMarker, reason: "corrupt_chunk" }];
+  await problem(
+    await post("/functions/v1/device-v1-sync", changedLoss, { authorization: bearer }),
+    409,
+    "request_id_reused",
+    changedLoss.request_id,
+  );
 
   const webBody = { brightness: 160 };
   const webHash = createHash("sha256").update(JSON.stringify(webBody)).digest("base64url");
@@ -221,7 +283,7 @@ async function main() {
   await json(await post("/functions/v1/device-v1-sync", report, { authorization: bearer }));
 
   const points = await fetch(
-    `${apiUrl}/rest/v1/telemetry_points?collar_id=eq.${paired.pairing.collar_id}&select=point_sequence&order=point_sequence.asc`,
+    `${apiUrl}/rest/v1/telemetry_points?collar_id=eq.${paired.pairing.collar_id}&select=boot_sequence,point_sequence&order=boot_sequence.asc,point_sequence.asc`,
     {
       headers: {
         apikey: publishableKey,
@@ -230,7 +292,14 @@ async function main() {
       },
     },
   ).then(json);
-  assert.deepEqual(points.map((point) => point.point_sequence), [0, 1, 2, 3, 6], "out-of-order chunks remain independently addressable");
+  assert.deepEqual(points, [
+    { boot_sequence: 42, point_sequence: 0 },
+    { boot_sequence: 42, point_sequence: 1 },
+    { boot_sequence: 42, point_sequence: 2 },
+    { boot_sequence: 42, point_sequence: 3 },
+    { boot_sequence: 42, point_sequence: 6 },
+    { boot_sequence: 43, point_sequence: 0 },
+  ], "out-of-order chunks remain independently addressable inside each boot namespace");
 
   const revoke = await readFixture("device-v1-revoke-request.json");
   revoke.request_id = randomUUID();
@@ -426,7 +495,9 @@ async function main() {
       "pair", "one-active-claim", "concurrent-claim-replay", "claim-request-id-conflict",
       "schema-invalid-envelope", "unsupported-protocol-problem",
       "concurrent-exact-replay", "lost-response", "single-database-effect",
-      "out-of-order-upload", "ap-mutation", "web-winner", "reported-applied",
+      "persisted-overlap-rejected", "out-of-order-upload", "loss-marker-persisted",
+      "persisted-finality", "artifact-replay", "artifact-identity-conflict",
+      "ap-mutation", "web-winner", "reported-applied",
       "revoke-sync-race", "revoked-credential", "per-collar-rate-limit",
       "retry-after", "exact-replay-after-rate-limit", "revoke",
       "concurrent-claim-revoke", "claim-replay-after-revoke",

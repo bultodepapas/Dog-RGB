@@ -1,10 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   boundedJson,
   HttpProblem,
   problem,
+  validateSyncSemantics,
 } from "../../supabase/functions/_shared/gateway.ts";
+
+const syncFixtureUrl = new URL("../../contracts/device-v1/fixtures/valid/device-v1-sync-request.json", import.meta.url);
+const syncFixture = async () => JSON.parse(await readFile(syncFixtureUrl, "utf8"));
 
 function streamRequest(body, headers = {}) {
   const bytes = typeof body === "string" ? Buffer.from(body) : body;
@@ -84,4 +89,47 @@ test("problem responses include required method and authentication metadata", ()
 
   const auth = problem(new HttpProblem(401, "device_credential_invalid", "Invalid", "Invalid."));
   assert.equal(auth.headers.get("www-authenticate"), 'Bearer realm="dog-rgb-device"');
+});
+
+test("sync semantics reject overlapping point ranges before persistence", async () => {
+  const body = await syncFixture();
+  const overlapping = structuredClone(body.upload.chunks[0]);
+  overlapping.chunk_sequence += 1;
+  overlapping.first_point_sequence = 1;
+  body.upload.chunks.push(overlapping);
+  await assert.rejects(() => validateSyncSemantics(body), {
+    status: 422,
+    code: "invalid_telemetry",
+  });
+});
+
+test("sync semantics require exact summary duration accounting", async () => {
+  const body = await syncFixture();
+  body.upload.summaries[0].inactive_s -= 1;
+  await assert.rejects(() => validateSyncSemantics(body), {
+    status: 422,
+    code: "invalid_telemetry",
+  });
+});
+
+test("sync semantics accept a disjoint loss marker and reject one covering an uploaded point", async () => {
+  const valid = await syncFixture();
+  valid.upload.loss_markers = [{
+    marker_id: "88888888-8888-4888-8888-888888888888",
+    boot_sequence: 42,
+    first_missing_point_sequence: 3,
+    last_missing_point_sequence: 4,
+    lost_points: 2,
+    reason: "storage_pressure",
+    recorded_utc_ms: null,
+  }];
+  await validateSyncSemantics(valid);
+
+  const overlapping = structuredClone(valid);
+  overlapping.upload.loss_markers[0].first_missing_point_sequence = 2;
+  overlapping.upload.loss_markers[0].last_missing_point_sequence = 3;
+  await assert.rejects(() => validateSyncSemantics(overlapping), {
+    status: 422,
+    code: "invalid_telemetry",
+  });
 });
