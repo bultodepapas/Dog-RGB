@@ -94,6 +94,7 @@ try {
   await waitForGateway(environment.SUPABASE_URL);
   run("node", ["tools/device-simulator/boundary-matrix.mjs"], { env: environment });
   run("node", ["tools/device-simulator/simulator.mjs"], { env: environment });
+  run("node", ["tools/cloud_restore/phase1_restore.mjs"]);
   console.log("Phase 1 local foundation passed from a clean database reset.");
 } finally {
   await unlink(localSecretsPath).catch((error) => {

@@ -43,7 +43,8 @@
     "secrets:scan": "node tools/secret_scan.mjs",
     "phase1:check": "npm run webui:check && npm run contracts:edge:check && npm run contracts:test && npm run lint && npm run typecheck && npm run test:unit && npm run secrets:scan",
     "phase1:local": "node tools/phase1_local.mjs",
-    "phase1:capacity": "node tools/cloud_capacity/phase1_run.mjs"
+    "phase1:capacity": "node tools/cloud_capacity/phase1_run.mjs",
+    "phase1:restore": "node tools/cloud_restore/phase1_restore.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

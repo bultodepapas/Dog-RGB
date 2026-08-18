@@ -1,0 +1,73 @@
+# Phase 1 isolated restore drill
+
+**Status:** Local logical restore verified on 2026-08-17. A restore into a
+separate hosted Supabase project remains required before persistent field use.
+
+## Purpose and boundary
+
+`npm run phase1:local -- --clean` now ends by running
+[`phase1_restore.mjs`](../../tools/cloud_restore/phase1_restore.mjs). The runner
+takes a consistent custom-format `pg_dump` of the synthetic local database,
+keeps the backup only in process memory with a 128 MiB safety ceiling, restores it into a randomly named
+separate database in the disposable local Supabase cluster, verifies it, and
+removes the isolated database in a `finally` path.
+
+The drill uses the local-only `supabase_admin` role because current Supabase
+Postgres deliberately keeps the ordinary `postgres` role non-superuser. This
+also caught a real compatibility boundary: a complete dump contains managed
+objects owned by historical platform roles and functions with superuser-only
+settings. Granting more authority to the application role would be the wrong
+fix. The platform performs those privileged steps for a hosted physical/PITR
+restore.
+
+The local stack and its default credentials are development infrastructure, not
+a production backup system.
+
+## Verification manifest
+
+[`manifest.sql`](../../tools/cloud_restore/manifest.sql) emits only counts and
+SHA-256 digests. It never writes coordinates, payloads, device digests, user
+records, or configuration bodies into CI evidence. Source and restored
+manifests must match exactly for:
+
+- every row count and full-content hash across all `api` and `private` tables;
+- Auth user/identity counts and zero orphan profiles, dog creators, or
+  memberships;
+- explicit route and desired-config-head hashes;
+- installed extension versions and migration history;
+- project functions, their security mode/configuration, and effective grants;
+- RLS enablement, policies, and effective table privileges for `anon`,
+  `authenticated`, `service_role`, and `postgres`.
+
+The runner also changes to the `authenticated` role and repeats owner and
+non-member probes. The owner must see the seeded dog, collars, telemetry, and
+configuration heads; the non-member must see none. It refuses to run against an
+empty reset-only fixture because that would make the route/config/RLS evidence
+meaningless.
+
+Coordinate-free evidence is written to the ignored
+`test-results/restore/phase1-local.json` and uploaded from clean CI runners for
+14 days. The backup itself is never persisted or uploaded.
+
+## What this closes
+
+- reproducible logical backup/restore of the complete synthetic local database;
+- exact application-data, Auth-linkage, schema/function and RLS equivalence;
+- cleanup of the isolated target on success and failure;
+- a regression gate for Supabase/Postgres ownership or dump-format drift.
+
+## Still open
+
+- restore a managed daily backup or PITR point into a distinct disposable
+  hosted project of the selected Postgres version;
+- run Edge/Auth services against that restored project, not only SQL probes;
+- replay deletion tombstones/jobs whose request time is newer than the restore
+  point before enabling traffic;
+- verify any future Storage objects separately because database backups contain
+  Storage metadata, not deleted object contents;
+- record measured RPO/RTO, provider backup window, project region, operator and
+  recovery communications.
+
+Supabase's current local-backup guidance requires matching the backup's Postgres
+image version and explicitly states that a locally restored database is not
+production-ready: [restoring a downloaded backup locally](https://supabase.com/docs/guides/local-development/restoring-downloaded-backup).

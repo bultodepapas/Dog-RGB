@@ -77,6 +77,11 @@ cross-dog survival, profile/membership cleanup, and retained-audit anonymization
 It deliberately does not activate the policy: export, bounded purge jobs,
 receipts/tombstones, and isolated hosted restore remain gates.
 
+The [Phase 1 restore drill](phase1-restore-drill.md) separately proves that the
+complete synthetic local database can be restored into isolation with identical
+application hashes, Auth linkage, functions and effective RLS. A managed hosted
+restore plus deletion-tombstone replay remains mandatory before activation.
+
 At implementation, automated tests and a staging drill must cover:
 
 - exact `deadline - 1`, `deadline`, and `deadline + 1` boundaries;

@@ -58,7 +58,9 @@ claim immediate deletion from backups or durable recoverability.
   artifact cleanup;
 - bounded retention purges with cutoff-boundary, retry, crash, and ingestion-load
   tests;
-- deletion-tombstone export and replay into an isolated hosted restore;
+- deletion-tombstone export and replay into an isolated hosted restore; the
+  [local logical restore drill](phase1-restore-drill.md) verifies the underlying
+  backup/manifests/RLS but cannot substitute this hosted replay;
 - provider-specific backup expiry copy and verification of any future Storage
   object lifecycle.
 
