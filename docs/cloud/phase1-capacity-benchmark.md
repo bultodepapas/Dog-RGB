@@ -1,7 +1,7 @@
 # Phase 1 migrated-schema capacity evidence
 
-**Status:** Local migrated-schema gate passed; disposable hosted-project and
-concurrent network evidence remain open.  
+**Status:** Local and clean Ubuntu runner gates passed; disposable
+hosted-project and concurrent network evidence remain open.  
 **Measured:** 2026-08-17.  
 **Fixture:** 1,000,000 semantically valid Track v3-shaped observations across
 two collars.  
@@ -24,6 +24,30 @@ to 11.97 ms and the month query to 328.70 ms.
 
 This is acceptance evidence for the local schema and access paths. It is not a
 hosted latency SLO, a billing quote, or authorization to enable raw-data purge.
+
+## Clean remote-runner evidence
+
+GitHub Actions run
+[`32084616942`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32084616942)
+passed all five jobs on commit `5863b4e`. Its `Cloud foundation (local
+Supabase)` job rebuilt eight migrations, ran the full gateway/simulator gate,
+executed this capacity benchmark, uploaded `phase1-capacity-5863b4e...`, and
+stopped the stack successfully. The 12,491-byte artifact is retained by CI for
+14 days.
+
+The Ubuntu runner reproduced the exact 323,780,608-byte total and reported:
+
+| Measurement | Clean Ubuntu result |
+| --- | ---: |
+| Million-point insert | 15.43 s |
+| Local-day RLS aggregate | 9.56 ms |
+| Thirty-day RLS aggregate | 255.89 ms |
+| 2,000-point keyset route | 1.31 ms |
+| Bbox diagnostic without GiST | 283.90 ms |
+| Non-member exact lookup | 0.38 ms, zero rows |
+
+The match closes the clean-runner reproducibility gate for this schema. It does
+not replace the still-open hosted service/network/concurrency measurement.
 
 ## Reproduction boundary
 
