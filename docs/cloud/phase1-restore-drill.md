@@ -67,20 +67,27 @@ compares the resulting non-audit manifest with the source deletion outcome.
 Generated audit-row IDs and completion times may differ; their counts and core
 tombstone fields must not.
 
-The tombstone export is not a signature. Production must durably store and
-authenticate exports outside the same backup domain; possession of
-`service_role` already grants destructive authority. The local drill proves the
-database boundary and recovery ordering, not off-site custody.
+The database export digest is not itself a signature. The runner therefore
+wraps the page in the canonical
+[signed tombstone artifact](phase1-tombstone-artifact.md), signs it with an
+ephemeral in-memory Ed25519 key, rejects a modified signed payload, verifies its
+complete cursor/digest chain against a separately trusted public key, and only
+then invokes SQL replay. Production must replace the ephemeral key with reviewed
+KMS/HSM-backed signing and durably store artifacts outside the database backup
+domain. The local drill proves the format, verification boundary, and recovery
+ordering—not production key or off-site custody.
 
 Coordinate-free evidence is written to the ignored
 `test-results/restore/phase1-local.json` and uploaded from clean CI runners for
-14 days. Neither the backup nor the tombstone item is persisted or uploaded.
+14 days. Neither the backup, tombstone item, signature, nor ephemeral key is
+persisted or uploaded.
 
 ## What this closes
 
 - reproducible logical backup/restore of the complete synthetic local database;
 - exact application-data, Auth-linkage, schema/function and RLS equivalence;
 - export and idempotent replay of a deletion newer than the restore point;
+- canonical Ed25519 authentication and complete-chain verification before SQL;
 - rejection of tampered tombstones and closure of restored user/device access;
 - cleanup of both isolated databases on success and failure;
 - a regression gate for Supabase/Postgres ownership or dump-format drift.

@@ -87,8 +87,10 @@ The [local restore drill](phase1-restore-drill.md) restores one snapshot twice,
 creates and exports a later deletion in one isolated database, then rejects a
 modified item and replays the exact tombstone into the other before traffic.
 The export item and logical backup remain memory-only; CI keeps hashes, counts,
-statuses, and timings. Off-site custody/authentication and a managed hosted
-restore remain operational gates.
+statuses, and timings. The runner authenticates the page through the
+[canonical Ed25519 artifact](phase1-tombstone-artifact.md) before SQL replay.
+Production key management, off-site custody, and a managed hosted restore remain
+operational gates.
 
 ## Backup lag and restore boundary
 

@@ -32,6 +32,9 @@ test("restore drill uses two isolated databases and cleans both in finally", asy
 test("restore activation gate rejects tampering and requires exact replay idempotency", async () => {
   const runner = await readFile(resolve(HERE, "phase1_restore.mjs"), "utf8");
 
+  assert.match(runner, /generateKeyPairSync\("ed25519"\)/u);
+  assert.match(runner, /expectedContextId: LOCAL_ARTIFACT_CONTEXT_ID/u);
+  assert.match(runner, /signed_artifact_chain_complete: verifiedExport\.complete/u);
   assert.match(runner, /invalid_deletion_tombstone_hash/u);
   assert.match(runner, /replay\.disposition !== "replayed"/u);
   assert.match(runner, /exactReplay\.disposition !== "already_present"/u);

@@ -91,9 +91,11 @@ hosted restore remain gates.
 The [Phase 1 restore drill](phase1-restore-drill.md) separately proves that the
 complete synthetic local database can be restored twice with identical
 application hashes, Auth linkage, functions and effective RLS. It also exports a
-later deletion, rejects tampering, and replays it into the older restore before
-access. An authenticated off-site export plus managed hosted replay remains
-mandatory before activation.
+later deletion, authenticates it with the
+[signed Ed25519 artifact](phase1-tombstone-artifact.md), rejects tampering, and
+replays it into the older restore before access. Production key management,
+authenticated off-site custody, and managed hosted replay remain mandatory
+before activation.
 
 At implementation, automated tests and a staging drill must cover:
 

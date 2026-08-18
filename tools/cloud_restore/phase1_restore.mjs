@@ -1,9 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { generateKeyPairSync, randomBytes, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import {
+  signTombstoneArtifact,
+  verifyTombstoneArtifactChain,
+} from "./tombstone_artifact.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MANIFEST_SQL_PATH = resolve(ROOT, "tools", "cloud_restore", "manifest.sql");
@@ -14,6 +18,8 @@ const OUTSIDER_ID = "20000000-0000-4000-8000-000000000002";
 const DOG_ID = "30000000-0000-4000-8000-000000000003";
 const DELETION_BATCH_SIZE = 2;
 const MAX_DELETION_BATCHES = 64;
+const LOCAL_SIGNING_KEY_ID = "phase1-local-ephemeral-ed25519-v1";
+const LOCAL_ARTIFACT_CONTEXT_ID = "local/Dog-RGB-1/restore-drill";
 
 function executable(command) {
   if (process.platform !== "win32") return command;
@@ -349,20 +355,53 @@ try {
   }
   const sourceDeletion = processDeletion(container, deletionSourceDatabase);
   const tombstoneExport = exportTombstone(container, deletionSourceDatabase, requestId);
-  evidence.tombstone_export_sha256 = createHash("sha256")
-    .update(JSON.stringify(tombstoneExport.page), "utf8")
-    .digest("hex");
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const signedArtifact = signTombstoneArtifact({
+    page: tombstoneExport.page,
+    keyId: LOCAL_SIGNING_KEY_ID,
+    contextId: LOCAL_ARTIFACT_CONTEXT_ID,
+    privateKey,
+    createdAt: new Date().toISOString(),
+  });
+  const trustedKeys = new Map([[LOCAL_SIGNING_KEY_ID, publicKey]]);
+  const modifiedArtifact = structuredClone(signedArtifact);
+  modifiedArtifact.payload.page.items[0].scope_id =
+    "30000000-0000-4000-8000-000000000099";
+  let signedTamperRejected = false;
+  try {
+    verifyTombstoneArtifactChain([modifiedArtifact], trustedKeys, {
+      expectedContextId: LOCAL_ARTIFACT_CONTEXT_ID,
+    });
+  } catch (error) {
+    signedTamperRejected = error instanceof Error
+      && error.message.startsWith("invalid_tombstone_artifact:");
+  }
+  if (!signedTamperRejected) {
+    throw new Error("A modified signed tombstone artifact did not fail closed.");
+  }
+  const verifiedExport = verifyTombstoneArtifactChain([signedArtifact], trustedKeys, {
+    expectedContextId: LOCAL_ARTIFACT_CONTEXT_ID,
+  });
+  const verifiedMatches = verifiedExport.items.filter((item) => item.request_id === requestId);
+  if (verifiedMatches.length !== 1) {
+    throw new Error(`Expected one verified drill tombstone; found ${verifiedMatches.length}.`);
+  }
+  const [verifiedTombstone] = verifiedMatches;
+  evidence.tombstone_export_sha256 = signedArtifact.payload_sha256;
   evidence.tombstone_export_items = tombstoneExport.page.items.length;
   evidence.tombstone_export_has_more = tombstoneExport.page.has_more;
+  evidence.tombstone_artifact_signature_algorithm = signedArtifact.signature_algorithm;
+  evidence.tombstone_artifact_key_id = LOCAL_SIGNING_KEY_ID;
+  evidence.tombstone_artifact_context_id = LOCAL_ARTIFACT_CONTEXT_ID;
 
-  console.log("Rejecting a modified tombstone, then replaying the exact export into the old restore...");
-  rejectTamperedTombstone(container, restoreDatabase, tombstoneExport.item);
-  const replay = replayTombstone(container, restoreDatabase, tombstoneExport.item);
+  console.log("Rejecting modified signed/SQL tombstones, then replaying the verified export...");
+  rejectTamperedTombstone(container, restoreDatabase, verifiedTombstone);
+  const replay = replayTombstone(container, restoreDatabase, verifiedTombstone);
   if (replay.disposition !== "replayed" || replay.status !== "pending") {
     throw new Error("Valid restore replay did not create one pending deletion job.");
   }
   const restoredDeletion = processDeletion(container, restoreDatabase);
-  const exactReplay = replayTombstone(container, restoreDatabase, tombstoneExport.item);
+  const exactReplay = replayTombstone(container, restoreDatabase, verifiedTombstone);
   if (exactReplay.disposition !== "already_present" || exactReplay.status !== "completed") {
     throw new Error("Exact tombstone replay was not idempotent after completion.");
   }
@@ -418,6 +457,8 @@ try {
     completed_jobs: restoredDeletionState.completed_jobs,
     receipts: restoredDeletionState.receipts,
     tamper_rejected: true,
+    signed_artifact_verified: true,
+    signed_artifact_chain_complete: verifiedExport.complete,
     exact_replay_idempotent: true,
   };
   console.log(
