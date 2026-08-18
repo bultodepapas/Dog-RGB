@@ -95,6 +95,7 @@ try {
   run("node", ["tools/device-simulator/boundary-matrix.mjs"], { env: environment });
   run("node", ["tools/device-simulator/simulator.mjs"], { env: environment });
   run("node", ["tools/cloud_restore/phase1_restore.mjs"]);
+  run("node", ["tools/cloud_deletion/phase1_run.mjs"], { env: environment });
   console.log("Phase 1 local foundation passed from a clean database reset.");
 } finally {
   await unlink(localSecretsPath).catch((error) => {

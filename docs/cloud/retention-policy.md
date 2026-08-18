@@ -1,8 +1,8 @@
 # Cloud retention and deletion policy
 
-**Status:** Phase 0 accepted default, 2026-08-13. The local Phase 1 cascade
-primitive is tested; enforcement jobs, export/user controls, and hosted restore
-remain unimplemented.
+**Status:** Phase 0 accepted default, 2026-08-13. The local Phase 1 cascade and
+explicit owner-requested dog-job primitives are tested; export/user UI, account
+deletion, scheduled retention enforcement, and hosted replay remain unimplemented.
 
 This operational policy implements [ADR-0010](../adr/0010-retention-and-truthful-activity-vocabulary.md). It is a launch input, not a claim that Supabase/Vercel currently contain or delete Dog-RGB data.
 
@@ -74,8 +74,12 @@ Dog-RGB controls its database and configured logs, not all provider security/bil
 The local [Phase 1 deletion drill](phase1-deletion-drill.md) now covers the full
 current dog cascade topology, foreign-key indexability, account ordering,
 cross-dog survival, profile/membership cleanup, and retained-audit anonymization.
-It deliberately does not activate the policy: export, bounded purge jobs,
-receipts/tombstones, and isolated hosted restore remain gates.
+It also verifies a narrow owner-requested dog tombstone/job, immediate ingress
+revocation and access closure, bounded `SKIP LOCKED` raw-point batches,
+failure/retry, exact concurrent replay, and coordinate-free completion receipts.
+It deliberately does not activate automatic retention: export, strong-confirmation
+UI/account orchestration, scheduled expiry purges, tombstone export/replay and
+isolated hosted restore remain gates.
 
 The [Phase 1 restore drill](phase1-restore-drill.md) separately proves that the
 complete synthetic local database can be restored into isolation with identical

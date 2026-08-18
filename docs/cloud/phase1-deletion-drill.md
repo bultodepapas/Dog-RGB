@@ -1,7 +1,8 @@
-# Phase 1 deletion-cascade drill
+# Phase 1 deletion workflow drill
 
-**Status:** Local database primitive verified on 2026-08-17. No user-facing delete
-workflow, retention purge, hosted backup restore, or production-data deletion is
+**Status:** Local cascade and owner-authorized dog-job primitives verified on
+2026-08-17. No user-facing delete UI, export, account-deletion workflow,
+scheduled retention purge, hosted backup restore, or production-data deletion is
 enabled by this evidence.
 
 ## Result
@@ -30,9 +31,46 @@ The drill verifies that:
   cross-dog memberships while setting retained configuration audit authorship to
   `NULL` rather than deleting the other owner's data.
 
-The test runs inside a transaction and rolls back. It exercises the database
-integrity primitive as `postgres`; it does not pretend that authorization,
-confirmation UX, deletion job/receipt, export, or tombstone replay already exist.
+The test runs inside a transaction and rolls back. It exercises the complete
+database integrity primitive as `postgres`.
+
+## Owner-authorized job primitive
+
+Migration
+[`20260818014827_phase1_deletion_jobs.sql`](../../supabase/migrations/20260818014827_phase1_deletion_jobs.sql)
+adds three private, RLS-enabled tables for append-only tombstones, mutable jobs,
+and immutable completion receipts. Neither browser nor `service_role` receives
+direct table access.
+
+`api.request_dog_deletion_v1` is the only authenticated request path. It:
+
+- serializes the durable request ID and returns one result for exact concurrent
+  replay;
+- verifies a current owner inside the transaction;
+- waits for credential-locked sync work, then revokes credentials and collars;
+- snapshots counts for all 18 active dog-scoped data classes without copying
+  row contents;
+- inserts the tombstone and job before setting `deleted_at` and removing every
+  membership, closing both RLS and membership-backed RPC authorization paths.
+
+`private.process_dog_deletion_batch_v1` is executable only by `service_role`.
+Each invocation claims one ready job with `FOR UPDATE SKIP LOCKED`, deletes a
+configurable 1–10,000 telemetry points, and returns. Once no points remain it
+verifies the cumulative count, cascades the remaining graph, proves the active
+scope is empty, and writes a SHA-256 receipt. A failed batch rolls back its data
+changes, records only SQLSTATE plus the next retry time, and never reports early
+completion. No Cron schedule exists yet.
+
+[`10_deletion_jobs.test.sql`](../../supabase/tests/database/10_deletion_jobs.test.sql)
+adds 34 transactional assertions. It also deliberately corrupts the expected
+point count before finalization, proving that the last point and progress remain
+intact through failure and that the same job later retries successfully.
+
+The clean local gate then exercises PostgREST rather than calling the owner RPC
+as `postgres`: two simultaneous requests converge to one job, the owner sees no
+dog or route after commit, another account receives `403`, and six simulator
+points are removed in three two-row worker transactions. The ignored/CI artifact
+contains counts, statuses and hash-presence flags only.
 
 ## Backup lag and restore boundary
 
@@ -50,18 +88,20 @@ data-class manifest, RLS, Auth linkage, counts, and coordinate-free hashes must 
 before traffic is allowed. Until that hosted restore drill exists, Dog-RGB must not
 claim immediate deletion from backups or durable recoverability.
 
-## Still required before retention activation
+## Still required before production/user activation
 
-- narrow owner-authorized dog/account deletion jobs with durable, coordinate-free
-  status and receipts;
 - complete pre-deletion export with counts, hashes, schema/units, and short-lived
   artifact cleanup;
+- strong confirmation plus recent-session/reauthentication UX, and the analogous
+  account-deletion orchestration around Supabase Auth;
 - bounded retention purges with cutoff-boundary, retry, crash, and ingestion-load
-  tests;
+  tests, followed by an explicitly reviewed Cron schedule;
 - deletion-tombstone export and replay into an isolated hosted restore; the
   [local logical restore drill](phase1-restore-drill.md) verifies the underlying
   backup/manifests/RLS but cannot substitute this hosted replay;
 - provider-specific backup expiry copy and verification of any future Storage
   object lifecycle.
 
-Automatic raw telemetry or sync-receipt deletion therefore remains disabled.
+Automatic raw telemetry or sync-receipt retention deletion therefore remains
+disabled. The dog worker is reachable only after an explicit owner request; it
+is not a retention scheduler.

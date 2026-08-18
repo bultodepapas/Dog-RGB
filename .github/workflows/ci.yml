@@ -42,6 +42,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Upload deletion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-deletion-${{ github.sha }}
+          path: test-results/deletion/phase1-local.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload capacity evidence
         if: always()
         uses: actions/upload-artifact@v4

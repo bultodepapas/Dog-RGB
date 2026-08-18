@@ -108,6 +108,13 @@ A pause stops new uploads but keeps the account/credential unless the UI clearly
 - Remove active data within 24 hours, show job state/failure/retry, retain only a coordinate-free deletion receipt, and disclose encrypted backup expiry.
 - Restores must replay deletion tombstones/jobs before exposing restored data.
 
+**Local Phase 1 implementation note — 2026-08-17:** the database now has an
+owner-authorized dog-deletion request, immediately revoked ingress/RLS access, a
+bounded retryable worker, and coordinate-free tombstone/receipt evidence. This
+is a tested backend primitive, not a user-facing privacy workflow: export,
+strong confirmation/reauthentication, account deletion, scheduling and hosted
+restore replay are still required.
+
 ## Accuracy and interpretation limits
 
 The collar is not a live-tracking, anti-theft, medical, or sleep device. Website state is “last synchronized” with an explicit timestamp. Current sessions are boot recordings, not detected walks. Missing/poor-quality/offline time is unknown, not inactivity. The exact vocabulary is in [ADR-0010](../adr/0010-retention-and-truthful-activity-vocabulary.md).

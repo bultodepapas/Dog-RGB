@@ -9,7 +9,7 @@
 | [Storage feasibility](phase0-storage-feasibility.md) | fixed Track v3 codec, provisional 664-slot raw geometry, remediated 49/49 host matrix awaiting independent acceptance, LittleFS comparison, and open physical gate |
 | [PostgreSQL capacity](phase0-capacity-benchmark.md) | one-million-point local sizing/query evidence and initial index/partition decision |
 | [Phase 1 migrated capacity](phase1-capacity-benchmark.md) | one-million-point evidence on the migrated/RLS-protected schema and retention consequences |
-| [Phase 1 deletion drill](phase1-deletion-drill.md) | complete dog/account cascade inventory, cross-dog isolation, FK-index audit, and explicit backup-lag boundary |
+| [Phase 1 deletion drill](phase1-deletion-drill.md) | owner-authorized dog job, bounded worker/retry, durable tombstone/receipt, cascade inventory, and backup-lag boundary |
 | [Phase 1 restore drill](phase1-restore-drill.md) | isolated logical restore, coordinate-free manifests, Auth linkage, function/RLS equivalence, and hosted boundary |
 | [Threat model](threat-model.md) | actors, boundaries, assets, threats, mandatory controls and verification owners |
 | [Privacy/data flow](privacy-data-flow.md) | opt-in promise, processors, data purposes, minimization, export/delete lifecycle |
