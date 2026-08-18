@@ -1,10 +1,10 @@
 # Cloud retention and deletion policy
 
 **Status:** Phase 0 accepted default, updated 2026-08-18. The local Phase 1
-cascade, explicit owner-requested dog deletion, and bounded raw-telemetry
-retention primitives are tested. No retention schedule is activated; export/user
-UI, account deletion, other policy classes, hosted load, and backup replay remain
-unimplemented gates.
+cascade, explicit owner-requested dog deletion, bounded raw-telemetry retention,
+and local isolated tombstone replay primitives are tested. No retention schedule
+is activated; data export/user UI, account deletion, other policy classes,
+hosted load, off-site tombstone custody, and managed backup replay remain gates.
 
 This operational policy implements [ADR-0010](../adr/0010-retention-and-truthful-activity-vocabulary.md). It is a launch input, not a claim that Supabase/Vercel currently contain or delete Dog-RGB data.
 
@@ -62,7 +62,7 @@ Deletion cannot instantly edit immutable backups. Promise instead:
 
 1. active systems purge within 24 hours after a successful authorized request;
 2. encrypted backup remnants expire under the documented provider window;
-3. restore is isolated, then all deletion tombstones/jobs whose request predates the restored point are replayed and verified before traffic resumes;
+3. restore is isolated, then all deletion tombstones whose request postdates the restored point are replayed and verified before traffic resumes;
 4. backup access is restricted/audited and restore drills use synthetic data.
 
 Free-plan projects without suitable managed backup/restore controls require regular encrypted exports and their own tested expiration; they are not acceptable for persistent external-user production merely because the application is small.
@@ -85,13 +85,15 @@ calendar arithmetic, bounded point/chunk stages, rollback/retry, a per-collar
 anti-resurrection watermark, deletion-race serialization, and coordinate-free
 receipts. It deliberately does not activate automatic retention: export,
 strong-confirmation UI/account orchestration, reviewed hosted scheduling/load,
-the other policy classes, tombstone export/replay, and isolated hosted restore
-remain gates.
+the other policy classes, off-site tombstone custody, and isolated managed
+hosted restore remain gates.
 
 The [Phase 1 restore drill](phase1-restore-drill.md) separately proves that the
-complete synthetic local database can be restored into isolation with identical
-application hashes, Auth linkage, functions and effective RLS. A managed hosted
-restore plus deletion-tombstone replay remains mandatory before activation.
+complete synthetic local database can be restored twice with identical
+application hashes, Auth linkage, functions and effective RLS. It also exports a
+later deletion, rejects tampering, and replays it into the older restore before
+access. An authenticated off-site export plus managed hosted replay remains
+mandatory before activation.
 
 At implementation, automated tests and a staging drill must cover:
 

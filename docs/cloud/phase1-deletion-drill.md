@@ -1,8 +1,9 @@
 # Phase 1 deletion workflow drill
 
-**Status:** Local cascade and owner-authorized dog-job primitives verified and
-extended on 2026-08-18. No user-facing delete UI, export, account-deletion
-workflow, scheduled retention purge, hosted backup restore, or production-data
+**Status:** Local cascade, owner-authorized dog jobs, and isolated restore replay
+verified and extended on 2026-08-18. No user-facing delete UI, data export,
+account-deletion workflow, scheduled retention purge, hosted backup restore, or
+production-data
 deletion is enabled by this evidence.
 
 ## Result
@@ -14,7 +15,7 @@ topology as a survivor/control.
 
 The drill verifies that:
 
-- the recursive `ON DELETE CASCADE` graph from `api.dogs` exactly matches the 17
+- the recursive `ON DELETE CASCADE` graph from `api.dogs` exactly matches the 20
   current dependent tables; adding another dependent table makes the inventory
   assertion fail until its fixture and verification are reviewed;
 - every foreign key in the project-owned `api` and `private` schemas has a usable
@@ -72,6 +73,23 @@ dog or route after commit, another account receives `403`, and six simulator
 points are removed in three two-row worker transactions. The ignored/CI artifact
 contains counts, statuses and hash-presence flags only.
 
+## Tombstone export and restore replay
+
+Migration
+[`20260818182500_phase1_deletion_tombstone_replay.sql`](../../supabase/migrations/20260818182500_phase1_deletion_tombstone_replay.sql)
+adds a bounded, cursor-based `service_role` export and an exact restore-replay
+boundary. Twenty-four additional pgTAP assertions cover grants, fixed UTC hash
+semantics, exact coordinate-free fields, pagination, malformed/tampered input,
+idempotency, restored ingress/access closure, bounded completion, and receipt
+creation. The complete database suite now passes 250 assertions.
+
+The [local restore drill](phase1-restore-drill.md) restores one snapshot twice,
+creates and exports a later deletion in one isolated database, then rejects a
+modified item and replays the exact tombstone into the other before traffic.
+The export item and logical backup remain memory-only; CI keeps hashes, counts,
+statuses, and timings. Off-site custody/authentication and a managed hosted
+restore remain operational gates.
+
 ## Backup lag and restore boundary
 
 Active database deletion does not rewrite immutable backups. Supabase currently
@@ -97,9 +115,9 @@ claim immediate deletion from backups or durable recoverability.
 - hosted concurrency/ingestion-load validation and an explicitly reviewed Cron
   schedule for the locally tested raw-telemetry worker, plus bounded workers for
   the remaining retention classes;
-- deletion-tombstone export and replay into an isolated hosted restore; the
-  [local logical restore drill](phase1-restore-drill.md) verifies the underlying
-  backup/manifests/RLS but cannot substitute this hosted replay;
+- authenticated/monitored off-site tombstone custody and replay into an isolated
+  managed hosted restore; the local two-database drill cannot substitute the
+  provider operation;
 - provider-specific backup expiry copy and verification of any future Storage
   object lifecycle.
 

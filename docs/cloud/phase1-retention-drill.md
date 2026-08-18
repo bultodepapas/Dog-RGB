@@ -14,7 +14,8 @@ orphaned chunk identity metadata. The worker is private and executable only by
 No `pg_cron` extension or schedule is created by the migration.
 
 [`11_raw_telemetry_retention.test.sql`](../../supabase/tests/database/11_raw_telemetry_retention.test.sql)
-adds 33 transactional assertions. The complete database suite passes **226/226**.
+adds 33 transactional assertions. With the later restore-replay coverage, the
+complete database suite passes **250/250**.
 
 ## Semantics
 
@@ -93,7 +94,8 @@ arguments and could otherwise have returned a false green process status.
 - pre-deletion export plus reviewed disclosure/consent and strong confirmation;
 - disposable hosted concurrency and ingestion-load measurements for the worker;
 - reviewed Cron cadence, timeout, backlog/oldest-overdue alerts, and runbook;
-- tombstone export/replay and managed backup/PITR restore before traffic;
+- authenticated off-site tombstone custody and managed backup/PITR replay before
+  traffic (the local export/replay primitive is tested);
 - bounded retention for sync receipts, claims, revoked credentials, config
   revisions, deletion audit state, logs, and any future export objects;
 - a production decision for provider backup/log expiry.

@@ -1,16 +1,17 @@
 # Phase 1 isolated restore drill
 
-**Status:** Local logical restore verified on 2026-08-17. A restore into a
-separate hosted Supabase project remains required before persistent field use.
+**Status:** Local logical restore and deletion-tombstone replay verified on
+2026-08-18. A managed restore into a separate hosted Supabase project remains
+required before persistent field use.
 
 ## Purpose and boundary
 
 `npm run phase1:local -- --clean` now ends by running
 [`phase1_restore.mjs`](../../tools/cloud_restore/phase1_restore.mjs). The runner
-takes a consistent custom-format `pg_dump` of the synthetic local database,
-keeps the backup only in process memory with a 128 MiB safety ceiling, restores it into a randomly named
-separate database in the disposable local Supabase cluster, verifies it, and
-removes the isolated database in a `finally` path.
+takes a consistent custom-format `pg_dump` of the synthetic local database and
+keeps it only in process memory with a 128 MiB safety ceiling. It restores the
+same snapshot into two randomly named databases in the disposable local
+Supabase cluster and removes both in a `finally` path.
 
 The drill uses the local-only `supabase_admin` role because current Supabase
 Postgres deliberately keeps the ordinary `postgres` role non-superuser. This
@@ -45,15 +46,43 @@ configuration heads; the non-member must see none. It refuses to run against an
 empty reset-only fixture because that would make the route/config/RLS evidence
 meaningless.
 
+## Post-restore deletion replay
+
+Migration
+[`20260818182500_phase1_deletion_tombstone_replay.sql`](../../supabase/migrations/20260818182500_phase1_deletion_tombstone_replay.sql)
+adds two `service_role`-only boundaries. The bounded exporter returns a
+versioned, cursor-paginated envelope containing only request/scope IDs,
+timestamps, one-way user/request fingerprints, and integrity hashes. The replay
+function accepts an exact versioned item, validates its field set, canonical
+base64url/UTC forms, original request/tombstone digests, and export digest, then
+recreates the ordinary deletion job. It fails closed if the restored dog and an
+identical prior tombstone are both absent. Exact replay returns the existing job.
+
+The runner treats one isolated database as the post-snapshot deletion source:
+it requests and completes a dog deletion there, exports the resulting tombstone,
+and retains only the export SHA-256. The second database remains at the older
+restore point. It rejects a modified item, applies the exact export, proves user
+and device access close before purge, completes the standard bounded worker, and
+compares the resulting non-audit manifest with the source deletion outcome.
+Generated audit-row IDs and completion times may differ; their counts and core
+tombstone fields must not.
+
+The tombstone export is not a signature. Production must durably store and
+authenticate exports outside the same backup domain; possession of
+`service_role` already grants destructive authority. The local drill proves the
+database boundary and recovery ordering, not off-site custody.
+
 Coordinate-free evidence is written to the ignored
 `test-results/restore/phase1-local.json` and uploaded from clean CI runners for
-14 days. The backup itself is never persisted or uploaded.
+14 days. Neither the backup nor the tombstone item is persisted or uploaded.
 
 ## What this closes
 
 - reproducible logical backup/restore of the complete synthetic local database;
 - exact application-data, Auth-linkage, schema/function and RLS equivalence;
-- cleanup of the isolated target on success and failure;
+- export and idempotent replay of a deletion newer than the restore point;
+- rejection of tampered tombstones and closure of restored user/device access;
+- cleanup of both isolated databases on success and failure;
 - a regression gate for Supabase/Postgres ownership or dump-format drift.
 
 ## Still open
@@ -61,8 +90,8 @@ Coordinate-free evidence is written to the ignored
 - restore a managed daily backup or PITR point into a distinct disposable
   hosted project of the selected Postgres version;
 - run Edge/Auth services against that restored project, not only SQL probes;
-- replay deletion tombstones/jobs whose request time is newer than the restore
-  point before enabling traffic;
+- implement authenticated, monitored, off-site tombstone export custody and
+  replay it during the managed hosted drill before enabling traffic;
 - verify any future Storage objects separately because database backups contain
   Storage metadata, not deleted object contents;
 - record measured RPO/RTO, provider backup window, project region, operator and
