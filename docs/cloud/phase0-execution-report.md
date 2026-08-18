@@ -65,6 +65,14 @@ chunk closes the contiguous prefix instead of requiring a duplicate server ACK.
 The regenerated
 664-slot/10,000-cycle metrics remain provisional until independent acceptance.
 
+P0-R1 is now packaged for clean-room reproduction without self-acceptance. The
+[review packet](phase0-outbox-review-packet.md) defines 12 manual invariants,
+seven mandatory historical probes, severity/decision rules, and the final ledger
+contract. `verify_review_candidate.py` binds the exact source/commit, runs the
+51-test matrix, regenerates the 9,505-byte canonical evidence, and reports only
+`awaiting_independent_review`; author-mode output is deliberately not
+review-eligible. No independent decision has been recorded.
+
 The historical adversarial reproduction against the superseded model was run from `tools/cloud_phase0` with three calls to `seal(sequence, digest)`, followed by `acknowledge_through(999)` and `reclaim_acknowledged()`. It returned `ack=True`, `durable_ack=999`, `reclaimed=3`, and an empty remaining-unacknowledged set. This directly contradicts the frozen protocol rule that holes or unverified identities cannot be skipped/reclaimed; these method/state names are not the corrected candidate's API.
 
 Until the corrected candidate passes independent acceptance review:
@@ -94,6 +102,8 @@ host-storage row, source hash, and deterministic evidence were rerun on
 | `node --test contracts/device-v1/test-contracts.mjs` | **48/48 passed** | Complete frozen device-v1 contract, including revoke fixtures/semantics, is green. |
 | `python -m unittest discover -s test -p "test_*.py" -v` from `Platformio/Dog-RGB` | **131/131 passed** | Existing cloud-disabled firmware host regression remains green; no firmware cloud code was added. |
 | `python -m unittest discover -s tools/cloud_phase0 -p "test_*.py" -v` | corrected candidate **51/51 passed**, review/open | All seven reproduced destructive probes are permanent regressions; independent acceptance is still required. |
+| `python tools/cloud_phase0/review_readiness_test.py -v` | **4/4 passed** on 2026-08-18 | The verifier's raw-byte hashing, exact unittest-count parsing, seven-regression inventory, and frozen storage artifact binding are green without changing the 51-test matrix. |
+| `python tools/cloud_phase0/verify_review_candidate.py --allow-dirty` | automated checks passed; `review_eligible: false` as required | Author-mode self-test reproduced 51/51, all seven regressions, the 93,767-byte source hash, and the 9,505-byte canonical evidence hash. It cannot serve as independent acceptance. |
 | superseded `RawRingModel` invalid-ACK reproduction | historical `ack=True`; `durable_ack=999`; `reclaimed=3` after sealing only `0..2` | Explains why the original 20/20 evidence was invalidated; this is not the current API. |
 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools/cloud_capacity/run.ps1` | one-million-row report generated | Local PostgreSQL 17/PostGIS sizing and query-plan input; not hosted Supabase/RLS evidence. |
 | `node --test tools/map_bakeoff/test-harness.mjs` | **12/12 passed** on 2026-08-18 | Deterministic fixtures/provider variants plus recursive secret redaction, query-free request evidence, child-process isolation, explicit non-overwriting run IDs, and init-script credential injection guards are green. |
@@ -112,7 +122,7 @@ The checked map manifest is durable technical evidence rather than a performance
 | Current project contract, opt-in/offline invariant, and field ownership | Closed for Phase 0 documentation | Reopen on any new firmware field, remote Home/power proposal, or cloud boundary change. |
 | Device-v1 protocol, HLC/config, ACK/hole, and revoke contract | Closed; regression gate remains | Keep protocol 48/48 and codec compatibility green on every change. |
 | PostgreSQL capacity direction | Closed as local sizing input only | Repeat representative authenticated/RLS queries and current plan/cost checks during implementation; this is not a Phase 0 external blocker. |
-| Host outbox recovery/reclaim evidence | **Review / open** | The seven reproduced failures are fixed and covered; obtain independent acceptance of the complete byte-image matrix. |
+| Host outbox recovery/reclaim evidence | **Review / open; packet ready** | The seven reproduced failures are fixed and covered; an independent reviewer must run the clean-tree verifier, inspect all 12 packet invariants, and commit the separate accepted/rejected ledger. |
 | Physical ESP32-S3 outbox acceptance | **Open external hardware gate** | Production codec/API, at least 10,000 seal/ACK/reclaim cycles, randomized reset/power removal at every boundary, full/corrupt/failure cases, legacy preservation, and measured timing/wear/heap/watchdog/energy. |
 | Map renderer | Closed | MapLibre/provider-neutral adapter accepted; keep accessibility/non-map fallback requirements. |
 | Basemap provider | **Open external credential gate; runner ready** | Supply a temporary origin-restricted MapTiler key and Stadia test property/domain auth; run the prepared full identical matrix and unapproved-origin tests; retain sanitized manifests/screenshots; complete two independent scorecards, verify revocation, and amend ADR-0009. |

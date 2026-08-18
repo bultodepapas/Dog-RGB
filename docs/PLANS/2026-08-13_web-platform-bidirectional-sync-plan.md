@@ -1925,7 +1925,8 @@ setups, and two available reviewers. Do not convert that estimate into a deadlin
 
 ##### P0-R1 — Independently accept the corrected host outbox candidate
 
-**State:** Review/open. **Dependency:** none. **Estimate:** 0.5–1 focused day.
+**State:** Review/open; reproducible review packet and fail-closed verifier ready.
+**Dependency:** an independent reviewer. **Estimate:** 0.5–1 focused day.
 
 1. A reviewer other than the candidate's implementation author reviews the
    byte-image state machine, exact manifest-bound ACK semantics, durable holes,
@@ -1939,18 +1940,31 @@ setups, and two available reviewers. Do not convert that estimate into a deadlin
    python tools/cloud_phase0/generate_evidence.py
    ```
 
+   The clean-room shortcut below runs those checks, binds the seven candidate
+   source artifacts to hardened origin commit `255136d`, verifies the seven
+   mandatory regressions and canonical evidence digest, and still cannot decide
+   acceptance:
+
+   ```powershell
+   python tools/cloud_phase0/review_readiness_test.py -v
+   python tools/cloud_phase0/verify_review_candidate.py
+   ```
+
 3. Confirm the seven historical destructive probes remain permanent regressions,
    verify the generated figures against the implementation rather than copying
    old report values, and record source/evidence SHA-256 values.
-4. Commit a signed review ledger at
+4. Use the
+   [independent-review packet](../cloud/phase0-outbox-review-packet.md) to inspect
+   all 12 invariants, then commit a signed review ledger at
    `docs/cloud/phase0-outbox-independent-review.md` containing reviewer,
    reviewed commit, commands, results, findings, and an explicit
    `accepted`/`rejected` decision. “Tests are green” is not an acceptance note.
 
-**Pass:** 51/51 remains green, canonical evidence regenerates deterministically,
-every invariant is explicitly accepted, and no unresolved high-integrity finding
-remains. **Fail:** mark the ledger rejected, reopen ADR-0007, preserve the failing
-image/seed as a regression, and do not start P0-R2 or Phase 2.
+**Pass:** the verifier reports `review_eligible: true`, 51/51 remains green,
+canonical evidence matches the frozen 9,505-byte digest, every invariant is
+explicitly accepted, and no unresolved high-integrity finding remains. **Fail:**
+mark the ledger rejected, reopen ADR-0007, preserve the failing image/seed as a
+regression, and do not start P0-R2 or Phase 2.
 
 ##### P0-R2 — Prove the outbox on the target ESP32-S3
 
