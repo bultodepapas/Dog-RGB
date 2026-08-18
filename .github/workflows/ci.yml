@@ -30,6 +30,18 @@ jobs:
       - name: Run clean local foundation gate
         run: npm run phase1:local -- --clean
 
+      - name: Run migrated-schema capacity gate
+        run: npm run phase1:capacity -- --clean
+
+      - name: Upload capacity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase1-capacity-${{ github.sha }}
+          path: test-results/capacity/phase1-local.txt
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Stop local stack
         if: always()
         run: supabase stop --no-backup

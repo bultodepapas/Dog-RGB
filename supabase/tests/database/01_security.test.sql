@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(15);
+select plan(17);
 
 select is(
   (select count(*) from private.extension_inventory where extension_name in ('pgcrypto', 'postgis')),
@@ -34,13 +34,33 @@ select ok(
   'service role cannot bypass credential-state locking through the internal sync RPC'
 );
 
+insert into api.collars (id, device_public_id, dog_id, state)
+values (
+  '41000000-0000-4000-8000-000000000099',
+  '51000000-0000-4000-8000-000000000099',
+  '30000000-0000-4000-8000-000000000003',
+  'active'
+);
+insert into api.telemetry_points (
+  collar_id, boot_sequence, point_sequence, recorded_at, lat_e7, lon_e7,
+  reported_speed_cmps, satellites, flags, time_quality, telemetry_schema,
+  firmware_version, chunk_sequence
+)
+values (
+  '41000000-0000-4000-8000-000000000099', 1, 1,
+  '2026-08-17 12:00:00+00', 47110000, -740721000,
+  0, 8, 13, 'gnss_trusted', 3, 'security-fixture', 1
+);
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
 select is((select count(*) from api.dogs), 1::bigint, 'owner sees their dog');
+select is((select count(*) from api.telemetry_points), 1::bigint, 'owner sees telemetry through the visible-collar policy');
 
 select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000002', true);
 select is((select count(*) from api.dogs), 0::bigint, 'cross-user dog read is blocked');
 select is((select count(*) from api.dog_memberships), 0::bigint, 'cross-user membership read is blocked');
+select is((select count(*) from api.telemetry_points), 0::bigint, 'cross-user telemetry read remains blocked');
 
 select * from finish();
 rollback;

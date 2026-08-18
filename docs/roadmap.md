@@ -10,11 +10,11 @@
 - CRC-protected transactional persistence, an independent scene A/B bank, and dedicated two-hour route storage.
 - Pinned production/Wokwi builds, host contracts, portal smoke, Playwright/a11y coverage, and visual baselines.
 
-## Optional cloud workstream — Phase 0 in progress
+## Optional cloud workstream — Phase 0 and local Phase 1 in progress
 
 The [dated web-platform plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) is now an accepted optional direction. It does not supersede the physical/local milestones below: cloud stays off by default, and all current collar/AP/export behavior remains mandatory without an account or Internet connection.
 
-Phase 0 records decisions and evidence; it does **not** implement a website, Supabase project, account system, firmware networking, or synchronization.
+Phase 0 records decisions and evidence; it does **not** itself implement a website, Supabase project, account system, firmware networking, or synchronization. Under explicit owner direction, the local-only Phase 1 cloud foundation is proceeding in parallel without waiving Phase 0 or authorizing firmware Phase 2.
 
 | Phase 0 item | State on 2026-08-13 | Evidence / remaining gate |
 | --- | --- | --- |
@@ -25,7 +25,9 @@ Phase 0 records decisions and evidence; it does **not** implement a website, Sup
 | 0C security/privacy/retention/credentials | Documentation complete; implementation tests pending | [Threat model](cloud/threat-model.md), [privacy flow](cloud/privacy-data-flow.md), [retention policy](cloud/retention-policy.md), and [credentials checklist](cloud/credential-checklist.md). |
 | 0C map bake-off | Durable technical matrix complete; external credential/human gate open | MapLibre accepted; 7/7 harness tests and 17/17 Stadia matrix/diagnostic cells cover six synthetic fixtures, dark/light/outdoor, desktop/428 px mobile at DPR 1/2, label/CVD/cache/network stress. No MapTiler visual result, unapproved-origin proof, or two-reviewer score exists because temporary credentials/reviewers were unavailable; rerun the same matrix with restricted provider setups before selection. |
 
-**Phase 0 exit is not reached, and Phase 1 is not authorized.** The corrected host outbox candidate awaits independent acceptance, physical ESP32 storage evidence is missing, and the credentialed comparative map/origin-control gate remains unresolved. Work that resolves those gates may continue without changing the local product baseline.
+**Phase 0 exit is not reached, and Phase 2 is not authorized.** The corrected host outbox candidate awaits independent acceptance, physical ESP32 storage evidence is missing, and the credentialed comparative map/origin-control gate remains unresolved. Explicitly authorized Phase 1 work remains local/cloud-only and cannot change the collar's local product baseline.
+
+The Phase 1 database, four Edge gateways, shared contracts, and deterministic simulator now pass the clean local gate. The migrated one-million-point capacity gate also passes after replacing a per-row telemetry RLS membership plan with one hashed visible-collar subplan; see the [Phase 1 capacity report](cloud/phase1-capacity-benchmark.md). Remote capacity evidence, hosted concurrency/network measurement, retention activation prerequisites, and operational drills remain open.
 
 The consolidated evidence and gate state are in the [Phase 0 execution report](cloud/phase0-execution-report.md). The corrected candidate now carries passing regressions for every reproduced adversarial failure; independent host acceptance must still complete before the exit review. This is an in-repository review gate rather than an external hardware/credential blocker.
 
