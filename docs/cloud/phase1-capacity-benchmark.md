@@ -1,10 +1,13 @@
 # Phase 1 migrated-schema capacity evidence
 
 **Status:** Local and clean Ubuntu runner gates passed; disposable
-hosted-project and concurrent network evidence remain open.  
-**Measured:** 2026-08-17.  
+hosted-project and concurrent network evidence remain open.
+
+**Measured:** 2026-08-17.
+
 **Fixture:** 1,000,000 semantically valid Track v3-shaped observations across
-two collars.  
+two collars.
+
 **Runner:** [`tools/cloud_capacity/phase1_run.mjs`](../../tools/cloud_capacity/phase1_run.mjs).
 
 ## Outcome
