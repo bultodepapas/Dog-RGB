@@ -1,6 +1,6 @@
 # Optional cloud Phase 0 execution report
 
-**Status:** In progress as of 2026-08-13. Phase 0 has **not exited**, and Phase 1 is not authorized. No Phase 1 application, database migration, Edge Function, account flow, website, or firmware cloud client is implemented.
+**Status:** In progress as of 2026-08-18. Phase 0 has **not exited**. Under explicit owner direction, the local-only Phase 1 cloud foundation is proceeding in parallel; this exception does not waive any Phase 0 evidence gate and does not authorize Phase 2 firmware/cloud integration. No firmware cloud client is implemented.
 
 This report is the audit/handoff view of work executed against Phase 0A–0C in the [accepted implementation plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md). Accepted ADRs describe design direction; they do not claim field-ready firmware or a deployed cloud service.
 
@@ -111,4 +111,12 @@ The checked map manifest is durable technical evidence rather than a performance
 
 ## Handoff and prohibited inference
 
-Next work is limited to resolving the evidence gates above. Passing host schemas or models does not authorize a production endpoint, Supabase project, database migration, website, account invitation, device credential provisioning, or firmware cloud client. Phase 1 code has not been implemented, and the repository's current shipped behavior remains local-only.
+The remaining Phase 0 critical path, execution order, failure behavior, artifact
+requirements, and exit checklist are now maintained in
+[Phase 0 of the accepted plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#phase-0--contract-evidence-and-decision-lock-exit-still-open).
+Passing host schemas or models does not authorize production deployment, device
+credential provisioning, or a firmware cloud client. The implemented Phase 1
+local database, Edge Functions, portal scaffold, shared packages, and simulator
+are parallel foundation work, not substitute Phase 0 evidence. The repository's
+shipped collar behavior remains local-only, and Phase 2 remains unauthorized
+until the explicit Phase 0 exit review passes.

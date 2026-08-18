@@ -1874,36 +1874,180 @@ Before production acceptance:
 
 ## 18. Phased implementation roadmap
 
-No phase begins until the preceding gate is evidenced. Estimates are engineering ranges for one experienced developer working substantially full-time; hardware fault testing and external credential setup can extend calendar time. Re-estimate after Phase 0 rather than treating them as promises.
+No firmware phase begins until the preceding gate is evidenced. The sole current
+exception is the owner-authorized, local-only Phase 1 cloud foundation described
+below: it may proceed in parallel, but it neither closes Phase 0 nor authorizes
+Phase 2 firmware/cloud integration. Estimates are engineering ranges for one
+experienced developer working substantially full-time; hardware fault testing
+and external credential setup can extend calendar time.
 
-### Phase 0 — Contract, evidence, and decision lock (1–2 weeks)
+### Phase 0 — Contract, evidence, and decision lock (exit still open)
 
 **Dependencies:** current firmware/docs/tests; no Supabase or Vercel implementation credentials required. Formal Phase 0 exit does require temporary origin-restricted MapTiler and Stadia test setups for the checked comparative bake-off and unapproved-origin proofs.
 
-#### 0A. Make the project contract current
+**Operational snapshot — 2026-08-18:** most design and deterministic evidence
+work is complete. Phase 0 has exactly three unresolved evidence gates: independent
+acceptance of the corrected host outbox model, target ESP32-S3 physical outbox
+acceptance, and the credentialed/two-reviewer basemap-provider decision. Phase 0
+is therefore **open** and Phase 2 remains **unauthorized**. The detailed audit
+trail is maintained in the [Phase 0 execution report](../cloud/phase0-execution-report.md).
 
-- Accept/reject this plan through ADRs; record the device gateway choice, stable hostname policy, data model, outbox choice, LWW definition, map bakeoff, retention assumptions, and truthful metric vocabulary.
-- Update `docs/requirements.md`: cloud becomes optional/opt-in rather than categorically out of scope; offline operation remains mandatory.
-- Update architecture, roadmap, API/security/privacy/testing docs. Do not mark features implemented.
-- Create a field/unit/range/privacy/source-of-truth/sync-policy matrix for every current runtime config and telemetry field.
-- Decide whether Home and power calibration remain local-only for the first full release (recommended: yes).
+The original 1–2 week estimate described the whole phase, not the remaining
+work. The remaining hands-on work is approximately 4–7 focused engineering days,
+but calendar completion depends on physical hardware, two temporary provider
+setups, and two available reviewers. Do not convert that estimate into a deadline.
 
-#### 0B. Prove storage/data feasibility
+#### Status vocabulary
 
-- Prototype fixed v3 encoding and calculate/measure retention for 1/5/15/60-second/adaptive profiles.
-- Prototype raw ring versus LittleFS on the unused partition.
-- Execute fill/reclaim/random-power-cut/wear/recovery tests.
-- Define legacy-v2 migration/export behavior.
-- Generate representative stationary/walking/running/poor-fix reference datasets without claiming dog behavior truth.
+- **Closed:** Phase 0 evidence has been accepted. Preserve it as a regression;
+  do not repeat it unless its inputs or contract change.
+- **Review/open:** an implementation candidate and reproducible evidence exist,
+  but a reviewer other than the implementation author has not accepted the gate.
+- **External/open:** closure requires target hardware, temporary credentials, or
+  independent human review that cannot be manufactured by a passing host test.
+- **Reopened:** a failed criterion or incompatible contract change invalidates the
+  decision and returns it to design; schedule pressure never downgrades a gate.
 
-#### 0C. Freeze protocols and UX evidence
+#### Completed work and evidence that must stay green
 
-- Write JSON Schemas, golden fixtures, problem catalog, config-resource schemas, HLC pseudocode/test vectors, and compatibility matrix.
-- Build a throwaway database-capacity fixture with one million points; record storage/query/egress estimates.
-- Run the Stadia/MapTiler Colombian-route visual bakeoff and write the map ADR.
-- Write threat model, privacy/data-flow inventory, retention proposal, and credentials checklist.
+| Work package | State | Accepted evidence and boundary |
+| --- | --- | --- |
+| 0A — optional/local-first product contract | **Closed** | Requirements, architecture, roadmap, API/testing docs, and ADR-0005 through ADR-0010 define opt-in cloud behavior and preserve offline collar/AP/export operation. Accepted ADRs are design decisions, not proof of firmware or production deployment. |
+| 0A — field ownership and privacy inventory | **Closed** | The [field matrix](../cloud/phase0-field-matrix.md) records unit, range, privacy, source of truth, and sync/exclusion policy for every current runtime/telemetry surface. Home, LED power calibration, network credentials, local PIN, mDNS, and scenes remain collar-local for the first cloud release. Any new or remotely exposed field reopens this row. |
+| 0B — Track v3 format, fixtures, retention, and legacy behavior | **Closed for design** | The [storage report](../cloud/phase0-storage-feasibility.md) freezes the 16-byte point, 92-byte header, deterministic non-behavior fixtures, profile retention arithmetic, and v2 dual-read/export rules. This does not prove physical flash safety. |
+| 0B — raw ring versus LittleFS direction | **Accepted direction; physical proof open** | ADR-0007 selects the 664-slot raw ring provisionally. The corrected byte-addressed candidate passes 49/49, including all five reproduced fallback/loss/corruption regressions; its generated metrics remain provisional until P0-R1 and P0-R2 below close. The superseded RAM-only 20/20 result is permanently invalid evidence. |
+| 0C — device-v1 protocol and LWW | **Closed; regression gate** | Versioned schemas, positive/negative fixtures, HLC vectors, compatibility matrix, problem catalog, exact ACK/hole rules, and revoke semantics pass 48/48. Changes to these contracts must remain backward compatible or explicitly reopen the gate. |
+| 0C — PostgreSQL capacity direction | **Closed as local sizing input** | The [one-million-point benchmark](../cloud/phase0-capacity-benchmark.md) supports the initial unpartitioned/no-GiST direction. Hosted plan, authenticated RLS, concurrency, and current cost checks are later operational gates, not missing Phase 0 proof. |
+| 0C — renderer and no-credential map harness | **Renderer closed; provider open** | MapLibre and provider-neutral GeoJSON are accepted. The harness passes 7/7 and the retained no-credential Stadia matrix passes 17/17. It does not contain a MapTiler visual comparison, rejected-origin proof, or two-reviewer provider score. |
+| 0C — threat/privacy/retention/credential design | **Closed for documentation** | The [threat model](../cloud/threat-model.md), [privacy flow](../cloud/privacy-data-flow.md), [retention policy](../cloud/retention-policy.md), and [credential checklist](../cloud/credential-checklist.md) are the design baseline. Their implementation drills remain phase-specific release gates. |
 
-**Exit gate:** every field has unit/range/ownership/privacy/sync policy; the complete protocol/LWW contracts pass; the corrected host outbox recovery/reclaim model passes review and regenerates its checked evidence; v3/outbox retention and physical ESP32 power-cut/timing/wear/energy behavior are measured; credentialed MapTiler/Stadia runs, origin-rejection proofs, and two-reviewer scoring complete the identical Colombia bake-off and the provider ADR records its decision; no unresolved ambiguity can change the Phase 1 schema.
+#### Remaining critical path
+
+##### P0-R1 — Independently accept the corrected host outbox candidate
+
+**State:** Review/open. **Dependency:** none. **Estimate:** 0.5–1 focused day.
+
+1. A reviewer other than the candidate's implementation author reviews the
+   byte-image state machine, exact manifest-bound ACK semantics, durable holes,
+   sector-safe reclaim, bounded loss coalescing, corrupt-copy fallback, and
+   fresh-instance recovery after every cut.
+2. From the repository root, reproduce the complete matrix and canonical
+   evidence:
+
+   ```powershell
+   python -m unittest discover -s tools/cloud_phase0 -p "test_*.py" -v
+   python tools/cloud_phase0/generate_evidence.py
+   ```
+
+3. Confirm the five historical destructive probes remain permanent regressions,
+   verify the generated figures against the implementation rather than copying
+   old report values, and record source/evidence SHA-256 values.
+4. Commit a signed review ledger at
+   `docs/cloud/phase0-outbox-independent-review.md` containing reviewer,
+   reviewed commit, commands, results, findings, and an explicit
+   `accepted`/`rejected` decision. “Tests are green” is not an acceptance note.
+
+**Pass:** 49/49 remains green, canonical evidence regenerates deterministically,
+every invariant is explicitly accepted, and no unresolved high-integrity finding
+remains. **Fail:** mark the ledger rejected, reopen ADR-0007, preserve the failing
+image/seed as a regression, and do not start P0-R2 or Phase 2.
+
+##### P0-R2 — Prove the outbox on the target ESP32-S3
+
+**State:** External/open. **Dependency:** P0-R1 accepted and target hardware/power-cut
+harness available. **Estimate:** 3–5 focused lab days after the harness exists.
+
+1. Implement the production codec and both instrumented raw-ring and LittleFS
+   candidates behind a test-only harness; keep normal cloud behavior disabled.
+2. Use the intended Seeed XIAO ESP32-S3 flash revision, pinned firmware toolchain,
+   normal GNSS/LED scheduling, an independent MOSFET/relay power controller, a
+   persistent oracle, and partition read/program/erase counters.
+3. Run the complete matrix in
+   [storage feasibility §12](../cloud/phase0-storage-feasibility.md#12-mandatory-physical-esp32-s3-gate):
+   10,000 seal/ACK/reclaim cycles per candidate, at least 1,000 asynchronous
+   cuts per candidate across every write boundary, full/pressure/loss behavior,
+   corruption and I/O failures, concurrent reads, and v2 downgrade/re-upgrade.
+4. Retain sanitized raw traces plus a machine-readable manifest under
+   `tools/cloud_phase0/evidence/esp32/<date>/`; commit the summarized decision,
+   setup/flash identifiers, commands, seeds, hashes, and measurements in
+   `docs/cloud/phase0-esp32-outbox-evidence.md`. Never include coordinates or
+   credentials.
+
+**Pass:** every integrity criterion in §12.3 passes; p99 recovery is within two
+seconds; working-memory, GNSS/LED gaps, watchdog margin, latency, energy, and
+erase distribution are measured and accepted; legacy data survives. **Fail:**
+reopen ADR-0007 and choose LittleFS only if it passes the identical matrix. If
+neither candidate passes, redesign the outbox; do not weaken the criteria.
+
+##### P0-R3 — Complete the credentialed Colombia provider bake-off
+
+**State:** External/open. **Dependency:** temporary provider setups and two
+reviewers; independent of P0-R1/P0-R2. **Estimate:** 0.5–1 focused day after access
+is provisioned.
+
+1. Provision one temporary origin-restricted MapTiler key and one temporary
+   Stadia property/domain-auth setup. Do not commit, print, screenshot, or retain
+   either credential.
+2. Extend the evidence runner to accept ephemeral credentials without placing
+   them in query strings, logs, manifests, screenshots, or source. Add explicit
+   allowed-origin success and unapproved-origin rejection cells for both providers.
+3. Run the same six synthetic Colombian fixtures, styles, viewports, DPRs,
+   accessibility/layout checks, request accounting, cache/network diagnostics,
+   and coordinate-leak assertions for both providers. A missing/failed cell fails
+   the matrix; no substitution is allowed.
+4. Two reviewers independently score route salience, label noise, terrain/trail
+   usefulness, mobile readability/touch behavior, CVD review aids, attribution,
+   request counts, current terms, and current price fit. Preserve both scorecards
+   before resolving disagreement.
+5. Commit the sanitized manifest/screenshots/review ledger, rerun the repository
+   secret scan, select the winner, and amend ADR-0009. Revoke the temporary
+   credentials after evidence verification.
+
+**Pass:** both full matrices pass, both unauthorized origins are rejected, no
+secret or raw coordinate leaks, both scorecards are complete, and ADR-0009 names
+the final provider with dated terms/cost assumptions. **Fail:** keep the provider
+undecided; MapLibre and the non-map fallback remain valid, but Phase 0 stays open.
+
+##### P0-R4 — Perform the explicit Phase 0 exit review
+
+**State:** Blocked by P0-R1, P0-R2, and P0-R3. **Estimate:** 0.5 focused day.
+
+1. Verify every closed row above still matches the current contracts and code;
+   rerun the 48/48 device-v1 suite plus the accepted storage/map commands.
+2. Audit every Phase 1 migration and generated Edge schema copy against the
+   frozen Phase 0 contracts. Because Phase 1 already proceeded by explicit
+   exception, any mismatch must be reconciled with an additive migration or a
+   deliberately reopened ADR—not hidden by editing history.
+3. Update this snapshot, the execution report, roadmap, ADR index, ADR-0007, and
+   ADR-0009 in one change. Record the exact reviewed commit and links to all three
+   closure artifacts.
+4. Mark Phase 0 passed only when every checkbox below has committed evidence and
+   no unresolved ambiguity can alter the schema, wire contract, storage format,
+   ownership/privacy boundary, or provider choice.
+
+#### Phase 0 exit checklist
+
+- [x] Every current field has unit, range, ownership, privacy, and sync policy.
+- [x] Device-v1 schemas, fixtures, HLC/LWW vectors, ACK/hole rules, and revoke
+  semantics pass 48/48.
+- [x] Track v3 codec, retention profiles, v2 behavior, and synthetic reference
+  datasets are frozen.
+- [x] One-million-point local database capacity evidence is retained.
+- [x] Threat, privacy/data-flow, retention, and credential plans are retained.
+- [x] MapLibre/provider-neutral rendering decision and no-credential harness are
+  retained.
+- [ ] P0-R1: corrected host recovery/reclaim model is independently accepted.
+- [ ] P0-R2: target ESP32-S3 power-cut, timing, wear, memory, watchdog, and energy
+  evidence passes.
+- [ ] P0-R3: identical credentialed MapTiler/Stadia matrices, unauthorized-origin
+  proofs, two-reviewer scores, and final provider ADR are complete.
+- [ ] P0-R4: explicit exit review reconciles the frozen contracts with current
+  Phase 1 artifacts and records the reviewed commit.
+
+Until all four unchecked items close, the truthful state is **Phase 0 open**.
+Continue preserving already-closed evidence, but do not rerun or redesign it
+without a changed input. Phase 1 may continue only within its documented
+local-cloud exception; Phase 2 firmware/cloud integration remains unauthorized.
 
 ### Phase 1 — Local cloud foundation and simulator (2–3 weeks)
 
