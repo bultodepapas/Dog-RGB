@@ -240,14 +240,14 @@ Accepted:
 - v2 remains readable/exportable and is never silently promoted to v3 evidence;
 - raw diagnostics are not uploaded by default;
 - device and cloud summaries remain separate and source/version-labelled.
-- `contracts/device-v1`, including dedicated revoke, is reconciled with the fixed v3 codec and passes protocol 48/48. The superseded RAM-only storage model's 20/20 result is invalid historical evidence. The corrected 664-slot byte-addressed candidate implements exact ACK/fresh-image mechanisms and now passes all five reproduced adversarial regressions in its 49/49 suite; independent host acceptance remains open. Exact ACK/hole semantics remain frozen contract requirements.
+- `contracts/device-v1`, including dedicated revoke, is reconciled with the fixed v3 codec and passes protocol 48/48. The superseded RAM-only storage model's 20/20 result is invalid historical evidence. The corrected 664-slot byte-addressed candidate implements exact ACK/fresh-image mechanisms and now passes all seven reproduced adversarial regressions in its 51/51 suite; independent host acceptance remains open. Exact ACK/hole semantics remain frozen contract requirements.
 
 Still blocking Phase 0 exit:
 
 - the corrected host outbox candidate must keep every reproduced fallback/loss/corruption regression green and obtain independent recovery/reclaim acceptance;
 - physical ESP32 outbox/power-cut/timing/wear/energy evidence remains open;
 - full credentialed MapTiler/Stadia comparison, unapproved-origin proof, and two-reviewer score remain open;
-- no web/database/firmware cloud implementation may be inferred from this inventory, and Phase 1 is not authorized.
+- no web/database/firmware cloud implementation may be inferred from this inventory; local-only Phase 1 proceeds under the parent plan's explicit exception, and Phase 2 remains unauthorized.
 
 ## Current source references
 

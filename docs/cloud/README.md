@@ -6,7 +6,7 @@
 | --- | --- |
 | [Phase 0 execution report](phase0-execution-report.md) | delivered 0A/0B/0C work, final validation snapshot, explicit open/closed gate register, and Phase 1 non-implementation handoff |
 | [Field matrix](phase0-field-matrix.md) | every current runtime-config field and telemetry/status group: units, range, privacy, source, and accepted sync/exclusion policy |
-| [Storage feasibility](phase0-storage-feasibility.md) | fixed Track v3 codec, provisional 664-slot raw geometry, remediated 49/49 host matrix awaiting independent acceptance, LittleFS comparison, and open physical gate |
+| [Storage feasibility](phase0-storage-feasibility.md) | fixed Track v3 codec, provisional 664-slot raw geometry, remediated 51/51 host matrix awaiting independent acceptance, LittleFS comparison, and open physical gate |
 | [PostgreSQL capacity](phase0-capacity-benchmark.md) | one-million-point local sizing/query evidence and initial index/partition decision |
 | [Phase 1 migrated capacity](phase1-capacity-benchmark.md) | one-million-point evidence on the migrated/RLS-protected schema and retention consequences |
 | [Phase 1 deletion drill](phase1-deletion-drill.md) | owner-authorized dog job, bounded worker/retry, durable tombstone/receipt, cascade inventory, and backup-lag boundary |

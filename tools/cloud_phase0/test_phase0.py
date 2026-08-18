@@ -542,7 +542,13 @@ class RawPowerCutAndJournalTests(unittest.TestCase):
             ERASE_BLOCK_BYTES,
         )
         image = base.flash_bytes
-        for stage in ("during_intent_metadata", "during_erase", "after_erase", "during_clear_metadata"):
+        for stage in (
+            "during_intent_metadata",
+            "during_erase",
+            "after_erase",
+            "during_intent_consumed",
+            "during_clear_metadata",
+        ):
             with self.subTest(stage=stage):
                 model = RawRingModel.from_flash(image, data_blocks=2)
                 model.reclaim_acknowledged(cut_at=stage)
@@ -581,6 +587,7 @@ class RawPowerCutAndJournalTests(unittest.TestCase):
             key=lambda record: record.generation,
         )
         self.assertEqual(set(intent.erase_intent_sequences), {0, 1})
+        self.assertTrue(intent.erase_intent_consumed)
         for record in records:
             if record.generation > intent.generation:
                 clear_one_set_bit(
@@ -593,12 +600,60 @@ class RawPowerCutAndJournalTests(unittest.TestCase):
 
         fresh = model.restart()
         before = fresh.flash_bytes
-        self.assertTrue(fresh.metadata_degraded)
-        self.assertTrue(fresh.sequence_state_unknown)
+        self.assertFalse(fresh.metadata_degraded)
+        self.assertFalse(fresh.sequence_state_unknown)
+        self.assertIsNone(fresh.erase_intent_block)
         self.assertEqual(fresh.reclaim_acknowledged(), 0)
         self.assertEqual(fresh.flash_bytes, before)
         self.assertTrue(fresh.contains(2, digest(2)))
         self.assertTrue(fresh.contains(3, digest(3)))
+
+    def test_consumed_stale_intent_cannot_erase_a_corrupt_refilled_slot(self):
+        model = RawRingModel(data_blocks=1)
+        for sequence in range(2):
+            self.assertTrue(model.seal(sequence, digest(sequence)))
+            self.assertTrue(exact_ack(model, sequence))
+        self.assertEqual(model.reclaim_acknowledged(), 2)
+        self.assertTrue(model.seal(2, digest(2)))
+
+        intent = max(
+            (
+                record
+                for record in model._journal_records()
+                if record.erase_intent_block is not None
+            ),
+            key=lambda record: record.generation,
+        )
+        self.assertTrue(intent.erase_intent_consumed)
+        for record in model._journal_records():
+            if record.generation > intent.generation:
+                clear_one_set_bit(
+                    model,
+                    record.sector * ERASE_BLOCK_BYTES
+                    + record.record_index * RAW_METADATA_RECORD_BYTES
+                    + 116,
+                    4,
+                )
+        slot = model.slots[2]
+        clear_one_set_bit(model, model._slot_offset(slot.slot_index) + 128)
+
+        fresh = model.restart()
+        before = fresh.flash_bytes
+        self.assertIsNone(fresh.erase_intent_block)
+        self.assertFalse(fresh.sequence_state_unknown)
+        self.assertEqual(fresh.next_outbox_sequence, 3)
+        self.assertEqual(set(fresh.quarantined_slots), {2})
+        self.assertEqual(fresh.missing_outbox_sequences, {2})
+        self.assertEqual(fresh.reclaim_acknowledged(), 0)
+        self.assertEqual(fresh.flash_bytes, before)
+
+        self.assertTrue(fresh.persist_missing_as_loss())
+        loss = fresh.prepare_loss_upload()
+        self.assertIsNotNone(loss)
+        self.assertTrue(fresh.acknowledge_loss(**loss_ack_kwargs(loss)))
+        self.assertEqual(fresh.reclaim_through, 2)
+        self.assertEqual(fresh.emergency.state, "empty")
+        self.assertEqual(fresh.reclaim_acknowledged(), 1)
 
 
 class RawEmergencyAndCorruptionTests(unittest.TestCase):
@@ -705,6 +760,9 @@ class RawEmergencyAndCorruptionTests(unittest.TestCase):
         self.assertEqual(fresh.reclaim_acknowledged(), 0)
         self.assertTrue(exact_ack(fresh, 1))
         self.assertEqual(fresh.reclaim_through, 2)
+        self.assertEqual(fresh.emergency.state, "empty")
+        # The retained empty tombstone still makes an exact duplicate server
+        # ACK idempotent; no second ACK is needed to finish the local transition.
         self.assertTrue(fresh.acknowledge_loss(
             **loss_ack_kwargs(loss),
         ))
@@ -888,6 +946,11 @@ class RawEmergencyAndCorruptionTests(unittest.TestCase):
         self.assertTrue(fresh.contains(0, digest(0)))
         self.assertFalse(fresh.contains(1))
         self.assertTrue(fresh.contains(2, digest(2)))
+        self.assertIn(1, fresh.quarantined_slots)
+        before_retry = fresh.flash_bytes
+        with self.assertRaisesRegex(RuntimeError, "quarantined"):
+            fresh.seal(1, digest(1))
+        self.assertEqual(fresh.flash_bytes, before_retry)
         self.assertEqual(fresh.emergency.state, "pending")
         self.assertEqual(fresh.emergency.dropped_chunks, 1)
         again = fresh.restart()
@@ -973,6 +1036,20 @@ class RawFailClosedRecoveryTests(unittest.TestCase):
                 dropped_points=1,
                 reason_mask=1,
             )
+
+    def test_committed_slot_with_unreadable_header_blocks_sequence_reuse(self):
+        model = RawRingModel(data_blocks=1)
+        self.assertTrue(model.seal(0, digest(0)))
+        clear_one_set_bit(model, model._slot_offset(model.slots[0].slot_index))
+
+        fresh = model.restart()
+        before = fresh.flash_bytes
+        self.assertTrue(fresh.sequence_state_unknown)
+        self.assertEqual(fresh.unknown_corrupt_slot_indexes, {0})
+        self.assertEqual(fresh.reclaim_acknowledged(), 0)
+        self.assertEqual(fresh.flash_bytes, before)
+        with self.assertRaisesRegex(RuntimeError, "read-only"):
+            fresh.seal(0, digest(1))
 
     def test_both_emergency_copies_corrupt_fail_closed(self):
         model = RawRingModel(data_blocks=1)

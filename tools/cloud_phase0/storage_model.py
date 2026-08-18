@@ -42,6 +42,7 @@ RAW_SLOTS_PER_BLOCK = ERASE_BLOCK_BYTES // RAW_SLOT_BYTES
 RAW_CAPACITY_CHUNKS = RAW_DATA_BLOCKS * RAW_SLOTS_PER_BLOCK
 RAW_METADATA_RECORD_BYTES = 128
 RAW_METADATA_RECORDS_PER_BLOCK = ERASE_BLOCK_BYTES // RAW_METADATA_RECORD_BYTES
+RAW_JOURNAL_VERSION = 2
 RAW_EMERGENCY_RECORD_BYTES = 256
 RAW_SLOT_HEADER_BYTES = 128
 
@@ -69,8 +70,13 @@ ERASED_MARKER = b"\xff" * 8
 _SLOT_PREFIX = struct.Struct("<4sBBHQ16sIIIHH32sII24s")  # 112 bytes
 _JOURNAL_PREFIX = struct.Struct("<4sBBHQQQIIQQ60sI")  # 120 bytes
 _EMERGENCY_PREFIX = struct.Struct("<4sBBHQ16s16sQQQQQI152sI")  # 248 bytes
-_JOURNAL_RESERVED = struct.Struct("<QQ44s")
+_JOURNAL_RESERVED = struct.Struct("<QQ8s36s")
 _DEFERRED_LOSS = struct.Struct("<16sQQQQI32s36s")
+# The erase-intent consumed marker lives outside the journal CRC by design.  It
+# starts erased and is programmed only after the target sector has been fully
+# erased and read back.  Therefore any programmed bit proves that an old intent
+# must never be replayed after later journal records are lost.
+_JOURNAL_INTENT_CONSUMED_OFFSET = 72
 
 
 def _digest(sequence: int) -> bytes:
@@ -243,6 +249,7 @@ class JournalRecord:
     write_cursor: int
     erase_intent_block: int | None
     erase_intent_sequences: tuple[int, ...]
+    erase_intent_consumed: bool
     emergency_generation: int
     dropped_points_total: int
     sector: int
@@ -425,6 +432,9 @@ class RawRingModel:
         self.slots = other.slots
         self.incomplete_slot_indexes = other.incomplete_slot_indexes
         self.corrupt_slot_indexes = other.corrupt_slot_indexes
+        self.unknown_corrupt_slot_indexes = other.unknown_corrupt_slot_indexes
+        self.acked_corrupt_slot_indexes = other.acked_corrupt_slot_indexes
+        self.quarantined_slots = other.quarantined_slots
         self.missing_outbox_sequences = other.missing_outbox_sequences
         self.write_cursor = other.write_cursor
         self.next_outbox_sequence = other.next_outbox_sequence
@@ -538,14 +548,18 @@ class RawRingModel:
         acknowledged = ack_marker == COMMIT_MARKER
         payload = raw[RAW_SLOT_HEADER_BYTES : RAW_SLOT_HEADER_BYTES + payload_length]
         payload_valid = zlib.crc32(payload) & 0xFFFFFFFF == payload_crc
-        if not payload_valid and not acknowledged:
-            return "corrupt", None
-        return ("valid" if payload_valid else "acked_corrupt"), RawSlot(
+        slot = RawSlot(
             slot_index, outbox_sequence, identity, first_point_sequence,
             point_count, digest, acknowledged,
             ack_marker_torn=ack_marker not in (ERASED_MARKER, COMMIT_MARKER),
             payload_valid=payload_valid,
         )
+        if not payload_valid and not acknowledged:
+            # The validated header still proves the consumed global ordinal and
+            # logical identity.  Quarantine the body, but retain that evidence
+            # so a journal fallback cannot reuse the sequence.
+            return "corrupt", slot
+        return ("valid" if payload_valid else "acked_corrupt"), slot
 
     def _encode_journal(self, generation: int) -> bytes:
         reclaim_encoded = UINT64_MAX if self.reclaim_through < 0 else self.reclaim_through
@@ -555,17 +569,17 @@ class RawRingModel:
             raise AssertionError("erase intent exceeds one data sector")
         intent_sequences.extend([UINT64_MAX] * (RAW_SLOTS_PER_BLOCK - len(intent_sequences)))
         reserved = _JOURNAL_RESERVED.pack(
-            intent_sequences[0], intent_sequences[1], b"\x00" * 44
+            intent_sequences[0], intent_sequences[1], ERASED_MARKER, b"\x00" * 36
         )
         erase_intent = 0 if self.erase_intent_block is None else self.erase_intent_block + 1
         zero = _JOURNAL_PREFIX.pack(
-            b"DRMJ", 1, 0, RAW_METADATA_RECORD_BYTES, generation,
+            b"DRMJ", RAW_JOURNAL_VERSION, 0, RAW_METADATA_RECORD_BYTES, generation,
             self.next_outbox_sequence, reclaim_encoded, self.write_cursor, erase_intent,
             emergency_generation, self.dropped_points_total, reserved, 0,
         )
         crc = zlib.crc32(zero) & 0xFFFFFFFF
         return _JOURNAL_PREFIX.pack(
-            b"DRMJ", 1, 0, RAW_METADATA_RECORD_BYTES, generation,
+            b"DRMJ", RAW_JOURNAL_VERSION, 0, RAW_METADATA_RECORD_BYTES, generation,
             self.next_outbox_sequence, reclaim_encoded, self.write_cursor, erase_intent,
             emergency_generation, self.dropped_points_total, reserved, crc,
         ) + ERASED_MARKER
@@ -584,14 +598,28 @@ class RawRingModel:
         except struct.error:
             return None
         if (
-            magic != b"DRMJ" or version != 1 or flags != 0
+            magic != b"DRMJ" or version != RAW_JOURNAL_VERSION or flags != 0
             or record_bytes != RAW_METADATA_RECORD_BYTES
         ):
             return None
+        try:
+            (
+                intent_first,
+                intent_second,
+                intent_consumed_marker,
+                intent_reserved,
+            ) = _JOURNAL_RESERVED.unpack(reserved)
+        except struct.error:
+            return None
+        if intent_reserved != b"\x00" * 36:
+            return None
+        normalized_reserved = _JOURNAL_RESERVED.pack(
+            intent_first, intent_second, ERASED_MARKER, intent_reserved
+        )
         zero = _JOURNAL_PREFIX.pack(
             magic, version, flags, record_bytes, generation, next_outbox,
             reclaim_encoded, write_cursor, erase_intent, emergency_generation,
-            dropped_points_total, reserved, 0,
+            dropped_points_total, normalized_reserved, 0,
         )
         if zlib.crc32(zero) & 0xFFFFFFFF != crc:
             return None
@@ -602,12 +630,6 @@ class RawRingModel:
             or erase_intent > self.data_blocks
         ):
             return None
-        try:
-            intent_first, intent_second, intent_reserved = _JOURNAL_RESERVED.unpack(reserved)
-        except struct.error:
-            return None
-        if intent_reserved != b"\x00" * 44:
-            return None
         intent_sequences = tuple(
             value for value in (intent_first, intent_second) if value != UINT64_MAX
         )
@@ -615,11 +637,13 @@ class RawRingModel:
             return None
         if len(set(intent_sequences)) != len(intent_sequences):
             return None
+        intent_consumed = erase_intent != 0 and intent_consumed_marker != ERASED_MARKER
         emergency_gen = -1 if emergency_generation == UINT64_MAX else emergency_generation
         return JournalRecord(
             generation, next_outbox, reclaim, write_cursor,
             None if erase_intent == 0 else erase_intent - 1,
-            intent_sequences, emergency_gen, dropped_points_total, sector, record_index,
+            intent_sequences, intent_consumed, emergency_gen,
+            dropped_points_total, sector, record_index,
         )
 
     def _journal_records(self) -> list[JournalRecord]:
@@ -796,8 +820,16 @@ class RawRingModel:
         self.reclaim_through = -1 if journal is None else journal.reclaim_through
         journal_next = 0 if journal is None else journal.next_outbox_sequence
         self.write_cursor = 0 if journal is None else journal.write_cursor
-        self.erase_intent_block = None if journal is None else journal.erase_intent_block
-        self.erase_intent_sequences = () if journal is None else journal.erase_intent_sequences
+        self.erase_intent_block = (
+            None
+            if journal is None or journal.erase_intent_consumed
+            else journal.erase_intent_block
+        )
+        self.erase_intent_sequences = (
+            ()
+            if journal is None or journal.erase_intent_consumed
+            else journal.erase_intent_sequences
+        )
         self.dropped_points_total = 0 if journal is None else journal.dropped_points_total
 
         emergency = self._select_emergency()
@@ -814,9 +846,12 @@ class RawRingModel:
             )
 
         self.slots: dict[int, RawSlot] = {}
+        self.quarantined_slots: dict[int, RawSlot] = {}
         identities: dict[ChunkIdentity, RawSlot] = {}
+        observed_sequences: dict[int, RawSlot] = {}
         self.incomplete_slot_indexes: set[int] = set()
         self.corrupt_slot_indexes: set[int] = set()
+        self.unknown_corrupt_slot_indexes: set[int] = set()
         self.acked_corrupt_slot_indexes: set[int] = set()
         max_slot: RawSlot | None = None
         for index in range(self.capacity_chunks):
@@ -825,10 +860,12 @@ class RawRingModel:
                 self.incomplete_slot_indexes.add(index)
             elif state == "corrupt":
                 self.corrupt_slot_indexes.add(index)
-            elif slot is not None:
+                if slot is None:
+                    self.unknown_corrupt_slot_indexes.add(index)
+            if slot is not None:
                 if state == "acked_corrupt":
                     self.acked_corrupt_slot_indexes.add(index)
-                prior = self.slots.get(slot.outbox_sequence)
+                prior = observed_sequences.get(slot.outbox_sequence)
                 if prior is not None and prior != slot:
                     raise RuntimeError("duplicate outbox sequence with different slot data")
                 identity_prior = identities.get(slot.identity)
@@ -836,8 +873,12 @@ class RawRingModel:
                     if identity_prior.digest != slot.digest:
                         raise RuntimeError("logical chunk identity reused with different content")
                     raise RuntimeError("logical chunk identity appears in multiple committed slots")
-                self.slots[slot.outbox_sequence] = slot
+                observed_sequences[slot.outbox_sequence] = slot
                 identities[slot.identity] = slot
+                if state == "corrupt":
+                    self.quarantined_slots[slot.outbox_sequence] = slot
+                else:
+                    self.slots[slot.outbox_sequence] = slot
                 if max_slot is None or slot.outbox_sequence > max_slot.outbox_sequence:
                     max_slot = slot
 
@@ -862,7 +903,7 @@ class RawRingModel:
         # state.  Keep the image read-only until an explicit repair workflow.
         self.sequence_state_unknown = bool(
             self.metadata_degraded
-            or (journal is None and bool(self.corrupt_slot_indexes))
+            or self.unknown_corrupt_slot_indexes
         )
         self.loss_state_unknown = emergency is None and emergency_bytes_present
         if journal is not None:
@@ -1025,8 +1066,37 @@ class RawRingModel:
             self._power_cut("emergency")
         return True
 
+    def _consume_erase_intent(self, *, cut_at: str | None = None) -> bool:
+        """Irreversibly retire the active intent before a sector may refill.
+
+        The marker is deliberately excluded from the journal CRC.  Any partial
+        program is treated as consumed, which can leak an already-erased sector
+        after a fault but can never resurrect authority to erase newer data.
+        """
+
+        if self.erase_intent_block is None or self._journal_location is None:
+            return True
+        sector, record_index = self._journal_location
+        offset = (
+            sector * ERASE_BLOCK_BYTES
+            + record_index * RAW_METADATA_RECORD_BYTES
+            + _JOURNAL_INTENT_CONSUMED_OFFSET
+        )
+        if cut_at == "during_intent_consumed":
+            self._program(offset, COMMIT_MARKER, cut_after=4)
+            self._power_cut("reclaim")
+            return False
+        self._program(offset, COMMIT_MARKER)
+        decoded = self._decode_journal(sector, record_index)
+        if decoded is None or not decoded.erase_intent_consumed:
+            raise RuntimeError("erase-intent consumed marker readback failed")
+        return True
+
     def _find_identity(self, identity: ChunkIdentity) -> RawSlot | None:
         for slot in self.slots.values():
+            if slot.identity == identity:
+                return slot
+        for slot in self.quarantined_slots.values():
             if slot.identity == identity:
                 return slot
         return None
@@ -1082,6 +1152,8 @@ class RawRingModel:
         if existing is not None:
             if existing.digest != digest:
                 raise ValueError("same logical chunk identity was reused with different content")
+            if not existing.payload_valid:
+                raise RuntimeError("logical chunk identity is quarantined after payload corruption")
             self.counters.idempotent_seals += 1
             return True
         if self.outbox_exhausted:
@@ -1215,6 +1287,54 @@ class RawRingModel:
             raise AssertionError("reclaim watermark moved backwards")
         return True
 
+    def _finalize_acknowledged_loss_if_reclaimable(
+        self,
+        *,
+        cut_at: str | None = None,
+    ) -> bool:
+        current = self.emergency
+        if (
+            current is None
+            or current.state != "acknowledged"
+            or self.reclaim_through < current.last_missing_outbox_sequence
+        ):
+            return True
+        if current.deferred_loss is not None:
+            deferred = current.deferred_loss
+            promoted = EmergencyRecord(
+                (current.generation + 1) & UINT64_MAX,
+                "pending",
+                uuid.uuid5(
+                    uuid.NAMESPACE_OID,
+                    f"dog-rgb-loss:{deferred.first_missing_outbox_sequence}",
+                ),
+                deferred.last_event_id,
+                deferred.first_missing_outbox_sequence,
+                deferred.last_missing_outbox_sequence,
+                deferred.dropped_chunks,
+                deferred.dropped_points,
+                current.total_dropped_points,
+                deferred.reason_mask,
+                -1,
+                deferred.last_event_fingerprint,
+            )
+            return self._write_emergency(promoted, cut_at=cut_at)
+        empty = EmergencyRecord(
+            (current.generation + 1) & UINT64_MAX,
+            "empty",
+            current.loss_id,
+            current.last_event_id,
+            current.first_missing_outbox_sequence,
+            current.last_missing_outbox_sequence,
+            current.dropped_chunks,
+            current.dropped_points,
+            self.dropped_points_total,
+            current.reason_mask,
+            -1,
+            current.last_event_fingerprint,
+        )
+        return self._write_emergency(empty, cut_at=cut_at)
+
     def acknowledge_exact(self, receipt: AckReceipt, *, cut_at: str | None = None) -> bool:
         if self.sequence_state_unknown or self.loss_state_unknown:
             raise RuntimeError("flash metadata/loss state is unknown; model is read-only")
@@ -1229,7 +1349,10 @@ class RawRingModel:
         ):
             return False
         if slot.acknowledged:
-            return self._persist_ack_prefix(cut_at=cut_at)
+            return (
+                self._persist_ack_prefix(cut_at=cut_at)
+                and self._finalize_acknowledged_loss_if_reclaimable()
+            )
         if slot.outbox_sequence not in self.sent_outbox_sequences:
             return False
         offset = self._slot_offset(slot.slot_index) + 112
@@ -1239,10 +1362,21 @@ class RawRingModel:
             return False
         self._program(offset, COMMIT_MARKER)
         self._load_from_flash()
-        if cut_at in ("during_ack_metadata", "during_journal_record", "during_journal_commit", "during_journal_erase"):
+        if cut_at in (
+            "during_ack_metadata",
+            "during_journal_record",
+            "during_journal_commit",
+            "during_journal_erase",
+        ):
             mapped = "during_metadata" if cut_at == "during_ack_metadata" else cut_at
-            return self._persist_ack_prefix(cut_at=mapped)
-        return self._persist_ack_prefix()
+            return (
+                self._persist_ack_prefix(cut_at=mapped)
+                and self._finalize_acknowledged_loss_if_reclaimable()
+            )
+        return (
+            self._persist_ack_prefix()
+            and self._finalize_acknowledged_loss_if_reclaimable()
+        )
 
     def reclaim_acknowledged(
         self,
@@ -1273,6 +1407,8 @@ class RawRingModel:
             if cut_at == "after_erase":
                 self._power_cut("reclaim")
                 return 0
+            if not self._consume_erase_intent(cut_at=cut_at):
+                return 0
             self.erase_intent_block = None
             self.erase_intent_sequences = ()
             if not self._append_journal(
@@ -1285,17 +1421,24 @@ class RawRingModel:
             decoded = [(index, *self._decode_slot(index)) for index in indexes]
             if all(state == "erased" for _, state, _ in decoded):
                 continue
-            if any(state == "corrupt" for _, state, _ in decoded):
+            if any(state == "corrupt" and slot is None for _, state, slot in decoded):
                 continue
             valid = [
                 slot for _, state, slot in decoded
                 if state in ("valid", "acked_corrupt") and slot is not None
             ]
+            quarantined = [
+                slot for _, state, slot in decoded
+                if state == "corrupt" and slot is not None
+            ]
             if any(not slot.acknowledged or slot.outbox_sequence > self.reclaim_through for slot in valid):
+                continue
+            if any(slot.outbox_sequence > self.reclaim_through for slot in quarantined):
                 continue
             sector = self.data_start_sector + block
             self.erase_intent_block = block
-            self.erase_intent_sequences = tuple(slot.outbox_sequence for slot in valid)
+            reclaimable = valid + quarantined
+            self.erase_intent_sequences = tuple(slot.outbox_sequence for slot in reclaimable)
             if not self._append_journal(
                 cut_at="during_metadata" if cut_at == "during_intent_metadata" else None,
                 stage="ack_metadata",
@@ -1306,9 +1449,11 @@ class RawRingModel:
                 self._power_cut("reclaim")
                 return reclaimed
             self._erase(sector)
-            reclaimed += len(valid)
+            reclaimed += len(reclaimable)
             if cut_at == "after_erase":
                 self._power_cut("reclaim")
+                return reclaimed
+            if not self._consume_erase_intent(cut_at=cut_at):
                 return reclaimed
             self.erase_intent_block = None
             self.erase_intent_sequences = ()
@@ -1529,65 +1674,19 @@ class RawRingModel:
                 return False
             if cut_at == "after_emergency_commit":
                 return False
-        accepted_generation = (
-            generation if self.emergency.state == "acknowledged" else current.reason_mask
-        )
-        accepted_sha256 = (
-            record_sha256
-            if self.emergency.state == "acknowledged"
-            else current.last_event_fingerprint
-        )
         if not self._persist_ack_prefix(
             cut_at="during_metadata" if cut_at == "during_ack_metadata" else None
         ):
             return False
-        current = self.emergency
-        if current is None:
-            return True
         # A sparse coalesced loss envelope may contain still-live chunks.  The
         # cloud ACK authorizes gaps only; retain the acknowledged loss record
         # until every live chunk inside the envelope is also durably ACKed and
-        # the contiguous reclaim prefix reaches the envelope's end.
-        if self.reclaim_through < current.last_missing_outbox_sequence:
-            return True
-        if current.deferred_loss is not None:
-            deferred = current.deferred_loss
-            promoted = EmergencyRecord(
-                (current.generation + 1) & UINT64_MAX,
-                "pending",
-                uuid.uuid5(
-                    uuid.NAMESPACE_OID,
-                    f"dog-rgb-loss:{deferred.first_missing_outbox_sequence}",
-                ),
-                deferred.last_event_id,
-                deferred.first_missing_outbox_sequence,
-                deferred.last_missing_outbox_sequence,
-                deferred.dropped_chunks,
-                deferred.dropped_points,
-                current.total_dropped_points,
-                deferred.reason_mask,
-                -1,
-                deferred.last_event_fingerprint,
-            )
-            return self._write_emergency(
-                promoted,
-                cut_at=cut_at if cut_at and cut_at.startswith("during_emergency") else None,
-            )
-        empty = EmergencyRecord(
-            (current.generation + 1) & UINT64_MAX,
-            "empty",
-            current.loss_id,
-            current.last_event_id,
-            current.first_missing_outbox_sequence,
-            current.last_missing_outbox_sequence,
-            current.dropped_chunks,
-            current.dropped_points,
-            self.dropped_points_total,
-            accepted_generation,
-            -1,
-            accepted_sha256,
+        # the contiguous reclaim prefix reaches the envelope's end.  Once it
+        # does, finalize locally without requiring the server to repeat an ACK
+        # that the device has already persisted.
+        return self._finalize_acknowledged_loss_if_reclaimable(
+            cut_at=cut_at if cut_at and cut_at.startswith("during_emergency") else None
         )
-        return self._write_emergency(empty, cut_at=cut_at if cut_at and cut_at.startswith("during_emergency") else None)
 
     def persist_missing_as_loss(self) -> bool:
         if self.sequence_state_unknown or self.loss_state_unknown:

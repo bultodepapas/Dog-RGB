@@ -1915,7 +1915,7 @@ setups, and two available reviewers. Do not convert that estimate into a deadlin
 | 0A — optional/local-first product contract | **Closed** | Requirements, architecture, roadmap, API/testing docs, and ADR-0005 through ADR-0010 define opt-in cloud behavior and preserve offline collar/AP/export operation. Accepted ADRs are design decisions, not proof of firmware or production deployment. |
 | 0A — field ownership and privacy inventory | **Closed** | The [field matrix](../cloud/phase0-field-matrix.md) records unit, range, privacy, source of truth, and sync/exclusion policy for every current runtime/telemetry surface. Home, LED power calibration, network credentials, local PIN, mDNS, and scenes remain collar-local for the first cloud release. Any new or remotely exposed field reopens this row. |
 | 0B — Track v3 format, fixtures, retention, and legacy behavior | **Closed for design** | The [storage report](../cloud/phase0-storage-feasibility.md) freezes the 16-byte point, 92-byte header, deterministic non-behavior fixtures, profile retention arithmetic, and v2 dual-read/export rules. This does not prove physical flash safety. |
-| 0B — raw ring versus LittleFS direction | **Accepted direction; physical proof open** | ADR-0007 selects the 664-slot raw ring provisionally. The corrected byte-addressed candidate passes 49/49, including all five reproduced fallback/loss/corruption regressions; its generated metrics remain provisional until P0-R1 and P0-R2 below close. The superseded RAM-only 20/20 result is permanently invalid evidence. |
+| 0B — raw ring versus LittleFS direction | **Accepted direction; physical proof open** | ADR-0007 selects the 664-slot raw ring provisionally. The corrected byte-addressed candidate passes 51/51, including all seven reproduced fallback/loss/corruption regressions. Journal v2 irreversibly consumes reclaim intent before refill, quarantines corrupt payloads with readable identity, fails read-only on unreadable committed headers, and finalizes acknowledged sparse loss without a second server ACK. Generated metrics remain provisional until P0-R1 and P0-R2 below close. The superseded RAM-only 20/20 result is permanently invalid evidence. |
 | 0C — device-v1 protocol and LWW | **Closed; regression gate** | Versioned schemas, positive/negative fixtures, HLC vectors, compatibility matrix, problem catalog, exact ACK/hole rules, and revoke semantics pass 48/48. Changes to these contracts must remain backward compatible or explicitly reopen the gate. |
 | 0C — PostgreSQL capacity direction | **Closed as local sizing input** | The [one-million-point benchmark](../cloud/phase0-capacity-benchmark.md) supports the initial unpartitioned/no-GiST direction. Hosted plan, authenticated RLS, concurrency, and current cost checks are later operational gates, not missing Phase 0 proof. |
 | 0C — renderer and no-credential map harness | **Renderer closed; provider open** | MapLibre and provider-neutral GeoJSON are accepted. The harness passes 7/7 and the retained no-credential Stadia matrix passes 17/17. It does not contain a MapTiler visual comparison, rejected-origin proof, or two-reviewer provider score. |
@@ -1939,7 +1939,7 @@ setups, and two available reviewers. Do not convert that estimate into a deadlin
    python tools/cloud_phase0/generate_evidence.py
    ```
 
-3. Confirm the five historical destructive probes remain permanent regressions,
+3. Confirm the seven historical destructive probes remain permanent regressions,
    verify the generated figures against the implementation rather than copying
    old report values, and record source/evidence SHA-256 values.
 4. Commit a signed review ledger at
@@ -1947,7 +1947,7 @@ setups, and two available reviewers. Do not convert that estimate into a deadlin
    reviewed commit, commands, results, findings, and an explicit
    `accepted`/`rejected` decision. “Tests are green” is not an acceptance note.
 
-**Pass:** 49/49 remains green, canonical evidence regenerates deterministically,
+**Pass:** 51/51 remains green, canonical evidence regenerates deterministically,
 every invariant is explicitly accepted, and no unresolved high-integrity finding
 remains. **Fail:** mark the ledger rejected, reopen ADR-0007, preserve the failing
 image/seed as a regression, and do not start P0-R2 or Phase 2.

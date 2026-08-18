@@ -10,7 +10,7 @@ Phase 0 now has a current project contract, six accepted cloud ADRs, a complete 
 
 Phase 0 remains open for three evidence items:
 
-1. the corrected byte-addressed host candidate has fixed the five reproduced adversarial fallback/loss/corruption cases, but must still pass independent acceptance review;
+1. the corrected byte-addressed host candidate has fixed seven reproduced adversarial fallback/loss/corruption cases, but must still pass independent acceptance review;
 2. the chosen outbox must pass physical ESP32-S3 power-cut/timing/wear/energy acceptance;
 3. the identical provider bake-off and unapproved-origin tests require temporary restricted MapTiler and Stadia credentials/domain properties, followed by two independent human scores.
 
@@ -49,14 +49,20 @@ invalid.
 A corrected candidate now reconstructs from a byte-addressed NOR image, uses
 global outbox ordinals, exact manifest-bound ACKs, per-slot durable ACK markers,
 A/B journals and two independently erasable loss sectors. The remediated
-`storage_model.py` artifact is 89,525 bytes with SHA-256
-`30466323bc7caae841d9dcfc6345438a20db35c9b22b8e29c1deb6aca13588f8`. Its
-49/49 suite now includes the five reproduced regressions: reclaim intent is
+`storage_model.py` artifact is 93,767 bytes with SHA-256
+`9d7f0c059399708b4a3162d231a18d00c8378e85c4837f30b5ccd1369574b3d8`. Its
+51/51 suite now includes seven reproduced regressions: reclaim intent is
 bound to the exact authorized slot ordinals; retained loss tombstones prevent
 outbox-sequence reuse after journal fallback; maximum loss intervals recover
 without range-sized allocation/iteration; a second loss is durably coalesced
 during the prior loss ACK transition; and an ACKed corrupt payload is not
-misclassified as unsynchronized coverage loss. The regenerated
+misclassified as unsynchronized coverage loss. The 2026-08-18 review added two
+more permanent cases: journal-v2's irreversible consumed marker prevents a
+fallback intent from erasing a later corrupt refill, while validated corrupt
+headers retain their global ordinal and unreadable headers fail read-only; and
+an acknowledged sparse loss now finalizes locally when the intervening live
+chunk closes the contiguous prefix instead of requiring a duplicate server ACK.
+The regenerated
 664-slot/10,000-cycle metrics remain provisional until independent acceptance.
 
 The historical adversarial reproduction against the superseded model was run from `tools/cloud_phase0` with three calls to `seal(sequence, digest)`, followed by `acknowledge_through(999)` and `reclaim_acknowledged()`. It returned `ack=True`, `durable_ack=999`, `reclaimed=3`, and an empty remaining-unacknowledged set. This directly contradicts the frozen protocol rule that holes or unverified identities cannot be skipped/reclaimed; these method/state names are not the corrected candidate's API.
@@ -65,7 +71,7 @@ Until the corrected candidate passes independent acceptance review:
 
 - treat superseded-model figures as invalid and corrected-candidate metrics as provisional;
 - do not use either a green test count or generated metrics to declare Phase 0B complete;
-- keep all five adversarial cases as permanent byte-image regressions;
+- keep all seven adversarial cases as permanent byte-image regressions;
 - keep the physical ESP32-S3 gate mandatory regardless of the corrected host result.
 
 ### Phase 0C — protocol, capacity, map, security, and privacy evidence
@@ -78,13 +84,15 @@ Until the corrected candidate passes independent acceptance review:
 
 ## Validation snapshot
 
-Run from the repository root on 2026-08-13:
+Baseline checks were run from the repository root on 2026-08-13. The corrected
+host-storage row, source hash, and deterministic evidence were rerun on
+2026-08-18 after the journal-v2 remediation:
 
 | Command/check | Result | Interpretation |
 | --- | --- | --- |
 | `node --test contracts/device-v1/test-contracts.mjs` | **48/48 passed** | Complete frozen device-v1 contract, including revoke fixtures/semantics, is green. |
 | `python -m unittest discover -s test -p "test_*.py" -v` from `Platformio/Dog-RGB` | **131/131 passed** | Existing cloud-disabled firmware host regression remains green; no firmware cloud code was added. |
-| `python -m unittest discover -s tools/cloud_phase0 -p "test_*.py" -v` | corrected candidate **49/49 passed**, review/open | All five reproduced destructive probes are permanent regressions; independent acceptance is still required. |
+| `python -m unittest discover -s tools/cloud_phase0 -p "test_*.py" -v` | corrected candidate **51/51 passed**, review/open | All seven reproduced destructive probes are permanent regressions; independent acceptance is still required. |
 | superseded `RawRingModel` invalid-ACK reproduction | historical `ack=True`; `durable_ack=999`; `reclaimed=3` after sealing only `0..2` | Explains why the original 20/20 evidence was invalidated; this is not the current API. |
 | `powershell -NoProfile -ExecutionPolicy Bypass -File tools/cloud_capacity/run.ps1` | one-million-row report generated | Local PostgreSQL 17/PostGIS sizing and query-plan input; not hosted Supabase/RLS evidence. |
 | `node --test tools/map_bakeoff/test-harness.mjs` | **7/7 passed** | Deterministic fixture sizes/durations, provider variants, coordinate invariants, and committed-secret scan are green. |
@@ -102,7 +110,7 @@ The checked map manifest is durable technical evidence rather than a performance
 | Current project contract, opt-in/offline invariant, and field ownership | Closed for Phase 0 documentation | Reopen on any new firmware field, remote Home/power proposal, or cloud boundary change. |
 | Device-v1 protocol, HLC/config, ACK/hole, and revoke contract | Closed; regression gate remains | Keep protocol 48/48 and codec compatibility green on every change. |
 | PostgreSQL capacity direction | Closed as local sizing input only | Repeat representative authenticated/RLS queries and current plan/cost checks during implementation; this is not a Phase 0 external blocker. |
-| Host outbox recovery/reclaim evidence | **Review / open** | The five reproduced failures are fixed and covered; obtain independent acceptance of the complete byte-image matrix. |
+| Host outbox recovery/reclaim evidence | **Review / open** | The seven reproduced failures are fixed and covered; obtain independent acceptance of the complete byte-image matrix. |
 | Physical ESP32-S3 outbox acceptance | **Open external hardware gate** | Production codec/API, at least 10,000 seal/ACK/reclaim cycles, randomized reset/power removal at every boundary, full/corrupt/failure cases, legacy preservation, and measured timing/wear/heap/watchdog/energy. |
 | Map renderer | Closed | MapLibre/provider-neutral adapter accepted; keep accessibility/non-map fallback requirements. |
 | Basemap provider | **Open external credential gate** | Supply a temporary origin-restricted MapTiler key and Stadia test property/domain auth; run the full identical matrix and unapproved-origin tests; retain manifests/screenshots; complete two-reviewer scoring from captured request counts and amend ADR-0009. |

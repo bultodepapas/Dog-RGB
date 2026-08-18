@@ -4,7 +4,7 @@
 
 **Date:** 2026-08-13
 
-**Implementation evidence:** Review/open. The corrected 664-slot byte-addressed candidate has regressions for all five reproduced fallback/loss/corruption failures and passes 49/49 with regenerated deterministic metrics. Independent acceptance is still required. Physical ESP32 flash/power-cut evidence remains a separate mandatory gate.
+**Implementation evidence:** Review/open. The corrected 664-slot byte-addressed candidate has regressions for all seven reproduced fallback/loss/corruption failures and passes 51/51 with regenerated deterministic metrics. Independent acceptance is still required. Physical ESP32 flash/power-cut evidence remains a separate mandatory gate.
 
 **Scope:** Cloud telemetry staging, retry/ACK/reclaim semantics, pressure behavior, and legacy route preservation.
 
@@ -60,6 +60,8 @@ A reset after server commit but before step 6 replays the same chunk; database u
 
 - Maintain two CRC-protected, generation-numbered superblocks with wrap-safe selection and readback verification.
 - Metadata describes committed boundaries and exact ACK evidence; it is not the sole evidence that a chunk exists. On ambiguity, scan and validate data slots, recover fully written orphan chunks conservatively, and never convert uncertain data into ACKed data.
+- Journal format v2 binds each reclaim intent to exact slot ordinals and carries a CRC-excluded, one-way consumed marker. Program and verify that marker only after the sector is fully erased, and never refill before it is durable; a fallback journal can therefore never resurrect old erase authority over newer data.
+- Retain the global ordinal from a corrupt payload when its header remains valid and quarantine it until an acknowledged loss makes it reclaimable. If a committed header cannot be decoded, make mutation/reclaim read-only rather than risk ordinal reuse.
 - Reclaim only complete sectors so an erase cannot destroy another unacknowledged slot.
 - Persist counters for recoveries, corrupt slots, orphan salvage, failed reads/writes/erases, pressure level, dropped observations, and explicit data-loss intervals. Do not log coordinates.
 - A future/oversized layout is read-only. Automatic “repair” must not erase it.
@@ -82,7 +84,7 @@ The checked [storage feasibility report](../cloud/phase0-storage-feasibility.md)
 
 - The superseded RAM-only model's 20/20 run is invalid historical evidence. It accepted `acknowledge_through(999)` after only chunks `0..2` existed, reclaimed all three, and could not construct recovery from a persisted flash image.
 - The corrected candidate models NOR 1→0 programming, whole-sector erase, fresh-image mounts, globally monotonic outbox ordinals, exact per-slot ACK evidence, contiguous-prefix reclaim, A/B metadata journals, and two independently erasable emergency sectors. Its provisional geometry is 664 chunks/63,744 points, or 15.624 days at the four-hours-moving/five-second plus twenty-hours-stationary/sixty-second profile.
-- The remediated suite binds reclaim intent to the exact sector slot ordinals, derives the next ordinal from retained loss tombstones, processes loss intervals without range-sized allocation/iteration, durably coalesces a second pending loss while the first ACK transitions, and distinguishes ACKed corrupt payloads from unsynchronized loss. Those five regressions and the deterministic 10,000-cycle workload pass 49/49.
+- The remediated suite binds reclaim intent to the exact sector slot ordinals, irreversibly consumes it before refill, derives the next ordinal from retained loss tombstones and quarantined corrupt headers, fails read-only on unreadable committed headers, processes loss intervals without range-sized allocation/iteration, durably coalesces a second pending loss while the first ACK transitions, automatically finalizes acknowledged sparse loss when the contiguous prefix closes, and distinguishes ACKed corrupt payloads from unsynchronized loss. Those seven regressions and the deterministic 10,000-cycle workload pass 51/51.
 
 The host recovery/reclaim gate is therefore **review/open**, not accepted. The raw ring remains the accepted design direction because its fixed format makes the required invariants inspectable and its capacity difference from the idealized LittleFS model is small; that decision does not authorize firmware implementation. Candidate amplification, salvage, cut, recovery-scan, and wear figures remain provisional until an independent review accepts the complete host matrix.
 
@@ -116,7 +118,7 @@ No host model proves physical safety. Flash-driver timing, brownout behavior, ca
 
 ### Host recovery/reclaim gate
 
-This gate is review/open. Before any firmware outbox work or Phase 1 schema implementation is authorized:
+This gate is review/open. Before any firmware outbox work is authorized (Phase 1 local-cloud work is already proceeding under the explicit exception recorded in the parent plan):
 
 1. keep every destructive fallback, sequence-reuse, bounded-loss, ACK-transition, and corruption-classification reproduction in the byte-image suite, including fresh-instance recovery after every cut;
 2. prove exact sent-manifest ACK matching, durable holes, sector-safe reclaim, bounded/idempotent loss reporting, and fail-closed recovery from corrupt metadata/loss copies;
@@ -134,7 +136,7 @@ After host acceptance, rerun equivalent tests against the production codec and a
 5. byte-golden codec/layout tests and refusal of future/corrupt versions;
 6. legacy-v2 dual-read/export and proof that initialization never erases existing routes.
 
-If raw flash fails any gate or actual LittleFS traces materially outperform it without losing exact recovery guarantees, revisit this ADR before field deployment. Phase 0 remains open and Phase 1 remains unauthorized until the host gate, physical gate, and separate credentialed provider/origin-control/human-review map gate all close through the parent plan's exit review.
+If raw flash fails any gate or actual LittleFS traces materially outperform it without losing exact recovery guarantees, revisit this ADR before field deployment. Phase 0 remains open and Phase 2 firmware/cloud integration remains unauthorized until the host gate, physical gate, and separate credentialed provider/origin-control/human-review map gate all close through the parent plan's exit review.
 
 ## References
 

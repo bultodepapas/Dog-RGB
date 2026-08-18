@@ -1,10 +1,10 @@
 # Phase 0B — Track v3 and outbox storage feasibility
 
-**Status:** host recovery/reclaim remediation passes 49/49 and awaits independent acceptance; physical ESP32-S3 gate open
+**Status:** host recovery/reclaim remediation passes 51/51 and awaits independent acceptance; physical ESP32-S3 gate open
 
 **Decision:** retain the raw partition ring as design direction; do not implement/ship it until both the host acceptance matrix and the physical gate in this document pass
 
-**Evidence date:** 2026-08-13
+**Evidence date:** 2026-08-18
 
 **Scope:** Track v3 encoding, retention, outbox candidates, failure simulation, reference fixtures, and Track v2 migration
 
@@ -15,17 +15,27 @@
 > output. It has been replaced by a byte-addressed NOR model with fresh-image
 > mounts, globally monotonic outbox identities, exact per-slot ACK evidence,
 > contiguous-prefix reclaim, serialized A/B journals, and two independently
-> erasable loss sectors. Independent adversarial review then found five
+> erasable loss sectors. Adversarial review then found five
 > destructive fallback/loss/corruption cases. The candidate now binds reclaim
 > intent to exact slot ordinals, retains monotonic identity through tombstone
 > fallback, handles maximum loss intervals with bounded work, durably coalesces
-> loss during ACK transition, and classifies ACKed corruption separately. All
-> five regressions and the deterministic workload pass 49/49. The regenerated
+> loss during ACK transition, and classifies ACKed corruption separately.
+>
+> **Follow-up correction (2026-08-18):** two additional byte-image probes
+> reproduced unsafe behavior. A consumed reclaim intent could be resurrected
+> after newer journals were corrupted and erase a corrupt refilled slot; an
+> acknowledged sparse loss could also remain stuck after the intervening live
+> chunk was ACKed unless the server repeated an already durable loss ACK. Journal
+> format v2 now programs an irreversible consumed-intent marker before refill,
+> retains validated corrupt-slot ordinals in quarantine, fails read-only when a
+> committed header is unreadable, and finalizes an acknowledged loss as soon as
+> its contiguous prefix closes. All seven regressions and the deterministic
+> workload pass 51/51. The regenerated
 > metrics remain **provisional, not accepted evidence** until independent
 > acceptance; the physical gate remains open alongside Section 12.
 
-The remediated `storage_model.py` artifact is 89,525 bytes with SHA-256
-`30466323bc7caae841d9dcfc6345438a20db35c9b22b8e29c1deb6aca13588f8`.
+The remediated `storage_model.py` artifact is 93,767 bytes with SHA-256
+`9d7f0c059399708b4a3162d231a18d00c8378e85c4837f30b5ccd1369574b3d8`.
 
 ## 1. Decision in one page
 
@@ -58,7 +68,7 @@ candidates:
 - refused to overwrite unacknowledged data when full; and
 - preserved the unacknowledged tail through reclaim/refill.
 
-The byte/NOR raw candidate reports 2,169 programmed bytes per successful seal versus 2,415 bytes in
+The byte/NOR raw candidate reports 2,173 programmed bytes per successful seal versus 2,415 bytes in
 the declared LittleFS model. It recovered 48 complete chunks written before a
 metadata commit; LittleFS correctly rolls incomplete/uncommitted operations
 back and requires 195 caller retries. Raw recovery scans 1,376,256 bytes; the
@@ -385,9 +395,16 @@ ACK:
 3. Durably append/verify that exact ACK identity. If a compact contiguous
    frontier is used, derive it only from verified per-chunk proofs and stop at
    every hole/rejection; never accept a numeric frontier from the caller.
-4. Only then may sectors containing exclusively exactly ACKed/invalid slots be
-   erased. An out-of-order ACK beyond a hole cannot make either side of the hole
-   reclaimable unless every affected chunk has its own durable exact proof.
+4. Append and verify an exact sector reclaim intent that binds the current slot
+   ordinals before erasing.
+5. Erase and read back the complete sector, then irreversibly program the
+   intent's CRC-excluded consumed marker. Any partial marker is treated as
+   consumed; this can leak an already erased sector after a fault but cannot
+   resurrect authority to erase newer data.
+6. Append the clear-intent journal generation. The sector may not be refilled
+   before the consumed marker is durable. An out-of-order ACK beyond a hole
+   cannot make either side of the hole reclaimable unless every affected chunk
+   has its own durable exact proof.
 
 If an ACK metadata write tears, the prior committed exact-ACK state wins.
 Retrying already stored chunks is safe; reclaiming data on an uncommitted ACK is
@@ -398,8 +415,8 @@ not.
 The fill test wrote all 664 slots without ACK, durably represented the 665th
 distinct chunk as a loss record, ACKed the oldest half, erased only wholly
 reclaimable sectors, and refilled 332 slots. That scheduled test preserved its
-prior unacknowledged set. The five later adversarial fallback/loss/corruption
-probes are now part of the passing 49/49 suite; this remains provisional workload
+prior unacknowledged set. The seven later adversarial fallback/loss/corruption
+probes are now part of the passing 51/51 suite; this remains provisional workload
 output pending independent review, not a physical safety proof.
 
 Production pressure policy remains:
@@ -476,8 +493,8 @@ endurance, or energy.
 | incomplete/uncommitted writes rolled back | 100 | 195 |
 | final unacknowledged chunks | 0 | 0 |
 | coverage-gap events | 0 | 0 |
-| programmed bytes | 21,693,946 | 24,151,808 |
-| programmed bytes/successful seal | 2,169.395 | 2,415.181 |
+| programmed bytes | 21,734,346 | 24,151,808 |
+| programmed bytes/successful seal | 2,173.435 | 2,415.181 |
 | erased bytes | 24,570,880 | 22,781,952 |
 | erased bytes/successful seal | 2,457.088 | 2,278.195 |
 | data/dynamic sector erase min–max | 15–16 | 16–17 |
@@ -522,7 +539,12 @@ chunk, append trailing bytes, and create semantically invalid but structurally
 packable points. Every codec case is rejected. These results are not host
 storage acceptance by itself. The suite now separately treats a CRC-invalid
 payload with a durable exact-ACK marker as already synchronized and reclaimable,
-while an unacknowledged corrupt payload creates a durable loss record. The five
+while an unacknowledged corrupt payload keeps its validated global ordinal in
+quarantine and creates a durable loss record. An unreadable committed header
+forces read-only recovery rather than sequence reuse. Journal v2's irreversible
+consumed-intent marker prevents an older reclaim authorization from erasing a
+later refill even when that refill's payload is corrupt, and sparse loss ACKs
+finalize locally when the intervening live chunk closes the prefix. The seven
 reproduced fallback/loss/corruption cases remain permanent regressions; the
 complete matrix still requires independent acceptance.
 
@@ -687,7 +709,7 @@ claim that custom storage is superior to LittleFS.
 ## 14. Phase handoff
 
 Phase 0B codec artifacts are ready for frozen-protocol compatibility review,
-and a corrected host storage candidate exists whose five reproduced adversarial
+and a corrected host storage candidate exists whose seven reproduced adversarial
 failures now pass as regressions, but independent acceptance is still open. They
 do not close Phase 0 or authorize Phase 1 schema
 or firmware implementation while the host, physical, and map gates remain open:
