@@ -27,21 +27,21 @@ export const PROVIDERS = Object.freeze({
     variant: "dark",
     name: "MapTiler · Dataviz Dark",
     maptilerStyle: "dataviz-dark",
-    credentialMode: "fragment-testing-key-required",
+    credentialMode: "ephemeral-runner-injection; upstream API key required",
   }),
   "maptiler-light": Object.freeze({
     family: "maptiler",
     variant: "light",
     name: "MapTiler · Dataviz Light",
     maptilerStyle: "dataviz-light",
-    credentialMode: "fragment-testing-key-required",
+    credentialMode: "ephemeral-runner-injection; upstream API key required",
   }),
   "maptiler-outdoor": Object.freeze({
     family: "maptiler",
     variant: "outdoor",
     name: "MapTiler · Outdoor v4",
     maptilerStyle: "outdoor-v4",
-    credentialMode: "fragment-testing-key-required",
+    credentialMode: "ephemeral-runner-injection; upstream API key required",
   }),
 });
 

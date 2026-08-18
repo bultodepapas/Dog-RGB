@@ -4,6 +4,11 @@ This directory contains Phase 0 synthetic evidence only. It contains no dog,
 owner, account, secret, or production coordinate. `manifest.json` is the
 machine-readable source of truth for environment, source/asset hashes, every
 matrix cell, network diagnostics, browser failures, and credential blockers.
+It is retained schema-v2 evidence bound to the source hashes in that manifest;
+the current hardened runner and its 12/12 readiness suite do not retroactively
+change this capture. A later credentialed run writes schema v3 evidence and must
+use two independent copies of the top-level
+[`review-scorecard-template.md`](../../review-scorecard-template.md).
 
 ## Automated acceptance
 
@@ -11,8 +16,13 @@ Run these from the repository root:
 
 ```powershell
 node --test tools/map_bakeoff/test-harness.mjs
+$env:DOG_RGB_MAP_EVIDENCE_RUN_ID = 'YYYY-MM-DD-keyless-01'
 node tools/map_bakeoff/capture-evidence.mjs
+Remove-Item Env:DOG_RGB_MAP_EVIDENCE_RUN_ID
 ```
+
+The capture command writes a new run directory and refuses to overwrite this
+retained directory. Hash verification of this ledger is separate from a new run.
 
 The capture command passes only when every requested cell reaches MapLibre idle,
 has the expected canvas/table/accessibility structure and visible attribution,

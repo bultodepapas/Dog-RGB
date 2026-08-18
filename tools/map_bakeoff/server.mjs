@@ -39,7 +39,9 @@ createServer((request, response) => {
     response.writeHead(200, {
       "Content-Type": types.get(extname(path)) ?? "application/octet-stream",
       "Cache-Control": "no-store",
+      "Referrer-Policy": "origin-when-cross-origin",
       "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
     });
     createReadStream(path).pipe(response);
   } catch {

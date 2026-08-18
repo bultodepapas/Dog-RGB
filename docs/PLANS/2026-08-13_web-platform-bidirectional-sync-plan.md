@@ -1918,7 +1918,7 @@ setups, and two available reviewers. Do not convert that estimate into a deadlin
 | 0B — raw ring versus LittleFS direction | **Accepted direction; physical proof open** | ADR-0007 selects the 664-slot raw ring provisionally. The corrected byte-addressed candidate passes 51/51, including all seven reproduced fallback/loss/corruption regressions. Journal v2 irreversibly consumes reclaim intent before refill, quarantines corrupt payloads with readable identity, fails read-only on unreadable committed headers, and finalizes acknowledged sparse loss without a second server ACK. Generated metrics remain provisional until P0-R1 and P0-R2 below close. The superseded RAM-only 20/20 result is permanently invalid evidence. |
 | 0C — device-v1 protocol and LWW | **Closed; regression gate** | Versioned schemas, positive/negative fixtures, HLC vectors, compatibility matrix, problem catalog, exact ACK/hole rules, and revoke semantics pass 48/48. Changes to these contracts must remain backward compatible or explicitly reopen the gate. |
 | 0C — PostgreSQL capacity direction | **Closed as local sizing input** | The [one-million-point benchmark](../cloud/phase0-capacity-benchmark.md) supports the initial unpartitioned/no-GiST direction. Hosted plan, authenticated RLS, concurrency, and current cost checks are later operational gates, not missing Phase 0 proof. |
-| 0C — renderer and no-credential map harness | **Renderer closed; provider open** | MapLibre and provider-neutral GeoJSON are accepted. The harness passes 7/7 and the retained no-credential Stadia matrix passes 17/17. It does not contain a MapTiler visual comparison, rejected-origin proof, or two-reviewer provider score. |
+| 0C — renderer and no-credential map harness | **Renderer closed; provider open** | MapLibre and provider-neutral GeoJSON are accepted. The retained no-credential evidence passed its original 7/7 harness and 17/17 Stadia matrix; the hardened credentialed-runner readiness suite now passes 12/12. No credentialed MapTiler visual comparison, rejected-origin proof, or two-reviewer provider score has been captured. |
 | 0C — threat/privacy/retention/credential design | **Closed for documentation** | The [threat model](../cloud/threat-model.md), [privacy flow](../cloud/privacy-data-flow.md), [retention policy](../cloud/retention-policy.md), and [credential checklist](../cloud/credential-checklist.md) are the design baseline. Their implementation drills remain phase-specific release gates. |
 
 #### Remaining critical path
@@ -1981,16 +1981,23 @@ neither candidate passes, redesign the outbox; do not weaken the criteria.
 
 ##### P0-R3 — Complete the credentialed Colombia provider bake-off
 
-**State:** External/open. **Dependency:** temporary provider setups and two
-reviewers; independent of P0-R1/P0-R2. **Estimate:** 0.5–1 focused day after access
-is provisioned.
+**State:** External/open; local runner preparation completed 2026-08-18.
+**Dependency:** temporary provider setups and two reviewers; independent of
+P0-R1/P0-R2. **Estimate:** 0.5–1 focused day after access is provisioned.
 
 1. Provision one temporary origin-restricted MapTiler key and one temporary
    Stadia property/domain-auth setup. Do not commit, print, screenshot, or retain
    either credential.
-2. Extend the evidence runner to accept ephemeral credentials without placing
-   them in query strings, logs, manifests, screenshots, or source. Add explicit
-   allowed-origin success and unapproved-origin rejection cells for both providers.
+2. **Completed locally:** the evidence runner accepts the temporary MapTiler key
+   only from the process environment, passes it through a Playwright init script,
+   excludes it from the static-server environment, redacts diagnostics
+   recursively, persists request origins/paths rather than full URLs, and refuses
+   to write a manifest containing the supplied value. It includes explicit
+   allowed-origin success and unapproved-origin rejection cells for both
+   providers. MapTiler's documented browser API necessarily sends its public key
+   in upstream `key=` request parameters; the key must therefore be ephemeral,
+   exact-origin restricted, absent from the harness/navigation URL and retained
+   artifacts, and revoked after verification.
 3. Run the same six synthetic Colombian fixtures, styles, viewports, DPRs,
    accessibility/layout checks, request accounting, cache/network diagnostics,
    and coordinate-leak assertions for both providers. A missing/failed cell fails

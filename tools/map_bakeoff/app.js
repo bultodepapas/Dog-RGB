@@ -24,12 +24,17 @@ function queryOptions() {
 
 function styleFor(provider) {
   if (provider.style) return provider.style;
-  const hash = new URLSearchParams(location.hash.slice(1));
-  const key = hash.get("key");
+  const credentials = globalThis.__dogRgbEphemeralProviderCredentials;
+  const key = credentials?.mapTilerKey;
+  Reflect.deleteProperty(globalThis, "__dogRgbEphemeralProviderCredentials");
   if (!key || !/^[A-Za-z0-9_-]{8,256}$/.test(key)) {
-    throw new Error("MapTiler requires a temporary testing key in the URL fragment: #key=<key>");
+    throw new Error("MapTiler requires DOG_RGB_MAPTILER_KEY in credentialed runner mode");
   }
   return `https://api.maptiler.com/maps/${provider.maptilerStyle}/style.json?key=${encodeURIComponent(key)}`;
+}
+
+function publicFailureMessage(provider) {
+  return `${provider.name} did not authenticate or load. Inspect the sanitized evidence manifest.`;
 }
 
 function formatDuration(seconds) {
@@ -260,6 +265,14 @@ async function start() {
 start().catch((error) => {
   const target = document.querySelector("#fatal-error");
   target.hidden = false;
-  target.textContent = error instanceof Error ? error.message : String(error);
+  let provider = null;
+  try {
+    provider = queryOptions().provider;
+  } catch {
+    // Invalid public query options are safe to report verbatim below.
+  }
+  target.textContent = provider
+    ? publicFailureMessage(provider)
+    : (error instanceof Error ? error.message : String(error));
   document.documentElement.dataset.ready = "error";
 });

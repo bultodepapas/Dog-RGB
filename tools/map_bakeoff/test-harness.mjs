@@ -5,6 +5,14 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  assertNoSecretMaterial,
+  environmentWithoutProviderCredentials,
+  redactText,
+  requestDescriptor,
+  sanitizeForEvidence,
+  validateEvidenceRunId,
+} from "./evidence-security.mjs";
+import {
   FIXTURE_VERSION,
   PROVIDERS,
   SCENARIOS,
@@ -82,4 +90,54 @@ test("executable harness sources do not contain a committed provider secret", as
   )).join("\n");
   assert.doesNotMatch(source, /(?:pk|sk)\.[A-Za-z0-9_-]{16,}/);
   assert.doesNotMatch(source, /(?:api[_-]?key|access[_-]?token)\s*[:=]\s*["'][A-Za-z0-9_-]{8,}/i);
+});
+
+test("ephemeral provider secrets are recursively redacted before evidence persistence", () => {
+  const secret = "temporary_MapTiler_key_123456";
+  const source = {
+    direct: `failure for ${secret}`,
+    encoded: `https://api.maptiler.com/style.json?key=${encodeURIComponent(secret)}`,
+    nested: [{ message: secret }],
+  };
+  const sanitized = sanitizeForEvidence(source, [secret]);
+  assert.doesNotMatch(JSON.stringify(sanitized), new RegExp(secret));
+  assert.match(sanitized.direct, /\[REDACTED\]/);
+  assert.match(sanitized.encoded, /key=\[REDACTED\]/);
+  assert.doesNotThrow(() => assertNoSecretMaterial(sanitized, [secret]));
+  assert.throws(() => assertNoSecretMaterial(source, [secret]), /Refusing to persist/);
+  assert.equal(redactText(`prefix-${secret}-suffix`, [secret]), "prefix-[REDACTED]-suffix");
+});
+
+test("request evidence strips query strings, fragments, and credentials", () => {
+  assert.deepEqual(
+    requestDescriptor("https://api.maptiler.com/maps/test/style.json?key=secret-value#fragment"),
+    { origin: "https://api.maptiler.com", pathname: "/maps/test/style.json" },
+  );
+});
+
+test("the static server child environment cannot inherit the MapTiler key", () => {
+  const environment = environmentWithoutProviderCredentials({
+    PATH: "example",
+    DOG_RGB_MAPTILER_KEY: "temporary-secret",
+    DOG_RGB_MAP_ALLOWED_ORIGIN: "http://allowed.test:4174",
+    DOG_RGB_MAP_REJECTED_ORIGIN: "http://rejected.test:4174",
+    DOG_RGB_MAP_EVIDENCE_RUN_ID: "2026-08-18-test-01",
+  });
+  assert.deepEqual(environment, { PATH: "example" });
+});
+
+test("evidence run IDs are explicit, dated, and path-safe", () => {
+  assert.equal(validateEvidenceRunId("2026-08-18-credentialed-01"), "2026-08-18-credentialed-01");
+  for (const invalid of ["", "2026-08-18", "../overwrite", "2026-08-18/escape", "2026-08-18-UPPER"]) {
+    assert.throws(() => validateEvidenceRunId(invalid), /filesystem-safe unique ID/);
+  }
+});
+
+test("browser credential injection no longer uses the local page URL", async () => {
+  const appSource = await readFile(join(root, "app.js"), "utf8");
+  const runnerSource = await readFile(join(root, "capture-evidence.mjs"), "utf8");
+  assert.doesNotMatch(appSource, /location\.(?:search|hash).*key|#key=/);
+  assert.doesNotMatch(runnerSource, /URLSearchParams\([\s\S]{0,200}mapTilerKey/);
+  assert.match(runnerSource, /context\.addInitScript/);
+  assert.match(runnerSource, /assertNoSecretMaterial\(sanitizedManifest/);
 });
