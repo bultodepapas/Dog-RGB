@@ -332,6 +332,8 @@ select is(
     'telemetry_points', 0, 'telemetry_loss_markers', 0,
     'device_daily_summaries', 0, 'config_revisions', 0,
     'config_resource_heads', 0, 'config_reported', 0, 'config_hlc_state', 0,
+    'telemetry_retention_watermarks', 0, 'retention_jobs', 0,
+    'retention_receipts', 0,
     'recording_summaries', 0
   ),
   'finalization leaves every dog-scoped active data class empty'

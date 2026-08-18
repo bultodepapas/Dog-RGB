@@ -103,7 +103,10 @@ Users can later choose a shorter raw-location retention. Longer retention is nev
 
 ## Implementation and acceptance gates
 
-Current firmware metrics exist; the cloud vocabulary, retention jobs, and UI are **not implemented**. Acceptance requires:
+Current firmware metrics exist. A bounded, replay-safe raw-telemetry retention
+primitive is locally implemented but deliberately unscheduled; the broader
+retention classes, hosted operation, cloud vocabulary/analytics, and UI are not
+complete. Acceptance requires:
 
 1. golden stationary/moving/poor-fix/outage datasets with published expected interval partitions;
 2. proof that no gap/offline interval becomes route or inactive time;

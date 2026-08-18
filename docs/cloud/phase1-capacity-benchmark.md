@@ -1,9 +1,10 @@
 # Phase 1 migrated-schema capacity evidence
 
-**Status:** Local and clean Ubuntu runner gates passed; disposable
-hosted-project and concurrent network evidence remain open.
+**Status:** Current local gate and the preceding clean Ubuntu runner gate
+passed; the retention-schema delta has not yet run in CI. Disposable hosted
+project and concurrent network evidence remain open.
 
-**Measured:** 2026-08-17.
+**Measured:** Original/CI 2026-08-17; retention-schema rerun 2026-08-18.
 
 **Fixture:** 1,000,000 semantically valid Track v3-shaped observations across
 two collars.
@@ -13,9 +14,11 @@ two collars.
 ## Outcome
 
 The actual Phase 1 `api.telemetry_points` table remains below the accepted
-Phase 0 no-GiST storage baseline plus 20%. It occupies **323.78 bytes/point**,
-an 18.25% increase over 273.80 bytes/point. The increase includes the real
-generated PostGIS geography and the ingest/reconciliation chunk index.
+Phase 0 no-GiST storage baseline plus 20%. The current ten-migration schema
+occupies **323.79 bytes/point**, an 18.26% increase over 273.80 bytes/point.
+The increase includes the real generated PostGIS geography, the
+ingest/reconciliation chunk index, and an 8 KiB partial retention fallback
+index.
 
 The first capacity run also found a serious RLS plan defect: the original
 policy resolved collar ownership once per candidate point. A 17,280-point day
@@ -24,6 +27,14 @@ statement timeout. Migration `20260818001742_optimize_telemetry_rls.sql`
 preserves the collar membership policy but materializes the caller-visible
 collar set once as a hashed subplan. With the same fixture, the day query fell
 to 11.97 ms and the month query to 328.70 ms.
+
+The first retention implementation attempted a full functional cutoff index.
+It added 82,427,904 bytes and produced **406.21 bytes/point**, correctly failing
+the gate. The accepted design reuses the existing collar/time index for normal
+timestamps and indexes only unknown/implausibly-future fallback rows. The same
+review also found that PostgreSQL 17 ignored `\quit 3/4` arguments in the SQL
+runner; failed gates now raise SQL exceptions and cannot return a false green
+status.
 
 This is acceptance evidence for the local schema and access paths. It is not a
 hosted latency SLO, a billing quote, or authorization to enable raw-data purge.
@@ -49,8 +60,10 @@ The Ubuntu runner reproduced the exact 323,780,608-byte total and reported:
 | Bbox diagnostic without GiST | 283.90 ms |
 | Non-member exact lookup | 0.38 ms, zero rows |
 
-The match closes the clean-runner reproducibility gate for this schema. It does
-not replace the still-open hosted service/network/concurrency measurement.
+That match closed clean-runner reproducibility for the pre-retention schema.
+The 8 KiB retention delta and fail-closed runner correction still require their
+own clean CI execution; neither replaces the open hosted
+service/network/concurrency measurement.
 
 ## Reproduction boundary
 
@@ -86,8 +99,9 @@ must not be labelled controlled cold-cache results.
 | Composite primary key | 69,877,760 | 67 MiB |
 | Collar/time B-tree | 69,754,880 | 67 MiB |
 | Collar/boot/chunk B-tree | 9,764,864 | 9.3 MiB |
-| Total | 323,780,608 | 309 MiB |
-| Total per point | 323.78 | — |
+| Unknown/future-time partial retention B-tree | 8,192 | 8 KiB |
+| Total | 323,788,800 | 309 MiB |
+| Total per point | 323.79 | — |
 
 No GiST index exists. The Phase 0 comparison showed that an unproven spatial
 index adds roughly 64–68 bytes/point and would exceed this gate. Ordinary route
@@ -113,11 +127,11 @@ a 500 MiB development database.
 
 | Query | Rows/result shape | Before RLS fix | After RLS fix | Resulting access path |
 | --- | ---: | ---: | ---: | --- |
-| Local-day aggregate | 17,280 | 2,349.56 ms | 11.97 ms | collar/time bitmap scan + one hashed visible-collar subplan |
-| Thirty-day aggregate | 500,000 available | >60,000 ms, timed out | 328.70 ms | bounded collar scan; one hashed visible-collar subplan |
-| Recording keyset page | 2,000 | not accepted | 1.36 ms | composite PK index scan |
-| Bogotá bbox, no GiST | 45,667 matches of 500,000 | not accepted | 433.94 ms | collar index then geography filter |
-| Non-member exact guessed point | zero visible | not accepted | 0.33 ms | PK index-only scan; RLS removes the row |
+| Local-day aggregate | 17,280 | 2,349.56 ms | 8.20 ms | collar/time bitmap scan + one hashed visible-collar subplan |
+| Thirty-day aggregate | 500,000 available | >60,000 ms, timed out | 277.68 ms | bounded collar scan; one hashed visible-collar subplan |
+| Recording keyset page | 2,000 | not accepted | 1.06 ms | composite PK index scan |
+| Bogotá bbox, no GiST | 45,667 matches of 500,000 | not accepted | 272.01 ms | collar index then geography filter |
+| Non-member exact guessed point | zero visible | not accepted | 0.37 ms | PK index-only scan; RLS removes the row |
 
 The bbox result is diagnostic, not a reason to add GiST: product route pages do
 not currently issue bbox SQL. The non-member check uses the exact primary-key
@@ -126,9 +140,11 @@ continues to prove anonymous and cross-user isolation independently.
 
 ## Retention consequences
 
-- Keep the proposed 12-month raw default as policy input, not as an active
-  deletion job. Pairing consent, export/delete propagation, backup-lag copy,
-  and destructive-flow tests remain mandatory before purge activation.
+- Keep the proposed 12-month raw default as policy input. The bounded local
+  worker and anti-resurrection watermark are implemented, but no schedule is
+  active. Pairing consent, export/delete propagation, hosted load/monitoring,
+  backup-lag copy, and destructive-flow tests remain mandatory before purge
+  activation.
 - Keep summaries until dog/account deletion as proposed; they are not included
   in the raw-point projection.
 - Keep the 30-day sync-receipt proposal inactive until the eventual firmware's

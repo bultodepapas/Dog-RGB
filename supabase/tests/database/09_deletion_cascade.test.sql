@@ -84,9 +84,12 @@ select results_eq(
       ('private.device_credentials'),
       ('private.device_daily_summaries'),
       ('private.dirty_summary_days'),
+      ('private.retention_jobs'),
+      ('private.retention_receipts'),
       ('private.sync_requests'),
       ('private.telemetry_chunks'),
-      ('private.telemetry_loss_markers')
+      ('private.telemetry_loss_markers'),
+      ('private.telemetry_retention_watermarks')
   $$,
   'the explicit deletion fixture covers every table in the dog cascade graph'
 );
@@ -308,6 +311,41 @@ insert into private.config_hlc_state (collar_id, physical_ms, logical)
 select collar_id, 1786968000000, 0
 from deletion_fixture;
 
+insert into private.telemetry_retention_watermarks (
+  collar_id, reject_at_or_before, purged_at_or_before
+)
+select collar_id, '2025-08-17 00:00:00+00', '2025-08-17 00:00:00+00'
+from deletion_fixture;
+
+insert into private.retention_jobs (
+  id, data_class, collar_id, cutoff, status, stage,
+  telemetry_points_deleted, telemetry_chunks_deleted, attempt_count,
+  requested_at, last_attempt_at, next_attempt_at, completed_at
+)
+select
+  case when is_delete_target
+    then 'aa000000-0000-4000-8000-000000000001'::uuid
+    else 'aa000000-0000-4000-8000-000000000002'::uuid
+  end,
+  'raw_telemetry_v1', collar_id, '2025-08-17 00:00:00+00',
+  'completed', 'completed', 1, 1, 1,
+  '2026-08-17 00:00:00+00', '2026-08-17 00:00:00+00',
+  '2026-08-17 00:00:00+00', '2026-08-17 00:00:00+00'
+from deletion_fixture;
+
+insert into private.retention_receipts (
+  job_id, completed_at, cutoff, telemetry_points_deleted,
+  telemetry_chunks_deleted, receipt_sha256
+)
+select
+  case when is_delete_target
+    then 'aa000000-0000-4000-8000-000000000001'::uuid
+    else 'aa000000-0000-4000-8000-000000000002'::uuid
+  end,
+  '2026-08-17 00:00:00+00', '2025-08-17 00:00:00+00', 1, 1,
+  extensions.digest(('retention-receipt-' || collar_id)::bytea, 'sha256')
+from deletion_fixture;
+
 create function pg_temp.dog_graph_counts(p_dog_id uuid)
 returns jsonb
 language sql
@@ -332,6 +370,15 @@ as $$
     'config_resource_heads', (select count(*) from api.config_resource_heads row_value join api.collars collar on collar.id = row_value.collar_id where collar.dog_id = p_dog_id),
     'config_reported', (select count(*) from api.config_reported row_value join api.collars collar on collar.id = row_value.collar_id where collar.dog_id = p_dog_id),
     'config_hlc_state', (select count(*) from private.config_hlc_state row_value join api.collars collar on collar.id = row_value.collar_id where collar.dog_id = p_dog_id),
+    'telemetry_retention_watermarks', (select count(*) from private.telemetry_retention_watermarks row_value join api.collars collar on collar.id = row_value.collar_id where collar.dog_id = p_dog_id),
+    'retention_jobs', (select count(*) from private.retention_jobs row_value join api.collars collar on collar.id = row_value.collar_id where collar.dog_id = p_dog_id),
+    'retention_receipts', (
+      select count(*)
+      from private.retention_receipts row_value
+      join private.retention_jobs job on job.id = row_value.job_id
+      join api.collars collar on collar.id = job.collar_id
+      where collar.dog_id = p_dog_id
+    ),
     'recording_summaries', (
       select count(*)
       from api.recording_summaries row_value
@@ -379,6 +426,9 @@ as $$
     'config_resource_heads', p_count,
     'config_reported', p_count,
     'config_hlc_state', p_count,
+    'telemetry_retention_watermarks', p_count,
+    'retention_jobs', p_count,
+    'retention_receipts', p_count,
     'recording_summaries', p_count
   )
 $$;

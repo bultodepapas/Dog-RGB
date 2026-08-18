@@ -164,7 +164,10 @@ from api.telemetry_points
   \echo 'PASS: bytes/point remains within the Phase 0 +20% capacity ceiling.'
 \else
   \echo 'FAIL: bytes/point exceeded the Phase 0 +20% capacity ceiling.'
-  \quit 3
+  do $$ begin
+    raise exception using errcode = 'P0001',
+      message = 'phase1_capacity_bytes_per_point_exceeded';
+  end $$;
 \endif
 
 \echo 'Owner RLS: one local-day aggregate (17,280 five-second points)'
@@ -248,7 +251,10 @@ where collar_id = '41000000-0000-4000-8000-000000000001'::uuid
   \echo 'PASS: the non-member sees zero capacity-fixture points.'
 \else
   \echo 'FAIL: cross-user RLS exposed capacity-fixture points.'
-  \quit 4
+  do $$ begin
+    raise exception using errcode = 'P0001',
+      message = 'phase1_capacity_cross_user_isolation_failed';
+  end $$;
 \endif
 
 reset role;

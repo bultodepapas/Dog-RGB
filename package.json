@@ -35,7 +35,7 @@
     "portal:build": "npm run build --workspace @dog-rgb/portal",
     "lint": "npm run lint --workspace @dog-rgb/portal",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test:unit": "npm run contracts:test && npm run test --workspace @dog-rgb/analytics && npm run test --workspace @dog-rgb/device-simulator",
+    "test:unit": "npm run contracts:test && npm run test --workspace @dog-rgb/analytics && npm run test --workspace @dog-rgb/device-simulator && node --test tools/cloud_capacity/*.test.mjs",
     "cloud:db:reset": "supabase db reset",
     "cloud:test:db": "supabase test db",
     "cloud:functions": "supabase functions serve --env-file supabase/functions/.env.example",

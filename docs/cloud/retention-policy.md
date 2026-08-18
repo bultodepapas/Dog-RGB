@@ -1,8 +1,10 @@
 # Cloud retention and deletion policy
 
-**Status:** Phase 0 accepted default, 2026-08-13. The local Phase 1 cascade and
-explicit owner-requested dog-job primitives are tested; export/user UI, account
-deletion, scheduled retention enforcement, and hosted replay remain unimplemented.
+**Status:** Phase 0 accepted default, updated 2026-08-18. The local Phase 1
+cascade, explicit owner-requested dog deletion, and bounded raw-telemetry
+retention primitives are tested. No retention schedule is activated; export/user
+UI, account deletion, other policy classes, hosted load, and backup replay remain
+unimplemented gates.
 
 This operational policy implements [ADR-0010](../adr/0010-retention-and-truthful-activity-vocabulary.md). It is a launch input, not a claim that Supabase/Vercel currently contain or delete Dog-RGB data.
 
@@ -77,9 +79,14 @@ cross-dog survival, profile/membership cleanup, and retained-audit anonymization
 It also verifies a narrow owner-requested dog tombstone/job, immediate ingress
 revocation and access closure, bounded `SKIP LOCKED` raw-point batches,
 failure/retry, exact concurrent replay, and coordinate-free completion receipts.
-It deliberately does not activate automatic retention: export, strong-confirmation
-UI/account orchestration, scheduled expiry purges, tombstone export/replay and
-isolated hosted restore remain gates.
+The local [raw-telemetry retention drill](phase1-retention-drill.md) separately
+proves inclusive cutoff boundaries, unknown/future-time fallback, leap-day
+calendar arithmetic, bounded point/chunk stages, rollback/retry, a per-collar
+anti-resurrection watermark, deletion-race serialization, and coordinate-free
+receipts. It deliberately does not activate automatic retention: export,
+strong-confirmation UI/account orchestration, reviewed hosted scheduling/load,
+the other policy classes, tombstone export/replay, and isolated hosted restore
+remain gates.
 
 The [Phase 1 restore drill](phase1-restore-drill.md) separately proves that the
 complete synthetic local database can be restored into isolation with identical

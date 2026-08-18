@@ -1,9 +1,9 @@
 # Phase 1 deletion workflow drill
 
-**Status:** Local cascade and owner-authorized dog-job primitives verified on
-2026-08-17. No user-facing delete UI, export, account-deletion workflow,
-scheduled retention purge, hosted backup restore, or production-data deletion is
-enabled by this evidence.
+**Status:** Local cascade and owner-authorized dog-job primitives verified and
+extended on 2026-08-18. No user-facing delete UI, export, account-deletion
+workflow, scheduled retention purge, hosted backup restore, or production-data
+deletion is enabled by this evidence.
 
 ## Result
 
@@ -48,7 +48,7 @@ direct table access.
   replay;
 - verifies a current owner inside the transaction;
 - waits for credential-locked sync work, then revokes credentials and collars;
-- snapshots counts for all 18 active dog-scoped data classes without copying
+- snapshots counts for all 21 active dog-scoped data classes without copying
   row contents;
 - inserts the tombstone and job before setting `deleted_at` and removing every
   membership, closing both RLS and membership-backed RPC authorization paths.
@@ -94,8 +94,9 @@ claim immediate deletion from backups or durable recoverability.
   artifact cleanup;
 - strong confirmation plus recent-session/reauthentication UX, and the analogous
   account-deletion orchestration around Supabase Auth;
-- bounded retention purges with cutoff-boundary, retry, crash, and ingestion-load
-  tests, followed by an explicitly reviewed Cron schedule;
+- hosted concurrency/ingestion-load validation and an explicitly reviewed Cron
+  schedule for the locally tested raw-telemetry worker, plus bounded workers for
+  the remaining retention classes;
 - deletion-tombstone export and replay into an isolated hosted restore; the
   [local logical restore drill](phase1-restore-drill.md) verifies the underlying
   backup/manifests/RLS but cannot substitute this hosted replay;
@@ -104,4 +105,6 @@ claim immediate deletion from backups or durable recoverability.
 
 Automatic raw telemetry or sync-receipt retention deletion therefore remains
 disabled. The dog worker is reachable only after an explicit owner request; it
-is not a retention scheduler.
+is not a retention scheduler. The separate
+[raw-telemetry retention drill](phase1-retention-drill.md) is local execution
+evidence only and installs no Cron job.
