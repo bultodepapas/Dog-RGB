@@ -1,14 +1,14 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 and M1.1–M1.5 are complete on reviewed local and CI evidence, and M1.6 is next.
+**Status:** Active implementation contract; M0 and M1.1–M1.5 are complete on reviewed local and CI evidence, and M1.6 is in progress.
 
 **Last senior review:** 2026-08-25 (America/Bogota).
 
 **Reviewed repository commit:** `548d5d4ebdc3e42b614c39ced8c950ebd8e5e2d1` (`main`; GitHub CI run [`32872298597`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32872298597) passed every required job).
 
-**Current milestone:** M1B — Dog, collar, and claim flow; M1.1–M1.5 are complete and M1.6 is next.
+**Current milestone:** M1B — Dog, collar, and claim flow; M1.1–M1.5 are complete and M1.6 is in progress.
 
-**Next executable task:** complete only M1.6 claim-code generation through the existing authenticated user Edge Function. Show the raw code once, retain only its digest, enforce the existing 15-minute TTL plus verified-email and owner/editor gates, and prove denial/expiry behavior without exposing credentials in logs or artifacts. Do not pair the simulator, add collar-management UI, change the claim protocol, or begin M1.7+ behavior.
+**Next executable task:** finish only M1.6 on `/app/{dogId}/collars`: authorize `write` in the Server Action, invoke the existing `user-v1-issue-claim` Edge Function with the request-scoped user session, validate the exact response contract, and show the 16-character raw code only in ephemeral action state. Prove the 15-minute TTL, digest-only persistence, verified-email and owner/editor gates, one-active-claim behavior, safe failures, and no code exposure in URL/storage/log artifacts. Do not consume the code, pair the simulator, create collar rows, add diagnostics/revocation, change the protocol, or begin M1.7+ behavior.
 
 **Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
@@ -385,8 +385,17 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Evidence artifact or command: 48/48 portal tests; 23 focused create-dog pgTAP assertions and 273/273 total assertions; `npm run phase1:check`; clean `npm run phase1:local -- --clean` with pinned Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0`; `npm run cloud:types:check`; `npm run portal:build`; Next.js `/_next/mcp` runtime/compilation checks; browser proof for direct onboarding, keyboard validation, real double-click yielding exactly one dog/owner pair, protected Today redirect and refresh, logout/back, stale-session fail-closed login with no row, and forced-RPC-failure generic message with no row; desktop, mobile, and error-state Lighthouse accessibility 100 plus manual keyboard/focus/label/target/overflow checks; GitHub CI run [`32872298597`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32872298597)
   - Decision/result: PASS; one authenticated account created exactly one tested dog and owner-membership pair through the sole transactional RPC, with a normalized 1–80-code-point name, fixed `America/Bogota` timezone, unchanged metric profile default, fresh Auth verification on the same request-scoped client, canonical returned UUID, and no browser table inserts; denial, invalid input, stale Auth, malformed/RPC failure, forced membership rollback, and rapid double submission create no partial or duplicate tested row
 - [ ] M1.6 Generate a claim code through the existing authenticated user Edge Function.
-  - Raw code shown once; 15-minute TTL; server stores digest only; verified email and owner/editor membership required.
-  - Evidence: ____________________
+  - Hard scope: replace only the Collares placeholder with a Spanish-first issuance surface. Owners and editors may generate; viewers see a truthful read-only boundary. Do not add claim-code input, simulator/device pairing, collar rows, diagnostics, revocation, Realtime, or M1.7 behavior.
+  - Mutation boundary: treat the hidden `dogId` and Edge response as untrusted. The Server Action validates the identifier, independently requires M1.3 `write` access, creates a request UUID, then invokes only `user-v1-issue-claim` with the request-scoped SSR client/user token. The Edge Function performs a fresh Auth `getUser()` check, requires verified email, and calls only the service-role `api.issue_device_claim_v1` RPC; no service key enters Next.js or the browser.
+  - Secret boundary: return the raw 16-character Crockford code only in successful Server Action state. Never put it in a URL, cookie, local/session storage, cache, analytics, console/server log, retained screenshot, or test artifact. Render it once until refresh/navigation; persist only its 32-byte HMAC digest. Do not add a recovery/read-back endpoint.
+  - Database boundary: retain the existing 900-second maximum TTL, five-attempt maximum, database-owned hourly limit, one-active-claim-per-dog invariant, owner/editor membership check, private table, and service-role-only RPC grant. Add a migration only if a failing contract test proves one of these invariants is absent.
+  - Failure behavior: invalid/stale Auth follows the protected login boundary where applicable; viewer/non-member/forged IDs fail closed; unverified email, active claim, rate limit, malformed response, and Edge/RPC failure expose only bounded Spanish guidance and never internal identifiers or database details. A failed issue attempt does not persist a raw code or create a claim row unless the RPC committed successfully.
+  - UI copy decision: title `Genera un código temporal.`; boundary `UN SOLO USO · 15 MINUTOS`; submit/pending `Generar código` / `Generando…`; success label `CÓDIGO TEMPORAL`; generic failure `No pudimos generar el código. Inténtalo de nuevo.`; viewer boundary `SOLO PROPIETARIO O EDITOR`; warn before issuance that only one code may remain active and, after success, that leaving or refreshing permanently removes the visible code.
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: current M1.6 change
+  - Implementation commit/PR: pending
+  - Evidence artifact or command: pending focused action/response-parser tests; raw Edge/SQL proof for owner and editor success, viewer/non-member/anonymous/unverified/stale denial, exact TTL, digest-only persistence, one active claim, rate limit, expiry, and safe error bodies; browser proof for keyboard issue, ephemeral one-time display, refresh/navigation removal, double submission, viewer boundary, privacy/storage/URL/log checks; `npm run phase1:check`; clean local gate; type drift; production build; Next.js runtime checks; accessibility; CI
+  - Decision/result: IN PROGRESS; leave unmarked until one authorized user sees one contract-valid raw code once, only its digest exists in the database, every denial/privacy gate passes, and no M1.7 pairing behavior is introduced
 - [ ] M1.7 Pair the simulator by exact replay-safe claim flow.
   - Lost claim response followed by exact retry must link one collar and one credential.
   - Evidence: ____________________

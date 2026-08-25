@@ -40,6 +40,8 @@ export function problem(error: unknown, requestId: string | null = null): Respon
   if (value.status === 401) {
     headers["www-authenticate"] = value.code === "claim_unavailable"
       ? 'DogRGBClaim realm="dog-rgb-pairing"'
+      : value.code === "authentication_required"
+      ? 'Bearer realm="dog-rgb-user"'
       : 'Bearer realm="dog-rgb-device"';
   }
   return Response.json({
@@ -462,12 +464,16 @@ export async function serviceRpc(
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export function isUuidV4(value: unknown): value is string {
+  return typeof value === "string" && UUID_V4.test(value);
+}
+
 export function requestIdFrom(body: Record<string, unknown>): string | null {
-  return typeof body.request_id === "string" && UUID_V4.test(body.request_id) ? body.request_id : null;
+  return isUuidV4(body.request_id) ? body.request_id : null;
 }
 
 export function assertProtocolRequest(body: Record<string, unknown>): { requestId: string } {
-  if (body.protocol_version !== 1 || typeof body.request_id !== "string" || !UUID_V4.test(body.request_id)) {
+  if (body.protocol_version !== 1 || !isUuidV4(body.request_id)) {
     throw new HttpProblem(422, "unsupported_protocol", "Unsupported protocol version", "Protocol version 1 and a UUIDv4 request_id are required.");
   }
   return { requestId: body.request_id };

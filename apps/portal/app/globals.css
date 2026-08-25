@@ -301,6 +301,40 @@ button:disabled { cursor: wait; opacity: .62; }
   line-height: 1.5;
 }
 .workspace-boundary strong { color: var(--gold); letter-spacing: .06em; }
+.claim-boundary { max-width: 600px; }
+.claim-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.claim-form p { margin: 0; }
+.claim-form button { width: min(280px, 100%); }
+.claim-result,
+.claim-read-only {
+  display: grid;
+  gap: .75rem;
+}
+.claim-result {
+  margin-top: 1rem;
+  border: 1px solid var(--green-muted);
+  border-radius: 3px;
+  padding: clamp(18px, 4vw, 28px);
+  background: #041507;
+}
+.claim-result:focus {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+.claim-result p { margin: 0; color: var(--text); }
+.claim-code {
+  overflow-wrap: anywhere;
+  color: var(--green);
+  font-size: clamp(1.55rem, 6vw, 2.7rem);
+  font-weight: 800;
+  letter-spacing: .14em;
+  line-height: 1.2;
+  user-select: all;
+}
 .private-footer {
   display: flex;
   width: min(1180px, calc(100% - 32px));

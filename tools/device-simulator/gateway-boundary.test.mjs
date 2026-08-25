@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import {
   boundedJson,
   HttpProblem,
+  isUuidV4,
   problem,
   validateSyncSemantics,
 } from "../../supabase/functions/_shared/gateway.ts";
@@ -89,6 +90,16 @@ test("problem responses include required method and authentication metadata", ()
 
   const auth = problem(new HttpProblem(401, "device_credential_invalid", "Invalid", "Invalid."));
   assert.equal(auth.headers.get("www-authenticate"), 'Bearer realm="dog-rgb-device"');
+
+  const userAuth = problem(new HttpProblem(401, "authentication_required", "Required", "Required."));
+  assert.equal(userAuth.headers.get("www-authenticate"), 'Bearer realm="dog-rgb-user"');
+});
+
+test("UUID validation accepts only canonical version 4 identifiers", () => {
+  assert.equal(isUuidV4("11111111-1111-4111-8111-111111111111"), true);
+  assert.equal(isUuidV4("11111111-1111-5111-8111-111111111111"), false);
+  assert.equal(isUuidV4("11111111-1111-4111-c111-111111111111"), false);
+  assert.equal(isUuidV4("not-a-uuid"), false);
 });
 
 test("sync semantics reject overlapping point ranges before persistence", async () => {

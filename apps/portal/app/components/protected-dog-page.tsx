@@ -15,12 +15,6 @@ const SECTION_CONTENT = {
     description:
       "La lista paginada se habilitará cuando su lectura y sus estados de cobertura tengan evidencia completa.",
   },
-  collars: {
-    eyebrow: "COLLARES / ESTRUCTURA PREPARADA",
-    title: "La gestión del collar aún no está habilitada.",
-    description:
-      "Vinculación, diagnóstico y revocación pertenecen a subfases posteriores. Esta pantalla no expone credenciales ni datos del dispositivo.",
-  },
   configuration: {
     eyebrow: "CONFIGURACIÓN / ESTRUCTURA PREPARADA",
     title: "Los ajustes remotos siguen bloqueados.",
@@ -28,13 +22,13 @@ const SECTION_CONTENT = {
       "Brillo será el primer ajuste web. Permanecerá pendiente hasta que el collar reporte la versión exacta aplicada.",
   },
 } as const satisfies Record<
-  DogAppSection,
+  Exclude<DogAppSection, "collars">,
   Readonly<{ eyebrow: string; title: string; description: string }>
 >;
 
 type ProtectedDogPageProps = Readonly<{
   dog: DogSummaryDto;
-  section: DogAppSection;
+  section: Exclude<DogAppSection, "collars">;
 }>;
 
 export function ProtectedDogPage({
