@@ -15,6 +15,11 @@ import type {
   TodayRecordingRecord,
   TodayRecordingSummaryRecord,
 } from "./today-core";
+import {
+  HISTORY_QUERY_LIMIT,
+  type HistoryCursor,
+  type HistoryRecordingRecord,
+} from "./history-core";
 
 export {
   DOG_ROLES,
@@ -33,6 +38,16 @@ export {
   type TodayRecordingTimeQuality,
   type TodaySnapshotDto,
 } from "./today-core";
+export {
+  HISTORY_CLOCK_QUALITIES,
+  HISTORY_CURSOR_MAX_LENGTH,
+  HISTORY_PAGE_SIZE,
+  HISTORY_QUERY_LIMIT,
+  HISTORY_RECORDING_STATES,
+  type HistoryPageDto,
+  type HistoryRecordingState,
+  type HistoryRecordingTimeQuality,
+} from "./history-core";
 
 type MembershipRow = Pick<
   Database["api"]["Tables"]["dog_memberships"]["Row"],
@@ -79,6 +94,16 @@ type TodayRecordingSummaryRow = Pick<
   | "algorithm_version"
   | "computed_at"
 >;
+
+type HistoryRecordingRow = Pick<
+  Database["api"]["Tables"]["recordings"]["Row"],
+  "id" | "collar_id" | "started_at" | "state" | "point_count" | "clock_quality"
+> & Readonly<{
+  collar: Pick<
+    Database["api"]["Tables"]["collars"]["Row"],
+    "id" | "dog_id" | "display_name"
+  > | null;
+}>;
 
 type ServerSupabaseClient = Awaited<
   ReturnType<typeof createServerSupabaseClient>
@@ -263,6 +288,51 @@ async function findRecordingSummary(
   return data satisfies TodayRecordingSummaryRow | null;
 }
 
+async function listHistoryRecordings(
+  client: ServerSupabaseClient,
+  dogId: string,
+  cursor: HistoryCursor | null,
+): Promise<HistoryRecordingRecord[]> {
+  let query = client
+    .from("recordings")
+    .select(
+      "id, collar_id, started_at, state, point_count, clock_quality, collar:collars!recordings_collar_id_fkey!inner(id, dog_id, display_name)",
+    )
+    .eq("collar.dog_id", dogId);
+
+  if (cursor?.bucket === "known") {
+    // The raw PostgREST expression is assembled only from the strictly decoded,
+    // normalized timestamp and canonical UUID; raw search input never reaches it.
+    query = query.or(
+      `started_at.lt.${cursor.startedAt},and(started_at.eq.${cursor.startedAt},id.lt.${cursor.id}),started_at.is.null`,
+    );
+  } else if (cursor?.bucket === "unknown") {
+    query = query.is("started_at", null).lt("id", cursor.id);
+  }
+
+  const { data, error } = await query
+    .order("started_at", { ascending: false, nullsFirst: false })
+    .order("id", { ascending: false })
+    .limit(HISTORY_QUERY_LIMIT);
+
+  if (error) {
+    throw unavailable();
+  }
+
+  const rows = (data ?? []) as unknown as HistoryRecordingRow[];
+  return rows.map((row) => ({
+    id: row.id,
+    collar_id: row.collar_id,
+    joined_collar_id: row.collar?.id,
+    dog_id: row.collar?.dog_id,
+    collar_display_name: row.collar?.display_name,
+    started_at: row.started_at,
+    state: row.state,
+    point_count: row.point_count,
+    clock_quality: row.clock_quality,
+  })) as HistoryRecordingRecord[];
+}
+
 const dependencies: DogDataDependencies<ServerSupabaseClient> = {
   createClient: createServerSupabaseClient,
   getFreshUserId,
@@ -275,6 +345,7 @@ const dependencies: DogDataDependencies<ServerSupabaseClient> = {
   findDailySummary,
   findLatestRecording,
   findRecordingSummary,
+  listHistoryRecordings,
 };
 
 // The singleton holds dependency functions only. It never retains a Supabase
@@ -284,4 +355,5 @@ const dogDataAccess = createDogDataAccess(dependencies);
 export const requireDogAccess = dogDataAccess.requireDogAccess;
 export const getDogSummary = dogDataAccess.getDogSummary;
 export const getTodaySnapshot = dogDataAccess.getTodaySnapshot;
+export const getHistoryPage = dogDataAccess.getHistoryPage;
 export const listDogSummaries = dogDataAccess.listDogSummaries;

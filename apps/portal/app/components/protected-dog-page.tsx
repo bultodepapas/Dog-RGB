@@ -3,12 +3,6 @@ import type { DogSummaryDto } from "../../lib/data-access/dogs";
 import { DogPrivateShell } from "./private-shell";
 
 const SECTION_CONTENT = {
-  history: {
-    eyebrow: "HISTORIAL / ESTRUCTURA PREPARADA",
-    title: "El historial aún no consulta grabaciones.",
-    description:
-      "La lista paginada se habilitará cuando su lectura y sus estados de cobertura tengan evidencia completa.",
-  },
   configuration: {
     eyebrow: "CONFIGURACIÓN / ESTRUCTURA PREPARADA",
     title: "Los ajustes remotos siguen bloqueados.",
@@ -16,13 +10,13 @@ const SECTION_CONTENT = {
       "Brillo será el primer ajuste web. Permanecerá pendiente hasta que el collar reporte la versión exacta aplicada.",
   },
 } as const satisfies Record<
-  Exclude<DogAppSection, "collars" | "today">,
+  Extract<DogAppSection, "configuration">,
   Readonly<{ eyebrow: string; title: string; description: string }>
 >;
 
 type ProtectedDogPageProps = Readonly<{
   dog: DogSummaryDto;
-  section: Exclude<DogAppSection, "collars" | "today">;
+  section: Extract<DogAppSection, "configuration">;
 }>;
 
 export function ProtectedDogPage({

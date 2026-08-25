@@ -117,7 +117,7 @@ test("every private leaf route is dynamic and awaits its own page guard", async 
   const routes = [
     ["../../app/onboarding/page.tsx", /await requireFreshPageIdentity/u],
     ["../../app/app/[dogId]/today/page.tsx", /await requireTodayPage/u],
-    ["../../app/app/[dogId]/history/page.tsx", /await requireDogPage/u],
+    ["../../app/app/[dogId]/history/page.tsx", /await requireHistoryPage/u],
     ["../../app/app/[dogId]/collars/page.tsx", /await requireDogPage/u],
     ["../../app/app/[dogId]/configuration/page.tsx", /await requireDogPage/u],
     [
@@ -247,4 +247,30 @@ test("Today leaf uses one composite guard and a server-rendered bounded view", a
   assert.match(view, /HORA DE INICIO NO DISPONIBLE/u);
   assert.doesNotMatch(view, /"use client"|setInterval|Realtime|\.from\(|lat_e7|lon_e7|paseo/iu);
   assert.doesNotMatch(view, /role="status"|aria-live/u);
+});
+
+test("History leaf uses one composite guard and rejects ambiguous cursor input", async () => {
+  const [page, guard, view] = await Promise.all([
+    readFile(
+      new URL("../../app/app/[dogId]/history/page.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("./route-guard.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../../app/components/history-ledger.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(page, /await requireHistoryPage\(/u);
+  assert.match(page, /searchParams\.cursor/u);
+  assert.doesNotMatch(page, /requireDogPage|getDogSummary|Array\.isArray/u);
+  assert.match(guard, /getHistoryPage\(dogId, cursor\)/u);
+  assert.match(view, /HORA DE INICIO NO DISPONIBLE/u);
+  assert.match(view, /VER MÁS GRABACIONES/u);
+  assert.match(view, /ENLACE NO VÁLIDO/u);
+  assert.doesNotMatch(
+    view,
+    /"use client"|role="status"|aria-live|Realtime|setInterval|recordingAppPath/iu,
+  );
 });

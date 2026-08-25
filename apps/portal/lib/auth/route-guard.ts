@@ -5,8 +5,10 @@ import { notFound, redirect } from "next/navigation";
 import {
   DogDataAccessError,
   getDogSummary,
+  getHistoryPage,
   getTodaySnapshot,
   type DogSummaryDto,
+  type HistoryPageDto,
   type TodaySnapshotDto,
 } from "../data-access/dogs";
 import {
@@ -42,6 +44,14 @@ export async function requireTodayPage(
   returnTo: string,
 ): Promise<TodaySnapshotDto> {
   return requireDogData(returnTo, () => getTodaySnapshot(dogId));
+}
+
+export async function requireHistoryPage(
+  dogId: string,
+  cursor: unknown,
+  returnTo: string,
+): Promise<HistoryPageDto> {
+  return requireDogData(returnTo, () => getHistoryPage(dogId, cursor));
 }
 
 async function requireDogData<Result>(

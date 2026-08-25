@@ -8,6 +8,15 @@ import {
   type TodayRecordingSummaryRecord,
   type TodaySnapshotDto,
 } from "./today-core.ts";
+import {
+  createHistoryPageDto,
+  createInvalidHistoryPageDto,
+  HistoryDataValidationError,
+  parseHistoryCursor,
+  type HistoryCursor,
+  type HistoryPageDto,
+  type HistoryRecordingRecord,
+} from "./history-core.ts";
 
 // Pure, dependency-injected policy kernel for direct tests. This module never
 // authenticates or queries data and is not an authorization boundary. Product
@@ -81,6 +90,11 @@ export type DogDataDependencies<Client> = Readonly<{
     client: Client,
     recordingId: string,
   ) => Promise<TodayRecordingSummaryRecord | null>;
+  listHistoryRecordings: (
+    client: Client,
+    dogId: string,
+    cursor: HistoryCursor | null,
+  ) => Promise<HistoryRecordingRecord[]>;
 }>;
 
 const ERROR_MESSAGES = {
@@ -161,6 +175,19 @@ function todaySnapshotDto(
     return createTodaySnapshotDto(input);
   } catch (error) {
     if (error instanceof TodayDataValidationError) {
+      throw unavailable();
+    }
+    throw error;
+  }
+}
+
+function historyPageDto(
+  input: Parameters<typeof createHistoryPageDto>[0],
+): HistoryPageDto {
+  try {
+    return createHistoryPageDto(input);
+  } catch (error) {
+    if (error instanceof HistoryDataValidationError) {
       throw unavailable();
     }
     throw error;
@@ -287,6 +314,39 @@ export function createDogDataAccess<Client>(
         ...baseInput,
         latestRecording,
         recordingSummary,
+      });
+    },
+
+    async getHistoryPage(
+      dogId: string,
+      cursorInput: unknown,
+    ): Promise<HistoryPageDto> {
+      assertDogId(dogId);
+      const { client, userId } = await freshContext();
+      const access = await authorize(client, userId, dogId, "read");
+      const dogRow = await dependencies.findDog(client, dogId);
+
+      if (!dogRow) {
+        throw new DogDataAccessError("access_denied");
+      }
+
+      const dog = dogSummaryDto(dogRow, access.role);
+      const capturedAt = dependencies.now();
+      const parsedCursor = parseHistoryCursor(cursorInput, capturedAt);
+      if (parsedCursor.status === "invalid") {
+        return createInvalidHistoryPageDto(dog);
+      }
+
+      const rows = await dependencies.listHistoryRecordings(
+        client,
+        dogId,
+        parsedCursor.cursor,
+      );
+      return historyPageDto({
+        dog,
+        capturedAt,
+        cursor: parsedCursor.cursor,
+        rows,
       });
     },
 

@@ -355,6 +355,67 @@ button:disabled { cursor: wait; opacity: .62; }
 }
 .today-empty strong { color: var(--gold); letter-spacing: .045em; }
 .today-empty p { margin: 0; color: #91a995; }
+.history-view { max-width: 920px; min-width: 0; }
+.history-heading > p:not(.eyebrow) { color: var(--text); }
+.history-heading h1 {
+  max-width: 19ch;
+  margin: .7rem 0 1.25rem;
+  font-size: clamp(2rem, 5vw, 4.25rem);
+  line-height: 1.02;
+}
+.history-results {
+  min-width: 0;
+  margin-top: clamp(40px, 7vw, 72px);
+}
+.history-results > h2 {
+  margin: 0 0 1rem;
+  color: var(--text);
+  font-size: clamp(1.2rem, 2.5vw, 1.65rem);
+  line-height: 1.2;
+}
+.history-list {
+  min-width: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+  padding: 0;
+  list-style: none;
+}
+.history-list > li {
+  min-width: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 24px 0;
+}
+.history-facts {
+  display: grid;
+  min-width: 0;
+  gap: 1.25rem 2rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.history-facts div { min-width: 0; }
+.history-facts dd {
+  overflow-wrap: anywhere;
+  color: var(--gold);
+  line-height: 1.5;
+}
+.history-facts time { color: var(--text); }
+.history-empty {
+  display: grid;
+  gap: .65rem;
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+  color: #91a995;
+  line-height: 1.55;
+}
+.history-empty strong { color: var(--gold); letter-spacing: .045em; }
+.history-empty p { margin: 0; color: #91a995; }
+.history-empty .text-link { justify-self: start; }
+.history-pagination {
+  margin-top: 32px;
+}
+.history-pagination .button-link { min-height: 48px; }
+.history-recovery { margin-top: 1.5rem; }
 .claim-boundary { max-width: 600px; }
 .claim-form {
   display: grid;
@@ -472,6 +533,8 @@ button:disabled { cursor: wait; opacity: .62; }
   .today-section--collar .today-facts {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .history-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .history-fact--start { grid-column: 1 / -1; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
