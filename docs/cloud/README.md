@@ -10,6 +10,8 @@
 | [Outbox independent-review packet](phase0-outbox-review-packet.md) | clean-room P0-R1 verifier, seven historical regressions, 12 manual invariants, severity rules, and final accepted/rejected ledger contract; not itself an acceptance |
 | [PostgreSQL capacity](phase0-capacity-benchmark.md) | one-million-point local sizing/query evidence and initial index/partition decision |
 | [Phase 1 migrated capacity](phase1-capacity-benchmark.md) | one-million-point evidence on the migrated/RLS-protected schema and retention consequences |
+| [M1.9 History query/index](m19-history-query-plan.md) | authenticated PostgREST pagination plans, measured narrow index, write/size cost, and rollback proof |
+| [M1.10 recording detail](m110-recording-detail-evidence.md) | bounded point reads, RLS matrix, continuity decisions, one-million-point plans, and browser/accessibility proof |
 | [Phase 1 deletion drill](phase1-deletion-drill.md) | owner-authorized dog job, bounded worker/retry, durable tombstone/receipt, cascade inventory, and backup-lag boundary |
 | [Phase 1 restore drill](phase1-restore-drill.md) | dual isolated logical restore, coordinate-free manifests, tamper-resistant deletion-tombstone replay, Auth/function/RLS equivalence, and hosted boundary |
 | [Signed tombstone artifact](phase1-tombstone-artifact.md) | canonical Ed25519 batch/chain format, trust boundary, local verification, and still-open KMS/off-site custody gate |
