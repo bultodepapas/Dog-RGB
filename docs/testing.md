@@ -1,6 +1,6 @@
 # Testing and Simulation
 
-**Status:** Current repository workflows, verified on 2026-08-13.
+**Status:** Current repository workflows, reconciled on 2026-08-24. Hardware and hosted evidence remain separate gates.
 
 Dog-RGB uses several layers because no single test environment can validate firmware logic, embedded HTML, radio behavior, and real electrical safety.
 
@@ -14,6 +14,8 @@ Dog-RGB uses several layers because no single test environment can validate firm
 | Static portal smoke | Embedded page size budgets, escaping rules, required functions, write-header use | Browser layout or real ESP32 heap behavior |
 | Playwright | Portal interactions, accessibility assertions, mock API states, mobile layout | ESP32 networking/radio timing |
 | Visual regression | Pixel drift against reviewed Linux baselines | Usability judgment or physical display appearance |
+| Next.js production build | Web-portal bundling, route compilation, and TypeScript integration | Auth/product behavior or browser E2E |
+| Local Supabase clean gate | Fresh migrations, pgTAP, grants/RLS, Edge boundaries, simulator replay, generated-type drift, and local operations | Hosted limits, TLS, email delivery, backups, or latency |
 | Wokwi scenarios | Real firmware image, GNSS UART, LED buses, resets, modes, faults, loop diagnostics | Battery, boost, antenna, waterproofing, heat, comfort |
 | Physical bench/field tests | Electrical, RF, GNSS, thermal, runtime, mechanical, and weather behavior | Only the exact tested build and conditions |
 | Phase 0 cloud protocol suite | JSON schemas/refs, valid/invalid fixtures, semantic hashes/identities, problem catalog, HLC vectors and compatibility matrix | Deployed Edge/Postgres behavior or firmware integration |
@@ -26,6 +28,8 @@ Dog-RGB uses several layers because no single test environment can validate firm
 - Python 3.13 for parity with CI (the host suite uses the standard library).
 - PlatformIO Core.
 - Node.js 24.18.0, exactly matching [`.node-version`](../.node-version), whenever portal assets are regenerated or browser tests run.
+- npm exactly matching `packageManager` in the root `package.json` and Supabase CLI exactly matching [`.supabase-version`](../.supabase-version) for cloud artifacts.
+- Docker or a compatible runtime for the disposable localhost-only Supabase stack.
 - `npm ci` from the repository root for Playwright 1.62.1 and Chromium.
 - Optional: Wokwi CLI 0.26.x and a personal CI token for simulator automation.
 
@@ -68,7 +72,7 @@ The suite covers:
 
 Most modules use source-contract assertions. Phase 2 compiles `effect_registry`, `led_policy`, and `led_state` as native C++17 with warnings treated as errors. Phase 3 adds a harness for `led_color`, `palette_registry`, `led_layout`, and `led_compositor`; it proves a non-black crossfade midpoint and next-frame alert interruption. Phase 4 compiles the scene model/catalog/player/store plus the ArduinoJson codec natively, with fault injection at the record backend. The complete local suite baseline is 131/131. None of these layers replaces target execution or physical validation.
 
-## Portal checks
+## Embedded AP portal checks
 
 From the repository root:
 
@@ -102,6 +106,31 @@ npm run ap-portal:ui
 ```
 
 The preview serves the exact decompressed production bundles generated from `webui/src`. Disposable HTML lives in `.ap-portal-preview/`; the manifest and C++ gzip arrays are tracked so an offline PlatformIO build can verify and embed them without running npm. The PlatformIO pre-script uses only Python's standard library to validate canonical input sizes/hashes, the aggregate source fingerprint, and generated-output hashes before compilation.
+
+## Web portal and local Supabase baseline
+
+The Vercel-targeted application is a separate Next.js workspace under `apps/portal`; do not confuse it with the embedded AP portal above. Its current production compilation gate is:
+
+```powershell
+npm run portal:build
+```
+
+Database types are generated only from a freshly migrated local `api` schema. Migrations remain authoritative; the generated file is a portal client artifact:
+
+```powershell
+supabase start
+supabase db reset
+npm run cloud:types:generate
+npm run cloud:types:check
+```
+
+The destructive/reproducible local foundation command is explicit and targets only this repository's disposable local Supabase project:
+
+```powershell
+npm run phase1:local -- --clean
+```
+
+It recreates the local database, checks the committed `api` types, runs pgTAP, lint/advisors, contracts, Edge boundaries, simulator flows, and the retained local operations drills. Never expose this development stack beyond localhost.
 
 ## Visual regression
 
@@ -171,15 +200,17 @@ For interactive controls, GNSS profiles, GDB, VCD channels, and portal-network l
 `.github/workflows/ci.yml` runs on pushes to `main` and pull requests:
 
 - **Host tests:** the complete Python firmware contract suite;
-- **Portal:** stale-asset check, four deterministic generator unit tests, clean-checkout static smoke, and Playwright behavior/a11y tests;
-- **Visual:** screenshot comparison in the pinned Playwright container;
+- **Web portal:** the Next.js production build;
+- **Embedded AP portal:** stale-asset check, deterministic generator tests, clean-checkout static smoke, and Playwright behavior/a11y tests;
+- **Embedded AP visual:** screenshot comparison in the pinned Playwright container;
+- **Cloud foundation:** clean local Supabase reset, database/Edge/simulator/operations gates, committed `api` type drift, and the capacity fixture;
 - **Firmware:** pinned PlatformIO production build, size report, environment/package inventory, hashes, and downloadable binary/ELF/partition evidence.
 
 Failure artifacts retain Playwright reports or visual diffs for seven days; firmware baseline artifacts are retained for 14 days. Wokwi is intentionally not a default CI job because it needs an external token/service and can be run explicitly.
 
-## Optional cloud Phase 0 evidence
+## Cloud foundation evidence and remaining pre-product artifacts
 
-No command in this section deploys a website, database, Edge Function, or firmware cloud client. These are contract/design gates only.
+The commands in this section are local engineering gates. They do not deploy a hosted website/project or add a firmware cloud client.
 
 ### V3 codec and outbox model
 
@@ -194,7 +225,7 @@ The superseded RAM-only suite passed 20/20, but that historical green result is 
 
 A corrected byte-addressed candidate now reconstructs from a NOR image, carries globally monotonic outbox identities, requires exact manifest-bound per-slot ACK evidence, derives reclaim only across a contiguous proven prefix, journals metadata A/B, and reserves two independently erasable emergency sectors. Its provisional geometry is 664 chunks/63,744 points. The expanded 51/51 suite now covers destructive stale-intent fallback, irreversible intent consumption before refill, corrupt-refill quarantine and unreadable-header fail-closed behavior, sequence reuse after tombstone/journal fallback, bounded recovery of maximum loss intervals, durable loss capture and automatic sparse-loss finalization during ACK transitions, and ACKed-corrupt-payload classification. The host recovery/reclaim gate remains **review/open** until independent acceptance; keep every reproduction, rerun from fresh immutable images, and regenerate the [storage feasibility report](cloud/phase0-storage-feasibility.md) after storage changes.
 
-Passing this model does not close the hardware gate. Before Phase 2 firmware acceptance, execute at least 10,000 production-codec seal/ACK/reclaim cycles on the target ESP32-S3 with randomized physical reset/power removal at data/header/metadata/ACK/erase boundaries. Record mount/recovery latency, maximum GNSS/LED/cooperative-loop gap, watchdog margin, heap, programmed/erased bytes and sector distribution, current/energy by cadence, full-pressure/loss-marker behavior, and legacy preservation. The raw-ring ADR must be revisited if metadata wear concentration or timing is unsafe.
+Passing this model does not close the hardware gate. Before the M2 firmware exit, execute at least 10,000 production-codec seal/ACK/reclaim cycles on the target ESP32-S3 with randomized physical reset/power removal at data/header/metadata/ACK/erase boundaries. Record mount/recovery latency, maximum GNSS/LED/cooperative-loop gap, watchdog margin, heap, programmed/erased bytes and sector distribution, current/energy by cadence, full-pressure/loss-marker behavior, and legacy preservation. The raw-ring ADR must be revisited if metadata wear concentration or timing is unsafe.
 
 ### Device-v1 protocol
 
@@ -216,7 +247,7 @@ Reproduction provisions a disposable local PostgreSQL container and one million 
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/cloud_capacity/run.ps1
 ```
 
-The result is local sizing evidence only. Phase 1 must repeat representative authenticated/RLS queries in the selected Supabase environment and recheck current plan storage, egress, backup, Edge limits, and pricing. A free development tier is not a field-retention commitment.
+The result is local sizing evidence only. M3 must repeat representative authenticated/RLS queries in hosted development, and M5 must recheck current storage, egress, backup, Edge limits, and pricing before production authorization. A free development tier is not a field-retention commitment.
 
 ### Colombian map bake-off
 
@@ -244,7 +275,7 @@ For every provider/style retain:
 
 The checked schema-v2 [2026-08-13 evidence manifest](../tools/map_bakeoff/evidence/2026-08-13/manifest.json), SHA-256 `4509749e573e27a2d82e6ba2247bccb1c0d6a9d87f4f0f4f1fecd3f4b968decb`, records Chromium `151.0.7922.34`, pinned MapLibre `5.23.0`, source/style/screenshot hashes, all viewports/DPRs, network profiles/origins/failures, console/page errors, route-coordinate leak assertions, accessible regions/table, layout, attribution, and credential blockers. That retained run passed its capture-time 7/7 unit suite and 17/17 requested Stadia matrix/diagnostic cells. The current credentialed-runner readiness suite passes 12/12, including secret redaction, child-environment isolation, safe request descriptors, non-overwriting run IDs, and URL-free init-script injection. These readiness/byte values are diagnostics under incompletely controlled OS/CDN caching, not a performance SLO; CVD filters require human review. MapTiler has still not been rendered and Stadia unapproved-origin rejection has not been exercised because temporary provider credentials remain unavailable. Therefore MapLibre is accepted, Stadia Dark is only provisional, and the credentialed/two-reviewer map gate remains open; no score/result may be fabricated. See [ADR-0009](adr/0009-map-renderer-provider-and-colombia-bakeoff.md).
 
-## Future cloud verification strategy — not implemented
+## Remaining cloud/web verification strategy
 
 Every phase adds its tests without weakening the current local suite:
 
@@ -261,7 +292,7 @@ Every phase adds its tests without weakening the current local suite:
 
 Cloud-disabled regression is a hard gate in every firmware phase: run the complete host suite, production build, Wokwi/HIL scenarios, AP portal behavior/a11y/visual checks, route export, scenes, GNSS metrics, storage recovery and physical loop/power measurements with no cloud credentials/network. An unavailable cloud must never become a failing local test dependency.
 
-The detailed security cases are in the [threat model](cloud/threat-model.md); field ownership/exclusions are in the [Phase 0 matrix](cloud/phase0-field-matrix.md). Phase 0 remains open, and Phase 2 is not authorized, until the corrected host outbox candidate passes its adversarial acceptance matrix and independent review, physical outbox evidence is collected, and the full credentialed provider comparison plus unapproved-origin tests are completed. Local-only Phase 1 proceeds under the parent plan's explicit exception.
+The detailed security cases are in the [threat model](cloud/threat-model.md); field ownership/exclusions are in the [Phase 0 matrix](cloud/phase0-field-matrix.md). The [active master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) controls current M0–M6 order: independent/physical outbox proof gates M2, while the provider comparison gates M4 map integration and does not block the local M1 portal slice.
 
 ## Physical validation checklist
 

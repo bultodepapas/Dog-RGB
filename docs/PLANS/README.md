@@ -1,6 +1,6 @@
-# Historical and Proposed Plans
+# Implementation and historical plans
 
-Files in this directory are retained as design history. They are **not** the current implementation contract. Check [the main documentation index](../README.md), active source, and tests before using a proposed API, schema, dependency, or line reference.
+The 2026-08-13 web-platform plan is the active execution contract for the optional cloud workstream. Every other file in this directory is retained as design history and is **not** a current implementation contract. Executable contracts, migrations, and tests remain authoritative for behavior that already exists.
 
 | Plan | Status in the current repository |
 | --- | --- |
@@ -14,7 +14,7 @@ Files in this directory are retained as design history. They are **not** the cur
 | [Web UI improvement — 2026-02-03](2026-02-03_web-ui-improvement-plan.md) | Partially/evolutionarily implemented; current portal/tests are authoritative |
 | [Welcome opposite directions — 2026-02-03](2026-02-03_welcome-opposite-directions.md) | Historical LED implementation plan |
 | [Route portal — 2026-02-04](2026-02-04_plano-ruta-portal.md) | Implemented in evolved form with bounded JSON/CSV/GeoJSON streaming |
-| [Cloud portal master plan — 2026-08-01](2026-08-01_cloud-portal-master-plan.md) | Not implemented; optional long-range architecture proposal |
-| [Cloud web platform and bidirectional sync — 2026-08-13](2026-08-13_web-platform-bidirectional-sync-plan.md) | Proposed; current replacement for the cloud/sync/map decisions in the older cloud plans |
+| [Cloud portal master plan — 2026-08-01](2026-08-01_cloud-portal-master-plan.md) | Superseded design history |
+| [Cloud web platform and bidirectional sync — 2026-08-13](2026-08-13_web-platform-bidirectional-sync-plan.md) | **Active implementation contract**; local database/Edge/simulator foundation implemented, M0 baseline closure in progress, product portal/firmware client/hosted deployment pending |
 
 When a plan is completed, keep the dated file as a snapshot and document the resulting behavior in a current reference page.

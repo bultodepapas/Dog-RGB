@@ -1,6 +1,6 @@
 # Dog-RGB Roadmap
 
-**Status:** Current priorities as of 2026-08-13. Future phases are optional; they do not redefine the local-first DIY baseline.
+**Status:** Current priorities as of 2026-08-24. Future phases are optional; they do not redefine the local-first DIY baseline.
 
 ## Baseline delivered
 
@@ -10,26 +10,34 @@
 - CRC-protected transactional persistence, an independent scene A/B bank, and dedicated two-hour route storage.
 - Pinned production/Wokwi builds, host contracts, portal smoke, Playwright/a11y coverage, and visual baselines.
 
-## Optional cloud workstream — Phase 0 and local Phase 1 in progress
+## Optional cloud workstream — local foundation implemented, product slice pending
 
-The [dated web-platform plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) is now an accepted optional direction. It does not supersede the physical/local milestones below: cloud stays off by default, and all current collar/AP/export behavior remains mandatory without an account or Internet connection.
+The [web-platform master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) is the active execution contract. Cloud stays optional and off by default: the collar, AP portal, local history, and exports remain usable without an account or Internet connection.
 
-Phase 0 records decisions and evidence; it does **not** itself implement a website, Supabase project, account system, firmware networking, or synchronization. Under explicit owner direction, the local-only Phase 1 cloud foundation is proceeding in parallel without waiving Phase 0 or authorizing firmware Phase 2.
+Implemented local foundation:
 
-| Phase 0 item | State on 2026-08-13 | Evidence / remaining gate |
+- device-v1 schemas/fixtures and HLC vectors pass 48/48;
+- the corrected host storage candidate passes its 51/51 author suite, with independent and physical acceptance still open;
+- 11 additive Supabase migrations, 12 pgTAP suites, explicit grants/RLS, and four Edge gateways recreate locally;
+- the deterministic simulator covers claim, replay-safe upload, revoke, and desired/reported configuration;
+- local capacity, deletion, retention, restore, and tombstone drills are retained as engineering evidence;
+- the Next.js workspace exists, but it is still a shell rather than the owner product.
+
+Current implementation order:
+
+| Order | Milestone | Current boundary |
 | --- | --- | --- |
-| 0A project contract | Documentation complete in this workstream | Requirements/architecture/roadmap/API/testing, six accepted ADRs, and the [field matrix](cloud/phase0-field-matrix.md) now define opt-in/offline behavior and local-only Home/power/secrets. |
-| 0B v3/storage feasibility | **Host independent review open; physical acceptance open** | The [storage report](cloud/phase0-storage-feasibility.md) supports the raw-ring capacity/design direction only. A corrected byte-addressed candidate reconstructs from flash bytes, uses exact ACK evidence and reserves two metadata plus two emergency sectors, leaving a provisional 664 chunks/63,744 points. All seven reproduced adversarial fallback/loss/corruption cases are permanent regressions and the suite passes 51/51; independent acceptance remains required. Journal v2 consumes reclaim intent before refill, quarantines corrupt payloads with readable identity, fails read-only on unreadable committed headers, and closes acknowledged sparse loss without a duplicate server ACK. The superseded RAM-only 20/20 run is invalid historical evidence. Random physical ESP32 power removal, latency, wear distribution, and energy remain mandatory. |
-| 0C protocol/LWW evidence | Reconciled contract evidence complete | Versioned schemas/fixtures/HLC vectors, including dedicated revoke, agree with the frozen v3 codec, exact chunk ACK identity and out-of-order-hole semantics. Protocol result: 48/48. This closes protocol reconciliation only; the separate 0B host-storage independent review remains open. |
-| 0C database capacity | Deterministic fixture evidence available; hosted costs/plans must be rechecked | See [capacity benchmark](cloud/phase0-capacity-benchmark.md); validate plans/query shape again on the selected hosted environment before production. |
-| 0C security/privacy/retention/credentials | Documentation complete; implementation tests pending | [Threat model](cloud/threat-model.md), [privacy flow](cloud/privacy-data-flow.md), [retention policy](cloud/retention-policy.md), and [credentials checklist](cloud/credential-checklist.md). |
-| 0C map bake-off | Durable keyless matrix complete; credentialed runner ready; external credential/human gate open | MapLibre accepted; the retained 7/7 harness and 17/17 Stadia matrix/diagnostic evidence covers six synthetic fixtures, dark/light/outdoor, desktop/428 px mobile at DPR 1/2, label/CVD/cache/network stress. The hardened readiness suite passes 12/12 and prepares a symmetric credentialed matrix with origin rejection, but no MapTiler visual result, unapproved-origin proof, or two-reviewer score exists; run it with restricted provider setups before selection. |
+| M0 | Reproduce and close the local baseline | Next.js production-build CI, generated `api` database-type drift check, and status-document reconciliation; all must pass on one reviewed commit |
+| M1 | Simulator-driven local web slice | Auth, one dog, one simulated collar, claim/upload/history, brightness desired/reported, revoke, denial and browser tests; no map provider or firmware cloud code |
+| M2 | Offline firmware data foundation | Track v3, time/config foundations, selected raw outbox, independent host review, and physical power-cut evidence with cloud disabled |
+| M3 | Hosted development plus one collar | hosted parity, verified TLS, `/cloud`, real replay/config fault proof; no production launch |
+| M4 | Truthful analytics and route product | replace the current queue-delete summary placeholder before any Cron schedule, then complete provider decision and map UI |
+| M5 | Production opt-in and operations | explicit owner decision, privacy/export/delete/retention/restore/domain/SMTP/cost gates |
+| M6 | Later capabilities | only with measured need and a new ADR |
 
-**Phase 0 exit is not reached, and Phase 2 is not authorized.** The corrected host outbox candidate awaits independent acceptance, physical ESP32 storage evidence is missing, and the credentialed comparative map/origin-control gate remains unresolved. Explicitly authorized Phase 1 work remains local/cloud-only and cannot change the collar's local product baseline.
+Map credentials do not block M0–M3. The host outbox review and physical proof block the M2 exit, not unrelated portal work. Existing deletion/retention/restore prototypes are preserved but must not expand into production custody work before the end-to-end product slice exists.
 
-The Phase 1 database, four Edge gateways, shared contracts, and deterministic simulator now pass the clean local gate. The migrated one-million-point capacity gate also passes after replacing a per-row telemetry RLS membership plan with one hashed visible-collar subplan; the same original storage and query-shape evidence passed on a clean Ubuntu CI runner. The local [deletion workflow drill](cloud/phase1-deletion-drill.md) inventories all 20 cascade dependants and provides an owner-authorized, replay-safe dog job with immediate access closure, bounded worker transactions and coordinate-free tombstone/receipt evidence. The [raw-telemetry retention drill](cloud/phase1-retention-drill.md) now adds bounded point/chunk purges, retry state and an anti-resurrection watermark without activating Cron; its accepted partial index keeps the one-million-point shape at 323.79 bytes/point. The [isolated restore drill](cloud/phase1-restore-drill.md) verifies exact application hashes, Auth linkage, functions, effective privileges/RLS and owner/non-member behavior without persisting the backup. Disposable hosted concurrency/network measurement, export/strong-confirmation/account deletion, reviewed retention scheduling and remaining data classes, tombstone replay, a managed hosted restore, and the remaining operational drills stay open.
-
-The consolidated evidence and gate state are in the [Phase 0 execution report](cloud/phase0-execution-report.md). The corrected candidate now carries passing regressions for every reproduced adversarial failure; independent host acceptance must still complete before the exit review. This is an in-repository review gate rather than an external hardware/credential blocker.
+Detailed evidence remains in the [cloud reports](cloud/README.md). No website, hosted project, firmware cloud client, physical outbox proof, final map provider, scheduled summary worker, or production operation is currently claimed.
 
 ## Milestone 1 — Physical MVP evidence (highest priority)
 

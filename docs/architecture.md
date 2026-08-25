@@ -1,6 +1,6 @@
 # Dog-RGB Architecture
 
-**Status:** Current local architecture plus accepted optional-cloud target, verified/reviewed 2026-08-13. Cloud runtime, database, website, and firmware sync are not implemented.
+**Status:** Current local architecture plus the partially implemented optional-cloud target, reconciled 2026-08-24. The local Supabase database, Edge gateways, contracts, and simulator exist; the product website, firmware sync client, physical proof, and hosted deployment do not.
 
 Dog-RGB is a local-first embedded system. The ESP32-S3 owns GNSS acquisition, metrics, route/session persistence, LED rendering, Wi-Fi policy, the HTTP portal, and an optional BLE summary. No backend is required for normal operation. The accepted web platform is an opt-in extension: it may delay synchronization when unavailable, but may never become a boot, tracking, LED, AP recovery, configuration, or local-export dependency.
 
@@ -22,22 +22,22 @@ flowchart TB
 
 The power drawing is conceptual. The real charger/BMS/boost/regulator topology must be validated for the selected modules; do not infer a safe current path solely from this diagram.
 
-The accepted future cloud boundary is shown separately so it is not mistaken for current firmware:
+The optional cloud boundary and each component's current maturity are shown separately so the local foundation is not mistaken for a delivered product:
 
 ```mermaid
 flowchart LR
     COLLAR[ESP32 collar\ncurrent local system]
     AP[Local AP/LAN portal]
-    EDGE[Supabase Edge device gateway\nfuture]
-    DB[(Supabase Postgres/PostGIS\nfuture)]
-    AUTH[Supabase Auth\nfuture]
-    WEB[Vercel Next.js web app\nfuture]
+    EDGE[Supabase Edge gateways\nimplemented locally]
+    DB[(Supabase PostgreSQL\nimplemented locally)]
+    AUTH[Supabase Auth\nlocal stack configured]
+    WEB[Next.js web app\nscaffold only]
     USER[Owner/editor/viewer browser]
-    MAP[Basemap provider\nfuture]
+    MAP[Basemap provider\nM4 decision]
 
     USER <-->|local HTTP; always available| AP
     AP <--> COLLAR
-    COLLAR -. opt-in verified HTTPS; delayed sync .-> EDGE
+    COLLAR -. firmware HTTPS client pending .-> EDGE
     EDGE -. narrow service-only transactions .-> DB
     AUTH -. user session .-> USER
     USER -. membership-scoped RLS .-> DB
@@ -52,8 +52,11 @@ There is no realtime/cellular path: the website can show only the last successfu
 - [`Platformio/Dog-RGB`](../Platformio/Dog-RGB/) is the active embedded project.
 - [`webui`](../webui/) owns the editable portal sources and deterministic generator; [`tests`](../tests/) and [`tools`](../tools/) exercise the generated bundles in a host browser.
 - [`docs`](.) contains current references plus dated design history.
-- [`contracts/device-v1`](../contracts/device-v1/) contains Phase 0 protocol schemas/fixtures. They are design/test artifacts until firmware/gateway code consumes them. The complete protocol, including dedicated revoke, passes 48/48 and is reconciled with the frozen v3 codec; the full match remains a permanent regression gate.
-- [`tools/cloud_phase0`](../tools/cloud_phase0/) contains the deterministic v3/storage feasibility artifacts. Its corrected 664-slot byte-addressed candidate is non-production; the seven reproduced adversarial failures now have passing regressions, while independent host recovery/reclaim acceptance remains open. [`tools/map_bakeoff`](../tools/map_bakeoff/) is the synthetic Colombian cartography harness; its full credentialed provider comparison and origin-control tests remain open. Neither is production runtime code; local-only Phase 1 proceeds under the documented owner exception, while Phase 2 remains unauthorized.
+- [`contracts/device-v1`](../contracts/device-v1/) is the protocol/schema authority. Its complete 48/48 suite passes, and eight Edge-consumed schemas are checked copies under `supabase/functions/_shared/contracts`.
+- [`supabase`](../supabase/) contains the implemented local migration stack, pgTAP suite, Auth configuration, and four Edge gateways. This is reproducible development infrastructure, not a hosted or production deployment.
+- [`apps/portal`](../apps/portal/) is the Vercel/Next.js workspace. It currently contains only the visual shell and placeholder home page; Auth and product routes start in M1.
+- [`packages`](../packages/) and [`tools/device-simulator`](../tools/device-simulator/) contain shared constants/analytics and the deterministic claim/sync/config simulator.
+- [`tools/cloud_phase0`](../tools/cloud_phase0/) contains the non-production v3/storage candidate; independent host acceptance and target-hardware evidence remain open. [`tools/map_bakeoff`](../tools/map_bakeoff/) is the synthetic Colombia harness; the credentialed provider decision remains an M4 gate and does not block portal/firmware foundation work.
 - [`software`](../software/) is only a placeholder for optional future companion/cloud work.
 - [`hardware`](../hardware/) is a hardware-area entry point; the authoritative pin/default values are currently in firmware headers.
 
@@ -188,15 +191,15 @@ The HTTP layer adds:
 
 This is proportionate protection for a local DIY portal, not a claim of Internet-safe administration. There is no TLS, account system, encrypted application payload, or authorization on reads.
 
-## Optional cloud target (not implemented)
+## Optional cloud target (local foundation partly implemented)
 
 ### Runtime boundaries
 
-- **Website:** a future Next.js application on Vercel serves account/dog/history/configuration UX. The browser uses a Supabase publishable key plus its authenticated user session; it never receives server secret/service-role material.
-- **User identity/data:** Supabase Auth and an explicitly exposed `api` schema use dog memberships and RLS. Owners, editors, and viewers receive only documented permissions. Public IDs are never treated as authorization.
-- **Device gateway:** collars call versioned Supabase Edge Functions directly, not Vercel routes and not broad PostgREST. `user-v1-issue-claim`, `device-v1-claim`, consolidated `device-v1-sync`, and idempotent `device-v1-revoke` are the narrow accepted surface.
-- **Private data:** claim/credential digests and replay receipts live in a non-exposed `private` schema. Device credentials are random, per-collar and revocable; plaintext persists only on the collar and is transient at the Edge gateway while a verified-TLS claim body or sync/revoke Authorization header is authenticated. It is never stored/logged server-side. The collar never stores human login or Supabase project keys.
-- **Stable endpoint:** the default Supabase hostname is allowed for laboratory evidence. An owned `api.<domain>` Supabase custom domain is mandatory before field firmware so a project/provider move does not permanently pin devices to a provider-owned hostname.
+- **Website:** the Next.js workspace exists, but account/dog/history/configuration UX is not implemented. M1 adds it locally before any firmware Internet work. The eventual browser uses only a Supabase publishable key and authenticated user session.
+- **User identity/data:** the local Auth configuration and explicitly exposed `api` schema implement dog memberships, grants, and RLS. Portal integration and hosted parity remain pending; public IDs are never authorization.
+- **Device gateway:** four local Edge Functions implement `user-v1-issue-claim`, `device-v1-claim`, consolidated `device-v1-sync`, and idempotent `device-v1-revoke`. Collars will call this surface directly after the offline firmware foundation passes; the firmware HTTPS client does not exist yet.
+- **Private data:** the local migrations place claim/credential digests and replay receipts in a non-exposed `private` schema. Plaintext device credentials remain transient at the gateway and eventually persist only on the collar; they are never human credentials or browser/project keys.
+- **Stable endpoint:** the default Supabase hostname is allowed for M3 laboratory evidence with one development collar. An owned stable device API domain is required in M5 before field firmware is treated as durable/production, so a project/provider move does not permanently pin deployed devices to a provider-owned hostname.
 - **Maps:** MapLibre consumes a provider style and an application-owned segmented GeoJSON view model. Route data stays in the authenticated browser; providers receive only normal style/tile requests and viewport/network metadata. Stadia Dark is provisional until the full MapTiler/Stadia credentialed bake-off and unapproved-origin tests are retained/scored.
 
 See [ADR-0005](adr/0005-device-cloud-gateway-and-stable-hostname.md), [ADR-0006](adr/0006-cloud-data-model-and-access-boundaries.md), and [ADR-0009](adr/0009-map-renderer-provider-and-colombia-bakeoff.md).
@@ -230,7 +233,7 @@ The raw ring remains an accepted design direction with provisional deterministic
 
 ### Cloud data model
 
-The future database separates:
+The implemented local migration stack separates:
 
 - normalized users/dogs/memberships/collars and roles;
 - stable recordings, immutable accepted telemetry, chunks/receipts and explicit loss markers;
@@ -238,13 +241,13 @@ The future database separates:
 - current configuration winners, append-only revisions, and desired/apply outcomes;
 - private claim-code/device-credential/request state.
 
-Canonical telemetry preserves exact wire integers plus time/quality/provenance. PostGIS `geography(Point,4326)` is derived for spatial work; normal playback first filters/orders by recording/time/sequence. Initial indexes are relational/time/idempotency indexes. Table partitioning and GiST wait for the one-million-point/query evidence rather than being added speculatively.
+Canonical telemetry preserves exact wire integers plus time/quality/provenance. The foundation does not require PostGIS: normal playback first filters/orders by recording/time/sequence and builds provider-neutral route data in the authorized application layer. Initial indexes are relational/time/idempotency indexes. Partitioning, GiST, and spatial extensions require measured need and a later ADR change.
 
 Each dog has an IANA timezone. Local days can be 23, 24, or 25 hours; missing evidence becomes unknown, never inactivity. Raw points expire after 12 months by default while summaries/recording metadata remain until dog/account deletion. See [ADR-0006](adr/0006-cloud-data-model-and-access-boundaries.md), [ADR-0010](adr/0010-retention-and-truthful-activity-vocabulary.md), and the [field matrix](cloud/phase0-field-matrix.md).
 
 ### Bidirectional configuration
 
-Configuration converges at coherent resource granularity with HLC LWW and a deterministic actor tie-break. AP writes and downloaded winners pass through the same firmware validation and A/B persistence path. The server stores desired state; the collar separately reports pending/applied/rejected for an exact server version.
+The local database and simulator implement coherent-resource HLC LWW plus versioned desired/reported state. Firmware/AP convergence and the website brightness UI remain pending. When implemented, AP writes and downloaded winners must pass through one firmware validation and A/B persistence path; “Applied” requires the collar's exact reported version/hash.
 
 Brightness is the first proof resource. Later resources group visual mode/Day Mode, all speed thresholds/effects, Simple effect, GPS quality gates, and fence distance. Home coordinates and LED power calibration are local-only for the first release, as are Wi-Fi/AP credentials, mDNS, and the local PIN. The device secret is excluded from configuration/history and used only as verified-TLS device authentication. See [ADR-0008](adr/0008-resource-level-hlc-lww-configuration-sync.md).
 

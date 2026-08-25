@@ -1,16 +1,16 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; local cloud foundation implemented, product web slice not yet implemented.
+**Status:** Active implementation contract; M0 changes pass locally and await commit/CI evidence, while the product web slice remains unimplemented.
 
 **Last senior review:** 2026-08-24 (America/Bogota).
 
-**Reviewed repository commit:** `5fae98826d37b33103b5959fc094d7409073bbb7` (`main`, equal to `origin/main` at review time).
+**Reviewed repository commit:** `4ba6e0615b0e776a3f28bb93319516cc4adbab85` (`main`, one local commit ahead of `origin/main` at continuation time; remaining M0 hardening/docs are in the worktree).
 
-**Current milestone:** M0 — add the missing portal-build/type/documentation gates, then close the local baseline.
+**Current milestone:** M0 — implementation candidate complete locally; commit and CI acceptance pending.
 
-**Next executable task:** add the Next portal production build to CI, generate/check database types, align status documents, then begin the simulator-driven web slice.
+**Next executable task:** commit the remaining M0 hardening/docs, push the resulting reviewed commit, record green CI, then begin M1A with the local simulator-driven Auth shell.
 
-**Current blocker:** none in repository/CI. A local rerun on the reviewer workstation requires upgrading Node `24.12.0` to the pinned `24.18.0`.
+**Current blocker:** no technical blocker. M0 remains open until the current worktree is committed and its new CI jobs pass; the workstation's global Node remains `24.12.0`, so local evidence used a checksum-verified isolated Node `24.18.0` runtime.
 
 **Implementation owner:** ____________________
 
@@ -241,6 +241,14 @@ This snapshot reconciles the plan with Git history and current code. The histori
 
 `npm run phase1:check` was attempted on 2026-08-24 and stopped before the suite because the workstation had Node `24.12.0`, while `.node-version` requires `24.18.0`. The repository and successful current CI evidence remain intact, but the next developer must first restore the pinned toolchain and rerun the clean local gates. Environment mismatch is not a reason to weaken or bypass the version check.
 
+M0 implementation resumed later on 2026-08-24 using a checksum-verified isolated Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0`. On the candidate worktree based on `4ba6e06`:
+
+- `npm run phase1:local -- --clean` passed after replaying all 11 migrations, checking generated `api` types, passing 250 pgTAP assertions, database lint/advisors, repository contracts/lint/types/unit/secret checks, 49 adversarial Edge scenarios, simulator replay/LWW cases, and restore/deletion drills;
+- the CI-equivalent `npm ci --ignore-scripts` followed by `npm run portal:build` passed and produced the placeholder `/` plus `/_not-found` routes;
+- the deterministic embedded portal assets were regenerated because `package.json` is part of their source fingerprint, then `npm run webui:check` passed.
+
+This is valid local evidence, not GitHub CI evidence. The generated type artifact/checker is committed in `4ba6e06`; M0.6 and M0.8 remain unmarked until the remaining worktree is committed and the resulting workflow URL is recorded below.
+
 ## 6. Senior review: changes to the former order
 
 The former plan mixed architecture specification, research, execution status, and production operations across 2,409 lines. It also allowed work to drift into deletion/retention/restore before the owner-facing portal or firmware client existed. This revision makes these corrections:
@@ -293,14 +301,25 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 - [x] ✅ M0.5 Run `npm run phase1:capacity -- --clean`.
   - Evidence: GitHub CI run `32174453799` and [Phase 1 capacity report](../cloud/phase1-capacity-benchmark.md).
 - [ ] M0.6 Add `npm run portal:build` to CI and name the existing embedded-portal job unambiguously.
-  - Implementation commit/PR: ____________________
-  - CI evidence: ____________________
-- [ ] M0.7 Generate/check committed Supabase TypeScript types for the `api` schema.
+  - Owner: Codex (implementation); repository owner (merge/acceptance)
+  - Target date/window: current M0 change
+  - Implementation commit/PR: `4ba6e06` adds the build job/renames; current worktree explicitly enforces pinned npm in every Node CI job
+  - Evidence artifact or command: `npm ci --ignore-scripts`; `npm run portal:build`
+  - Decision/result: local PASS on 2026-08-24; CI workflow URL pending
+- [x] ✅ M0.7 Generate/check committed Supabase TypeScript types for the `api` schema.
   - Generated types are a client artifact, not the schema authority; migrations remain authoritative.
   - Regenerate and run a drift check after every schema change.
-  - Command and artifact path: ____________________
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: completed locally 2026-08-24
+  - Implementation commit/PR: `4ba6e0615b0e776a3f28bb93319516cc4adbab85`
+  - Evidence artifact or command: `npm run cloud:types:generate`; `npm run cloud:types:check`; clean `npm run phase1:local -- --clean`
+  - Decision/result: committed/local PASS; generated artifact is `apps/portal/lib/database.generated.ts`; `.supabase-version` freezes CLI `2.113.0`; the M0 exit still awaits one green CI run containing all gates
 - [ ] M0.8 Align `docs/PLANS/README.md`, `docs/architecture.md`, `docs/roadmap.md`, and the ADR index with the reviewed implementation state.
-  - Documentation commit: ____________________
+  - Owner: Codex (implementation); repository owner (merge/acceptance)
+  - Target date/window: current M0 change
+  - Implementation commit/PR: pending
+  - Evidence artifact or command: relative-link verification plus `git diff --check`; `docs/testing.md` also documents the new split portal/cloud commands
+  - Decision/result: local reconciliation complete; reviewed documentation commit pending
 
 **M0 exit gate:** M0.1–M0.8 are checked on the same reviewed commit; the clean local stack is not exposed beyond localhost; no secret or coordinate appears in logs/artifacts.
 

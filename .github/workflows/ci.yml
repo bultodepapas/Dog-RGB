@@ -21,6 +21,13 @@ jobs:
           node-version-file: .node-version
           cache: npm
 
+      - name: Use pinned npm
+        shell: bash
+        run: |
+          expected="$(node -p "require('./package.json').packageManager.split('@').pop()")"
+          npm install --global "npm@$expected"
+          test "$(npm --version)" = "$expected"
+
       - name: Read pinned Supabase CLI version
         id: supabase-version
         shell: bash
@@ -107,6 +114,13 @@ jobs:
           node-version-file: .node-version
           cache: npm
 
+      - name: Use pinned npm
+        shell: bash
+        run: |
+          expected="$(node -p "require('./package.json').packageManager.split('@').pop()")"
+          npm install --global "npm@$expected"
+          test "$(npm --version)" = "$expected"
+
       - name: Install dependencies without browser postinstall
         run: npm ci --ignore-scripts
 
@@ -127,6 +141,13 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
+
+      - name: Use pinned npm
+        shell: bash
+        run: |
+          expected="$(node -p "require('./package.json').packageManager.split('@').pop()")"
+          npm install --global "npm@$expected"
+          test "$(npm --version)" = "$expected"
 
       # postinstall fetches the browser binary; this adds the system libraries
       # it needs, which a bare runner does not have.
@@ -175,6 +196,13 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
+
+      - name: Use pinned npm
+        shell: bash
+        run: |
+          expected="$(node -p "require('./package.json').packageManager.split('@').pop()")"
+          npm install --global "npm@$expected"
+          test "$(npm --version)" = "$expected"
 
       - run: npm ci
 
