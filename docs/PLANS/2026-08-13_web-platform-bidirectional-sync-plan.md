@@ -1,14 +1,14 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 and M1.1 are complete on reviewed local and CI evidence, and M1.2 is the next pending subphase.
+**Status:** Active implementation contract; M0, M1.1, and M1.2 are complete on reviewed local and CI evidence, and M1.3 is the next pending subphase.
 
 **Last senior review:** 2026-08-24 (America/Bogota).
 
-**Reviewed repository commit:** `c91f1971f72281e7036ac69127dfa81e4ea6c826` (`main`; GitHub CI run [`32797754561`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32797754561) passed every required job).
+**Reviewed repository commit:** `99f76cc98e9b872d6c1cf895c62786c4f57d641a` (`main`; GitHub CI run [`32801270594`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32801270594) passed every required job).
 
-**Current milestone:** M1A — Auth and protected application shell; M1.1 is complete and M1.2 is next.
+**Current milestone:** M1A — Auth and protected application shell; M1.1–M1.2 are complete and M1.3 is next.
 
-**Next executable task:** fill the required M1.2 ownership/evidence fields, then implement only `/signup`, `/login`, `/forgot-password`, `/auth/confirm`, and logout against local Supabase and Mailpit. M1.3–M1.4 remain blocked.
+**Next executable task:** fill the required M1.3 ownership, target, implementation, evidence, and decision fields, then implement only the server-only authorization data-access layer and minimal DTOs. M1.4 and all later subphases remain blocked.
 
 **Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
@@ -174,7 +174,7 @@ Any implementation that violates an invariant is rejected even if its happy-path
 
 ## 5. Audited repository state
 
-This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed implementation is now at `5fae988`.
+This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed implementation is now at `99f76cc`.
 
 ### 5.1 Completed and preserved
 
@@ -198,9 +198,9 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Boundary: this is local engineering evidence, not hosted production/KMS/PITR proof.
 - [x] ✅ The Next.js workspace and visual shell are scaffolded with pinned dependencies.
   - Evidence: `apps/portal`.
-  - Boundary: the current app has only `RootLayout` and an 18-line placeholder `Home`; it has no Auth flow, product routes, Supabase client usage, or product E2E tests.
-- [x] ✅ GitHub CI run `32174453799` at `5fae988` passed all five existing jobs.
-  - Boundary: the existing “Portal” CI job tests the embedded AP portal, not `apps/portal`; it does not run `portal:build`.
+  - Boundary: the current app has the M1.1 Supabase client boundary and M1.2 Auth flows; it does not yet have the M1.3 authorization DAL, protected product routes, or product E2E tests.
+- [x] ✅ GitHub CI run [`32801270594`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32801270594) at `99f76cc` passed all six required jobs.
+  - Evidence: CI includes a dedicated `apps/portal` Next.js production build in addition to the embedded AP portal, cloud foundation, and firmware jobs.
 
 ### 5.2 Incomplete or unproven
 
@@ -246,7 +246,7 @@ M0 implementation resumed later on 2026-08-24 using a checksum-verified isolated
 - the CI-equivalent `npm ci --ignore-scripts` followed by `npm run portal:build` passed and produced the placeholder `/` plus `/_not-found` routes;
 - the deterministic embedded portal assets were regenerated because `package.json` is part of their source fingerprint, then `npm run webui:check` passed.
 
-This is valid local evidence, not GitHub CI evidence. The generated type artifact/checker is committed in `4ba6e06`; M0.6 and M0.8 remain unmarked until the remaining worktree is committed and the resulting workflow URL is recorded below.
+The text above records the original M0 recovery sequence. Its former evidence gaps were subsequently closed: M0 is complete, and the current reviewed M1.2 implementation and CI evidence are recorded in the status header and milestone ledger below.
 
 ## 6. Senior review: changes to the former order
 
@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
-| M1 | Simulator-driven local web vertical slice | **In progress — M1.2 next** | firmware Internet integration |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.3 next** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -341,18 +341,22 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Implementation commit/PR: `c91f1971f72281e7036ac69127dfa81e4ea6c826`
   - Evidence artifact or command: 9/9 portal boundary tests; `npm run phase1:check`; `npm run cloud:types:check`; `npm run portal:build`; browser-static secret/JWT scan; Next.js `/_next/mcp` compilation/runtime checks; isolated `agent-browser` smoke against local Supabase CLI `2.113.0`; GitHub CI run [`32797754561`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32797754561)
   - Decision/result: PASS; browser/server clients use only the publishable key and `api` schema, request-scoped cookie refresh propagates non-cache headers, PKCE is supplied by pinned `@supabase/ssr`, and the server identity DTO accepts only signed `authenticated` subject/audience claims without forwarding `user_metadata`
-- [ ] M1.2 Implement `/signup`, `/login`, `/forgot-password`, `/auth/confirm`, and logout.
+- [x] ✅ M1.2 Implement `/signup`, `/login`, `/forgot-password`, `/auth/confirm`, and logout.
   - Local email must be captured through Mailpit.
   - Test hostile/open redirects, expired links, refresh, logout, and unverified-email claim denial.
   - Owner: Codex (implementation); repository owner (acceptance)
-  - Target date/window: current M1.2 change
-  - Implementation commit/PR: pending
-  - Evidence artifact or command: pending local Supabase/Mailpit/browser and repository gates
-  - Decision/result: IN PROGRESS; leave unmarked until every M1.2 acceptance case passes
+  - Target date/window: completed 2026-08-24 (America/Bogota)
+  - Implementation commit/PR: `99f76cc98e9b872d6c1cf895c62786c4f57d641a`
+  - Evidence artifact or command: 18/18 portal boundary tests; `npm run phase1:check`; clean `npm run phase1:local -- --clean` (250 pgTAP assertions and 49 adversarial Edge scenarios); `npm run portal:build`; `npm run cloud:types:check`; Next.js `/_next/mcp` compilation/runtime checks; isolated `agent-browser` signup/confirmation/recovery/login/refresh/logout flows through local Mailpit; live `403 email_not_verified` Edge denial; GitHub CI run [`32801270594`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32801270594)
+  - Decision/result: PASS; Auth uses local PKCE token-hash email links, exact allowlisted callback origins and destinations, enumeration-safe responses, expired-link rejection, fresh identity verification before password changes, and current-session-only logout
 - [ ] M1.3 Add a server-only data access layer for authorization and minimal DTOs.
   - Every Server Action independently rechecks authentication and dog role.
   - Private routes/responses are dynamic/private/no-store; do not adopt experimental private caching.
-  - Evidence: ____________________
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: ____________________
+  - Decision/result: PENDING; do not mark complete until direct non-member, wrong-role, stale-session, and DTO field-minimization tests pass
 - [ ] M1.4 Implement the signed-in shell and route guard.
   - Initial routes: `/onboarding`, `/app/[dogId]/today`, `/app/[dogId]/history`, `/app/[dogId]/recordings/[recordingId]`, `/app/[dogId]/collars`, `/app/[dogId]/configuration`.
   - Evidence: ____________________
