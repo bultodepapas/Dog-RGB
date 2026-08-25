@@ -1,14 +1,14 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 is complete on reviewed local and CI evidence, and M1A is active with M1.1 in progress.
+**Status:** Active implementation contract; M0 and M1.1 are complete on reviewed local and CI evidence, and M1.2 is the next pending subphase.
 
 **Last senior review:** 2026-08-24 (America/Bogota).
 
-**Reviewed repository commit:** `1e9bc341890b5b5aa208237e3e1c904462419814` (`main`; GitHub CI run [`32796265255`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32796265255) passed every required M0 job).
+**Reviewed repository commit:** `c91f1971f72281e7036ac69127dfa81e4ea6c826` (`main`; GitHub CI run [`32797754561`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32797754561) passed every required job).
 
-**Current milestone:** M1A — Auth and protected application shell; M1.1 is the only authorized implementation subphase.
+**Current milestone:** M1A — Auth and protected application shell; M1.1 is complete and M1.2 is next.
 
-**Next executable task:** implement and verify M1.1 browser/server Supabase clients, cookie refresh proxy, environment boundary, and server-verified identity primitive. Do not start Auth pages or route guards until M1.1 closes.
+**Next executable task:** fill the required M1.2 ownership/evidence fields, then implement only `/signup`, `/login`, `/forgot-password`, `/auth/confirm`, and logout against local Supabase and Mailpit. M1.3–M1.4 remain blocked.
 
 **Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
-| M1 | Simulator-driven local web vertical slice | **In progress — M1.1 only** | firmware Internet integration |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.2 next** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -332,15 +332,15 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 
 #### M1A — Auth and protected application shell
 
-- [ ] M1.1 Add separate browser/server Supabase clients using pinned `@supabase/ssr`.
+- [x] ✅ M1.1 Add separate browser/server Supabase clients using pinned `@supabase/ssr`.
   - Use publishable key in the browser; no secret key in Vercel/client code.
   - Use PKCE/cookies per current Supabase guidance.
   - Verify identity server-side; do not authorize from `user_metadata`.
   - Owner: Codex (implementation); repository owner (acceptance)
-  - Target date/window: current M1.1 change only
-  - Implementation commit/PR: pending current change
-  - Evidence artifact or command: portal unit tests, lint, typecheck, production build, secret scan, Next.js `/_next/mcp` compilation/runtime checks, and isolated browser smoke
-  - Decision/result: in progress; M1.2–M1.4 remain blocked until all M1.1 evidence is green
+  - Target date/window: completed 2026-08-24 (America/Bogota)
+  - Implementation commit/PR: `c91f1971f72281e7036ac69127dfa81e4ea6c826`
+  - Evidence artifact or command: 9/9 portal boundary tests; `npm run phase1:check`; `npm run cloud:types:check`; `npm run portal:build`; browser-static secret/JWT scan; Next.js `/_next/mcp` compilation/runtime checks; isolated `agent-browser` smoke against local Supabase CLI `2.113.0`; GitHub CI run [`32797754561`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32797754561)
+  - Decision/result: PASS; browser/server clients use only the publishable key and `api` schema, request-scoped cookie refresh propagates non-cache headers, PKCE is supplied by pinned `@supabase/ssr`, and the server identity DTO accepts only signed `authenticated` subject/audience claims without forwarding `user_metadata`
 - [ ] M1.2 Implement `/signup`, `/login`, `/forgot-password`, `/auth/confirm`, and logout.
   - Local email must be captured through Mailpit.
   - Test hostile/open redirects, expired links, refresh, logout, and unverified-email claim denial.
