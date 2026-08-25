@@ -2,11 +2,13 @@
   "name": "@dog-rgb/portal",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test lib/supabase/environment.test.mjs lib/supabase/identity-claims.test.mjs"
   },
   "dependencies": {
     "@dog-rgb/contracts": "0.1.0",

@@ -1,16 +1,16 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 changes pass locally and await commit/CI evidence, while the product web slice remains unimplemented.
+**Status:** Active implementation contract; M0 is complete on reviewed local and CI evidence, and M1A is active with M1.1 in progress.
 
 **Last senior review:** 2026-08-24 (America/Bogota).
 
-**Reviewed repository commit:** `4ba6e0615b0e776a3f28bb93319516cc4adbab85` (`main`, one local commit ahead of `origin/main` at continuation time; remaining M0 hardening/docs are in the worktree).
+**Reviewed repository commit:** `1e9bc341890b5b5aa208237e3e1c904462419814` (`main`; GitHub CI run [`32796265255`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32796265255) passed every required M0 job).
 
-**Current milestone:** M0 — implementation candidate complete locally; commit and CI acceptance pending.
+**Current milestone:** M1A — Auth and protected application shell; M1.1 is the only authorized implementation subphase.
 
-**Next executable task:** commit the remaining M0 hardening/docs, push the resulting reviewed commit, record green CI, then begin M1A with the local simulator-driven Auth shell.
+**Next executable task:** implement and verify M1.1 browser/server Supabase clients, cookie refresh proxy, environment boundary, and server-verified identity primitive. Do not start Auth pages or route guards until M1.1 closes.
 
-**Current blocker:** no technical blocker. M0 remains open until the current worktree is committed and its new CI jobs pass; the workstation's global Node remains `24.12.0`, so local evidence used a checksum-verified isolated Node `24.18.0` runtime.
+**Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
 **Implementation owner:** ____________________
 
@@ -32,10 +32,9 @@ Authority order:
 4. current reference documentation for delivered product behavior;
 5. older dated plans and Git history, as design history only.
 
-Temporary reconciliation rule: until M0.8 closes, this file's audited status
-snapshot overrides stale “proposed/not implemented” status banners in the
-documentation index, architecture, roadmap, and ADR index. It does not override
-their normative behavioral or architectural content.
+M0.8 is closed: the plan index, architecture, roadmap, testing guide, and ADR
+index now agree with the reviewed implementation state. If those documents
+drift again, stop the affected phase and reconcile them in the same change.
 
 Primary normative sources:
 
@@ -269,8 +268,8 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
-| M0 | Reproduce and close the local baseline | **Next** | all new product code |
-| M1 | Simulator-driven local web vertical slice | Pending | firmware Internet integration |
+| M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.1 only** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -300,12 +299,12 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Evidence: GitHub CI run `32174453799` plus retained local artifacts documented in `docs/cloud`.
 - [x] ✅ M0.5 Run `npm run phase1:capacity -- --clean`.
   - Evidence: GitHub CI run `32174453799` and [Phase 1 capacity report](../cloud/phase1-capacity-benchmark.md).
-- [ ] M0.6 Add `npm run portal:build` to CI and name the existing embedded-portal job unambiguously.
+- [x] ✅ M0.6 Add `npm run portal:build` to CI and name the existing embedded-portal job unambiguously.
   - Owner: Codex (implementation); repository owner (merge/acceptance)
   - Target date/window: current M0 change
-  - Implementation commit/PR: `4ba6e06` adds the build job/renames; current worktree explicitly enforces pinned npm in every Node CI job
-  - Evidence artifact or command: `npm ci --ignore-scripts`; `npm run portal:build`
-  - Decision/result: local PASS on 2026-08-24; CI workflow URL pending
+  - Implementation commit/PR: `1e9bc341890b5b5aa208237e3e1c904462419814`
+  - Evidence artifact or command: `npm ci --ignore-scripts`; `npm run portal:build`; GitHub CI run [`32796265255`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32796265255)
+  - Decision/result: PASS on 2026-08-24 local evidence and 2026-08-25 CI; the Next.js production build and the separately named embedded AP smoke/visual jobs are green
 - [x] ✅ M0.7 Generate/check committed Supabase TypeScript types for the `api` schema.
   - Generated types are a client artifact, not the schema authority; migrations remain authoritative.
   - Regenerate and run a drift check after every schema change.
@@ -313,13 +312,13 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Target date/window: completed locally 2026-08-24
   - Implementation commit/PR: `4ba6e0615b0e776a3f28bb93319516cc4adbab85`
   - Evidence artifact or command: `npm run cloud:types:generate`; `npm run cloud:types:check`; clean `npm run phase1:local -- --clean`
-  - Decision/result: committed/local PASS; generated artifact is `apps/portal/lib/database.generated.ts`; `.supabase-version` freezes CLI `2.113.0`; the M0 exit still awaits one green CI run containing all gates
-- [ ] M0.8 Align `docs/PLANS/README.md`, `docs/architecture.md`, `docs/roadmap.md`, and the ADR index with the reviewed implementation state.
+  - Decision/result: PASS locally and in GitHub CI run [`32796265255`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32796265255); generated artifact is `apps/portal/lib/database.generated.ts`; `.supabase-version` freezes CLI `2.113.0`
+- [x] ✅ M0.8 Align `docs/PLANS/README.md`, `docs/architecture.md`, `docs/roadmap.md`, and the ADR index with the reviewed implementation state.
   - Owner: Codex (implementation); repository owner (merge/acceptance)
   - Target date/window: current M0 change
-  - Implementation commit/PR: pending
+  - Implementation commit/PR: `1e9bc341890b5b5aa208237e3e1c904462419814`
   - Evidence artifact or command: relative-link verification plus `git diff --check`; `docs/testing.md` also documents the new split portal/cloud commands
-  - Decision/result: local reconciliation complete; reviewed documentation commit pending
+  - Decision/result: PASS; reviewed documentation is committed on `main`, relative links and `git diff --check` passed, and GitHub CI run [`32796265255`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32796265255) is green
 
 **M0 exit gate:** M0.1–M0.8 are checked on the same reviewed commit; the clean local stack is not exposed beyond localhost; no secret or coordinate appears in logs/artifacts.
 
@@ -337,8 +336,11 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Use publishable key in the browser; no secret key in Vercel/client code.
   - Use PKCE/cookies per current Supabase guidance.
   - Verify identity server-side; do not authorize from `user_metadata`.
-  - Owner: ____________________
-  - Implementation commit/PR: ____________________
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: current M1.1 change only
+  - Implementation commit/PR: pending current change
+  - Evidence artifact or command: portal unit tests, lint, typecheck, production build, secret scan, Next.js `/_next/mcp` compilation/runtime checks, and isolated browser smoke
+  - Decision/result: in progress; M1.2–M1.4 remain blocked until all M1.1 evidence is green
 - [ ] M1.2 Implement `/signup`, `/login`, `/forgot-password`, `/auth/confirm`, and logout.
   - Local email must be captured through Mailpit.
   - Test hostile/open redirects, expired links, refresh, logout, and unverified-email claim denial.

@@ -4,6 +4,9 @@ __pycache__/
 node_modules/
 .next/
 *.tsbuildinfo
+.env*
+!.env.example
+!**/.env.example
 supabase/functions/.env
 playwright-report/
 test-results/
