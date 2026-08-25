@@ -1,14 +1,14 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 and M1.1–M1.3 are complete on reviewed local and CI evidence, and M1.4 is in progress.
+**Status:** Active implementation contract; M0 and M1.1–M1.4 are complete on reviewed local and CI evidence, and M1.5 is the next pending subphase.
 
 **Last senior review:** 2026-08-25 (America/Bogota).
 
-**Reviewed repository commit:** `ccbaf74027ad0fa57184c61e43eb7361043b9b24` (`main`; GitHub CI run [`32862978925`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32862978925) passed every required job).
+**Reviewed repository commit:** `c8fad951b0b76a7d58256a2eb1f6d37095ea981a` (`main`; GitHub CI run [`32868184137`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32868184137) passed every required job).
 
-**Current milestone:** M1A — Auth and protected application shell; M1.1–M1.3 are complete and M1.4 is in progress.
+**Current milestone:** M1B — Dog, collar, and claim flow; M1.1–M1.4 are complete and M1.5 is next.
 
-**Next executable task:** implement only the M1.4 signed-in shell and server-side route guard for the listed routes, then run its focused local security, browser, accessibility, build, and CI gates. Reuse the M1.3 DAL; do not add dog creation, claim flow, product data, or M1.5+ behavior.
+**Next executable task:** assign an owner and target window for M1.5, then implement only one-dog creation from `/onboarding` through the existing `api.create_dog_v1(text,text)` RPC. Accept a dog name only, submit the fixed `America/Bogota` timezone, preserve the profile-level metric default, and redirect the new owner to `/app/{dogId}/today`. Do not add collar creation, claim flow, profile settings, arbitrary timezones, direct browser table inserts, or M1.6+ behavior.
 
 **Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
@@ -174,7 +174,7 @@ Any implementation that violates an invariant is rejected even if its happy-path
 
 ## 5. Audited repository state
 
-This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed implementation is now at `99f76cc`.
+This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed implementation is now at `c8fad95`.
 
 ### 5.1 Completed and preserved
 
@@ -198,8 +198,8 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Boundary: this is local engineering evidence, not hosted production/KMS/PITR proof.
 - [x] ✅ The Next.js workspace and visual shell are scaffolded with pinned dependencies.
   - Evidence: `apps/portal`.
-  - Boundary: the current app has the M1.1 Supabase client boundary, M1.2 Auth flows, and M1.3 server-only dog-authorization DAL; it does not yet have the M1.4 signed-in shell, protected product routes, or product E2E tests.
-- [x] ✅ GitHub CI run [`32862978925`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32862978925) at `ccbaf74` passed all six required jobs.
+  - Boundary: the current app has the M1.1 Supabase client boundary, M1.2 Auth flows, M1.3 server-only dog-authorization DAL, and M1.4 signed-in shell/protected route boundary; it does not yet have M1.5 dog creation, claim/collar behavior, product data reads, or product E2E tests.
+- [x] ✅ GitHub CI run [`32868184137`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32868184137) at `c8fad95` passed all six required jobs.
   - Evidence: CI includes a dedicated `apps/portal` Next.js production build in addition to the embedded AP portal, cloud foundation, and firmware jobs.
 
 ### 5.2 Incomplete or unproven
@@ -246,7 +246,7 @@ M0 implementation resumed later on 2026-08-24 using a checksum-verified isolated
 - the CI-equivalent `npm ci --ignore-scripts` followed by `npm run portal:build` passed and produced the placeholder `/` plus `/_not-found` routes;
 - the deterministic embedded portal assets were regenerated because `package.json` is part of their source fingerprint, then `npm run webui:check` passed.
 
-The text above records the original M0 recovery sequence. Its former evidence gaps were subsequently closed: M0 is complete, and the current reviewed M1.2 implementation and CI evidence are recorded in the status header and milestone ledger below.
+The text above records the original M0 recovery sequence. Its former evidence gaps were subsequently closed: M0 is complete, and the current reviewed M1.4 implementation and CI evidence are recorded in the status header and milestone ledger below.
 
 ## 6. Senior review: changes to the former order
 
@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
-| M1 | Simulator-driven local web vertical slice | **In progress — M1.4 next** | firmware Internet integration |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.5 next** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -357,7 +357,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Implementation commit/PR: `ccbaf74027ad0fa57184c61e43eb7361043b9b24`
   - Evidence artifact or command: 28/28 portal tests, including 10 focused DAL tests; `npm run phase1:check`; clean `node tools/phase1_local.mjs --clean` with pinned Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0` (250 pgTAP assertions and 49 adversarial Edge scenarios); `npm run cloud:types:check`; `npm run portal:build`; Next.js `/_next/mcp` compilation/runtime checks; isolated browser/runtime matrix against local Supabase for owner, viewer, non-member, wrong-role, and Auth-deleted stale sessions; GitHub CI run [`32862978925`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32862978925)
   - Decision/result: PASS; each public DAL entry creates a request-scoped client, performs a fresh Auth-server `getUser()` check, applies explicit user/dog membership lookup plus RLS, enforces the exact read/write/admin role matrix, returns the same generic denial for non-members and insufficient roles, exposes only frozen minimal DTO fields, and adds no cache, secret, schema, dependency, route, or UI surface
-- [ ] M1.4 Implement the signed-in shell and route guard.
+- [x] ✅ M1.4 Implement the signed-in shell and route guard.
   - Initial routes: `/onboarding`, `/app/[dogId]/today`, `/app/[dogId]/history`, `/app/[dogId]/recordings/[recordingId]`, `/app/[dogId]/collars`, `/app/[dogId]/configuration`.
   - `/onboarding` requires fresh signed-in identity; every `/app/[dogId]/**` page additionally requires M1.3 `read` access to that exact dog.
   - Enforce the boundary in server code before private data/rendering. Navigation visibility, client state, and proxy/middleware checks are not authorization.
@@ -365,16 +365,25 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Keep every protected response dynamic and `private, no-store`; accept only same-origin allowlisted return paths and do not reveal whether an inaccessible dog ID exists.
   - Render shell/navigation and explicit empty/error/denied states only. Defer a loading fallback until an authorized post-guard async child exists; Dog creation and every M1.5+ data mutation or product feature remain out of scope.
   - Owner: Codex (implementation); repository owner (acceptance)
-  - Target date/window: current M1.4 change
-  - Implementation commit/PR: pending
-  - Evidence artifact or command: pending focused route-guard, local Supabase/RLS, browser/accessibility, production-build, and runtime gates
-  - Decision/result: IN PROGRESS; leave unmarked until anonymous, expired/Auth-deleted stale-session, hostile-return-path, non-member dog-ID, direct-navigation, refresh, private-cache-header, keyboard-navigation, production-build, and local browser gates pass
+  - Target date/window: completed 2026-08-25 (America/Bogota)
+  - Implementation commit/PR: `65852dfbe77df6562477c64eb049e4ee477bbfec`; clean-state route-prop type fix `c8fad951b0b76a7d58256a2eb1f6d37095ea981a`
+  - Evidence artifact or command: 40/40 portal tests; `npm run phase1:check`; clean `npm run phase1:local -- --clean` with pinned Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0` (250 pgTAP assertions and 49 adversarial Edge scenarios); clean-state `tsc --noEmit` with `.next` absent; `npm run portal:build`; Next.js `/_next/mcp`; production HTML and RSC cache-header probes; local browser/RLS owner, viewer, non-member, malformed/nonexistent ID, membership-removal, stale/Auth-deleted session, hostile-return-path, refresh, logout/back, and responsive keyboard/accessibility matrix; desktop/mobile Lighthouse accessibility 100; GitHub CI run [`32868184137`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32868184137)
+  - Decision/result: PASS; every protected leaf awaits a fresh server guard before rendering, every dog route reuses the M1.3 `read` boundary, anonymous access redirects only to an allowlisted local return path, inaccessible dog IDs fail with the same generic 404, private HTML/RSC responses are dynamic and `private, no-store`, and the shell exposes no dog data or M1.5 behavior beyond the authorized minimal dog DTO
 
 #### M1B — Dog, collar, and claim flow
 
 - [ ] M1.5 Create one dog with validated name, `America/Bogota` default timezone, and metric units.
-  - UI fields/copy decision: ____________________
-  - Evidence: owner/non-member RLS tests and browser E2E.
+  - Hard scope: replace the `/onboarding` placeholder with one Spanish-first name form. The only editable product field is `name`; trim once and require 1–80 Unicode characters after trimming. The server always passes `America/Bogota` to the existing RPC. Metric units remain the existing `api.profiles.units = 'metric'` signup default; do not add a units column to `api.dogs` or a settings selector in this subphase.
+  - Mutation boundary: implement a Server Action that performs a fresh Auth-server identity check, parses `FormData` as untrusted input, and calls only `api.create_dog_v1(p_name, p_timezone)`. Do not insert into `api.dogs` or `api.dog_memberships` directly and do not add a migration unless a failing contract test proves the existing transactional RPC is insufficient.
+  - Success behavior: accept the returned UUID only after canonical validation, then redirect to `/app/{dogId}/today`. Prevent accidental double submission in the UI, but rely on the action/RPC result rather than client state as truth. A second intentional dog is permitted by the current foundation contract; “one dog” is the proof scope, not a database singleton rule.
+  - Failure behavior: expose a bounded field error for empty/over-80 names and a generic retry message for Auth/RPC failures; never echo database errors, user IDs, JWTs, or SQL details. A failed mutation creates neither a dog nor an orphan membership.
+  - Explicit non-goals: breed, birth date, weight, photo/storage, timezone or units selector, dog editing/deletion, invitations/sharing, collar records, claim codes, optimistic dog rows, analytics, Realtime, or M1.6+ navigation behavior.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - UI fields/copy decision: name label/helper/error/success copy ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: focused validation/action tests; pgTAP or raw RPC proof for authenticated success, anonymous denial, whitespace/empty/over-80 rejection, atomic dog-plus-owner-membership creation, and no partial row on failure; browser E2E for direct onboarding, keyboard submission, double-click suppression, success redirect, refresh, and logout; `npm run phase1:check`; clean local gate; production build; CI ____________________
+  - Decision/result: PENDING; leave unmarked until one authenticated account creates exactly one tested dog/membership pair through the RPC, receives owner access, reaches the protected Today route, and every listed failure/security gate passes ____________________
 - [ ] M1.6 Generate a claim code through the existing authenticated user Edge Function.
   - Raw code shown once; 15-minute TTL; server stores digest only; verified email and owner/editor membership required.
   - Evidence: ____________________
@@ -731,7 +740,7 @@ The exact wire contract remains in `contracts/device-v1`. The following boundari
 
 ## 12. Research investigations applied in this revision
 
-Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 for M1.3. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
+Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 for M1.3–M1.5 boundaries. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
 
 | # | Investigation | Finding | Applied decision |
 | --- | --- | --- | --- |
@@ -751,6 +760,9 @@ Research was refreshed on 2026-08-24 using primary/official sources and rechecke
 | R14 | Scheduling | Vercel Hobby Cron is too coarse for near-term rollups; Supabase Cron publishes concurrency/duration guidance. | Use a measured 5–15 minute Supabase Cron batch in M4, not one-minute work by assumption and not Vercel Cron. [Vercel Cron](https://vercel.com/docs/cron-jobs/usage-and-pricing), [Supabase Cron](https://supabase.com/docs/guides/cron) |
 | R15 | Device hardening | Unique identity and controlled configuration are baseline; NVS/flash encryption and Secure Boot add provisioning/recovery constraints. | Unique revocable credential/TLS are mandatory; irreversible hardware hardening stays optional after the physical proof. [NISTIR 8259A](https://csrc.nist.gov/pubs/ir/8259/a/final), [ESP security](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/security/security.html) |
 | R16 | Supabase session freshness | Local JWT claim verification can validate a signed token without proving that the Auth server still considers its user/session valid; Supabase requires `getUser()` when server freshness is required. | The M1.3 authorization boundary performs a fresh Auth-server `getUser()` call on every public DAL entry; claim-only identity remains insufficient for authorization-sensitive reads or mutations. [Supabase SSR advanced guide](https://supabase.com/docs/guides/auth/server-side/advanced-guide), [JavaScript Auth reference](https://supabase.com/docs/reference/javascript/auth-getuser) |
+| R17 | Next.js partial rendering and authorization | Layouts do not necessarily rerender on navigation, Proxy runs for prefetched routes, and UI visibility cannot secure nested entry points or Server Actions. Secure checks belong close to the data/page/action. | M1.4 guards every protected leaf before shell/content, keeps Proxy limited to optimistic session refresh/cache headers, omits a pre-authorization segment loading boundary, and requires every later mutation to reauthorize independently. [Next.js authentication](https://nextjs.org/docs/app/guides/authentication) |
+| R18 | Next.js route-aware type generation | Global `PageProps`, `LayoutProps`, and `RouteContext` helpers are generated by `next dev`, `next build`, or `next typegen`; a standalone clean `tsc` can run before those artifacts exist. | Route source used by the repository's pre-build typecheck declares explicit async `params` props. Do not make `npm run portal:typecheck` depend on a stale `.next` directory unless CI first runs and verifies `next typegen`. [Next.js TypeScript configuration](https://nextjs.org/docs/app/api-reference/config/typescript#route-aware-type-helpers), [page convention](https://nextjs.org/docs/app/api-reference/file-conventions/page#page-props-helper) |
+| R19 | Supabase transactional RPC boundary | Data-intensive atomic mutations fit PostgreSQL functions; `security definer` functions require an empty/pinned `search_path`, schema-qualified references, and explicit execution grants. | M1.5 must reuse the existing `api.create_dog_v1` transaction, which already pins `search_path`, derives `auth.uid()`, validates input, creates dog plus owner membership, revokes anonymous/public execution, and grants only `authenticated`; do not replace it with two browser inserts. [Supabase database functions](https://supabase.com/docs/guides/database/functions), [Data API security](https://supabase.com/docs/guides/api/securing-your-api) |
 
 ## 13. Definition of foundational success
 
