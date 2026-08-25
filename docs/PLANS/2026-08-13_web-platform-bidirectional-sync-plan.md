@@ -1,14 +1,14 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 and M1.1–M1.4 are complete on reviewed local and CI evidence, and M1.5 is the next pending subphase.
+**Status:** Active implementation contract; M0 and M1.1–M1.5 are complete on reviewed local and CI evidence, and M1.6 is next.
 
 **Last senior review:** 2026-08-25 (America/Bogota).
 
-**Reviewed repository commit:** `c8fad951b0b76a7d58256a2eb1f6d37095ea981a` (`main`; GitHub CI run [`32868184137`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32868184137) passed every required job).
+**Reviewed repository commit:** `548d5d4ebdc3e42b614c39ced8c950ebd8e5e2d1` (`main`; GitHub CI run [`32872298597`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32872298597) passed every required job).
 
-**Current milestone:** M1B — Dog, collar, and claim flow; M1.1–M1.4 are complete and M1.5 is next.
+**Current milestone:** M1B — Dog, collar, and claim flow; M1.1–M1.5 are complete and M1.6 is next.
 
-**Next executable task:** assign an owner and target window for M1.5, then implement only one-dog creation from `/onboarding` through the existing `api.create_dog_v1(text,text)` RPC. Accept a dog name only, submit the fixed `America/Bogota` timezone, preserve the profile-level metric default, and redirect the new owner to `/app/{dogId}/today`. Do not add collar creation, claim flow, profile settings, arbitrary timezones, direct browser table inserts, or M1.6+ behavior.
+**Next executable task:** complete only M1.6 claim-code generation through the existing authenticated user Edge Function. Show the raw code once, retain only its digest, enforce the existing 15-minute TTL plus verified-email and owner/editor gates, and prove denial/expiry behavior without exposing credentials in logs or artifacts. Do not pair the simulator, add collar-management UI, change the claim protocol, or begin M1.7+ behavior.
 
 **Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
@@ -174,7 +174,7 @@ Any implementation that violates an invariant is rejected even if its happy-path
 
 ## 5. Audited repository state
 
-This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed implementation is now at `c8fad95`.
+This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed implementation is now at `548d5d4`.
 
 ### 5.1 Completed and preserved
 
@@ -187,7 +187,7 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Evidence: [storage feasibility](../cloud/phase0-storage-feasibility.md) and [independent-review packet](../cloud/phase0-outbox-review-packet.md); candidate result 51/51.
   - Boundary: implementation-author tests are not independent acceptance.
 - [x] ✅ Local Supabase migration stack exists with explicit schemas/grants/RLS, ownership, claims, credentials, sync receipts, raw telemetry, configuration LWW, limits, deletion jobs, retention, and tombstone replay.
-  - Evidence: 11 migrations and 12 pgTAP files, introduced across commits `4698f24` through `b48e345`.
+  - Evidence: 12 migrations and 13 pgTAP files, introduced across commits `4698f24` through `548d5d4`.
 - [x] ✅ Four Edge gateways exist: issue claim, device claim, device sync, and device revoke.
   - Evidence: `supabase/functions` and adversarial boundary tests.
   - Hardened Edge RPCs are `api.consume_device_claim_gateway_v1` and `api.device_sync_gateway_v1`; direct inner-function execution is revoked.
@@ -198,8 +198,8 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Boundary: this is local engineering evidence, not hosted production/KMS/PITR proof.
 - [x] ✅ The Next.js workspace and visual shell are scaffolded with pinned dependencies.
   - Evidence: `apps/portal`.
-  - Boundary: the current app has the M1.1 Supabase client boundary, M1.2 Auth flows, M1.3 server-only dog-authorization DAL, and M1.4 signed-in shell/protected route boundary; it does not yet have M1.5 dog creation, claim/collar behavior, product data reads, or product E2E tests.
-- [x] ✅ GitHub CI run [`32868184137`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32868184137) at `c8fad95` passed all six required jobs.
+  - Boundary: the current app has the M1.1 Supabase client boundary, M1.2 Auth flows, M1.3 server-only dog-authorization DAL, M1.4 signed-in shell/protected route boundary, and M1.5 transactional dog creation; it does not yet have claim/collar behavior, product data reads, or broader product E2E tests.
+- [x] ✅ GitHub CI run [`32872298597`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32872298597) at `548d5d4` passed all six required jobs.
   - Evidence: CI includes a dedicated `apps/portal` Next.js production build in addition to the embedded AP portal, cloud foundation, and firmware jobs.
 
 ### 5.2 Incomplete or unproven
@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
-| M1 | Simulator-driven local web vertical slice | **In progress — M1.5 next** | firmware Internet integration |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.6 next** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -372,18 +372,18 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 
 #### M1B — Dog, collar, and claim flow
 
-- [ ] M1.5 Create one dog with validated name, `America/Bogota` default timezone, and metric units.
+- [x] ✅ M1.5 Create one dog with validated name, `America/Bogota` default timezone, and metric units.
   - Hard scope: replace the `/onboarding` placeholder with one Spanish-first name form. The only editable product field is `name`; trim once and require 1–80 Unicode characters after trimming. The server always passes `America/Bogota` to the existing RPC. Metric units remain the existing `api.profiles.units = 'metric'` signup default; do not add a units column to `api.dogs` or a settings selector in this subphase.
   - Mutation boundary: implement a Server Action that performs a fresh Auth-server identity check, parses `FormData` as untrusted input, and calls only `api.create_dog_v1(p_name, p_timezone)`. Do not insert into `api.dogs` or `api.dog_memberships` directly and do not add a migration unless a failing contract test proves the existing transactional RPC is insufficient.
   - Success behavior: accept the returned UUID only after canonical validation, then redirect to `/app/{dogId}/today`. Prevent accidental double submission in the UI, but rely on the action/RPC result rather than client state as truth. A second intentional dog is permitted by the current foundation contract; “one dog” is the proof scope, not a database singleton rule.
-  - Failure behavior: expose a bounded field error for empty/over-80 names and a generic retry message for Auth/RPC failures; never echo database errors, user IDs, JWTs, or SQL details. A failed mutation creates neither a dog nor an orphan membership.
+  - Failure behavior: expose a bounded field error for empty/over-80 names; an invalid, expired, or Auth-rejected session follows the protected login boundary; RPC or malformed-result failures expose only the generic retry message. Never echo database errors, user IDs, JWTs, or SQL details. A failed mutation creates neither a dog nor an orphan membership.
   - Explicit non-goals: breed, birth date, weight, photo/storage, timezone or units selector, dog editing/deletion, invitations/sharing, collar records, claim codes, optimistic dog rows, analytics, Realtime, or M1.6+ navigation behavior.
-  - Owner: ____________________
-  - Target date/window: ____________________
-  - UI fields/copy decision: name label/helper/error/success copy ____________________
-  - Implementation commit/PR: ____________________
-  - Evidence artifact or command: focused validation/action tests; pgTAP or raw RPC proof for authenticated success, anonymous denial, whitespace/empty/over-80 rejection, atomic dog-plus-owner-membership creation, and no partial row on failure; browser E2E for direct onboarding, keyboard submission, double-click suppression, success redirect, refresh, and logout; `npm run phase1:check`; clean local gate; production build; CI ____________________
-  - Decision/result: PENDING; leave unmarked until one authenticated account creates exactly one tested dog/membership pair through the RPC, receives owner access, reaches the protected Today route, and every listed failure/security gate passes ____________________
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: completed 2026-08-25 (America/Bogota)
+  - UI fields/copy decision: label `Nombre de tu perro`; helper `Entre 1 y 80 caracteres. Usaremos America/Bogota y unidades métricas por ahora.`; field error `Escribe un nombre de hasta 80 caracteres.`; submit/pending `Crear perfil` / `Creando perfil…`; generic failure `No pudimos crear el perfil. Inténtalo de nuevo.`; success redirects without an intermediate success message
+  - Implementation commit/PR: `548d5d4ebdc3e42b614c39ced8c950ebd8e5e2d1`
+  - Evidence artifact or command: 48/48 portal tests; 23 focused create-dog pgTAP assertions and 273/273 total assertions; `npm run phase1:check`; clean `npm run phase1:local -- --clean` with pinned Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0`; `npm run cloud:types:check`; `npm run portal:build`; Next.js `/_next/mcp` runtime/compilation checks; browser proof for direct onboarding, keyboard validation, real double-click yielding exactly one dog/owner pair, protected Today redirect and refresh, logout/back, stale-session fail-closed login with no row, and forced-RPC-failure generic message with no row; desktop, mobile, and error-state Lighthouse accessibility 100 plus manual keyboard/focus/label/target/overflow checks; GitHub CI run [`32872298597`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32872298597)
+  - Decision/result: PASS; one authenticated account created exactly one tested dog and owner-membership pair through the sole transactional RPC, with a normalized 1–80-code-point name, fixed `America/Bogota` timezone, unchanged metric profile default, fresh Auth verification on the same request-scoped client, canonical returned UUID, and no browser table inserts; denial, invalid input, stale Auth, malformed/RPC failure, forced membership rollback, and rapid double submission create no partial or duplicate tested row
 - [ ] M1.6 Generate a claim code through the existing authenticated user Edge Function.
   - Raw code shown once; 15-minute TTL; server stores digest only; verified email and owner/editor membership required.
   - Evidence: ____________________
