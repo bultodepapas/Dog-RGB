@@ -84,6 +84,7 @@ try {
   runQuiet("supabase", ["start"]);
   console.log("Rebuilding and testing the database...");
   run("supabase", ["db", "reset"]);
+  run("npm", ["run", "cloud:types:check"]);
   run("supabase", ["test", "db", "supabase/tests/database", "--local"]);
   run("supabase", ["db", "lint", "--local", "--schema", "api,private", "--level", "warning", "--fail-on", "error"]);
   run("supabase", ["db", "advisors", "--local", "--type", "all", "--level", "warn", "--fail-on", "error"]);

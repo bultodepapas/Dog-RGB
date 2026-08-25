@@ -21,14 +21,22 @@ jobs:
           node-version-file: .node-version
           cache: npm
 
+      - name: Read pinned Supabase CLI version
+        id: supabase-version
+        shell: bash
+        run: echo "version=$(tr -d '\r\n' < .supabase-version)" >> "$GITHUB_OUTPUT"
+
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.113.0
+          version: ${{ steps.supabase-version.outputs.version }}
 
       - run: npm ci
 
       - name: Run clean local foundation gate
         run: npm run phase1:local -- --clean
+
+      - name: Verify generated api schema TypeScript types
+        run: npm run cloud:types:check
 
       - name: Run migrated-schema capacity gate
         run: npm run phase1:capacity -- --clean
@@ -88,8 +96,25 @@ jobs:
         working-directory: Platformio/Dog-RGB
         run: python -m unittest discover -s test -p "test_*.py" -v
 
-  portal:
-    name: Portal (smoke + Playwright)
+  web-portal:
+    name: Web portal (Next.js production build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies without browser postinstall
+        run: npm ci --ignore-scripts
+
+      - name: Build Next.js portal
+        run: npm run portal:build
+
+  embedded-portal:
+    name: Embedded AP portal (smoke + Playwright)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -132,7 +157,7 @@ jobs:
           retention-days: 7
 
   visual:
-    name: Portal (visual regression)
+    name: Embedded AP portal (visual regression)
     runs-on: ubuntu-latest
     # Screenshot baselines are pixel comparisons, so they only mean anything
     # against the renderer that produced them. The committed baselines carry a

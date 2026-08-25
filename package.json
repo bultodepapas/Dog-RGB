@@ -40,6 +40,8 @@
     "cloud:test:db": "supabase test db",
     "cloud:functions": "supabase functions serve --env-file supabase/functions/.env.example",
     "cloud:simulate": "npm run run --workspace @dog-rgb/device-simulator",
+    "cloud:types:generate": "node tools/supabase_types.mjs --write",
+    "cloud:types:check": "node tools/supabase_types.mjs",
     "secrets:scan": "node tools/secret_scan.mjs",
     "phase1:check": "npm run webui:check && npm run contracts:edge:check && npm run contracts:test && npm run lint && npm run typecheck && npm run test:unit && npm run secrets:scan",
     "phase1:local": "node tools/phase1_local.mjs",
