@@ -38,7 +38,7 @@ function FieldError({ message, id }: Readonly<{ message?: string; id: string }>)
   ) : null;
 }
 
-export function LoginForm() {
+export function LoginForm({ nextPath }: Readonly<{ nextPath: string }>) {
   const [state, action, pending] = useActionState(
     loginAction,
     INITIAL_AUTH_ACTION_STATE,
@@ -46,6 +46,7 @@ export function LoginForm() {
 
   return (
     <form className="auth-form" action={action}>
+      <input name="next" type="hidden" value={nextPath} />
       <label htmlFor="login-email">Correo</label>
       <input
         id="login-email"

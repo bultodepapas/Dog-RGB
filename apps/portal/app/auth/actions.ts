@@ -9,6 +9,7 @@ import {
   parseNewPasswordForm,
   parseSignupForm,
 } from "../../lib/auth/form";
+import { resolveProtectedReturnPath } from "../../lib/auth/protected-route";
 import { getVerifiedIdentity } from "../../lib/supabase/identity";
 import { createServerSupabaseClient } from "../../lib/supabase/server";
 
@@ -35,7 +36,7 @@ export async function loginAction(
     return { status: "error", message: LOGIN_ERROR };
   }
 
-  redirect("/");
+  redirect(resolveProtectedReturnPath(formData.get("next")));
 }
 
 export async function signupAction(

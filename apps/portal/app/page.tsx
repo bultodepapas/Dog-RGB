@@ -34,9 +34,16 @@ export default async function Home({ searchParams }: HomePageProps) {
         ) : null}
         <div className="home-actions">
           {identity ? (
-            <form action={logoutAction}>
-              <button type="submit">CERRAR ESTA SESIÓN</button>
-            </form>
+            <>
+              <Link className="button-link" href="/onboarding">
+                ABRIR ÁREA PRIVADA
+              </Link>
+              <form action={logoutAction}>
+                <button className="secondary-button" type="submit">
+                  CERRAR ESTA SESIÓN
+                </button>
+              </form>
+            </>
           ) : (
             <>
               <Link className="button-link" href="/login">

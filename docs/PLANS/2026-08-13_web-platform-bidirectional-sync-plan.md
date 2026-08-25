@@ -1,14 +1,14 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 and M1.1–M1.3 are complete on reviewed local and CI evidence, and M1.4 is the next pending subphase.
+**Status:** Active implementation contract; M0 and M1.1–M1.3 are complete on reviewed local and CI evidence, and M1.4 is in progress.
 
 **Last senior review:** 2026-08-25 (America/Bogota).
 
 **Reviewed repository commit:** `ccbaf74027ad0fa57184c61e43eb7361043b9b24` (`main`; GitHub CI run [`32862978925`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32862978925) passed every required job).
 
-**Current milestone:** M1A — Auth and protected application shell; M1.1–M1.3 are complete and M1.4 is next.
+**Current milestone:** M1A — Auth and protected application shell; M1.1–M1.3 are complete and M1.4 is in progress.
 
-**Next executable task:** assign the M1.4 owner and target, then implement only the signed-in shell and server-side route guard for the listed routes. Reuse the M1.3 DAL; do not add dog creation, claim flow, product data, or M1.5+ behavior.
+**Next executable task:** implement only the M1.4 signed-in shell and server-side route guard for the listed routes, then run its focused local security, browser, accessibility, build, and CI gates. Reuse the M1.3 DAL; do not add dog creation, claim flow, product data, or M1.5+ behavior.
 
 **Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
@@ -361,13 +361,14 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Initial routes: `/onboarding`, `/app/[dogId]/today`, `/app/[dogId]/history`, `/app/[dogId]/recordings/[recordingId]`, `/app/[dogId]/collars`, `/app/[dogId]/configuration`.
   - `/onboarding` requires fresh signed-in identity; every `/app/[dogId]/**` page additionally requires M1.3 `read` access to that exact dog.
   - Enforce the boundary in server code before private data/rendering. Navigation visibility, client state, and proxy/middleware checks are not authorization.
+  - Every leaf page must await its guard before returning shell/content. Do not add segment `loading.tsx` above the guard; any future loading fallback belongs inside the authorized page after the guard resolves.
   - Keep every protected response dynamic and `private, no-store`; accept only same-origin allowlisted return paths and do not reveal whether an inaccessible dog ID exists.
-  - Render shell/navigation and explicit loading/empty/error/denied states only. Dog creation and every M1.5+ data mutation or product feature remain out of scope.
-  - Owner: ____________________
-  - Target date/window: ____________________
-  - Implementation commit/PR: ____________________
-  - Evidence artifact or command: ____________________
-  - Decision/result: PENDING; leave unmarked until anonymous, expired/revoked-session, hostile-return-path, non-member dog-ID, direct-navigation, refresh, private-cache-header, keyboard-navigation, production-build, and local browser gates pass
+  - Render shell/navigation and explicit empty/error/denied states only. Defer a loading fallback until an authorized post-guard async child exists; Dog creation and every M1.5+ data mutation or product feature remain out of scope.
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: current M1.4 change
+  - Implementation commit/PR: pending
+  - Evidence artifact or command: pending focused route-guard, local Supabase/RLS, browser/accessibility, production-build, and runtime gates
+  - Decision/result: IN PROGRESS; leave unmarked until anonymous, expired/Auth-deleted stale-session, hostile-return-path, non-member dog-ID, direct-navigation, refresh, private-cache-header, keyboard-navigation, production-build, and local browser gates pass
 
 #### M1B — Dog, collar, and claim flow
 
