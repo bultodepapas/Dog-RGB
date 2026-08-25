@@ -130,6 +130,7 @@ test("every private leaf route is dynamic and awaits its own page guard", async 
     const source = await readFile(new URL(path, import.meta.url), "utf8");
     assert.match(source, /export const dynamic = "force-dynamic";/u, path);
     assert.match(source, guardPattern, path);
+    assert.doesNotMatch(source, /\bPageProps</u, path);
   }
 
   await assert.rejects(

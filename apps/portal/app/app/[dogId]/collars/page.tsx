@@ -7,8 +7,12 @@ import { ProtectedDogPage } from "../../../components/protected-dog-page";
 export const metadata: Metadata = { title: "Collares | Dog RGB" };
 export const dynamic = "force-dynamic";
 
+type CollarsPageProps = Readonly<{
+  params: Promise<{ dogId: string }>;
+}>;
+
 export default async function CollarsPage(
-  props: PageProps<"/app/[dogId]/collars">,
+  props: CollarsPageProps,
 ) {
   const { dogId } = await props.params;
   const dog = await requireDogPage(dogId, dogAppPath(dogId, "collars"));

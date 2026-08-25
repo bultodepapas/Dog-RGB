@@ -11,8 +11,12 @@ import { ProtectedRecordingPage } from "../../../../components/protected-dog-pag
 export const metadata: Metadata = { title: "Grabación | Dog RGB" };
 export const dynamic = "force-dynamic";
 
+type RecordingPageProps = Readonly<{
+  params: Promise<{ dogId: string; recordingId: string }>;
+}>;
+
 export default async function RecordingPage(
-  props: PageProps<"/app/[dogId]/recordings/[recordingId]">,
+  props: RecordingPageProps,
 ) {
   const { dogId, recordingId } = await props.params;
   if (!isCanonicalUuid(recordingId)) {
