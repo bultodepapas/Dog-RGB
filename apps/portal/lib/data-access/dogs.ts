@@ -9,6 +9,12 @@ import {
   type DogMembershipRecord,
   type DogRecord,
 } from "./dogs-core";
+import type {
+  TodayCollarRecord,
+  TodayDailySummaryRecord,
+  TodayRecordingRecord,
+  TodayRecordingSummaryRecord,
+} from "./today-core";
 
 export {
   DOG_ROLES,
@@ -19,6 +25,14 @@ export {
   type DogRole,
   type DogSummaryDto,
 } from "./dogs-core";
+export {
+  TODAY_CLOCK_QUALITIES,
+  TODAY_RECORDING_STATES,
+  type TodayFreshness,
+  type TodayRecordingState,
+  type TodayRecordingTimeQuality,
+  type TodaySnapshotDto,
+} from "./today-core";
 
 type MembershipRow = Pick<
   Database["api"]["Tables"]["dog_memberships"]["Row"],
@@ -28,6 +42,42 @@ type MembershipRow = Pick<
 type DogRow = Pick<
   Database["api"]["Tables"]["dogs"]["Row"],
   "id" | "name" | "timezone"
+>;
+
+type TodayCollarRow = Pick<
+  Database["api"]["Tables"]["collars"]["Row"],
+  "id" | "dog_id" | "display_name" | "state" | "last_sync_at" | "linked_at"
+>;
+
+type TodayDailySummaryRow = Pick<
+  Database["api"]["Tables"]["daily_summaries"]["Row"],
+  | "dog_id"
+  | "local_date"
+  | "timezone"
+  | "coverage_ratio"
+  | "unknown_s"
+  | "algorithm_version"
+  | "computed_at"
+>;
+
+type TodayRecordingRow = Pick<
+  Database["api"]["Tables"]["recordings"]["Row"],
+  | "id"
+  | "collar_id"
+  | "started_at"
+  | "ended_at"
+  | "created_at"
+  | "state"
+  | "point_count"
+  | "clock_quality"
+>;
+
+type TodayRecordingSummaryRow = Pick<
+  Database["api"]["Tables"]["recording_summaries"]["Row"],
+  | "recording_id"
+  | "coverage_ratio"
+  | "algorithm_version"
+  | "computed_at"
 >;
 
 type ServerSupabaseClient = Awaited<
@@ -126,6 +176,93 @@ async function listDogs(
   return (data ?? []) satisfies DogRow[];
 }
 
+async function findActiveCollar(
+  client: ServerSupabaseClient,
+  dogId: string,
+): Promise<TodayCollarRecord | null> {
+  const { data, error } = await client
+    .from("collars")
+    .select("id, dog_id, display_name, state, last_sync_at, linked_at")
+    .eq("dog_id", dogId)
+    .eq("state", "active")
+    .order("last_sync_at", { ascending: false, nullsFirst: false })
+    .order("linked_at", { ascending: false, nullsFirst: false })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw unavailable();
+  }
+
+  return data satisfies TodayCollarRow | null;
+}
+
+async function findDailySummary(
+  client: ServerSupabaseClient,
+  dogId: string,
+  localDate: string,
+): Promise<TodayDailySummaryRecord | null> {
+  const { data, error } = await client
+    .from("daily_summaries")
+    .select(
+      "dog_id, local_date, timezone, coverage_ratio, unknown_s, algorithm_version, computed_at",
+    )
+    .eq("dog_id", dogId)
+    .eq("local_date", localDate)
+    .order("algorithm_version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw unavailable();
+  }
+
+  return data satisfies TodayDailySummaryRow | null;
+}
+
+async function findLatestRecording(
+  client: ServerSupabaseClient,
+  collarId: string,
+): Promise<TodayRecordingRecord | null> {
+  const { data, error } = await client
+    .from("recordings")
+    .select(
+      "id, collar_id, started_at, ended_at, created_at, state, point_count, clock_quality",
+    )
+    .eq("collar_id", collarId)
+    .order("started_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw unavailable();
+  }
+
+  return data satisfies TodayRecordingRow | null;
+}
+
+async function findRecordingSummary(
+  client: ServerSupabaseClient,
+  recordingId: string,
+): Promise<TodayRecordingSummaryRecord | null> {
+  const { data, error } = await client
+    .from("recording_summaries")
+    .select("recording_id, coverage_ratio, algorithm_version, computed_at")
+    .eq("recording_id", recordingId)
+    .order("algorithm_version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw unavailable();
+  }
+
+  return data satisfies TodayRecordingSummaryRow | null;
+}
+
 const dependencies: DogDataDependencies<ServerSupabaseClient> = {
   createClient: createServerSupabaseClient,
   getFreshUserId,
@@ -133,6 +270,11 @@ const dependencies: DogDataDependencies<ServerSupabaseClient> = {
   listMemberships,
   findDog,
   listDogs,
+  now: () => new Date(),
+  findActiveCollar,
+  findDailySummary,
+  findLatestRecording,
+  findRecordingSummary,
 };
 
 // The singleton holds dependency functions only. It never retains a Supabase
@@ -141,4 +283,5 @@ const dogDataAccess = createDogDataAccess(dependencies);
 
 export const requireDogAccess = dogDataAccess.requireDogAccess;
 export const getDogSummary = dogDataAccess.getDogSummary;
+export const getTodaySnapshot = dogDataAccess.getTodaySnapshot;
 export const listDogSummaries = dogDataAccess.listDogSummaries;

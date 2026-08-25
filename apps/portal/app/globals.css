@@ -301,6 +301,60 @@ button:disabled { cursor: wait; opacity: .62; }
   line-height: 1.5;
 }
 .workspace-boundary strong { color: var(--gold); letter-spacing: .06em; }
+.today-view { max-width: 860px; }
+.today-heading > p:not(.eyebrow) { color: var(--text); }
+.today-heading h1 {
+  max-width: 19ch;
+  margin: .7rem 0 1.25rem;
+  font-size: clamp(2rem, 5vw, 4.25rem);
+  line-height: 1.02;
+}
+.today-sections {
+  display: grid;
+  gap: 0 clamp(32px, 5vw, 64px);
+  margin-top: clamp(40px, 7vw, 72px);
+}
+.today-section {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding: 24px 0 clamp(36px, 6vw, 56px);
+}
+.today-section h2 {
+  margin: .55rem 0 1.5rem;
+  color: var(--text);
+  font-size: clamp(1.2rem, 2.5vw, 1.65rem);
+  line-height: 1.2;
+}
+.today-facts {
+  display: grid;
+  gap: 1.35rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.today-facts div { min-width: 0; gap: .45rem; }
+.today-facts dd,
+.today-empty,
+.today-empty p {
+  overflow-wrap: anywhere;
+}
+.today-facts dd {
+  color: var(--gold);
+  line-height: 1.5;
+}
+.today-facts time { color: var(--text); }
+.today-signal { font-weight: 800; letter-spacing: .035em; }
+.today-signal--recent { color: var(--green) !important; }
+.today-signal--never,
+.today-signal--stale { color: var(--gold); }
+.today-empty {
+  display: grid;
+  gap: .65rem;
+  color: #91a995;
+  line-height: 1.55;
+}
+.today-empty strong { color: var(--gold); letter-spacing: .045em; }
+.today-empty p { margin: 0; color: #91a995; }
 .claim-boundary { max-width: 600px; }
 .claim-form {
   display: grid;
@@ -410,6 +464,14 @@ button:disabled { cursor: wait; opacity: .62; }
   .private-content { padding: 48px 0 72px; }
   .private-footer { flex-wrap: wrap; padding: 12px 0; }
   .onboarding-content { padding: 56px 0 72px; }
+}
+
+@media (min-width: 960px) {
+  .today-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .today-section--collar { grid-column: 1 / -1; }
+  .today-section--collar .today-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

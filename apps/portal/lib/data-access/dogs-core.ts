@@ -1,3 +1,14 @@
+import {
+  createTodaySnapshotDto,
+  dogLocalDate,
+  TodayDataValidationError,
+  type TodayCollarRecord,
+  type TodayDailySummaryRecord,
+  type TodayRecordingRecord,
+  type TodayRecordingSummaryRecord,
+  type TodaySnapshotDto,
+} from "./today-core.ts";
+
 // Pure, dependency-injected policy kernel for direct tests. This module never
 // authenticates or queries data and is not an authorization boundary. Product
 // code must import the server-only adapter in ./dogs.ts instead.
@@ -52,6 +63,24 @@ export type DogDataDependencies<Client> = Readonly<{
     client: Client,
     dogIds: readonly string[],
   ) => Promise<DogRecord[]>;
+  now: () => Date;
+  findActiveCollar: (
+    client: Client,
+    dogId: string,
+  ) => Promise<TodayCollarRecord | null>;
+  findDailySummary: (
+    client: Client,
+    dogId: string,
+    localDate: string,
+  ) => Promise<TodayDailySummaryRecord | null>;
+  findLatestRecording: (
+    client: Client,
+    collarId: string,
+  ) => Promise<TodayRecordingRecord | null>;
+  findRecordingSummary: (
+    client: Client,
+    recordingId: string,
+  ) => Promise<TodayRecordingSummaryRecord | null>;
 }>;
 
 const ERROR_MESSAGES = {
@@ -125,6 +154,19 @@ function dogSummaryDto(row: DogRecord, role: DogRole): DogSummaryDto {
   });
 }
 
+function todaySnapshotDto(
+  input: Parameters<typeof createTodaySnapshotDto>[0],
+): TodaySnapshotDto {
+  try {
+    return createTodaySnapshotDto(input);
+  } catch (error) {
+    if (error instanceof TodayDataValidationError) {
+      throw unavailable();
+    }
+    throw error;
+  }
+}
+
 export function createDogDataAccess<Client>(
   dependencies: DogDataDependencies<Client>,
 ) {
@@ -186,6 +228,66 @@ export function createDogDataAccess<Client>(
       }
 
       return dogSummaryDto(dog, access.role);
+    },
+
+    async getTodaySnapshot(dogId: string): Promise<TodaySnapshotDto> {
+      assertDogId(dogId);
+      const { client, userId } = await freshContext();
+      const access = await authorize(client, userId, dogId, "read");
+      const dogRow = await dependencies.findDog(client, dogId);
+
+      if (!dogRow) {
+        throw new DogDataAccessError("access_denied");
+      }
+
+      const dog = dogSummaryDto(dogRow, access.role);
+      const capturedAt = dependencies.now();
+      let localDate: string;
+      try {
+        localDate = dogLocalDate(capturedAt, dog.timezone);
+      } catch (error) {
+        if (error instanceof TodayDataValidationError) {
+          throw unavailable();
+        }
+        throw error;
+      }
+
+      const [collar, dailySummary] = await Promise.all([
+        dependencies.findActiveCollar(client, dogId),
+        dependencies.findDailySummary(client, dogId, localDate),
+      ]);
+      const baseInput = {
+        dog,
+        capturedAt,
+        localDate,
+        collar,
+        dailySummary,
+        latestRecording: null,
+        recordingSummary: null,
+      } as const;
+      const baseSnapshot = todaySnapshotDto(baseInput);
+
+      if (!collar) {
+        return baseSnapshot;
+      }
+
+      const latestRecording = await dependencies.findLatestRecording(
+        client,
+        collar.id,
+      );
+      if (!latestRecording) {
+        return baseSnapshot;
+      }
+
+      const recordingSummary = await dependencies.findRecordingSummary(
+        client,
+        latestRecording.id,
+      );
+      return todaySnapshotDto({
+        ...baseInput,
+        latestRecording,
+        recordingSummary,
+      });
     },
 
     async listDogSummaries(): Promise<readonly DogSummaryDto[]> {

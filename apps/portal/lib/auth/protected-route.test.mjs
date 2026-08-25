@@ -116,7 +116,7 @@ test("route guard is server-only and delegates dog authorization to M1.3", async
 test("every private leaf route is dynamic and awaits its own page guard", async () => {
   const routes = [
     ["../../app/onboarding/page.tsx", /await requireFreshPageIdentity/u],
-    ["../../app/app/[dogId]/today/page.tsx", /await requireDogPage/u],
+    ["../../app/app/[dogId]/today/page.tsx", /await requireTodayPage/u],
     ["../../app/app/[dogId]/history/page.tsx", /await requireDogPage/u],
     ["../../app/app/[dogId]/collars/page.tsx", /await requireDogPage/u],
     ["../../app/app/[dogId]/configuration/page.tsx", /await requireDogPage/u],
@@ -224,4 +224,27 @@ test("M1.4 private path contains no framework or React data cache", async () => 
     sources.join("\n"),
     /unstable_cache|"use cache"|cacheComponents/u,
   );
+});
+
+test("Today leaf uses one composite guard and a server-rendered bounded view", async () => {
+  const [page, guard, view] = await Promise.all([
+    readFile(
+      new URL("../../app/app/[dogId]/today/page.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("./route-guard.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../../app/components/today-snapshot.tsx", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(page, /await requireTodayPage\(dogId,/u);
+  assert.doesNotMatch(page, /requireDogPage|getDogSummary/u);
+  assert.match(guard, /getTodaySnapshot\(dogId\)/u);
+  assert.match(view, /<time dateTime=/u);
+  assert.match(view, /PROCESANDO O DATOS INSUFICIENTES/u);
+  assert.match(view, /HORA DE INICIO NO DISPONIBLE/u);
+  assert.doesNotMatch(view, /"use client"|setInterval|Realtime|\.from\(|lat_e7|lon_e7|paseo/iu);
+  assert.doesNotMatch(view, /role="status"|aria-live/u);
 });

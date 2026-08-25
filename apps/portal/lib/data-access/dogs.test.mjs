@@ -32,6 +32,10 @@ function harness({
     findDog: 0,
     listMemberships: 0,
     listDogs: 0,
+    findActiveCollar: 0,
+    findDailySummary: 0,
+    findLatestRecording: 0,
+    findRecordingSummary: 0,
   };
   const client = {};
 
@@ -70,6 +74,25 @@ function harness({
       assert.deepEqual(dogIds, memberships.map((row) => row.dog_id));
       return dogs;
     },
+    now() {
+      return new Date("2026-08-25T12:00:00.000Z");
+    },
+    async findActiveCollar() {
+      calls.findActiveCollar += 1;
+      return null;
+    },
+    async findDailySummary() {
+      calls.findDailySummary += 1;
+      return null;
+    },
+    async findLatestRecording() {
+      calls.findLatestRecording += 1;
+      return null;
+    },
+    async findRecordingSummary() {
+      calls.findRecordingSummary += 1;
+      return null;
+    },
   });
 
   return { calls, dal };
@@ -94,6 +117,10 @@ test("malformed dog identifiers fail before session or database access", async (
     findDog: 0,
     listMemberships: 0,
     listDogs: 0,
+    findActiveCollar: 0,
+    findDailySummary: 0,
+    findLatestRecording: 0,
+    findRecordingSummary: 0,
   });
 });
 
