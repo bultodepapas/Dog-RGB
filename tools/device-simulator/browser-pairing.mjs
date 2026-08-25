@@ -13,6 +13,10 @@ const CLAIM_CODE_PATTERN = /^[0-9A-HJKMNP-TV-Z]{16}$/u;
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const portalDirectory = join(workspace, "apps", "portal");
 const nextCli = join(workspace, "node_modules", "next", "dist", "bin", "next");
+const supabaseConfig = await readFile(join(workspace, "supabase", "config.toml"), "utf8");
+const supabaseProjectMatch = supabaseConfig.match(/^project_id\s*=\s*"([A-Za-z0-9_-]{1,64})"\s*$/mu);
+if (!supabaseProjectMatch) throw new Error("Local Supabase project identity is invalid.");
+const supabaseProjectId = supabaseProjectMatch[1];
 const apiUrl = process.env.SUPABASE_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
 
@@ -182,14 +186,17 @@ function verifyNoNewSensitiveArtifacts(before, after) {
 }
 
 function scanSupabaseLogs(containsPrivateMaterial) {
-  const listed = spawnSync("docker", ["ps", "--format", "{{.Names}}"], {
+  const listed = spawnSync("docker", [
+    "ps",
+    "--filter", `label=com.supabase.cli.project=${supabaseProjectId}`,
+    "--format", "{{.Names}}",
+  ], {
     encoding: "utf8",
     maxBuffer: 2 * 1024 * 1024,
   });
   if (listed.status !== 0) throw new Error("Unable to enumerate local Supabase logs.");
-  const projectSuffix = `_${workspace.split(/[\\/]/u).at(-1)}`;
   const containers = listed.stdout.split(/\r?\n/u).filter(
-    (name) => name.startsWith("supabase_") && name.endsWith(projectSuffix),
+    (name) => name.startsWith("supabase_"),
   );
   if (containers.length === 0) throw new Error("No local Supabase containers were available for log scanning.");
   for (const container of containers) {
@@ -206,11 +213,10 @@ function scanSupabaseLogs(containsPrivateMaterial) {
 }
 
 function databaseContainer() {
-  const projectName = workspace.split(/[\\/]/u).at(-1);
   const listed = spawnSync("docker", [
     "ps",
-    "--filter", `label=com.supabase.cli.project=${projectName}`,
-    "--filter", `name=^/supabase_db_${projectName}$`,
+    "--filter", `label=com.supabase.cli.project=${supabaseProjectId}`,
+    "--filter", `name=^/supabase_db_${supabaseProjectId}$`,
     "--format", "{{.ID}}",
   ], { encoding: "utf8", maxBuffer: 1024 * 1024 });
   const containers = listed.status === 0
