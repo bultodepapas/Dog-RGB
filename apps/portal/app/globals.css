@@ -323,8 +323,12 @@ button:disabled { cursor: wait; opacity: .62; }
   outline: none;
 }
 .onboarding-state { max-width: 760px; }
-.onboarding-checks { margin: 3rem 0 2rem; }
-.onboarding-state .page-notice { margin-top: 2rem; }
+.onboarding-form {
+  width: min(520px, 100%);
+  margin-top: 2.5rem;
+  padding-right: 0;
+  padding-left: 0;
+}
 
 .system-state {
   display: flex;

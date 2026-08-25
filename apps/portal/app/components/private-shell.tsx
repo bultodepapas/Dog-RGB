@@ -124,7 +124,7 @@ export function OnboardingPrivateShell({
       </main>
       <footer className="private-footer">
         <span>COLLAR LOCAL-FIRST</span>
-        <span>NINGÚN DATO FUE MODIFICADO</span>
+        <span>PERFIL MÍNIMO PRIMERO</span>
       </footer>
     </div>
   );
