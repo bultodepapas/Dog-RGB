@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="es">
+  <body>
+    <h2>Cambia tu contraseña Dog RGB</h2>
+    <p>Usa este enlace de un solo uso para definir una contraseña nueva.</p>
+    <p>
+      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery">
+        Cambiar contraseña
+      </a>
+    </p>
+    <p>Si no solicitaste este cambio, ignora el mensaje.</p>
+  </body>
+</html>

@@ -344,7 +344,11 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 - [ ] M1.2 Implement `/signup`, `/login`, `/forgot-password`, `/auth/confirm`, and logout.
   - Local email must be captured through Mailpit.
   - Test hostile/open redirects, expired links, refresh, logout, and unverified-email claim denial.
-  - Evidence: ____________________
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: current M1.2 change
+  - Implementation commit/PR: pending
+  - Evidence artifact or command: pending local Supabase/Mailpit/browser and repository gates
+  - Decision/result: IN PROGRESS; leave unmarked until every M1.2 acceptance case passes
 - [ ] M1.3 Add a server-only data access layer for authorization and minimal DTOs.
   - Every Server Action independently rechecks authentication and dog role.
   - Private routes/responses are dynamic/private/no-store; do not adopt experimental private caching.

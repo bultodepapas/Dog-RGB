@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="es">
+  <body>
+    <h2>Confirma tu cuenta Dog RGB</h2>
+    <p>Usa este enlace para confirmar el correo y terminar el registro.</p>
+    <p>
+      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email">
+        Confirmar correo
+      </a>
+    </p>
+    <p>Si no creaste esta cuenta, ignora el mensaje.</p>
+  </body>
+</html>
