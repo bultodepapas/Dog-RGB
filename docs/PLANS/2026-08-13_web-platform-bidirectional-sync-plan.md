@@ -1,14 +1,14 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 and M1.1–M1.5 are complete on reviewed local and CI evidence, and M1.6 is in progress.
+**Status:** Active implementation contract; M0 and M1.1–M1.6 are complete on reviewed local and CI evidence, and M1.7 is next.
 
 **Last senior review:** 2026-08-25 (America/Bogota).
 
-**Reviewed repository commit:** `548d5d4ebdc3e42b614c39ced8c950ebd8e5e2d1` (`main`; GitHub CI run [`32872298597`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32872298597) passed every required job).
+**Reviewed repository commit:** `da9027aeecce34bef442d9ada063fa5a329b8429` (`main`; GitHub CI run [`32878021186`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32878021186) passed every required job).
 
-**Current milestone:** M1B — Dog, collar, and claim flow; M1.1–M1.5 are complete and M1.6 is in progress.
+**Current milestone:** M1B — Dog, collar, and claim flow; M1.1–M1.6 are complete and M1.7 is next.
 
-**Next executable task:** finish only M1.6 on `/app/{dogId}/collars`: authorize `write` in the Server Action, invoke the existing `user-v1-issue-claim` Edge Function with the request-scoped user session, validate the exact response contract, and show the 16-character raw code only in ephemeral action state. Prove the 15-minute TTL, digest-only persistence, verified-email and owner/editor gates, one-active-claim behavior, safe failures, and no code exposure in URL/storage/log artifacts. Do not consume the code, pair the simulator, create collar rows, add diagnostics/revocation, change the protocol, or begin M1.7+ behavior.
+**Next executable task:** complete only M1.7 by handing one M1.6-issued code to a bounded pair-only simulator path in memory and invoking the existing `device-v1-claim` contract. Prove first-use success, lost-response/exact replay, concurrent replay, and terminal invalid/expired/used-code behavior against one collar and one credential. Do not add a code-entry field, pairing status, collar management, telemetry sync, configuration, diagnostics/revocation, protocol/schema changes, hardware Internet work, or M1.8+ portal behavior.
 
 **Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
@@ -174,7 +174,7 @@ Any implementation that violates an invariant is rejected even if its happy-path
 
 ## 5. Audited repository state
 
-This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed implementation is now at `548d5d4`.
+This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed implementation is now at `da9027a`.
 
 ### 5.1 Completed and preserved
 
@@ -187,7 +187,7 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Evidence: [storage feasibility](../cloud/phase0-storage-feasibility.md) and [independent-review packet](../cloud/phase0-outbox-review-packet.md); candidate result 51/51.
   - Boundary: implementation-author tests are not independent acceptance.
 - [x] ✅ Local Supabase migration stack exists with explicit schemas/grants/RLS, ownership, claims, credentials, sync receipts, raw telemetry, configuration LWW, limits, deletion jobs, retention, and tombstone replay.
-  - Evidence: 12 migrations and 13 pgTAP files, introduced across commits `4698f24` through `548d5d4`.
+  - Evidence: 12 migrations and 14 pgTAP files, introduced across commits `4698f24` through `da9027a`.
 - [x] ✅ Four Edge gateways exist: issue claim, device claim, device sync, and device revoke.
   - Evidence: `supabase/functions` and adversarial boundary tests.
   - Hardened Edge RPCs are `api.consume_device_claim_gateway_v1` and `api.device_sync_gateway_v1`; direct inner-function execution is revoked.
@@ -198,8 +198,8 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Boundary: this is local engineering evidence, not hosted production/KMS/PITR proof.
 - [x] ✅ The Next.js workspace and visual shell are scaffolded with pinned dependencies.
   - Evidence: `apps/portal`.
-  - Boundary: the current app has the M1.1 Supabase client boundary, M1.2 Auth flows, M1.3 server-only dog-authorization DAL, M1.4 signed-in shell/protected route boundary, and M1.5 transactional dog creation; it does not yet have claim/collar behavior, product data reads, or broader product E2E tests.
-- [x] ✅ GitHub CI run [`32872298597`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32872298597) at `548d5d4` passed all six required jobs.
+  - Boundary: the current app has the M1.1 Supabase client boundary, M1.2 Auth flows, M1.3 server-only dog-authorization DAL, M1.4 signed-in shell/protected route boundary, M1.5 transactional dog creation, and M1.6 ephemeral claim issuance. It does not yet pair a simulator from that UI-issued code, read collar/product data, or expose broader product behavior.
+- [x] ✅ GitHub CI run [`32878021186`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32878021186) at `da9027a` passed all six required jobs.
   - Evidence: CI includes a dedicated `apps/portal` Next.js production build in addition to the embedded AP portal, cloud foundation, and firmware jobs.
 
 ### 5.2 Incomplete or unproven
@@ -212,7 +212,7 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Owner: ____________________
   - Hardware/harness: ____________________
   - Evidence: `docs/cloud/phase0-esp32-outbox-evidence.md`
-- [ ] Product web application: Auth, onboarding, dog/collar routes, Today, History, recording detail, and brightness desired/reported.
+- [ ] Product web application: claim-to-simulator pairing, collar reads, Today, History, recording detail, and brightness desired/reported.
   - Owner: ____________________
   - Target date/window: ____________________
   - Evidence: browser E2E artifact plus implementation PR/commit.
@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
-| M1 | Simulator-driven local web vertical slice | **In progress — M1.6 next** | firmware Internet integration |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.7 next** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -384,7 +384,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Implementation commit/PR: `548d5d4ebdc3e42b614c39ced8c950ebd8e5e2d1`
   - Evidence artifact or command: 48/48 portal tests; 23 focused create-dog pgTAP assertions and 273/273 total assertions; `npm run phase1:check`; clean `npm run phase1:local -- --clean` with pinned Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0`; `npm run cloud:types:check`; `npm run portal:build`; Next.js `/_next/mcp` runtime/compilation checks; browser proof for direct onboarding, keyboard validation, real double-click yielding exactly one dog/owner pair, protected Today redirect and refresh, logout/back, stale-session fail-closed login with no row, and forced-RPC-failure generic message with no row; desktop, mobile, and error-state Lighthouse accessibility 100 plus manual keyboard/focus/label/target/overflow checks; GitHub CI run [`32872298597`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32872298597)
   - Decision/result: PASS; one authenticated account created exactly one tested dog and owner-membership pair through the sole transactional RPC, with a normalized 1–80-code-point name, fixed `America/Bogota` timezone, unchanged metric profile default, fresh Auth verification on the same request-scoped client, canonical returned UUID, and no browser table inserts; denial, invalid input, stale Auth, malformed/RPC failure, forced membership rollback, and rapid double submission create no partial or duplicate tested row
-- [ ] M1.6 Generate a claim code through the existing authenticated user Edge Function.
+- [x] ✅ M1.6 Generate a claim code through the existing authenticated user Edge Function.
   - Hard scope: replace only the Collares placeholder with a Spanish-first issuance surface. Owners and editors may generate; viewers see a truthful read-only boundary. Do not add claim-code input, simulator/device pairing, collar rows, diagnostics, revocation, Realtime, or M1.7 behavior.
   - Mutation boundary: treat the hidden `dogId` and Edge response as untrusted. The Server Action validates the identifier, independently requires M1.3 `write` access, creates a request UUID, then invokes only `user-v1-issue-claim` with the request-scoped SSR client/user token. The Edge Function performs a fresh Auth `getUser()` check, requires verified email, and calls only the service-role `api.issue_device_claim_v1` RPC; no service key enters Next.js or the browser.
   - Secret boundary: return the raw 16-character Crockford code only in successful Server Action state. Never put it in a URL, cookie, local/session storage, cache, analytics, console/server log, retained screenshot, or test artifact. Render it once until refresh/navigation; persist only its 32-byte HMAC digest. Do not add a recovery/read-back endpoint.
@@ -392,13 +392,21 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Failure behavior: invalid/stale Auth follows the protected login boundary where applicable; viewer/non-member/forged IDs fail closed; unverified email, active claim, rate limit, malformed response, and Edge/RPC failure expose only bounded Spanish guidance and never internal identifiers or database details. A failed issue attempt does not persist a raw code or create a claim row unless the RPC committed successfully.
   - UI copy decision: title `Genera un código temporal.`; boundary `UN SOLO USO · 15 MINUTOS`; submit/pending `Generar código` / `Generando…`; success label `CÓDIGO TEMPORAL`; generic failure `No pudimos generar el código. Inténtalo de nuevo.`; viewer boundary `SOLO PROPIETARIO O EDITOR`; warn before issuance that only one code may remain active and, after success, that leaving or refreshing permanently removes the visible code.
   - Owner: Codex (implementation); repository owner (acceptance)
-  - Target date/window: current M1.6 change
-  - Implementation commit/PR: pending
-  - Evidence artifact or command: pending focused action/response-parser tests; raw Edge/SQL proof for owner and editor success, viewer/non-member/anonymous/unverified/stale denial, exact TTL, digest-only persistence, one active claim, rate limit, expiry, and safe error bodies; browser proof for keyboard issue, ephemeral one-time display, refresh/navigation removal, double submission, viewer boundary, privacy/storage/URL/log checks; `npm run phase1:check`; clean local gate; type drift; production build; Next.js runtime checks; accessibility; CI
-  - Decision/result: IN PROGRESS; leave unmarked until one authorized user sees one contract-valid raw code once, only its digest exists in the database, every denial/privacy gate passes, and no M1.7 pairing behavior is introduced
+  - Target date/window: completed 2026-08-25 (America/Bogota)
+  - Implementation commit/PR: `da9027aeecce34bef442d9ada063fa5a329b8429`
+  - Evidence artifact or command: 58/58 portal tests; 13/13 shared gateway/simulator unit tests; 25 focused claim-issuance pgTAP assertions and 298/298 total database assertions; `npm run phase1:check`; clean `npm run phase1:local -- --clean` with pinned Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0`; `npm run cloud:types:check`; `npm run portal:build`; Next.js `/_next/mcp` route, compilation, runtime-error, and page-metadata checks; raw Edge proof for non-member 403 and deleted-session 401 with `dog-rgb-user` realm; browser proof for owner success, editor enablement, viewer read-only boundary, unverified-email denial, active-claim guidance, synchronous double submission yielding one row, one-time display, focus/live status, refresh removal, and absence from URL/cookies/local storage/session storage; SQL proof of one 32-byte digest and zero collar/credential rows; desktop/mobile Lighthouse accessibility 100 plus manual language/title/label/target/overflow checks; GitHub CI run [`32878021186`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32878021186)
+  - Decision/result: PASS; one owner saw one exact-contract 16-character code once, derived from the same server instant as its exact 900-second response TTL, while only a 32-byte HMAC digest persisted. Owner/editor, viewer/non-member, unverified/stale Auth, duplicate/active/rate/expiry, malformed response, and privacy boundaries fail closed; issuance creates neither a collar nor a device credential and introduces no M1.7 pairing behavior.
 - [ ] M1.7 Pair the simulator by exact replay-safe claim flow.
-  - Lost claim response followed by exact retry must link one collar and one credential.
-  - Evidence: ____________________
+  - Hard scope: add only the missing handoff from one M1.6-issued raw code to a pair-only simulator path that calls the existing `device-v1-claim` Edge Function with the frozen request schema. Reuse the current claim gateway, RPC, fixtures, and simulator primitives; add no portal fields, database objects, protocol variants, or production-device provisioning.
+  - Secret boundary: the raw claim code may cross the browser/test boundary only in process memory. Do not pass it in command-line arguments or environment variables, and do not write it to stdout/stderr, URL, storage, screenshots, traces, HAR, CI artifacts, or fixtures. Pairing returns the device credential only to simulator memory; redact it from every assertion and artifact.
+  - Replay boundary: the first accepted request and an exact retry after a deliberately discarded response must return the same sanitized response and refer to exactly one collar and one credential. Concurrent exact requests must converge. Reusing the code with a different request identity or device identity must not create a second effect.
+  - Failure/persistence boundary: prove invalid, expired, exhausted, already-consumed non-replay, malformed, and rate-limited requests expose only stable problem codes. After success, assert one consumed claim, one collar, one private credential digest, and no telemetry/configuration side effects; anonymous users still cannot read any private pairing state.
+  - Explicit non-goals: collar list/status UI, manual collar creation, rename/delete/revoke/diagnostics, telemetry upload/sync, desired/reported configuration, Realtime, hosted deployment, firmware HTTPS/NVS, or M1.8+ behavior.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: focused pair-only unit tests; clean local browser-to-simulator handoff; first-use/lost-response/concurrent/conflicting replay SQL proof; invalid/expired/exhausted/consumed/rate failure matrix; privacy/log/artifact scan; `npm run phase1:check`; clean local gate; CI: ____________________
+  - Decision/result: ____________________
 
 #### M1C — Minimal useful portal
 
@@ -749,7 +757,7 @@ The exact wire contract remains in `contracts/device-v1`. The following boundari
 
 ## 12. Research investigations applied in this revision
 
-Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 for M1.3–M1.5 boundaries. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
+Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 through the M1.6 boundary. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
 
 | # | Investigation | Finding | Applied decision |
 | --- | --- | --- | --- |
@@ -772,6 +780,11 @@ Research was refreshed on 2026-08-24 using primary/official sources and rechecke
 | R17 | Next.js partial rendering and authorization | Layouts do not necessarily rerender on navigation, Proxy runs for prefetched routes, and UI visibility cannot secure nested entry points or Server Actions. Secure checks belong close to the data/page/action. | M1.4 guards every protected leaf before shell/content, keeps Proxy limited to optimistic session refresh/cache headers, omits a pre-authorization segment loading boundary, and requires every later mutation to reauthorize independently. [Next.js authentication](https://nextjs.org/docs/app/guides/authentication) |
 | R18 | Next.js route-aware type generation | Global `PageProps`, `LayoutProps`, and `RouteContext` helpers are generated by `next dev`, `next build`, or `next typegen`; a standalone clean `tsc` can run before those artifacts exist. | Route source used by the repository's pre-build typecheck declares explicit async `params` props. Do not make `npm run portal:typecheck` depend on a stale `.next` directory unless CI first runs and verifies `next typegen`. [Next.js TypeScript configuration](https://nextjs.org/docs/app/api-reference/config/typescript#route-aware-type-helpers), [page convention](https://nextjs.org/docs/app/api-reference/file-conventions/page#page-props-helper) |
 | R19 | Supabase transactional RPC boundary | Data-intensive atomic mutations fit PostgreSQL functions; `security definer` functions require an empty/pinned `search_path`, schema-qualified references, and explicit execution grants. | M1.5 must reuse the existing `api.create_dog_v1` transaction, which already pins `search_path`, derives `auth.uid()`, validates input, creates dog plus owner membership, revokes anonymous/public execution, and grants only `authenticated`; do not replace it with two browser inserts. [Supabase database functions](https://supabase.com/docs/guides/database/functions), [Data API security](https://supabase.com/docs/guides/api/securing-your-api) |
+| R20 | Edge user-auth header chain | A signed-in `supabase-js` invocation sends the user JWT in `Authorization` and the publishable key in `apikey`; `verify_jwt` rejects missing or invalid user JWTs before handler code. | Keep `verify_jwt = true` for `user-v1-issue-claim`; invoke it through the signed-in SSR client and never substitute the publishable key as bearer identity. [Authorization headers](https://supabase.com/docs/guides/functions/auth-headers) |
+| R21 | Auth freshness inside the Edge handler | A validly signed JWT is not the same as a currently accepted Auth user; `getUser()` performs the server-backed identity check. | After the platform gate, call `getUser()` again, derive `requested_by` only from that returned user, distinguish stale/missing Auth as 401 from unverified email as 403, and never trust the earlier JWT subject for the mutation. [JavaScript `getUser`](https://supabase.com/docs/reference/javascript/auth-getuser), [securing Edge Functions](https://supabase.com/docs/guides/functions/auth) |
+| R22 | Edge invocation and failure taxonomy | `functions.invoke` separates relay, HTTP, and fetch failures; non-2xx function responses carry handler-selected status/body and must still be treated as untrusted input. | Parse the exact success envelope before revealing the code; allowlist only actionable `active_claim_exists`, `email_not_verified`, and `rate_limited` guidance, while every other response converges on one generic message. [Invoke an Edge Function](https://supabase.com/docs/reference/javascript/functions-invoke), [error handling](https://supabase.com/docs/guides/functions/error-handling), [status codes](https://supabase.com/docs/guides/functions/status-codes) |
+| R23 | Browser CORS surface | Direct browser-to-Edge calls require an explicit CORS/preflight policy and expose another client networking boundary. | M1.6 invokes the user Edge Function only from a Server Action; do not add browser CORS handling or direct client invocation until a later requirement proves it necessary. [Edge Function CORS](https://supabase.com/docs/guides/functions/cors) |
+| R24 | Claim secret lifetime and caching | Edge environment variables are the server-side home for the HMAC pepper, while HTTP `no-store` prevents caches from storing a response; neither mechanism makes application logs or browser persistence safe for raw secrets. | Keep the pepper only in Edge secrets, persist only the 32-byte digest, return `Cache-Control: no-store`, retain the raw code only in successful action state, and prohibit logs, URLs, storage, screenshots, traces, HAR, and recovery endpoints. [Edge environment variables](https://supabase.com/docs/guides/functions/secrets), [RFC 9111 `no-store`](https://www.rfc-editor.org/rfc/rfc9111.html#name-no-store) |
 
 ## 13. Definition of foundational success
 
