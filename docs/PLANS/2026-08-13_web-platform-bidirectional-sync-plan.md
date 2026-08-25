@@ -1,14 +1,14 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0, M1.1, and M1.2 are complete on reviewed local and CI evidence, and M1.3 is the next pending subphase.
+**Status:** Active implementation contract; M0 and M1.1–M1.3 are complete on reviewed local and CI evidence, and M1.4 is the next pending subphase.
 
 **Last senior review:** 2026-08-25 (America/Bogota).
 
-**Reviewed repository commit:** `99f76cc98e9b872d6c1cf895c62786c4f57d641a` (`main`; GitHub CI run [`32801270594`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32801270594) passed every required job).
+**Reviewed repository commit:** `ccbaf74027ad0fa57184c61e43eb7361043b9b24` (`main`; GitHub CI run [`32862978925`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32862978925) passed every required job).
 
-**Current milestone:** M1A — Auth and protected application shell; M1.1–M1.2 are complete and M1.3 is next.
+**Current milestone:** M1A — Auth and protected application shell; M1.1–M1.3 are complete and M1.4 is next.
 
-**Next executable task:** fill the required M1.3 ownership, target, implementation, evidence, and decision fields, then implement only the server-only authorization data-access layer and minimal DTOs. M1.4 and all later subphases remain blocked.
+**Next executable task:** assign the M1.4 owner and target, then implement only the signed-in shell and server-side route guard for the listed routes. Reuse the M1.3 DAL; do not add dog creation, claim flow, product data, or M1.5+ behavior.
 
 **Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
@@ -198,8 +198,8 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Boundary: this is local engineering evidence, not hosted production/KMS/PITR proof.
 - [x] ✅ The Next.js workspace and visual shell are scaffolded with pinned dependencies.
   - Evidence: `apps/portal`.
-  - Boundary: the current app has the M1.1 Supabase client boundary and M1.2 Auth flows; it does not yet have the M1.3 authorization DAL, protected product routes, or product E2E tests.
-- [x] ✅ GitHub CI run [`32801270594`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32801270594) at `99f76cc` passed all six required jobs.
+  - Boundary: the current app has the M1.1 Supabase client boundary, M1.2 Auth flows, and M1.3 server-only dog-authorization DAL; it does not yet have the M1.4 signed-in shell, protected product routes, or product E2E tests.
+- [x] ✅ GitHub CI run [`32862978925`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32862978925) at `ccbaf74` passed all six required jobs.
   - Evidence: CI includes a dedicated `apps/portal` Next.js production build in addition to the embedded AP portal, cloud foundation, and firmware jobs.
 
 ### 5.2 Incomplete or unproven
@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
-| M1 | Simulator-driven local web vertical slice | **In progress — M1.3 next** | firmware Internet integration |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.4 next** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -349,17 +349,25 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Implementation commit/PR: `99f76cc98e9b872d6c1cf895c62786c4f57d641a`
   - Evidence artifact or command: 18/18 portal boundary tests; `npm run phase1:check`; clean `npm run phase1:local -- --clean` (250 pgTAP assertions and 49 adversarial Edge scenarios); `npm run portal:build`; `npm run cloud:types:check`; Next.js `/_next/mcp` compilation/runtime checks; isolated `agent-browser` signup/confirmation/recovery/login/refresh/logout flows through local Mailpit; live `403 email_not_verified` Edge denial; GitHub CI run [`32801270594`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32801270594)
   - Decision/result: PASS; Auth uses local PKCE token-hash email links, exact allowlisted callback origins and destinations, enumeration-safe responses, expired-link rejection, fresh identity verification before password changes, and current-session-only logout
-- [ ] M1.3 Add a server-only data access layer for authorization and minimal DTOs.
+- [x] ✅ M1.3 Add a server-only data access layer for authorization and minimal DTOs.
   - Every Server Action independently rechecks authentication and dog role.
   - Private routes/responses are dynamic/private/no-store; do not adopt experimental private caching.
   - Owner: Codex (implementation); repository owner (acceptance)
-  - Target date/window: current M1.3 change
-  - Implementation commit/PR: pending
-  - Evidence artifact or command: pending focused DAL, local Supabase/RLS, production-build, and runtime gates
-  - Decision/result: IN PROGRESS; leave unmarked until direct non-member, wrong-role, stale-session, and DTO field-minimization tests pass
+  - Target date/window: completed 2026-08-25 (America/Bogota)
+  - Implementation commit/PR: `ccbaf74027ad0fa57184c61e43eb7361043b9b24`
+  - Evidence artifact or command: 28/28 portal tests, including 10 focused DAL tests; `npm run phase1:check`; clean `node tools/phase1_local.mjs --clean` with pinned Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0` (250 pgTAP assertions and 49 adversarial Edge scenarios); `npm run cloud:types:check`; `npm run portal:build`; Next.js `/_next/mcp` compilation/runtime checks; isolated browser/runtime matrix against local Supabase for owner, viewer, non-member, wrong-role, and Auth-deleted stale sessions; GitHub CI run [`32862978925`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32862978925)
+  - Decision/result: PASS; each public DAL entry creates a request-scoped client, performs a fresh Auth-server `getUser()` check, applies explicit user/dog membership lookup plus RLS, enforces the exact read/write/admin role matrix, returns the same generic denial for non-members and insufficient roles, exposes only frozen minimal DTO fields, and adds no cache, secret, schema, dependency, route, or UI surface
 - [ ] M1.4 Implement the signed-in shell and route guard.
   - Initial routes: `/onboarding`, `/app/[dogId]/today`, `/app/[dogId]/history`, `/app/[dogId]/recordings/[recordingId]`, `/app/[dogId]/collars`, `/app/[dogId]/configuration`.
-  - Evidence: ____________________
+  - `/onboarding` requires fresh signed-in identity; every `/app/[dogId]/**` page additionally requires M1.3 `read` access to that exact dog.
+  - Enforce the boundary in server code before private data/rendering. Navigation visibility, client state, and proxy/middleware checks are not authorization.
+  - Keep every protected response dynamic and `private, no-store`; accept only same-origin allowlisted return paths and do not reveal whether an inaccessible dog ID exists.
+  - Render shell/navigation and explicit loading/empty/error/denied states only. Dog creation and every M1.5+ data mutation or product feature remain out of scope.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: ____________________
+  - Decision/result: PENDING; leave unmarked until anonymous, expired/revoked-session, hostile-return-path, non-member dog-ID, direct-navigation, refresh, private-cache-header, keyboard-navigation, production-build, and local browser gates pass
 
 #### M1B — Dog, collar, and claim flow
 
@@ -722,7 +730,7 @@ The exact wire contract remains in `contracts/device-v1`. The following boundari
 
 ## 12. Research investigations applied in this revision
 
-Research was refreshed on 2026-08-24 using primary/official sources. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
+Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 for M1.3. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
 
 | # | Investigation | Finding | Applied decision |
 | --- | --- | --- | --- |
@@ -741,6 +749,7 @@ Research was refreshed on 2026-08-24 using primary/official sources. The impleme
 | R13 | Next.js authorization | Current Next.js guidance recommends centralized server-side data access and authorization inside mutations. Supabase SSR remains version-sensitive. | Server-only DAL, per-action verification, pinned SSR packages, full auth regression on upgrades. [Next.js authentication](https://nextjs.org/docs/app/guides/authentication), [mutating data](https://nextjs.org/docs/app/getting-started/mutating-data), [Supabase SSR](https://supabase.com/docs/guides/auth/server-side) |
 | R14 | Scheduling | Vercel Hobby Cron is too coarse for near-term rollups; Supabase Cron publishes concurrency/duration guidance. | Use a measured 5–15 minute Supabase Cron batch in M4, not one-minute work by assumption and not Vercel Cron. [Vercel Cron](https://vercel.com/docs/cron-jobs/usage-and-pricing), [Supabase Cron](https://supabase.com/docs/guides/cron) |
 | R15 | Device hardening | Unique identity and controlled configuration are baseline; NVS/flash encryption and Secure Boot add provisioning/recovery constraints. | Unique revocable credential/TLS are mandatory; irreversible hardware hardening stays optional after the physical proof. [NISTIR 8259A](https://csrc.nist.gov/pubs/ir/8259/a/final), [ESP security](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/security/security.html) |
+| R16 | Supabase session freshness | Local JWT claim verification can validate a signed token without proving that the Auth server still considers its user/session valid; Supabase requires `getUser()` when server freshness is required. | The M1.3 authorization boundary performs a fresh Auth-server `getUser()` call on every public DAL entry; claim-only identity remains insufficient for authorization-sensitive reads or mutations. [Supabase SSR advanced guide](https://supabase.com/docs/guides/auth/server-side/advanced-guide), [JavaScript Auth reference](https://supabase.com/docs/reference/javascript/auth-getuser) |
 
 ## 13. Definition of foundational success
 
