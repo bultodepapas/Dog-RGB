@@ -6,9 +6,11 @@ import {
   DogDataAccessError,
   getDogSummary,
   getHistoryPage,
+  getRecordingPage,
   getTodaySnapshot,
   type DogSummaryDto,
   type HistoryPageDto,
+  type RecordingPageDto,
   type TodaySnapshotDto,
 } from "../data-access/dogs";
 import {
@@ -52,6 +54,16 @@ export async function requireHistoryPage(
   returnTo: string,
 ): Promise<HistoryPageDto> {
   return requireDogData(returnTo, () => getHistoryPage(dogId, cursor));
+}
+
+export async function requireRecordingPage(
+  dogId: string,
+  recordingId: string,
+  after: unknown,
+  returnTo: string,
+): Promise<RecordingPageDto> {
+  return requireDogData(returnTo, () =>
+    getRecordingPage(dogId, recordingId, after));
 }
 
 async function requireDogData<Result>(

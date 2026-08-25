@@ -39,26 +39,3 @@ export function ProtectedDogPage({
     </DogPrivateShell>
   );
 }
-
-type ProtectedRecordingPageProps = Readonly<{
-  dog: DogSummaryDto;
-}>;
-
-export function ProtectedRecordingPage({ dog }: ProtectedRecordingPageProps) {
-  return (
-    <DogPrivateShell activeSection="history" dog={dog}>
-      <section className="workspace-state" aria-labelledby="workspace-title">
-        <p className="eyebrow">GRABACIÓN / ESTRUCTURA PREPARADA</p>
-        <h1 id="workspace-title">El detalle aún no carga observaciones.</h1>
-        <p>
-          Metadatos, segmentos, brechas y la alternativa tabular se incorporan
-          después. Esta ruta no consulta puntos GPS en M1.4.
-        </p>
-        <div className="workspace-boundary" role="status">
-          <strong>SIN RUTA NI COORDENADAS</strong>
-          <span>La autorización del perro ya está activa.</span>
-        </div>
-      </section>
-    </DogPrivateShell>
-  );
-}

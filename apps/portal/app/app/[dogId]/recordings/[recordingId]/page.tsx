@@ -1,31 +1,31 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import {
-  isCanonicalUuid,
   recordingAppPath,
 } from "../../../../../lib/auth/protected-route";
-import { requireDogPage } from "../../../../../lib/auth/route-guard";
-import { ProtectedRecordingPage } from "../../../../components/protected-dog-page";
+import { requireRecordingPage } from "../../../../../lib/auth/route-guard";
+import { RecordingDetail } from "../../../../components/recording-detail";
 
 export const metadata: Metadata = { title: "Grabación | Dog RGB" };
 export const dynamic = "force-dynamic";
 
 type RecordingPageProps = Readonly<{
   params: Promise<{ dogId: string; recordingId: string }>;
+  searchParams: Promise<{ after?: string | string[] }>;
 }>;
 
 export default async function RecordingPage(
   props: RecordingPageProps,
 ) {
-  const { dogId, recordingId } = await props.params;
-  if (!isCanonicalUuid(recordingId)) {
-    notFound();
-  }
-
-  const dog = await requireDogPage(
+  const [{ dogId, recordingId }, searchParams] = await Promise.all([
+    props.params,
+    props.searchParams,
+  ]);
+  const recording = await requireRecordingPage(
     dogId,
+    recordingId,
+    searchParams.after,
     recordingAppPath(dogId, recordingId),
   );
-  return <ProtectedRecordingPage dog={dog} />;
+  return <RecordingDetail page={recording} />;
 }

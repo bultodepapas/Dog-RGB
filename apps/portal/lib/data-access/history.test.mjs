@@ -473,7 +473,7 @@ test("production query is one explicit RLS-scoped 21-row keyset request", async 
   assert.match(adapter, /\.limit\(HISTORY_QUERY_LIMIT\)/u);
   const historyQuery = adapter.slice(
     adapter.indexOf("async function listHistoryRecordings"),
-    adapter.indexOf("const dependencies"),
+    adapter.indexOf("async function findRecordingDetail"),
   );
   assert.doesNotMatch(
     historyQuery,
@@ -487,5 +487,7 @@ test("production query is one explicit RLS-scoped 21-row keyset request", async 
   assert.match(view, /<time dateTime=/u);
   assert.match(view, /aria-label="Paginación del historial"/u);
   assert.match(view, /prefetch=\{false\}/u);
-  assert.doesNotMatch(view, /"use client"|Realtime|\.from\(|recordingAppPath|paseo|duración|cobertura/iu);
+  assert.match(view, /recordingAppPath/u);
+  assert.match(view, /VER DETALLE DE LA GRABACIÓN/u);
+  assert.doesNotMatch(view, /"use client"|Realtime|\.from\(|paseo|duración|cobertura/iu);
 });

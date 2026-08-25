@@ -199,15 +199,71 @@ where collar_id = '41000000-0000-4000-8000-000000000001'::uuid
   and recorded_at >= '2026-01-01 05:00:00+00'::timestamptz
   and recorded_at < '2026-01-31 05:00:00+00'::timestamptz;
 
-\echo 'Owner RLS: recording/keyset route page'
-explain (analyze, buffers, settings)
-select point_sequence, recorded_at, lat_e7, lon_e7, reported_speed_cmps, satellites, flags
-from api.telemetry_points
-where collar_id = '41000000-0000-4000-8000-000000000001'::uuid
-  and boot_sequence = 3
-  and point_sequence > 40000
-order by point_sequence
-limit 2000;
+\echo 'Owner RLS: exact M1.10 first and deep 101-row recording-detail pages'
+create or replace function pg_temp.m110_recording_detail_plan(p_after bigint)
+returns jsonb
+language plpgsql
+as $$
+declare
+  captured json;
+  after_predicate text := case
+    when p_after is null then ''
+    else format(' and point_sequence > %s', p_after)
+  end;
+begin
+  execute
+    'explain (analyze, buffers, settings, format json) '
+    || 'select point_sequence, recorded_at, lat_e7, lon_e7, '
+    || 'reported_speed_cmps, satellites, flags, time_quality '
+    || 'from api.telemetry_points '
+    || 'where collar_id = ''41000000-0000-4000-8000-000000000001''::uuid '
+    || 'and boot_sequence = 3 '
+    || 'and point_sequence >= 1 and point_sequence <= 100000'
+    || after_predicate
+    || ' order by point_sequence asc limit 101'
+  into captured;
+  return captured::jsonb;
+end;
+$$;
+
+create temporary table m110_recording_detail_plans (
+  page text primary key,
+  plan jsonb not null
+);
+
+insert into m110_recording_detail_plans (page, plan) values
+  ('first', pg_temp.m110_recording_detail_plan(null)),
+  ('deep', pg_temp.m110_recording_detail_plan(40000));
+
+select page, jsonb_pretty(plan) as plan
+from m110_recording_detail_plans
+order by page;
+
+select bool_and(
+  (plan #>> '{0,Execution Time}')::numeric <= 100
+  and jsonb_path_exists(
+    plan,
+    '$[*].** ? (@."Index Name" == "telemetry_points_pkey" && @."Node Type" == "Index Scan")'
+  )
+  and not jsonb_path_exists(plan, '$[*].** ? (@."Node Type" == "Sort")')
+  and not jsonb_path_exists(
+    plan,
+    '$[*].** ? (@."Relation Name" == "telemetry_points" && @."Node Type" != "Index Scan")'
+  )
+  and plan::text !~ '"Temp (Read|Written) Blocks": [1-9]'
+) as m110_recording_detail_plans_pass
+from m110_recording_detail_plans
+\gset
+
+\if :m110_recording_detail_plans_pass
+  \echo 'PASS: both exact M1.10 pages use telemetry_points_pkey within 100 ms without Sort, spill, or unrelated telemetry scans.'
+\else
+  \echo 'FAIL: an exact M1.10 recording-detail page violated its frozen capacity plan.'
+  do $$ begin
+    raise exception using errcode = 'P0001',
+      message = 'phase1_capacity_m110_recording_detail_plan_failed';
+  end $$;
+\endif
 
 \echo 'Owner RLS: Bogotá bounding box without a GiST index'
 explain (analyze, buffers, settings)

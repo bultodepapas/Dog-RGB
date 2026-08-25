@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-import { dogAppPath } from "../../lib/auth/protected-route";
+import {
+  dogAppPath,
+  recordingAppPath,
+} from "../../lib/auth/protected-route";
 import type {
   HistoryPageDto,
   HistoryRecordingState,
@@ -120,6 +123,18 @@ export function HistoryLedger({
                       <dd>{formatInteger(recording.pointCount)}</dd>
                     </div>
                   </dl>
+                  <Link
+                    aria-label={`Ver detalle de la grabación de ${recording.collarName}, ${
+                      recording.startedAt
+                        ? formatTimestamp(recording.startedAt, dog.timezone)
+                        : "sin hora de inicio"
+                    }`}
+                    className="text-link history-detail-link"
+                    href={recordingAppPath(dog.id, recording.id)}
+                    prefetch={false}
+                  >
+                    VER DETALLE DE LA GRABACIÓN
+                  </Link>
                 </li>
               ))}
             </ol>

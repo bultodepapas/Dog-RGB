@@ -5,7 +5,10 @@
 `phase1_benchmark.sql` loads one million points across two synthetic collars
 into the actual migrated `api.telemetry_points` table. It measures the heap and
 every real index, fails above the Phase 0 no-GiST bytes/point baseline plus 20%,
-and executes day, month, keyset-route, bounding-box, and cross-user RLS checks.
+and executes day, month, exact M1.10 first/deep 101-row keyset, bounding-box,
+and cross-user RLS checks. Both recording-detail plans fail closed above 100 ms
+or if they do not use `telemetry_points_pkey`, add a Sort or temporary spill, or
+scan unrelated telemetry rows.
 
 Run it only against this repository's disposable local Supabase stack:
 
@@ -17,6 +20,12 @@ The explicit flag is mandatory because the runner resets the local database
 before the benchmark and again afterward. Evidence is written to the ignored
 `test-results/capacity/phase1-local.txt` path and uploaded by CI. The runner
 does not contact a linked or hosted project.
+
+For the M1.10 raw REST and browser fixture after a clean reset, pipe
+`m110_recording_detail_fixture.sql` into the local database container, then run
+`m110_recording_detail_rest_probe.mjs` with the local `SUPABASE_URL` and
+`SUPABASE_ANON_KEY`. Both files reject or avoid hosted-project use. Reset the
+local database afterward.
 
 ## Phase 0 logical-schema benchmark
 

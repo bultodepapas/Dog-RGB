@@ -12,7 +12,11 @@ test("capacity SQL fails through ON_ERROR_STOP-compatible exceptions", async () 
   assert.doesNotMatch(sql, /\\quit(?:\s|$)/u);
   assert.match(sql, /phase1_capacity_bytes_per_point_exceeded/u);
   assert.match(sql, /phase1_capacity_cross_user_isolation_failed/u);
-  assert.equal((sql.match(/raise exception/gu) ?? []).length, 2);
+  assert.match(sql, /phase1_capacity_m110_recording_detail_plan_failed/u);
+  assert.match(sql, /telemetry_points_pkey/u);
+  assert.match(sql, /limit 101/u);
+  assert.match(sql, /"Node Type" == "Sort"/u);
+  assert.equal((sql.match(/raise exception/gu) ?? []).length, 3);
 });
 
 test("capacity runner propagates SQL failure and always restores the database", async () => {

@@ -17,6 +17,18 @@ import {
   type HistoryPageDto,
   type HistoryRecordingRecord,
 } from "./history-core.ts";
+import {
+  createInvalidRecordingPageDto,
+  createRecordingDetailContext,
+  createRecordingPageDto,
+  parseRecordingAfter,
+  RecordingDataValidationError,
+  type RecordingAfterResult,
+  type RecordingDetailContext,
+  type RecordingDetailRecord,
+  type RecordingPageDto,
+  type RecordingPointRecord,
+} from "./recording-detail-core.ts";
 
 // Pure, dependency-injected policy kernel for direct tests. This module never
 // authenticates or queries data and is not an authorization boundary. Product
@@ -95,6 +107,16 @@ export type DogDataDependencies<Client> = Readonly<{
     dogId: string,
     cursor: HistoryCursor | null,
   ) => Promise<HistoryRecordingRecord[]>;
+  findRecordingDetail: (
+    client: Client,
+    dogId: string,
+    recordingId: string,
+  ) => Promise<RecordingDetailRecord | null>;
+  listRecordingPoints: (
+    client: Client,
+    query: NonNullable<RecordingDetailContext["pointQuery"]>,
+    after: number | null,
+  ) => Promise<RecordingPointRecord[]>;
 }>;
 
 const ERROR_MESSAGES = {
@@ -190,6 +212,28 @@ function historyPageDto(
     if (error instanceof HistoryDataValidationError) {
       throw unavailable();
     }
+    throw error;
+  }
+}
+
+function recordingContextDto(
+  input: Parameters<typeof createRecordingDetailContext>[0],
+): RecordingDetailContext {
+  try {
+    return createRecordingDetailContext(input);
+  } catch (error) {
+    if (error instanceof RecordingDataValidationError) throw unavailable();
+    throw error;
+  }
+}
+
+function recordingPageDto(
+  input: Parameters<typeof createRecordingPageDto>[0],
+): RecordingPageDto {
+  try {
+    return createRecordingPageDto(input);
+  } catch (error) {
+    if (error instanceof RecordingDataValidationError) throw unavailable();
     throw error;
   }
 }
@@ -346,6 +390,50 @@ export function createDogDataAccess<Client>(
         dog,
         capturedAt,
         cursor: parsedCursor.cursor,
+        rows,
+      });
+    },
+
+    async getRecordingPage(
+      dogId: string,
+      recordingId: string,
+      afterInput: unknown,
+    ): Promise<RecordingPageDto> {
+      assertDogId(dogId);
+      assertDogId(recordingId);
+      const { client, userId } = await freshContext();
+      const access = await authorize(client, userId, dogId, "read");
+      const dogRow = await dependencies.findDog(client, dogId);
+      if (!dogRow) throw new DogDataAccessError("access_denied");
+
+      const dog = dogSummaryDto(dogRow, access.role);
+      const capturedAt = dependencies.now();
+      const row = await dependencies.findRecordingDetail(
+        client,
+        dogId,
+        recordingId,
+      );
+      if (!row) throw new DogDataAccessError("access_denied");
+
+      const context = recordingContextDto({ dog, capturedAt, row });
+      const parsed = parseRecordingAfter(
+        afterInput,
+        context.pointQuery,
+      ) satisfies RecordingAfterResult;
+      if (parsed.status === "invalid") {
+        return createInvalidRecordingPageDto(context);
+      }
+      const rows = context.pointQuery === null
+        ? []
+        : await dependencies.listRecordingPoints(
+            client,
+            context.pointQuery,
+            parsed.after,
+          );
+      return recordingPageDto({
+        context,
+        capturedAt,
+        after: parsed.after,
         rows,
       });
     },

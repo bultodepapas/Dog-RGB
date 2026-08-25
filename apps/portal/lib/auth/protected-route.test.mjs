@@ -122,7 +122,7 @@ test("every private leaf route is dynamic and awaits its own page guard", async 
     ["../../app/app/[dogId]/configuration/page.tsx", /await requireDogPage/u],
     [
       "../../app/app/[dogId]/recordings/[recordingId]/page.tsx",
-      /await requireDogPage/u,
+      /await requireRecordingPage/u,
     ],
   ];
 
@@ -166,8 +166,9 @@ test("private shell keeps accessible navigation and does not query product data"
   assert.match(shell, /aria-current/u);
   assert.match(shell, /<nav/u);
   assert.match(shell, /<main/u);
-  assert.match(recordingPage, /requireDogPage/u);
-  assert.match(recordingPage, /isCanonicalUuid\(recordingId\)/u);
+  assert.match(recordingPage, /requireRecordingPage/u);
+  assert.match(recordingPage, /searchParams\.after/u);
+  assert.doesNotMatch(recordingPage, /requireDogPage|isCanonicalUuid/u);
   assert.doesNotMatch(
     `${shell}\n${recordingPage}`,
     /from\(["'`](?:recordings|track_points|collars|configuration)/u,
@@ -269,8 +270,10 @@ test("History leaf uses one composite guard and rejects ambiguous cursor input",
   assert.match(view, /HORA DE INICIO NO DISPONIBLE/u);
   assert.match(view, /VER MÁS GRABACIONES/u);
   assert.match(view, /ENLACE NO VÁLIDO/u);
+  assert.match(view, /recordingAppPath/u);
+  assert.match(view, /VER DETALLE DE LA GRABACIÓN/u);
   assert.doesNotMatch(
     view,
-    /"use client"|role="status"|aria-live|Realtime|setInterval|recordingAppPath/iu,
+    /"use client"|role="status"|aria-live|Realtime|setInterval/iu,
   );
 });

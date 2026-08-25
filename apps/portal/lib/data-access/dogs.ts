@@ -20,6 +20,12 @@ import {
   type HistoryCursor,
   type HistoryRecordingRecord,
 } from "./history-core";
+import {
+  RECORDING_POINT_QUERY_LIMIT,
+  type RecordingDetailContext,
+  type RecordingDetailRecord,
+  type RecordingPointRecord,
+} from "./recording-detail-core";
 
 export {
   DOG_ROLES,
@@ -48,6 +54,20 @@ export {
   type HistoryRecordingState,
   type HistoryRecordingTimeQuality,
 } from "./history-core";
+export {
+  PLAIN_PREVIEW_TIME_GAP_SECONDS,
+  RECORDING_AFTER_MAX_LENGTH,
+  RECORDING_POINT_PAGE_SIZE,
+  RECORDING_POINT_QUERY_LIMIT,
+  RECORDING_STATES,
+  RECORDING_TIME_QUALITIES,
+  TELEMETRY_FLAGS,
+  type PointContinuity,
+  type RecordingPageDto,
+  type RecordingPointDto,
+  type RecordingState,
+  type RecordingTimeQuality,
+} from "./recording-detail-core";
 
 type MembershipRow = Pick<
   Database["api"]["Tables"]["dog_memberships"]["Row"],
@@ -104,6 +124,40 @@ type HistoryRecordingRow = Pick<
     "id" | "dog_id" | "display_name"
   > | null;
 }>;
+
+type RecordingDetailRow = Pick<
+  Database["api"]["Tables"]["recordings"]["Row"],
+  | "id"
+  | "collar_id"
+  | "boot_sequence"
+  | "started_at"
+  | "ended_at"
+  | "timezone_at_start"
+  | "state"
+  | "first_point_sequence"
+  | "last_point_sequence"
+  | "point_count"
+  | "clock_quality"
+  | "telemetry_schema"
+  | "firmware_version"
+> & Readonly<{
+  collar: Pick<
+    Database["api"]["Tables"]["collars"]["Row"],
+    "id" | "dog_id" | "display_name"
+  > | null;
+}>;
+
+type RecordingPointRow = Pick<
+  Database["api"]["Tables"]["telemetry_points"]["Row"],
+  | "point_sequence"
+  | "recorded_at"
+  | "lat_e7"
+  | "lon_e7"
+  | "reported_speed_cmps"
+  | "satellites"
+  | "flags"
+  | "time_quality"
+>;
 
 type ServerSupabaseClient = Awaited<
   ReturnType<typeof createServerSupabaseClient>
@@ -333,6 +387,68 @@ async function listHistoryRecordings(
   })) as HistoryRecordingRecord[];
 }
 
+async function findRecordingDetail(
+  client: ServerSupabaseClient,
+  dogId: string,
+  recordingId: string,
+): Promise<RecordingDetailRecord | null> {
+  const { data, error } = await client
+    .from("recordings")
+    .select(
+      "id, collar_id, boot_sequence, started_at, ended_at, timezone_at_start, state, first_point_sequence, last_point_sequence, point_count, clock_quality, telemetry_schema, firmware_version, collar:collars!recordings_collar_id_fkey!inner(id, dog_id, display_name)",
+    )
+    .eq("id", recordingId)
+    .eq("collar.dog_id", dogId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw unavailable();
+  if (!data) return null;
+  const row = data as unknown as RecordingDetailRow;
+  return {
+    id: row.id,
+    collar_id: row.collar_id,
+    joined_collar_id: row.collar?.id,
+    dog_id: row.collar?.dog_id,
+    collar_display_name: row.collar?.display_name,
+    boot_sequence: row.boot_sequence,
+    started_at: row.started_at,
+    ended_at: row.ended_at,
+    timezone_at_start: row.timezone_at_start,
+    state: row.state,
+    first_point_sequence: row.first_point_sequence,
+    last_point_sequence: row.last_point_sequence,
+    point_count: row.point_count,
+    clock_quality: row.clock_quality,
+    telemetry_schema: row.telemetry_schema,
+    firmware_version: row.firmware_version,
+  } as RecordingDetailRecord;
+}
+
+async function listRecordingPoints(
+  client: ServerSupabaseClient,
+  pointQuery: NonNullable<RecordingDetailContext["pointQuery"]>,
+  after: number | null,
+): Promise<RecordingPointRecord[]> {
+  let query = client
+    .from("telemetry_points")
+    .select(
+      "point_sequence, recorded_at, lat_e7, lon_e7, reported_speed_cmps, satellites, flags, time_quality",
+    )
+    .eq("collar_id", pointQuery.collarId)
+    .eq("boot_sequence", pointQuery.bootSequence)
+    .gte("point_sequence", pointQuery.firstPointSequence)
+    .lte("point_sequence", pointQuery.lastPointSequence);
+
+  if (after !== null) query = query.gt("point_sequence", after);
+  const { data, error } = await query
+    .order("point_sequence", { ascending: true })
+    .limit(RECORDING_POINT_QUERY_LIMIT);
+
+  if (error) throw unavailable();
+  return ((data ?? []) satisfies RecordingPointRow[]) as RecordingPointRecord[];
+}
+
 const dependencies: DogDataDependencies<ServerSupabaseClient> = {
   createClient: createServerSupabaseClient,
   getFreshUserId,
@@ -346,6 +462,8 @@ const dependencies: DogDataDependencies<ServerSupabaseClient> = {
   findLatestRecording,
   findRecordingSummary,
   listHistoryRecordings,
+  findRecordingDetail,
+  listRecordingPoints,
 };
 
 // The singleton holds dependency functions only. It never retains a Supabase
@@ -356,4 +474,5 @@ export const requireDogAccess = dogDataAccess.requireDogAccess;
 export const getDogSummary = dogDataAccess.getDogSummary;
 export const getTodaySnapshot = dogDataAccess.getTodaySnapshot;
 export const getHistoryPage = dogDataAccess.getHistoryPage;
+export const getRecordingPage = dogDataAccess.getRecordingPage;
 export const listDogSummaries = dogDataAccess.listDogSummaries;

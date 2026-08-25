@@ -451,6 +451,10 @@ test("recording and recording-summary identities and values fail closed", async 
 
 test("production Today adapter is explicit, deterministic, RLS-session scoped, and bounded", async () => {
   const source = await readFile(new URL("./dogs.ts", import.meta.url), "utf8");
+  const todaySource = source.slice(
+    source.indexOf("async function findActiveCollar"),
+    source.indexOf("async function listHistoryRecordings"),
+  );
 
   for (const columns of [
     "id, dog_id, display_name, state, last_sync_at, linked_at",
@@ -458,19 +462,19 @@ test("production Today adapter is explicit, deterministic, RLS-session scoped, a
     "id, collar_id, started_at, ended_at, created_at, state, point_count, clock_quality",
     "recording_id, coverage_ratio, algorithm_version, computed_at",
   ]) {
-    assert.ok(source.includes(`"${columns}"`), columns);
+    assert.ok(todaySource.includes(`"${columns}"`), columns);
   }
-  assert.match(source, /\.eq\("dog_id", dogId\)[\s\S]*?\.eq\("state", "active"\)/u);
-  assert.match(source, /\.order\("last_sync_at", \{ ascending: false, nullsFirst: false \}\)/u);
-  assert.match(source, /\.order\("linked_at", \{ ascending: false, nullsFirst: false \}\)/u);
-  assert.match(source, /\.order\("id", \{ ascending: true \}\)/u);
-  assert.match(source, /\.order\("started_at", \{ ascending: false, nullsFirst: false \}\)/u);
-  assert.match(source, /\.order\("created_at", \{ ascending: false \}\)/u);
-  assert.match(source, /\.order\("id", \{ ascending: false \}\)/u);
-  assert.ok((source.match(/\.limit\(1\)/gu) ?? []).length >= 4);
-  assert.doesNotMatch(source, /\.select\(\s*["'`]\*["'`]\s*\)/u);
+  assert.match(todaySource, /\.eq\("dog_id", dogId\)[\s\S]*?\.eq\("state", "active"\)/u);
+  assert.match(todaySource, /\.order\("last_sync_at", \{ ascending: false, nullsFirst: false \}\)/u);
+  assert.match(todaySource, /\.order\("linked_at", \{ ascending: false, nullsFirst: false \}\)/u);
+  assert.match(todaySource, /\.order\("id", \{ ascending: true \}\)/u);
+  assert.match(todaySource, /\.order\("started_at", \{ ascending: false, nullsFirst: false \}\)/u);
+  assert.match(todaySource, /\.order\("created_at", \{ ascending: false \}\)/u);
+  assert.match(todaySource, /\.order\("id", \{ ascending: false \}\)/u);
+  assert.ok((todaySource.match(/\.limit\(1\)/gu) ?? []).length >= 4);
+  assert.doesNotMatch(todaySource, /\.select\(\s*["'`]\*["'`]\s*\)/u);
   assert.doesNotMatch(
-    source,
+    todaySource,
     /telemetry_points|device_public_id|capability_manifest|min_lat_e7|max_lat_e7|min_lon_e7|max_lon_e7|service_role|sb_secret_/u,
   );
 });
