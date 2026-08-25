@@ -1,14 +1,14 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 and M1.1–M1.6 are complete on reviewed local and CI evidence, and M1.7 is next.
+**Status:** Active implementation contract; M0 and M1.1–M1.7 are complete on reviewed local and CI evidence, and M1.8 is next.
 
 **Last senior review:** 2026-08-25 (America/Bogota).
 
-**Reviewed repository commit:** `da9027aeecce34bef442d9ada063fa5a329b8429` (`main`; GitHub CI run [`32878021186`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32878021186) passed every required job).
+**Reviewed repository commit:** `c64dac83496ad5ad0aa5816d90cf6aca6d6ffc65` (`main`; GitHub CI run [`32886108225`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32886108225) passed every required job).
 
-**Current milestone:** M1B — Dog, collar, and claim flow; M1.1–M1.6 are complete and M1.7 is next.
+**Current milestone:** M1C — Minimal useful portal; M1.1–M1.7 are complete and M1.8 is next.
 
-**Next executable task:** complete only M1.7 by handing one M1.6-issued code to a bounded pair-only simulator path in memory and invoking the existing `device-v1-claim` contract. Prove first-use success, lost-response/exact replay, concurrent replay, and terminal invalid/expired/used-code behavior against one collar and one credential. Do not add a code-entry field, pairing status, collar management, telemetry sync, configuration, diagnostics/revocation, protocol/schema changes, hardware Internet work, or M1.8+ portal behavior.
+**Next executable task:** complete only M1.8 by replacing the Today placeholder with one private, server-rendered, read-only snapshot from existing tables. Show the authorized dog, one deterministically selected active collar, its exact last-synchronized timestamp and bounded freshness state, the current dog-local day's coverage/unknown summary or an honest processing/insufficient-data state, and minimal latest-recording metadata. Do not add writes, polling, Realtime, charts, maps/coordinates, point queries, history pagination, configuration, collar management, migrations/schema changes, simulator sync, firmware work, or M1.9+ behavior.
 
 **Current blocker:** none. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
-| M1 | Simulator-driven local web vertical slice | **In progress — M1.7 next** | firmware Internet integration |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.8 next** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -396,23 +396,32 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Implementation commit/PR: `da9027aeecce34bef442d9ada063fa5a329b8429`
   - Evidence artifact or command: 58/58 portal tests; 13/13 shared gateway/simulator unit tests; 25 focused claim-issuance pgTAP assertions and 298/298 total database assertions; `npm run phase1:check`; clean `npm run phase1:local -- --clean` with pinned Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0`; `npm run cloud:types:check`; `npm run portal:build`; Next.js `/_next/mcp` route, compilation, runtime-error, and page-metadata checks; raw Edge proof for non-member 403 and deleted-session 401 with `dog-rgb-user` realm; browser proof for owner success, editor enablement, viewer read-only boundary, unverified-email denial, active-claim guidance, synchronous double submission yielding one row, one-time display, focus/live status, refresh removal, and absence from URL/cookies/local storage/session storage; SQL proof of one 32-byte digest and zero collar/credential rows; desktop/mobile Lighthouse accessibility 100 plus manual language/title/label/target/overflow checks; GitHub CI run [`32878021186`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32878021186)
   - Decision/result: PASS; one owner saw one exact-contract 16-character code once, derived from the same server instant as its exact 900-second response TTL, while only a 32-byte HMAC digest persisted. Owner/editor, viewer/non-member, unverified/stale Auth, duplicate/active/rate/expiry, malformed response, and privacy boundaries fail closed; issuance creates neither a collar nor a device credential and introduces no M1.7 pairing behavior.
-- [ ] M1.7 Pair the simulator by exact replay-safe claim flow.
+- [x] ✅ M1.7 Pair the simulator by exact replay-safe claim flow.
   - Hard scope: add only the missing handoff from one M1.6-issued raw code to a pair-only simulator path that calls the existing `device-v1-claim` Edge Function with the frozen request schema. Reuse the current claim gateway, RPC, fixtures, and simulator primitives; add no portal fields, database objects, protocol variants, or production-device provisioning.
   - Secret boundary: the raw claim code may cross the browser/test boundary only in process memory. Do not pass it in command-line arguments or environment variables, and do not write it to stdout/stderr, URL, storage, screenshots, traces, HAR, CI artifacts, or fixtures. Pairing returns the device credential only to simulator memory; redact it from every assertion and artifact.
   - Replay boundary: the first accepted request and an exact retry after a deliberately discarded response must return the same sanitized response and refer to exactly one collar and one credential. Concurrent exact requests must converge. Reusing the code with a different request identity or device identity must not create a second effect.
   - Failure/persistence boundary: prove invalid, expired, exhausted, already-consumed non-replay, malformed, and rate-limited requests expose only stable problem codes. After success, assert one consumed claim, one collar, one private credential digest, and no telemetry/configuration side effects; anonymous users still cannot read any private pairing state.
   - Explicit non-goals: collar list/status UI, manual collar creation, rename/delete/revoke/diagnostics, telemetry upload/sync, desired/reported configuration, Realtime, hosted deployment, firmware HTTPS/NVS, or M1.8+ behavior.
-  - Owner: ____________________
-  - Target date/window: ____________________
-  - Implementation commit/PR: ____________________
-  - Evidence artifact or command: focused pair-only unit tests; clean local browser-to-simulator handoff; first-use/lost-response/concurrent/conflicting replay SQL proof; invalid/expired/exhausted/consumed/rate failure matrix; privacy/log/artifact scan; `npm run phase1:check`; clean local gate; CI: ____________________
-  - Decision/result: ____________________
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: completed 2026-08-25 (America/Bogota)
+  - Implementation commit/PR: `4738b4f4e38b624bb94ce4645fa49cc9d39cc6d0`; cross-platform Supabase container discovery fix `c64dac83496ad5ad0aa5816d90cf6aca6d6ffc65`
+  - Evidence artifact or command: 7/7 focused pair-only unit tests and 20/20 total simulator/gateway/model tests; 37 focused pair-only pgTAP assertions and 335/335 total database assertions; `npm run phase1:check`; clean `npm run phase1:local -- --clean` with pinned Node `24.18.0`, npm `11.6.2`, and Supabase CLI `2.113.0`; 49 adversarial Edge scenarios; production Next.js build plus one-process Playwright handoff of the browser-rendered code directly into simulator memory; live discarded-response, concurrent-first-use, exact-replay, changed-byte, changed-request, and changed-device proof; dynamic SQL proof tied to the browser-created pairing; anonymous REST denial; scans of more than 1,100 workspace artifact files and all 10 labeled local Supabase container logs; GitHub CI run [`32886108225`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32886108225)
+  - Decision/result: PASS; one browser-issued code produced exactly one consumed claim, active collar, and private 32-byte credential digest. Three concurrent first-use requests and a later exact retry returned the same sanitized result after one response was discarded; changed bytes, request identity, and device identity created no second effect. Invalid, expired, exhausted, consumed, malformed, conflicting, and rate-limited paths remained bounded; no raw code, credential identifier/secret/bearer, private pairing row, telemetry, summary, recording, synchronization, or configuration side effect escaped the proof boundary.
 
 #### M1C — Minimal useful portal
 
 - [ ] M1.8 Today shows dog/collar name, last synchronized time, freshness, coverage/unknown state, and latest recording.
-  - If no derived summary exists, show processing/insufficient data; never invent inactivity.
-  - Evidence: ____________________
+  - Hard scope: replace only the `/app/[dogId]/today` placeholder with a Spanish-first read-only snapshot. Reuse the protected shell and existing `api.dogs`, `api.collars`, `api.daily_summaries`, `api.recordings`, and `api.recording_summaries`; add no mutation, Edge Function, RPC, view, migration, dependency, or client-side fetch.
+  - Authorization/data boundary: the leaf must perform fresh Auth-server verification and exact M1.3 `read` authorization before any product query, through one request-scoped server-only DAL path. Query explicit columns under the user's RLS session, return one frozen minimal DTO, remain dynamic and `private, no-store`, and preserve the same generic inaccessible-dog behavior. No service key, `select('*')`, browser Supabase query, or internal/private table is permitted.
+  - Selection boundary: capture one server instant. Select only active collars for the dog and choose one deterministically by `last_sync_at DESC NULLS LAST, linked_at DESC NULLS LAST, id ASC`; render `Collar sin nombre` when its nullable `display_name` is absent. Derive the dog-local calendar date from that instant and the authorized dog's IANA timezone; select only that date's highest `algorithm_version` daily summary. Select the chosen collar's latest recording by `started_at DESC NULLS LAST, created_at DESC, id DESC`. Treat malformed, future, cross-dog, or ambiguous rows as unavailable rather than guessing.
+  - Truth/copy boundary: `last_sync_at IS NULL` is `NUNCA SINCRONIZADO`; age `<= 24 h` is `ACTUALIZADO EN LAS ÚLTIMAS 24 H`; older is `SIN CONEXIÓN RECIENTE`. Always show the exact localized timestamp when present and never say live/current. Show stored `coverage_ratio` and `unknown_s` only from the selected summary; do not derive inactivity from missing time. With no current-day summary, show `PROCESANDO O DATOS INSUFICIENTES`. Latest recording may expose only bounded metadata (time/state/point count and summary coverage if present), never route points, coordinates, or a `walk` label.
+  - State boundary: cover no collar, never synchronized, recent, not recent, summary available, summary absent, no recording, recording with trusted time, and recording with unknown time. Infrastructure/malformed-data failure gets one bounded retry state and no database/error detail. The page does not auto-refresh; navigation/explicit reload is the refresh mechanism in M1.8.
+  - Explicit non-goals: history/detail links or pagination, charts, maps, coordinates, telemetry-point reads, aggregate computation/recomputation, collar rename/status management, claim issuance changes, configuration, diagnostics/revoke, Realtime, client polling, simulator upload, firmware work, or M1.9+ behavior.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: focused Today DAL/DTO/unit tests; RLS/raw REST owner, viewer, user-B, anonymous, malformed/cross-dog denial matrix; browser states for no collar/never/recent/stale/summary/no-summary/latest-recording; timezone and exact 24-hour-boundary tests; `npm run phase1:check`; clean local gate; production build; Next.js runtime/compilation checks; keyboard/responsive/accessibility review; CI: ____________________
+  - Decision/result: ____________________
 - [ ] M1.9 History lists recordings with `(started_at,id)` keyset pagination; no large offset pagination.
   - Evidence: ____________________
 - [ ] M1.10 Recording detail shows metadata plus an accessible point/segment table and provider-neutral plain route preview.
@@ -757,7 +766,7 @@ The exact wire contract remains in `contracts/device-v1`. The following boundari
 
 ## 12. Research investigations applied in this revision
 
-Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 through the M1.6 boundary. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
+Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 through the M1.7 boundary. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
 
 | # | Investigation | Finding | Applied decision |
 | --- | --- | --- | --- |
