@@ -94,6 +94,7 @@ try {
   console.log("Checking the Edge Function gateway started by Supabase...");
   await waitForGateway(environment.SUPABASE_URL);
   run("node", ["tools/device-simulator/boundary-matrix.mjs"], { env: environment });
+  run("node", ["tools/device-simulator/browser-pairing.mjs"], { env: environment });
   run("node", ["tools/device-simulator/simulator.mjs"], { env: environment });
   run("node", ["tools/cloud_restore/phase1_restore.mjs"]);
   run("node", ["tools/cloud_deletion/phase1_run.mjs"], { env: environment });

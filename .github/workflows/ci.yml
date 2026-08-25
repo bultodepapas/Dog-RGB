@@ -39,6 +39,10 @@ jobs:
 
       - run: npm ci
 
+      # M1.7 runs one artifact-free Chromium handoff inside the clean local gate.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Run clean local foundation gate
         run: npm run phase1:local -- --clean
 

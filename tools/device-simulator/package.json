@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "boundaries": "node boundary-matrix.mjs",
-    "test": "node --test simulator.test.mjs gateway-boundary.test.mjs lww-model.test.mjs",
+    "test": "node --test simulator.test.mjs pair-only.test.mjs gateway-boundary.test.mjs lww-model.test.mjs",
     "lww:fuzz": "node --test lww-model.test.mjs",
     "run": "node simulator.mjs"
   }
