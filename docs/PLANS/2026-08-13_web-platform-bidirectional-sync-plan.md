@@ -2,7 +2,7 @@
 
 **Status:** Active implementation contract; M0, M1.1, and M1.2 are complete on reviewed local and CI evidence, and M1.3 is the next pending subphase.
 
-**Last senior review:** 2026-08-24 (America/Bogota).
+**Last senior review:** 2026-08-25 (America/Bogota).
 
 **Reviewed repository commit:** `99f76cc98e9b872d6c1cf895c62786c4f57d641a` (`main`; GitHub CI run [`32801270594`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32801270594) passed every required job).
 
@@ -352,11 +352,11 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 - [ ] M1.3 Add a server-only data access layer for authorization and minimal DTOs.
   - Every Server Action independently rechecks authentication and dog role.
   - Private routes/responses are dynamic/private/no-store; do not adopt experimental private caching.
-  - Owner: ____________________
-  - Target date/window: ____________________
-  - Implementation commit/PR: ____________________
-  - Evidence artifact or command: ____________________
-  - Decision/result: PENDING; do not mark complete until direct non-member, wrong-role, stale-session, and DTO field-minimization tests pass
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: current M1.3 change
+  - Implementation commit/PR: pending
+  - Evidence artifact or command: pending focused DAL, local Supabase/RLS, production-build, and runtime gates
+  - Decision/result: IN PROGRESS; leave unmarked until direct non-member, wrong-role, stale-session, and DTO field-minimization tests pass
 - [ ] M1.4 Implement the signed-in shell and route guard.
   - Initial routes: `/onboarding`, `/app/[dogId]/today`, `/app/[dogId]/history`, `/app/[dogId]/recordings/[recordingId]`, `/app/[dogId]/collars`, `/app/[dogId]/configuration`.
   - Evidence: ____________________
