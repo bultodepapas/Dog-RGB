@@ -16,6 +16,10 @@ import {
   M115_FAULTS,
   runM115FaultMatrix,
 } from "./m115-fault-matrix.mjs";
+import {
+  runM116PrivacyCacheGate,
+  validateM116Artifact,
+} from "./m116-privacy-cache.mjs";
 
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const portalDirectory = join(workspace, "apps", "portal");
@@ -26,9 +30,11 @@ const localSecretsPath = join(workspace, "supabase", "functions", ".env");
 const ownerArtifactDirectory = join(workspace, "output", "playwright", "m113");
 const authorizationArtifactDirectory = join(workspace, "output", "playwright", "m114");
 const faultArtifactDirectory = join(workspace, "output", "playwright", "m115");
+const privacyArtifactDirectory = join(workspace, "output", "playwright", "m116");
 const expectedNode = "24.18.0";
 const expectedPlaywright = "1.62.1";
 const portalUrl = "http://127.0.0.1:3000";
+const m116Only = process.argv.includes("--m116-only");
 const M115_EXPECTED_COUNTS = Object.freeze({
   receipts: 6,
   chunks: 4,
@@ -72,6 +78,19 @@ function runQuiet(command, args, { allowFailure = false } = {}) {
     throw new Error(`Portal E2E command failed: ${command} ${args[0] ?? ""}.`);
   }
   return result.stdout.trim();
+}
+
+function runCaptured(command, args, { allowFailure = false } = {}) {
+  const result = spawnSync(executable(command), args, {
+    cwd: workspace,
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+    timeout: 180_000,
+  });
+  if (!allowFailure && result.status !== 0) {
+    throw new Error(`Portal E2E command failed: ${command} ${args[0] ?? ""}.`);
+  }
+  return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
 }
 
 function parseLocalEnvironment() {
@@ -282,8 +301,25 @@ async function startPortal(environment) {
     detached: process.platform !== "win32",
     stdio: ["ignore", "pipe", "pipe"],
   });
-  child.stdout?.resume();
-  child.stderr?.resume();
+  const logChunks = [];
+  let logBytes = 0;
+  let logOverflow = false;
+  const retainLog = (chunk) => {
+    if (logOverflow) return;
+    logBytes += chunk.byteLength;
+    if (logBytes > 2 * 1024 * 1024) {
+      logOverflow = true;
+      logChunks.length = 0;
+      return;
+    }
+    logChunks.push(Buffer.from(chunk));
+  };
+  child.stdout?.on("data", retainLog);
+  child.stderr?.on("data", retainLog);
+  child.portalLogs = () => {
+    if (logOverflow) throw new Error("Portal E2E server logs exceeded the bounded M1.16 scanner size.");
+    return Buffer.concat(logChunks).toString("utf8");
+  };
   await waitForCondition(async () => {
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error("Portal E2E owned portal exited during startup.");
@@ -298,6 +334,31 @@ async function startPortal(environment) {
     }
   }, "portal", 45_000);
   return child;
+}
+
+function infrastructureSecretDetector(environment) {
+  const privateValues = Object.entries(environment)
+    .filter(([key, value]) =>
+      /(?:SECRET|SERVICE_ROLE|JWT|POSTGRES_PASSWORD)/u.test(key) &&
+      key !== "PUBLISHABLE_KEY" &&
+      typeof value === "string" &&
+      value.length >= 16)
+    .map(([, value]) => value);
+  return (value) => {
+    const text = Buffer.isBuffer(value) ? value.toString("utf8") : String(value ?? "");
+    return privateValues.some((privateValue) => text.includes(privateValue));
+  };
+}
+
+function localServiceLogs(since) {
+  const names = runQuiet("docker", ["ps", "--format", "{{.Names}}"]).split(/\r?\n/u)
+    .filter((name) => name.endsWith("_Dog-RGB-1"))
+    .sort();
+  if (names.length < 2 || !names.some((name) => name.startsWith("supabase_db_")) ||
+      !names.some((name) => name.startsWith("supabase_edge_runtime_"))) {
+    throw new Error("M1.16 could not enumerate the local database and Edge log surfaces.");
+  }
+  return names.map((name) => runCaptured("docker", ["logs", "--since", since, name])).join("\n");
 }
 
 async function stopPortal(child) {
@@ -356,6 +417,7 @@ async function preflight() {
     ownerArtifactDirectory,
     authorizationArtifactDirectory,
     faultArtifactDirectory,
+    privacyArtifactDirectory,
   ]) {
     const resolvedArtifacts = resolve(artifactDirectory);
     if (!resolvedArtifacts.startsWith(`${workspace}\\`) && !resolvedArtifacts.startsWith(`${workspace}/`)) {
@@ -369,6 +431,7 @@ for (const artifactDirectory of [
   ownerArtifactDirectory,
   authorizationArtifactDirectory,
   faultArtifactDirectory,
+  privacyArtifactDirectory,
 ]) {
   await rm(artifactDirectory, { recursive: true, force: true });
   await mkdir(artifactDirectory, { recursive: true });
@@ -384,19 +447,20 @@ try {
     "",
   ].join("\n"), { encoding: "utf8", mode: 0o600 });
 
-  console.log("M1.13: replacing this repository's disposable local Supabase stack...");
+  console.log("Portal E2E: replacing this repository's disposable local Supabase stack...");
   runQuiet("supabase", ["stop", "--no-backup"], { allowFailure: true });
   runQuiet("supabase", ["start"]);
   environment = parseLocalEnvironment();
   await verifyServices(environment);
 
-  console.log("M1.13: building the portal once with the reviewed local environment...");
+  console.log("Portal E2E: building the portal once with the reviewed local environment...");
   run(process.execPath, [nextCli, "build"], {
     cwd: portalDirectory,
     env: portalEnvironment(environment),
   });
 
   for (const cycle of [1, 2]) {
+    if (!m116Only) {
     console.log(`M1.13: clean owner journey ${cycle}/2...`);
     run("supabase", ["db", "reset"]);
     await verifyServices(environment);
@@ -530,12 +594,67 @@ try {
     }
     validateFaultArtifact(faultArtifact, cycle, faultRunError ? "failed" : "passed");
     if (faultRunError) throw faultRunError;
+    }
+
+    console.log(`M1.16: clean privacy/cache gate ${cycle}/2...`);
+    run("supabase", ["db", "reset"]);
+    await verifyServices(environment);
+    const privacyStartedAt = new Date().toISOString();
+    const privacyFixture = await prepareAuthorizationFixture({
+      apiUrl: environment.API_URL,
+      publishableKey: environment.PUBLISHABLE_KEY,
+      cycle,
+    });
+    const containsInfrastructureSecret = infrastructureSecretDetector(environment);
+    const privacyArtifactPath = join(privacyArtifactDirectory, `cycle-${cycle}.json`);
+    let privacyRunError = null;
+    portal = await startPortal(environment);
+    try {
+      try {
+        await runM116PrivacyCacheGate({
+          artifactDirectory: privacyArtifactDirectory,
+          browserType: chromium,
+          containsInfrastructureSecret,
+          cycle,
+          fixture: privacyFixture,
+          portalDirectory,
+          portalLogs: () => portal.portalLogs(),
+          portalUrl,
+          readServiceLogs: async () => localServiceLogs(privacyStartedAt),
+        });
+      } catch (error) {
+        privacyRunError = error;
+      }
+    } finally {
+      await stopPortal(portal);
+      portal = null;
+      await rm(join(privacyArtifactDirectory, "test-results"), {
+        recursive: true,
+        force: true,
+      });
+    }
+    if (!existsSync(privacyArtifactPath)) {
+      throw new Error("M1.16 privacy/cache gate produced no sanitized cycle artifact.");
+    }
+    const privacyArtifact = await readFile(privacyArtifactPath);
+    if (
+      privacyFixture.artifactContainsPrivateMaterial(privacyArtifact) ||
+      containsInfrastructureSecret(privacyArtifact)
+    ) {
+      throw new Error("M1.16 retained private fixture or infrastructure material in its artifact.");
+    }
+    validateM116Artifact(
+      privacyArtifact,
+      cycle,
+      privacyRunError ? "failed" : "passed",
+    );
+    if (privacyRunError) throw privacyRunError;
   }
   completed = true;
-  console.log(
-    "M1.13/M1.14/M1.15: owner, authorization, and deterministic fault gates " +
-    "passed from two clean resets each.",
-  );
+  console.log(m116Only
+    ? "M1.16: privacy/cache gate passed from two clean resets."
+    : "M1.13/M1.14/M1.15/M1.16: owner, authorization, fault, and privacy/cache gates " +
+      "passed from two clean resets each.");
 } finally {
   await stopPortal(portal).catch(() => undefined);
   let cleanupError = null;
