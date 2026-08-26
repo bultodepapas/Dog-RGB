@@ -11,6 +11,11 @@ import { chromium } from "@playwright/test";
 
 import { prepareAuthorizationFixture } from "./authorization-fixtures.mjs";
 import { clearMailbox } from "./mailpit.mjs";
+import {
+  M115_CHECKPOINTS,
+  M115_FAULTS,
+  runM115FaultMatrix,
+} from "./m115-fault-matrix.mjs";
 
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const portalDirectory = join(workspace, "apps", "portal");
@@ -20,9 +25,23 @@ const playwrightConfig = join(workspace, "playwright.portal.config.ts");
 const localSecretsPath = join(workspace, "supabase", "functions", ".env");
 const ownerArtifactDirectory = join(workspace, "output", "playwright", "m113");
 const authorizationArtifactDirectory = join(workspace, "output", "playwright", "m114");
+const faultArtifactDirectory = join(workspace, "output", "playwright", "m115");
 const expectedNode = "24.18.0";
 const expectedPlaywright = "1.62.1";
 const portalUrl = "http://127.0.0.1:3000";
+const M115_EXPECTED_COUNTS = Object.freeze({
+  receipts: 6,
+  chunks: 4,
+  points: 7,
+  recordings: 3,
+  revisions: 3,
+  heads: 2,
+  reported: 1,
+  raceSchedules: 2,
+});
+const M115_ZERO_COUNTS = Object.freeze(Object.fromEntries(
+  Object.keys(M115_EXPECTED_COUNTS).map((key) => [key, 0]),
+));
 
 function executable(command) {
   return process.platform === "win32" && command === "supabase"
@@ -119,6 +138,53 @@ function validateAuthorizationArtifact(value, cycle, expectedPhase) {
     new Set(artifact.checkpoints).size !== artifact.checkpoints.length
   ) {
     throw new Error("M1.14 authorization artifact failed its bounded schema contract.");
+  }
+  return artifact;
+}
+
+function validateFaultArtifact(value, cycle, expectedPhase) {
+  let artifact;
+  try {
+    artifact = JSON.parse(Buffer.isBuffer(value) ? value.toString("utf8") : String(value));
+  } catch {
+    throw new Error("M1.15 fault artifact is not valid JSON.");
+  }
+  const exactKeys = (object, expected, label) => {
+    if (object === null || typeof object !== "object" || Array.isArray(object)) {
+      throw new Error(`M1.15 ${label} must be an object.`);
+    }
+    if (JSON.stringify(Object.keys(object).sort()) !== JSON.stringify([...expected].sort())) {
+      throw new Error(`M1.15 ${label} fields changed outside the artifact allowlist.`);
+    }
+  };
+  exactKeys(
+    artifact,
+    ["schemaVersion", "phase", "cycle", "faults", "checkpoints", "counts"],
+    "artifact",
+  );
+  exactKeys(artifact.counts, [
+    "receipts", "chunks", "points", "recordings", "revisions", "heads",
+    "reported", "raceSchedules",
+  ], "artifact counts");
+  const checkpointList = Array.isArray(artifact.checkpoints) ? artifact.checkpoints : [];
+  const expectedCheckpoints = expectedPhase === "passed"
+    ? M115_CHECKPOINTS
+    : M115_CHECKPOINTS.slice(0, checkpointList.length);
+  const expectedCounts = expectedPhase === "passed"
+    ? M115_EXPECTED_COUNTS
+    : M115_ZERO_COUNTS;
+  if (
+    artifact.schemaVersion !== 1 ||
+    artifact.phase !== expectedPhase ||
+    artifact.cycle !== cycle ||
+    JSON.stringify(artifact.faults) !== JSON.stringify(M115_FAULTS) ||
+    !Array.isArray(artifact.checkpoints) ||
+    JSON.stringify(checkpointList) !== JSON.stringify(expectedCheckpoints) ||
+    !Object.values(artifact.counts).every(Number.isSafeInteger) ||
+    !Object.values(artifact.counts).every((count) => count >= 0) ||
+    JSON.stringify(artifact.counts) !== JSON.stringify(expectedCounts)
+  ) {
+    throw new Error("M1.15 fault artifact failed its bounded schema contract.");
   }
   return artifact;
 }
@@ -286,7 +352,11 @@ async function preflight() {
   if (!await portIsFree()) {
     throw new Error("Portal E2E requires exclusive ownership of 127.0.0.1:3000.");
   }
-  for (const artifactDirectory of [ownerArtifactDirectory, authorizationArtifactDirectory]) {
+  for (const artifactDirectory of [
+    ownerArtifactDirectory,
+    authorizationArtifactDirectory,
+    faultArtifactDirectory,
+  ]) {
     const resolvedArtifacts = resolve(artifactDirectory);
     if (!resolvedArtifacts.startsWith(`${workspace}\\`) && !resolvedArtifacts.startsWith(`${workspace}/`)) {
       throw new Error("Portal E2E artifact boundary is invalid.");
@@ -295,7 +365,11 @@ async function preflight() {
 }
 
 await preflight();
-for (const artifactDirectory of [ownerArtifactDirectory, authorizationArtifactDirectory]) {
+for (const artifactDirectory of [
+  ownerArtifactDirectory,
+  authorizationArtifactDirectory,
+  faultArtifactDirectory,
+]) {
   await rm(artifactDirectory, { recursive: true, force: true });
   await mkdir(artifactDirectory, { recursive: true });
 }
@@ -407,19 +481,90 @@ try {
         force: true,
       });
     }
+
+    console.log(`M1.15: clean deterministic fault matrix ${cycle}/2...`);
+    run("supabase", ["db", "reset"]);
+    await verifyServices(environment);
+    const artifactPath = join(faultArtifactDirectory, `cycle-${cycle}.json`);
+    let faultFixture = null;
+    let faultRunError = null;
+    try {
+      faultFixture = await runM115FaultMatrix({
+        apiUrl: environment.API_URL,
+        publishableKey: environment.PUBLISHABLE_KEY,
+        cycle,
+        artifactPath,
+        restartLocalStack: async () => {
+          try {
+            runQuiet("supabase", ["stop"]);
+            runQuiet("supabase", ["start"]);
+            const restarted = parseLocalEnvironment();
+            await verifyServices(restarted);
+            environment = restarted;
+            return Object.freeze({
+              apiUrl: restarted.API_URL,
+              publishableKey: restarted.PUBLISHABLE_KEY,
+            });
+          } catch (restartError) {
+            try {
+              runQuiet("supabase", ["start"]);
+              const recovered = parseLocalEnvironment();
+              await verifyServices(recovered);
+              environment = recovered;
+            } catch {
+              // Preserve the original restart failure; outer cleanup reports the failed artifact.
+            }
+            throw restartError;
+          }
+        },
+      });
+    } catch (error) {
+      faultRunError = error;
+    }
+    if (!existsSync(artifactPath)) {
+      throw new Error("M1.15 fault matrix produced no sanitized cycle artifact.");
+    }
+    const faultArtifact = await readFile(artifactPath);
+    if (faultFixture?.artifactContainsPrivateMaterial(faultArtifact)) {
+      throw new Error("M1.15 retained private fixture material in its artifact.");
+    }
+    validateFaultArtifact(faultArtifact, cycle, faultRunError ? "failed" : "passed");
+    if (faultRunError) throw faultRunError;
   }
   completed = true;
-  console.log("M1.13/M1.14: both owner and authorization gates passed from two clean resets each.");
+  console.log(
+    "M1.13/M1.14/M1.15: owner, authorization, and deterministic fault gates " +
+    "passed from two clean resets each.",
+  );
 } finally {
   await stopPortal(portal).catch(() => undefined);
+  let cleanupError = null;
   if (environment) {
     process.env.M113_MAILPIT_URL = environment.MAILPIT_URL;
     await clearMailbox().catch(() => undefined);
-    runQuiet("supabase", ["db", "reset"], { allowFailure: true });
+    if (!completed) {
+      runQuiet("supabase", ["db", "reset"], { allowFailure: true });
+    } else {
+      try {
+        runQuiet("supabase", ["db", "reset"]);
+      } catch {
+        console.warn("Portal E2E final reset failed once; recovering services and retrying once.");
+        try {
+          runQuiet("supabase", ["start"], { allowFailure: true });
+          const recovered = parseLocalEnvironment();
+          await verifyServices(recovered);
+          environment = recovered;
+          runQuiet("supabase", ["db", "reset"]);
+        } catch (error) {
+          cleanupError = error;
+        }
+      }
+    }
   }
   await unlink(localSecretsPath).catch((error) => {
     if (error?.code !== "ENOENT") throw error;
   });
+  if (cleanupError) throw cleanupError;
   if (!completed) {
     console.error("Portal E2E failed; see the sanitized cycle artifact for its last completed checkpoint.");
   }
