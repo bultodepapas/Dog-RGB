@@ -1,9 +1,13 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 const root = new URL("../../", import.meta.url);
 const claimFixtureUrl = new URL(
   "contracts/device-v1/fixtures/valid/device-v1-claim-request.json",
+  root,
+);
+const syncFixtureUrl = new URL(
+  "contracts/device-v1/fixtures/valid/device-v1-sync-request.json",
   root,
 );
 const CLAIM_CODE_PATTERN = /^[0-9A-HJKMNP-TV-Z]{16}$/u;
@@ -17,6 +21,8 @@ const PROBLEM_CODES = new Map([
   ["malformed_json", { status: 400, retryAfterAllowed: false }],
   ["invalid_envelope", { status: 400, retryAfterAllowed: false }],
   ["claim_unavailable", { status: 401, retryAfterAllowed: false }],
+  ["invalid_device_credential", { status: 401, retryAfterAllowed: false }],
+  ["device_revoked", { status: 403, retryAfterAllowed: false }],
   ["method_not_allowed", { status: 405, retryAfterAllowed: false }],
   ["request_id_reused", { status: 409, retryAfterAllowed: false }],
   ["device_identity_conflict", { status: 409, retryAfterAllowed: false }],
@@ -54,6 +60,11 @@ function isCanonicalTimestamp(value) {
   const milliseconds = Date.parse(value);
   return Number.isFinite(milliseconds) &&
     new Date(milliseconds).toISOString() === value;
+}
+
+function isTimestamp(value) {
+  return typeof value === "string" && value.length <= 35 &&
+    Number.isFinite(Date.parse(value));
 }
 
 function validateNoStore(response) {
@@ -221,6 +232,35 @@ async function loadRequestFixture() {
   return JSON.parse(await readFile(claimFixtureUrl, "utf8"));
 }
 
+async function loadSyncFixture() {
+  return JSON.parse(await readFile(syncFixtureUrl, "utf8"));
+}
+
+function pointHash(points) {
+  const bytes = Buffer.alloc(points.length * 16);
+  points.forEach(([lat, lon, utc, speed, satellites, flags], index) => {
+    const offset = index * 16;
+    bytes.writeInt32LE(lat, offset);
+    bytes.writeInt32LE(lon, offset + 4);
+    bytes.writeUInt32LE(utc, offset + 8);
+    bytes.writeUInt16LE(speed, offset + 12);
+    bytes.writeUInt8(satellites, offset + 14);
+    bytes.writeUInt8(flags, offset + 15);
+  });
+  return createHash("sha256").update(bytes).digest("base64url");
+}
+
+function bogotaLocalDate(date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
 export async function createPairOnlySimulator({
   claimCode,
   apiUrl = process.env.SUPABASE_URL ?? "http://127.0.0.1:56321",
@@ -299,11 +339,76 @@ export async function createPairOnlySimulator({
     }
   };
 
+  const syncEndpoint = new URL("/functions/v1/device-v1-sync", apiUrl).toString();
+  const postSync = async (requestBody) => {
+    const raw = JSON.stringify(requestBody);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let response;
+    try {
+      response = await fetchImpl(syncEndpoint, {
+        method: "POST",
+        headers: {
+          authorization: deviceBearer,
+          "content-type": "application/json",
+          "content-length": String(Buffer.byteLength(raw)),
+        },
+        body: raw,
+        signal: controller.signal,
+      });
+    } catch {
+      fail("sync request failed");
+    } finally {
+      clearTimeout(timeout);
+    }
+    validateNoStore(response);
+    if (!response.ok) return parseProblem(response, requestBody.request_id);
+    validateContentType(response, "application/json");
+    const body = await safeJson(response);
+    if (!isRecord(body)) fail("gateway returned an invalid sync body");
+    if (body.protocol_version !== 1) fail("gateway returned an invalid sync protocol");
+    if (body.request_id !== requestBody.request_id) fail("gateway returned a drifting sync identity");
+    if (!isTimestamp(body.server_time)) fail("gateway returned an invalid sync time");
+    if (!isRecord(body.telemetry)) fail("gateway returned invalid telemetry acknowledgements");
+    if (!isRecord(body.configuration)) fail("gateway returned invalid configuration state");
+    return body;
+  };
+
   const readExactResponse = async (response) => {
     if (!response.ok) return parseProblem(response, requestId);
     return publicSuccess(await parseSuccess(response, expected));
   };
-  const exactAttempt = async () => readExactResponse(await postRaw(exactRaw));
+  let pairing = null;
+  let uploaded = false;
+  let syncTemplate = null;
+  const exactAttempt = async () => {
+    const result = await readExactResponse(await postRaw(exactRaw));
+    if (result.ok) pairing = result.pairing;
+    return result;
+  };
+
+  const requirePairing = () => {
+    if (!pairing) fail("pairing must complete before sync");
+  };
+
+  const emptySync = () => {
+    if (!syncTemplate) fail("journey upload must complete before empty sync");
+    const value = structuredClone(syncTemplate);
+    value.request_id = createUuid();
+    value.clock.utc_ms = Date.now();
+    value.upload = { chunks: [], summaries: [], loss_markers: [] };
+    value.configuration = { mutations: [], reported: [] };
+    value.diagnostics = {
+      outbox_chunks: 0,
+      outbox_points: 0,
+      outbox_used_bytes: 0,
+      outbox_capacity_bytes: syncTemplate.diagnostics.outbox_capacity_bytes,
+      oldest_unacknowledged_utc_ms: null,
+      dropped_points_total: 0,
+      last_error_code: null,
+    };
+    return value;
+  };
 
   return Object.freeze({
     artifactContainsPrivateMaterial(value) {
@@ -386,6 +491,112 @@ export async function createPairOnlySimulator({
         ]),
         pairing: replay.pairing,
       });
+    },
+    async uploadJourneyRecording() {
+      requirePairing();
+      if (uploaded) fail("journey recording was already uploaded");
+      const requestBody = structuredClone(await loadSyncFixture());
+      const nowSeconds = Math.floor(Date.now() / 1_000);
+      const pointTimes = [nowSeconds - 65, nowSeconds - 60, nowSeconds];
+      requestBody.upload.chunks[0].points.forEach((point, index) => {
+        point[2] = pointTimes[index];
+      });
+      requestBody.upload.chunks[0].content_sha256 = pointHash(
+        requestBody.upload.chunks[0].points,
+      );
+      requestBody.request_id = createUuid();
+      requestBody.device.device_id = deviceId;
+      requestBody.device.capability_hash = capabilityHash;
+      requestBody.clock.utc_ms = nowSeconds * 1_000;
+      requestBody.capabilities = null;
+      requestBody.diagnostics.oldest_unacknowledged_utc_ms = pointTimes[0] * 1_000;
+      requestBody.upload.summaries[0].summary_id = createUuid();
+      requestBody.upload.summaries[0].local_date = bogotaLocalDate(
+        new Date(nowSeconds * 1_000),
+      );
+      requestBody.upload.summaries[0].window_start = new Date(
+        pointTimes[0] * 1_000,
+      ).toISOString();
+      requestBody.upload.summaries[0].window_end = new Date(
+        pointTimes[2] * 1_000,
+      ).toISOString();
+      requestBody.configuration = { mutations: [], reported: [] };
+
+      const response = await postSync(requestBody);
+      if (
+        response.ok === false ||
+        !Array.isArray(response.telemetry.accepted_chunks) ||
+        response.telemetry.accepted_chunks.length !== 1 ||
+        response.telemetry.accepted_chunks[0].accepted_point_count !== 3 ||
+        !Array.isArray(response.telemetry.accepted_summary_ids) ||
+        response.telemetry.accepted_summary_ids.length !== 1 ||
+        response.telemetry.accepted_summary_ids[0] !==
+          requestBody.upload.summaries[0].summary_id
+      ) {
+        fail("journey upload did not receive the exact acknowledgements");
+      }
+      uploaded = true;
+      syncTemplate = requestBody;
+      return Object.freeze({
+        ok: true,
+        requestId: requestBody.request_id,
+        summaryId: requestBody.upload.summaries[0].summary_id,
+        collarId: pairing.collarId,
+        bootSequence: requestBody.upload.chunks[0].boot_sequence,
+        chunkSequence: requestBody.upload.chunks[0].chunk_sequence,
+        acceptedPointCount: 3,
+        pointSequences: Object.freeze([0, 1, 2]),
+      });
+    },
+    async convergeBrightness(expectedBrightness) {
+      requirePairing();
+      if (!uploaded) fail("journey upload must complete before configuration sync");
+      if (!Number.isInteger(expectedBrightness) || expectedBrightness < 1 || expectedBrightness > 255) {
+        fail("expected brightness is invalid");
+      }
+      const pull = emptySync();
+      const desiredResponse = await postSync(pull);
+      if (desiredResponse.ok === false) fail("desired configuration pull failed");
+      const desired = desiredResponse.configuration.desired_resources?.find(
+        (resource) => resource.resource_key === "brightness",
+      );
+      if (
+        !isRecord(desired) ||
+        !isRecord(desired.body) ||
+        !hasExactKeys(desired.body, ["brightness"]) ||
+        desired.body.brightness !== expectedBrightness ||
+        !Number.isInteger(desired.server_version) ||
+        desired.server_version < 1 ||
+        !SHA256_BASE64URL_PATTERN.test(String(desired.body_sha256))
+      ) {
+        fail("simulator did not receive the exact desired brightness");
+      }
+
+      const report = emptySync();
+      report.configuration.reported = [{
+        resource_key: "brightness",
+        server_version: desired.server_version,
+        body_sha256: desired.body_sha256,
+        status: "applied",
+        error_code: null,
+        device_applied_at: new Date().toISOString(),
+      }];
+      const reportResponse = await postSync(report);
+      if (reportResponse.ok === false) fail("applied configuration report failed");
+      return Object.freeze({
+        ok: true,
+        brightness: expectedBrightness,
+        serverVersion: desired.server_version,
+        bodySha256Hex: Buffer.from(desired.body_sha256, "base64url").toString("hex"),
+      });
+    },
+    async assertRevoked() {
+      requirePairing();
+      const response = await postSync(emptySync());
+      if (response.ok !== false || response.code !== "device_revoked") {
+        fail("revoked collar retained sync authority");
+      }
+      return Object.freeze({ ok: true, code: response.code });
     },
   });
 }

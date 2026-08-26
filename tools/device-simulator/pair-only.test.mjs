@@ -135,6 +135,8 @@ test("invalid claim codes fail before fixture transmission", async () => {
 test("stable gateway problems are reduced to bounded metadata", async () => {
   const cases = [
     ["claim_unavailable", 401, { "www-authenticate": 'DogRGBClaim realm="dog-rgb-pairing"' }],
+    ["invalid_device_credential", 401, {}],
+    ["device_revoked", 403, {}],
     ["malformed_json", 400, {}],
     ["invalid_envelope", 400, {}, {
       errors: [{ path: "/device", code: "required" }],

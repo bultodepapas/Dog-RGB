@@ -10,6 +10,7 @@ node_modules/
 supabase/functions/.env
 playwright-report/
 test-results/
+output/playwright/
 .ap-portal-preview/
 .playwright-cli/
 tests/ap-portal-visual/screenshots/current/

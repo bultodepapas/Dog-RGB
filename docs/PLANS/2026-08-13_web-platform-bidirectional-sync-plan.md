@@ -1,16 +1,16 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 and M1.1–M1.10 are complete on reviewed local and CI evidence, M1.11–M1.12 are complete on reviewed local evidence, and M1.13 is next. Remote CI was intentionally not run or inspected for M1.11–M1.12.
+**Status:** Active implementation contract; M0 and M1.1–M1.10 are complete on reviewed local and CI evidence, M1.11–M1.13 are complete on reviewed local evidence, and M1.14 is next. Remote CI was intentionally not run or inspected for M1.11–M1.13.
 
 **Last senior review:** 2026-08-25 (America/Bogota).
 
-**Reviewed repository baseline:** `17f59a597a9725d1b450762ccba5f15eb4c6af86` (`main`; M1.12 is the local commit created with this plan update and its hash is recorded in Git history). The last inspected remote evidence remains M1.10 GitHub CI run [`32911228533`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32911228533); no M1.11 or M1.12 CI claim is made.
+**Reviewed repository baseline:** `da87f7486331573e146619cf1371fb4b2cf43206` (`main`; the reviewed M1.12 baseline before this M1.13 implementation). The M1.13 local implementation commit is recorded in Git history. The last inspected remote evidence remains M1.10 GitHub CI run [`32911228533`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32911228533); no M1.11–M1.13 CI claim is made.
 
-**Current milestone:** M1D — Local end-to-end gate; M1.1–M1.12 are complete and M1.13 is next.
+**Current milestone:** M1D — Local end-to-end gate; M1.1–M1.13 are complete and M1.14 is next.
 
-**Next executable task:** complete only M1.13: add one deterministic Playwright project that starts from a clean local Supabase reset, uses Mailpit and the existing device simulator, and proves the complete owner journey from signup through logout. Build reusable local setup/cleanup and evidence capture first; then automate signup/confirm/login, dog creation, one-time claim, simulated claim/upload, Today/History/detail, brightness desired→reported convergence, exact-collar revoke, and logout/back protection. The test must assert persisted checkpoints instead of sleeping, isolate its identifiers, redact ephemeral claim/device material, and leave the stack reusable after failure. Do not absorb M1.14 adversarial coverage, M1.15 fault injection, M1.16 privacy scan, M1.17 full accessibility matrix, M1.18 performance budgets, hosted deployment, or firmware work.
+**Next executable task:** complete only M1.14: extend the M1.13 harness with adversarial identity and object-authorization cases for anonymous access, a second owner, viewer/editor roles, malformed/forged/cross-dog identifiers, stale/deleted Auth, raw Data API projections, and every authenticated user RPC. Keep denial semantics bounded and prove zero cross-owner row or mutation effects. Do not absorb M1.15 transport faults, M1.16 exhaustive privacy/cache scanning, M1.17 the full accessibility matrix, M1.18 performance budgets, hosted deployment, or firmware work.
 
-**Current blocker:** no external blocker. Before M1.13 implementation, inventory the repository's current browser tooling, local service readiness endpoints, Mailpit message API, simulator inputs/outputs, deterministic seed utilities, and teardown rules; record the exact Playwright version and browser installation path without adding a second browser framework. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
+**Current blocker:** no external blocker. Before M1.14 implementation, inventory every protected page, Server Action, authenticated RPC, and raw Data API projection; freeze the two-owner/editor/viewer fixture graph and one bounded denial taxonomy before adding cases. Reuse the M1.13 clean runner and do not weaken its zero-retry, local-only, teardown, or artifact controls. Verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
 **Implementation owner:** Codex
 
@@ -198,7 +198,7 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Boundary: this is local engineering evidence, not hosted production/KMS/PITR proof.
 - [x] ✅ The Next.js workspace and visual shell are scaffolded with pinned dependencies.
   - Evidence: `apps/portal`.
-  - Boundary: the current app completes M1.1–M1.12: Supabase/Auth boundaries, fresh server authorization, protected shell, transactional dog creation, ephemeral claim issuance, simulator pairing, Today, keyset-paginated History, recording detail/points, brightness desired/reported state, and bounded collar diagnostics/revoke. The full automated browser journey and M1D cross-cutting gates remain pending.
+  - Boundary: the current app completes M1.1–M1.13: Supabase/Auth boundaries, fresh server authorization, protected shell, transactional dog creation, ephemeral claim issuance, simulator pairing/upload, Today, keyset-paginated History, recording detail/points, brightness desired/reported convergence, bounded collar diagnostics/revoke, and the twice-clean automated owner journey. M1.14–M1.18 cross-cutting gates remain pending.
 - [x] ✅ GitHub CI run [`32911228533`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32911228533) at `0494fb29de8c1962b63ea65fe099dee5e69cb649` passed all six required jobs.
   - Evidence: CI includes a dedicated `apps/portal` Next.js production build in addition to the embedded AP portal, cloud foundation, and firmware jobs.
 
@@ -245,7 +245,7 @@ M0 implementation resumed later on 2026-08-24 using a checksum-verified isolated
 - the CI-equivalent `npm ci --ignore-scripts` followed by `npm run portal:build` passed and produced the placeholder `/` plus `/_not-found` routes;
 - the deterministic embedded portal assets were regenerated because `package.json` is part of their source fingerprint, then `npm run webui:check` passed.
 
-The text above records the original M0 recovery sequence. Its former evidence gaps were subsequently closed. The latest local review, on 2026-08-25 with the same isolated Node `24.18.0`, replayed all 15 migrations from a clean reset, generated exact API types, passed 473/473 pgTAP assertions, database lint/advisors, repository checks, 49 adversarial Edge scenarios, the M1.11 concurrency/Data API proofs, the M1.12 four-race/Data API proof, simulator capability/configuration/replay scenarios, restore/tombstone checks, deletion drills, 121/121 portal tests, 23/23 gateway/simulator unit tests, and the production portal build. M0 and M1.1–M1.12 are complete on the evidence scopes stated in their ledger entries; remote CI was not run or inspected for M1.11–M1.12.
+The text above records the original M0 recovery sequence. Its former evidence gaps were subsequently closed. The latest local review, on 2026-08-25 with the same isolated Node `24.18.0`, replayed all 15 migrations from a clean reset, generated exact API types, passed 473/473 pgTAP assertions, database lint/advisors, repository checks, 49 adversarial Edge scenarios, the M1.11 concurrency/Data API proofs, the M1.12 four-race/Data API proof, simulator capability/configuration/replay scenarios, restore/tombstone checks, deletion drills, 121/121 portal tests, 23/23 gateway/simulator unit tests, and the production portal build. M1.13 then built that same production portal and passed the complete owner journey twice after two independent migration/seed resets with zero retry. M0 and M1.1–M1.13 are complete on the evidence scopes stated in their ledger entries; remote CI was not run or inspected for M1.11–M1.13.
 
 ## 6. Senior review: changes to the former order
 
@@ -268,7 +268,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
-| M1 | Simulator-driven local web vertical slice | **In progress — M1.13 next** | firmware Internet integration |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.14 next** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -484,15 +484,15 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 
 M1D is deliberately sequential. M1.13 first establishes one reliable owner journey and its orchestration primitives; M1.14–M1.17 then attack that same harness; M1.18 measures the stable result. A feature-specific unit/browser proof may be reused, but no item closes merely because an earlier subphase covered a subset.
 
-- [ ] M1.13 Add one deterministic Playwright owner journey against a clean local Supabase stack.
+- [x] M1.13 Add one deterministic Playwright owner journey against a clean local Supabase stack.
   - Hard scope: signup, Mailpit confirmation, login, dog creation, one-time claim issuance, simulator claim plus upload, Today, History, recording detail, website brightness desired state, simulator exact reported convergence, collar diagnostics, exact-collar revoke, logout, and protected back/refresh denial. Use the existing simulator and protocol fixtures; do not implement a browser mock of the collar.
   - Harness boundary: one documented command owns readiness checks, isolated fixture identifiers, mailbox cleanup, simulator invocation, persisted-state polling with bounded deadlines, failure artifacts, redaction, and teardown. No fixed sleeps as correctness gates, shared developer accounts, order dependence, hosted endpoint, retained raw claim/device secret, or automatic retry that hides a product failure.
   - Acceptance: every UI transition is paired with a database/protocol checkpoint; exact desired version/hash reaches the simulator and returns as applied; revoke targets the collar shown before the action; logout plus browser back cannot reveal private content. The complete journey must pass from a clean reset twice consecutively.
-  - Owner: ____________________
-  - Target date/window: ____________________
-  - Implementation commit/PR: ____________________
-  - Evidence artifact or command: ____________________
-  - Decision/result: ____________________
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: completed 2026-08-25 (America/Bogota)
+  - Implementation commit/PR: local commit created with this plan update; hash recorded in Git history; not pushed
+  - Evidence artifact or command: `node tools/portal-e2e/run.mjs --clean`; separate Playwright `1.62.1` project, one worker, zero retries, production Next `16.3.1`, pinned Supabase CLI `2.113.0`, Mailpit `1.30.2`, Chromium revision `1234`; 15 migrations replayed independently before each cycle; cycle 1 passed once in 9.3 s and cycle 2 passed once in 9.7 s; exact signup/confirm/login, dog, claim/pair/upload, Today/History/detail, desired/reported brightness, diagnostics/revoke, and logout/back checkpoints; [M1.13 owner-journey evidence](../cloud/m113-playwright-owner-journey-evidence.md); CI intentionally not run or inspected per task instruction
+  - Decision/result: PASS; one explicit destructive local command owns readiness, two independent resets, isolated identities, Mailpit, the real portal and simulator/protocol fixtures, exact persisted checkpoints, secret-safe artifacts, and teardown. The complete owner journey passed twice without retry, browser mock, hosted traffic, raw retained claim/device material, or M1.14+ scope.
 - [ ] M1.14 Add adversarial identity and object-authorization coverage using the M1.13 harness.
   - Cover anonymous, second account, viewer/editor role boundaries, forged/malformed/cross-dog dog/collar/recording IDs, stale/deleted Auth, raw Data API projections, and every authenticated user RPC. Assert the same bounded denial for missing versus inaccessible objects and zero cross-owner row/mutation effects.
   - Owner: ____________________
@@ -849,7 +849,7 @@ The exact wire contract remains in `contracts/device-v1`. The following boundari
 
 ## 12. Research investigations applied in this revision
 
-Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 through the M1.12 boundary. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
+Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 through the M1.13 boundary. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
 
 | # | Investigation | Finding | Applied decision |
 | --- | --- | --- | --- |
@@ -898,12 +898,18 @@ Research was refreshed on 2026-08-24 using primary/official sources and rechecke
 | R43 | Private dynamic response caching | Current Next.js guidance distinguishes user-specific dynamic content from public cached output and documents CDN cache directives separately. | Keep protected collar HTML/RSC dynamic and non-cacheable; M1.12 verifies authenticated response headers and M1.16 must scan every cache/static surface. [Caching without Cache Components](https://nextjs.org/docs/app/guides/caching-without-cache-components), [CDN caching](https://nextjs.org/docs/app/guides/cdn-caching) |
 | R44 | Destructive-action confirmation | W3C technique G168 calls for confirmation before continuing an action whose consequence may be difficult or impossible to reverse. | Owner revoke has a review stage, explicit consequence/retention copy, required acknowledgement, and a cancel/Escape path; a single immediate destructive button is rejected. [W3C technique G168](https://www.w3.org/WAI/WCAG21/Techniques/general/G168) |
 | R45 | Accessible status and target size | W3C requires important status changes to be programmatically available without moving focus, while WCAG 2.2 defines a 24 CSS-pixel minimum target with spacing exceptions and WCAG 2.1 documents a stricter 44-pixel enhanced target. | M1.12 uses a focused semantic result plus live status and 48-pixel primary controls; M1.17 retains the project's stricter 44-pixel minimum across the complete state matrix. [Status messages](https://www.w3.org/WAI/WCAG21/Understanding/status-messages.html), [target size minimum](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html), [target size enhanced](https://www.w3.org/WAI/WCAG21/Understanding/target-size.html) |
+| R46 | Reproducible local database reset | Supabase documents that local `db reset` destroys and recreates the database by replaying migrations and seed data; the linked form is a distinct remote-destructive operation. | The M1.13 runner verifies the local project first, never uses `--linked`, and performs a reset before each independent cycle plus a final reset for reusable teardown. [Supabase local workflow](https://supabase.com/docs/guides/local-development/cli-workflows) |
+| R47 | Local Auth email capture | Supabase's CLI uses Mailpit to capture local Auth email, explicitly positioning it as development-only rather than production email proof. | Signup confirmation is exercised through the real local Auth template and Mailpit; the result closes only local behavior and makes no hosted SMTP/deliverability claim. [Supabase testing and linting](https://supabase.com/docs/guides/local-development/cli/testing-and-linting), [password Auth](https://supabase.com/docs/guides/auth/passwords) |
+| R48 | Mailbox automation API | Mailpit provides a REST API to access, search, and delete stored messages, with interactive/OpenAPI documentation on the running instance. | M1.13 polls for one exact recipient/subject, fetches and validates one local confirmation URL in memory, deduplicates the HTML/plain-text copy, deletes the mailbox immediately, and verifies it is empty. [Mailpit API v1](https://mailpit.axllent.org/docs/api-v1/) |
+| R49 | Dependent Playwright worker/retry semantics | Playwright replaces a worker after failure and retries can turn an initial failure into a flaky pass; one worker disables parallel execution. | The owner flow is one test in one isolated project with `workers: 1`, `fullyParallel: false`, and `retries: 0`; two explicit reset cycles are evidence, not `--repeat-each` or an automatic retry. [Playwright retries](https://playwright.dev/docs/test-retries), [parallelism](https://playwright.dev/docs/test-parallel) |
+| R50 | Trace artifact contents | Playwright traces can retain complete DOM snapshots, screenshots, console output, and request/response details. | Because confirmation and claim secrets temporarily exist in browser state, M1.13 disables trace/screenshot/video/HTML reporting, retains only a sanitized phase manifest, and removes Playwright's automatic failure context. [Playwright Trace Viewer](https://playwright.dev/docs/trace-viewer) |
+| R51 | Local stack exposure boundary | Supabase states that its local stack is development-only, lacks production hardening such as TLS, and must not be exposed to external traffic. | The runner accepts only loopback Supabase/Mailpit URLs, owns loopback port 3000, observes no external browser request, and makes no hosted/TLS/security equivalence claim. [Supabase local workflow](https://supabase.com/docs/guides/local-development/cli-workflows) |
 
 ## 13. Definition of foundational success
 
 The web/collar foundation is complete only when all are checked:
 
-- [ ] The clean local command recreates Supabase, runs migrations/tests/functions, starts the portal, and completes the simulator/browser owner journey.
+- [x] The clean local command recreates Supabase, runs migrations/tests/functions, starts the portal, and completes the simulator/browser owner journey.
 - [ ] Anonymous and user B cannot read or mutate user A's dog, collar, telemetry, recording, or configuration through UI, REST, RPC, or crafted IDs.
 - [ ] A one-time claim pairs one collar without any human or Supabase secret in firmware.
 - [ ] A physical collar uploads sealed v3 data over verified TLS.

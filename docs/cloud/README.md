@@ -14,6 +14,7 @@
 | [M1.10 recording detail](m110-recording-detail-evidence.md) | bounded point reads, RLS matrix, continuity decisions, one-million-point plans, and browser/accessibility proof |
 | [M1.11 brightness configuration](m111-brightness-configuration-evidence.md) | desired/reported truth, serialized RPC concurrency, role matrix, simulator convergence, and browser/accessibility proof |
 | [M1.12 collar diagnostics/revoke](m112-collar-diagnostics-revoke-evidence.md) | accepted capability and pre-ACK queue truth, owner-only revocation, sync/revoke races, and browser/accessibility proof |
+| [M1.13 Playwright owner journey](m113-playwright-owner-journey-evidence.md) | two independent clean local owner journeys, exact database/protocol checkpoints, Mailpit confirmation, simulator convergence, revoke, logout, and artifact controls |
 | [Phase 1 deletion drill](phase1-deletion-drill.md) | owner-authorized dog job, bounded worker/retry, durable tombstone/receipt, cascade inventory, and backup-lag boundary |
 | [Phase 1 restore drill](phase1-restore-drill.md) | dual isolated logical restore, coordinate-free manifests, tamper-resistant deletion-tombstone replay, Auth/function/RLS equivalence, and hosted boundary |
 | [Signed tombstone artifact](phase1-tombstone-artifact.md) | canonical Ed25519 batch/chain format, trust boundary, local verification, and still-open KMS/off-site custody gate |
