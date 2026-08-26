@@ -94,6 +94,7 @@ try {
   const environment = localEnvironment();
   run("node", ["tools/cloud_configuration/m111_rpc_concurrency.mjs"], { env: environment });
   run("node", ["tools/cloud_configuration/m111_rest_matrix.mjs"], { env: environment });
+  run("node", ["tools/cloud_collars/m112_revoke_matrix.mjs"], { env: environment });
   console.log("Checking the Edge Function gateway started by Supabase...");
   await waitForGateway(environment.SUPABASE_URL);
   run("node", ["tools/device-simulator/boundary-matrix.mjs"], { env: environment });

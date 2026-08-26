@@ -1,16 +1,16 @@
 # Dog RGB web platform and collar synchronization — master execution plan
 
-**Status:** Active implementation contract; M0 and M1.1–M1.10 are complete on reviewed local and CI evidence, M1.11 is complete on reviewed local evidence, and M1.12 is next. Remote CI was intentionally not inspected for M1.11.
+**Status:** Active implementation contract; M0 and M1.1–M1.10 are complete on reviewed local and CI evidence, M1.11–M1.12 are complete on reviewed local evidence, and M1.13 is next. Remote CI was intentionally not run or inspected for M1.11–M1.12.
 
 **Last senior review:** 2026-08-25 (America/Bogota).
 
-**Reviewed repository baseline:** `5e1c2ce` (`main`; M1.11 is the local commit created with this plan update and its hash is recorded in Git history). The last inspected remote evidence remains M1.10 GitHub CI run [`32911228533`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32911228533); no M1.11 CI claim is made.
+**Reviewed repository baseline:** `17f59a597a9725d1b450762ccba5f15eb4c6af86` (`main`; M1.12 is the local commit created with this plan update and its hash is recorded in Git history). The last inspected remote evidence remains M1.10 GitHub CI run [`32911228533`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32911228533); no M1.11 or M1.12 CI claim is made.
 
-**Current milestone:** M1C — Minimal useful portal; M1.1–M1.11 are complete and M1.12 is next.
+**Current milestone:** M1D — Local end-to-end gate; M1.1–M1.12 are complete and M1.13 is next.
 
-**Next executable task:** complete only M1.12 by replacing the protected Collar placeholder with bounded protocol, firmware/capability, last-sync, simulator-queue, and website-revoke truth for the currently selected collar. First inventory the existing public schema, RLS, device-sync queue evidence, credential-revocation transaction, and active-collar selection so the page reuses one authority instead of creating a second device model. Keep all credential material, claim digests, raw request bodies, coordinates, and internal error details server-side. Do not add collar selection, hosted deployment, firmware cloud work, diagnostics history, polling, Realtime, or M1.13 behavior.
+**Next executable task:** complete only M1.13: add one deterministic Playwright project that starts from a clean local Supabase reset, uses Mailpit and the existing device simulator, and proves the complete owner journey from signup through logout. Build reusable local setup/cleanup and evidence capture first; then automate signup/confirm/login, dog creation, one-time claim, simulated claim/upload, Today/History/detail, brightness desired→reported convergence, exact-collar revoke, and logout/back protection. The test must assert persisted checkpoints instead of sleeping, isolate its identifiers, redact ephemeral claim/device material, and leave the stack reusable after failure. Do not absorb M1.14 adversarial coverage, M1.15 fault injection, M1.16 privacy scan, M1.17 full accessibility matrix, M1.18 performance budgets, hosted deployment, or firmware work.
 
-**Current blocker:** no external blocker. M1.12 must begin with the bounded schema/RPC inventory above before UI work. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
+**Current blocker:** no external blocker. Before M1.13 implementation, inventory the repository's current browser tooling, local service readiness endpoints, Mailpit message API, simulator inputs/outputs, deterministic seed utilities, and teardown rules; record the exact Playwright version and browser installation path without adding a second browser framework. The workstation's global Node remains `24.12.0`; verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
 
 **Implementation owner:** Codex
 
@@ -174,7 +174,7 @@ Any implementation that violates an invariant is rejected even if its happy-path
 
 ## 5. Audited repository state
 
-This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed implementation is now at `c43313747d154f91b49f888f772b9f924f6e6e2c`.
+This snapshot reconciles the plan with Git history and current code. The historical baseline at plan creation was `efc9329`; the reviewed pre-M1.12 implementation baseline is `17f59a597a9725d1b450762ccba5f15eb4c6af86`, with M1.12 committed together with this review.
 
 ### 5.1 Completed and preserved
 
@@ -186,20 +186,20 @@ This snapshot reconciles the plan with Git history and current code. The histori
 - [x] ✅ Corrected byte-image host outbox candidate and its seven historical destructive regressions exist.
   - Evidence: [storage feasibility](../cloud/phase0-storage-feasibility.md) and [independent-review packet](../cloud/phase0-outbox-review-packet.md); candidate result 51/51.
   - Boundary: implementation-author tests are not independent acceptance.
-- [x] ✅ Local Supabase migration stack exists with explicit schemas/grants/RLS, ownership, claims, credentials, sync receipts, raw telemetry, configuration LWW, limits, deletion jobs, retention, tombstone replay, the measured History ordering index, and serialized web configuration mutation semantics.
-  - Evidence: 14 migrations and 19 database pgTAP files, introduced across commits `4698f24` through the local M1.11 commit recorded in Git history.
+- [x] ✅ Local Supabase migration stack exists with explicit schemas/grants/RLS, ownership, claims, credentials, sync receipts, raw telemetry, configuration LWW, limits, deletion jobs, retention, tombstone replay, the measured History ordering index, serialized web configuration mutation semantics, accepted capability persistence, bounded pre-ACK queue snapshots, and serialized sync/revoke semantics.
+  - Evidence: 15 migrations and 20 database pgTAP files, introduced across commits `4698f24` through the local M1.12 commit recorded in Git history.
 - [x] ✅ Four Edge gateways exist: issue claim, device claim, device sync, and device revoke.
   - Evidence: `supabase/functions` and adversarial boundary tests.
   - Hardened Edge RPCs are `api.consume_device_claim_gateway_v1` and `api.device_sync_gateway_v1`; direct inner-function execution is revoked.
-- [x] ✅ Deterministic simulator covers claim/upload replay, LWW cases, gateway boundaries, and failure seeds.
+- [x] ✅ Deterministic simulator covers claim/upload replay, LWW cases, gateway boundaries, changed full-capability persistence, accurate empty/nonempty pre-ACK queue snapshots, and failure seeds.
   - Evidence: `tools/device-simulator`.
 - [x] ✅ Local capacity, deletion, retention, restore, and tombstone tooling has committed evidence.
   - Evidence: [`docs/cloud`](../cloud/README.md).
   - Boundary: this is local engineering evidence, not hosted production/KMS/PITR proof.
 - [x] ✅ The Next.js workspace and visual shell are scaffolded with pinned dependencies.
   - Evidence: `apps/portal`.
-  - Boundary: the current app completes M1.1–M1.9: Supabase/Auth boundaries, fresh server authorization, protected shell, transactional dog creation, ephemeral claim issuance, simulator pairing, Today, and keyset-paginated History. It does not yet expose recording detail/points, brightness desired/reported state, or collar diagnostics/revoke.
-- [x] ✅ GitHub CI run [`32904026991`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32904026991) at `c43313747d154f91b49f888f772b9f924f6e6e2c` passed all six required jobs.
+  - Boundary: the current app completes M1.1–M1.12: Supabase/Auth boundaries, fresh server authorization, protected shell, transactional dog creation, ephemeral claim issuance, simulator pairing, Today, keyset-paginated History, recording detail/points, brightness desired/reported state, and bounded collar diagnostics/revoke. The full automated browser journey and M1D cross-cutting gates remain pending.
+- [x] ✅ GitHub CI run [`32911228533`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32911228533) at `0494fb29de8c1962b63ea65fe099dee5e69cb649` passed all six required jobs.
   - Evidence: CI includes a dedicated `apps/portal` Next.js production build in addition to the embedded AP portal, cloud foundation, and firmware jobs.
 
 ### 5.2 Incomplete or unproven
@@ -212,10 +212,9 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Owner: ____________________
   - Hardware/harness: ____________________
   - Evidence: `docs/cloud/phase0-esp32-outbox-evidence.md`
-- [ ] Product web application: recording detail, brightness desired/reported, and collar diagnostics/revoke.
-  - Owner: ____________________
-  - Target date/window: ____________________
-  - Evidence: browser E2E artifact plus implementation PR/commit.
+- [x] ✅ Product web application vertical features: recording detail, brightness desired/reported, and collar diagnostics/revoke.
+  - Evidence: [M1.10 recording detail](../cloud/m110-recording-detail-evidence.md), [M1.11 brightness configuration](../cloud/m111-brightness-configuration-evidence.md), and [M1.12 collar diagnostics/revoke](../cloud/m112-collar-diagnostics-revoke-evidence.md).
+  - Boundary: the unified Playwright owner journey and M1D denial/privacy/accessibility/performance gates are still pending and must not be inferred from feature-specific browser evidence.
 - [ ] Firmware Track v3, durable outbox, device identity, time service, common config mutation service, HTTPS sync, and `/cloud` AP page.
   - Owner: ____________________
   - Target hardware revision: ____________________
@@ -246,7 +245,7 @@ M0 implementation resumed later on 2026-08-24 using a checksum-verified isolated
 - the CI-equivalent `npm ci --ignore-scripts` followed by `npm run portal:build` passed and produced the placeholder `/` plus `/_not-found` routes;
 - the deterministic embedded portal assets were regenerated because `package.json` is part of their source fingerprint, then `npm run webui:check` passed.
 
-The text above records the original M0 recovery sequence. Its former evidence gaps were subsequently closed: M0 is complete, and the current reviewed M1.9 implementation and CI evidence are recorded in the status header and milestone ledger below.
+The text above records the original M0 recovery sequence. Its former evidence gaps were subsequently closed. The latest local review, on 2026-08-25 with the same isolated Node `24.18.0`, replayed all 15 migrations from a clean reset, generated exact API types, passed 473/473 pgTAP assertions, database lint/advisors, repository checks, 49 adversarial Edge scenarios, the M1.11 concurrency/Data API proofs, the M1.12 four-race/Data API proof, simulator capability/configuration/replay scenarios, restore/tombstone checks, deletion drills, 121/121 portal tests, 23/23 gateway/simulator unit tests, and the production portal build. M0 and M1.1–M1.12 are complete on the evidence scopes stated in their ledger entries; remote CI was not run or inspected for M1.11–M1.12.
 
 ## 6. Senior review: changes to the former order
 
@@ -269,7 +268,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | Order | Milestone | State | Blocks |
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
-| M1 | Simulator-driven local web vertical slice | **In progress — M1.12 next** | firmware Internet integration |
+| M1 | Simulator-driven local web vertical slice | **In progress — M1.13 next** | firmware Internet integration |
 | M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
@@ -466,25 +465,72 @@ Only one milestone is the primary critical path at a time. Clearly independent w
   - Implementation commit/PR: local commit created with this plan update; hash recorded in Git history; not pushed
   - Evidence artifact or command: 107/107 portal tests; 41 focused and 435/435 total pgTAP assertions; true multi-connection first/existing-head, replay, and no-op proof; raw Data API owner/editor/viewer/non-member/anonymous RLS/RPC matrix; existing desired/reported simulator E2E; `npm run phase1:check`; clean `npm run phase1:local -- --clean` with pinned Node `24.18.0`; production build; Next.js runtime checks; owner/viewer/stale/applied browser matrix; keyboard and 320/428/768/1280 px containment; axe WCAG 2 A/AA zero violations plus manual contrast; [M1.11 brightness-configuration evidence](../cloud/m111-brightness-configuration-evidence.md); CI intentionally not run or inspected per task instruction
   - Decision/result: PASS; the portal exposes one deterministic active collar's exact desired/reported brightness truth through fresh server/RLS boundaries. Owners/editors receive one canonical RPC mutation path; viewers remain read-only; missing-head and existing-head races serialize; exact replay is durable; same-value writes preserve head/HLC/version; stale forms cannot overwrite a newer winner; no browser data path, polling, Realtime, simulator protocol change, firmware work, table, new RPC, or extra resource was added.
-- [ ] M1.12 Collar page shows protocol/firmware/capability, last sync, simulator queue diagnostics, and website-side revoke.
-  - Owner: ____________________
-  - Target date/window: ____________________
-  - Implementation commit/PR: ____________________
-  - Never render credentials, claim digests, raw request bodies, or coordinates in diagnostics.
-  - Evidence: ____________________
+- [x] ✅ M1.12 Collar page shows accepted protocol/firmware/capability, last sync, a bounded simulator queue snapshot, and website-side revoke.
+  - Hard scope: replace only `/app/[dogId]/collars` product content while preserving the M1.6 one-time claim surface. Reuse one composite `requireCollarsPage(...)` server DAL/guard, the existing RLS `api.collars` projection, the M1.8 deterministic active-collar rule, and the existing `api.revoke_collar_v1` signature. One additive migration may add only the bounded diagnostic snapshot columns and replace the existing sync/revoke function bodies when prerequisite tests prove the old transaction is insufficient. Add no table, history, picker, dependency, Edge endpoint, or second device model.
+  - Selection/read boundary: after fresh Auth and exact dog `read` authorization, select only one `active` collar by `last_sync_at DESC NULLS LAST, linked_at DESC NULLS LAST, id ASC` through the same request-scoped user/RLS client. Use explicit columns and a deeply frozen DTO. Owners, editors, and viewers see the same bounded accepted hardware/firmware/protocol/schema/capability, last-sync, and diagnostic truth; with no active collar, render an honest empty state and keep claim issuance governed by its existing owner/editor rule. Never fall back to pending/revoked/retired state and never follow a changed active selection during revoke.
+  - Capability/protocol prerequisite: a changed capability hash is accepted only with a complete manifest that passes schema plus duplicate/semantic/resource validation and whose canonical SHA-256 matches; persist the manifest/hash and the validated root `protocol_version` atomically with the new successful sync. A null manifest is continuation only when its supplied hash matches the stored accepted manifest. Exact replay returns its durable receipt without rewriting mutable current truth. Invalid or rolled-back sync must preserve the previous accepted capability/protocol snapshot.
+  - Diagnostic truth boundary: persist only the latest successful request's pre-ACK `observed_at`, sealed-chunk count, pending-point count, used/capacity bytes, oldest unacknowledged observation, cumulative dropped-point count, and safe error-present boolean. All fields are nullable as one unavailable snapshot; integers are bounded unsigned values; used bytes cannot exceed capacity. Exact zero counts represent a reported empty queue. The UI must say this is a historical pre-response snapshot, not live storage, and must not infer cause, post-ACK state, movement, data recovery, or physical health.
+  - Revoke transaction boundary: owner-only web revocation reauthorizes, reselects the exact active collar, then calls one existing authenticated RPC. The RPC derives `auth.uid()`, locks every active credential in deterministic order before the collar, and moves collar plus credentials to `revoked` in one transaction/timestamp. Exact retry may confirm the same already-revoked target; it must not revoke a new selected collar. Editor/viewer/non-member/anonymous, cross-dog, pending/retired, selection-drift, malformed, RPC-error, and uncertain-confirmation outcomes fail closed with bounded copy. Sync and revoke use the same credential-before-collar order so the terminal outcome has no active credential for a revoked collar.
+  - UI/privacy boundary: owner revoke uses an explicit review disclosure, consequence text, required acknowledgement checkbox, cancel/Escape, duplicate-submit lock, and focused live result. Success says retained recordings remain and local collar features are unaffected; it does not claim credential erasure, device wipe, or reactivation. Never render device credentials, public device identity, capability hashes, claim digests, request IDs/bodies, coordinates, internal errors, SQL, or service-role data. No browser database client, polling, Realtime, WebSocket, or optimistic active-state rewrite.
+  - State/test boundary: cover active/none, deterministic ties, never-synced/stale/recent, accepted/missing/malformed capability, diagnostics unavailable/empty/pending/capacity-invalid/future, owner/editor/viewer/non-member/anonymous, exact revoke retry, selection drift, response uncertainty, same-request replay, changed full-manifest acceptance, hash-only continuation, invalid-manifest rollback, empty/nonempty simulator queue, and multiple concurrent sync/revoke races. Prove exact projections/grants/RLS, root protocol persistence, atomic collar/credential state, no deadlock, no external browser request, private cache headers, keyboard/focus/touch behavior, and semantic non-live copy.
+  - Explicit non-goals: collar list/picker/reactivation/re-pair UI, credential rotation, diagnostic history/charts, raw machine errors, GPS/route data, storage repair, live status, polling, Realtime, firmware cloud code, physical proof, hosted deployment, or M1.13+ behavior.
+  - Owner: Codex (implementation); repository owner (acceptance)
+  - Target date/window: completed 2026-08-25 (America/Bogota)
+  - Implementation commit/PR: local commit created with this plan update; hash recorded in Git history; not pushed
+  - Evidence artifact or command: 121/121 portal tests; 23/23 shared gateway/simulator unit tests; 38 focused and 473/473 total pgTAP assertions across 20 files; four true multi-connection sync/revoke races; raw Data API owner/editor/viewer/non-member/anonymous read/revoke matrix; changed full-capability plus hash-only simulator proof; `npm run phase1:check`; clean `npm run phase1:local -- --clean` with 15 replayed migrations and pinned Node `24.18.0`; `npm run portal:build`; Next.js runtime checks; owner/viewer/revoke browser proof; private response header; zero console errors/external requests; desktop/mobile Lighthouse four-category 100; [M1.12 collar diagnostics/revoke evidence](../cloud/m112-collar-diagnostics-revoke-evidence.md); CI intentionally not run or inspected per task instruction
+  - Decision/result: PASS; one freshly authorized composite server DAL exposes only accepted capability and latest pre-ACK queue truth for the deterministic active collar. Changed manifests validate and persist atomically, empty queue truth is no longer stale, and owner-only exact-target revocation serializes with sync so collar and credentials reach one coherent terminal state. No picker, history, raw secret/error/route data, browser data path, polling, Realtime, firmware, hosted, or physical work was added.
 
 #### M1D — Local end-to-end gate
 
-- [ ] M1.13 Add Playwright coverage for signup/confirm/login, dog creation, claim, upload, history, brightness, report, revoke, and logout against local Supabase.
-- [ ] M1.14 Add anonymous, user-B, forged dog/collar/recording ID, raw REST, and raw RPC denial tests.
-- [ ] M1.15 Prove response loss after committed sync, exact resend, out-of-order chunks, revoked credential, stale desired version, unknown clock, and server restart.
-- [ ] M1.16 Assert browser bundles, unauthenticated/static/cached HTML, console, errors, logs, URLs, analytics, and map-provider requests contain no secret key, device credential, claim code, unauthorized identity, or exact route payload.
+M1D is deliberately sequential. M1.13 first establishes one reliable owner journey and its orchestration primitives; M1.14–M1.17 then attack that same harness; M1.18 measures the stable result. A feature-specific unit/browser proof may be reused, but no item closes merely because an earlier subphase covered a subset.
+
+- [ ] M1.13 Add one deterministic Playwright owner journey against a clean local Supabase stack.
+  - Hard scope: signup, Mailpit confirmation, login, dog creation, one-time claim issuance, simulator claim plus upload, Today, History, recording detail, website brightness desired state, simulator exact reported convergence, collar diagnostics, exact-collar revoke, logout, and protected back/refresh denial. Use the existing simulator and protocol fixtures; do not implement a browser mock of the collar.
+  - Harness boundary: one documented command owns readiness checks, isolated fixture identifiers, mailbox cleanup, simulator invocation, persisted-state polling with bounded deadlines, failure artifacts, redaction, and teardown. No fixed sleeps as correctness gates, shared developer accounts, order dependence, hosted endpoint, retained raw claim/device secret, or automatic retry that hides a product failure.
+  - Acceptance: every UI transition is paired with a database/protocol checkpoint; exact desired version/hash reaches the simulator and returns as applied; revoke targets the collar shown before the action; logout plus browser back cannot reveal private content. The complete journey must pass from a clean reset twice consecutively.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: ____________________
+  - Decision/result: ____________________
+- [ ] M1.14 Add adversarial identity and object-authorization coverage using the M1.13 harness.
+  - Cover anonymous, second account, viewer/editor role boundaries, forged/malformed/cross-dog dog/collar/recording IDs, stale/deleted Auth, raw Data API projections, and every authenticated user RPC. Assert the same bounded denial for missing versus inaccessible objects and zero cross-owner row/mutation effects.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: ____________________
+  - Decision/result: ____________________
+- [ ] M1.15 Add deterministic transport/fault coverage at the existing Edge/RPC/simulator boundary.
+  - Prove response loss after committed sync, exact resend, same-ID/different-body rejection, out-of-order or overlapping chunks, revoked credential, sync/revoke interleaving, stale desired version, unknown clock, and local service restart. Every case must assert receipt/data/config state, ACK behavior, retained retry identity, and absence of a logical duplicate; no arbitrary network-flakiness test is accepted.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: ____________________
+  - Decision/result: ____________________
+- [ ] M1.16 Run the cross-surface privacy and cache leak gate.
+  - Assert browser bundles, unauthenticated/static/cached HTML and RSC, action payloads, console, server/Edge/database logs, errors, URLs, cookies/storage, Playwright traces/screenshots/HAR, analytics, and external requests contain no secret key, device credential, raw claim code after its one permitted display, unauthorized identity, internal error, or exact route payload.
   - Authorized, private, bounded recording-detail HTML may contain the owner's route table when required for accessibility; it must remain `private, no-store`.
-- [ ] M1.17 Enforce keyboard operation, visible focus, labels, status beyond color, 44 px targets, reduced motion, 320/428/768/1280 px layouts, and no critical accessibility violation.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: ____________________
+  - Decision/result: ____________________
+- [ ] M1.17 Run the complete accessibility and responsive state matrix.
+  - Enforce semantic landmarks/headings/tables, keyboard-only operation, deterministic focus after navigation/errors/disclosures, visible focus, programmatic labels/descriptions, polite/assertive status as appropriate, status beyond color, 44 px minimum targets, 200% zoom, reduced motion, and no page overflow/lost action at exact 320/428/768/1280 CSS-pixel viewports. Audit owner, editor/viewer read-only, empty, validation, pending, applied, rejected/stale, paginated detail, and revoke-confirmation states; zero automated A/AA violations is necessary but not sufficient for manual acceptance.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command: ____________________
+  - Decision/result: ____________________
 - [ ] M1.18 Establish the portal performance baseline.
   - No map bundle in M1.
-  - Initial authenticated-page JS budget: `<= 180 KiB gzip`, measured and recorded.
-  - LCP test profile and result: ____________________
+  - Measure production builds only, on a documented desktop and throttled-mobile profile, for login, Today, History, recording detail, configuration, and collars. Record route JS gzip, request count/bytes, TTFB, LCP, CLS, and long tasks; run at least five cold and five warm samples and report median plus p95.
+  - Initial authenticated-page JS budget: `<= 180 KiB gzip` per route. LCP/TTFB budgets require recorded baseline values and repository-owner acceptance before this item can close; do not invent pass thresholds after seeing a regression.
+  - Owner: ____________________
+  - Target date/window: ____________________
+  - Implementation commit/PR: ____________________
+  - Evidence artifact or command/profile/results: ____________________
+  - Decision/result: ____________________
 
 **M1 exit gate:** one documented command starts the clean local stack and portal, then an automated browser plus simulator completes the whole owner journey with cross-user attacks denied and exact replay producing one logical result.
 
@@ -803,7 +849,7 @@ The exact wire contract remains in `contracts/device-v1`. The following boundari
 
 ## 12. Research investigations applied in this revision
 
-Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 through the M1.9 boundary. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
+Research was refreshed on 2026-08-24 using primary/official sources and rechecked on 2026-08-25 through the M1.12 boundary. The implementation consequence is part of the plan; links must be revalidated when their phase begins.
 
 | # | Investigation | Finding | Applied decision |
 | --- | --- | --- | --- |
@@ -843,6 +889,15 @@ Research was refreshed on 2026-08-24 using primary/official sources and rechecke
 | R34 | Query-plan evidence | `EXPLAIN ANALYZE` executes the query, and `BUFFERS` exposes I/O work; results depend on statistics, data, cache state, and PostgreSQL version. | M1.9 uses transactional representative fixtures, `ANALYZE`, a warm-up, authenticated RLS, three cursor shapes, settings/buffers, and separately measured size/write/rollback evidence rather than accepting estimated cost alone. [PostgreSQL `EXPLAIN`](https://www.postgresql.org/docs/current/using-explain.html) |
 | R35 | Canonical URL-safe cursors | RFC 4648 distinguishes base64url, permits omitted padding when length is implicit, and warns that multiple text encodings can otherwise decode to the same bytes. | History accepts only one unpadded base64url alphabet and rejects any decoded payload whose canonical re-encoding differs, as well as padding, oversized input, extra keys, unknown versions, and noncanonical JSON. [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html) |
 | R36 | Accessible data-table identity | W3C guidance identifies `<caption>` as the programmatic table title used by screen-reader table navigation. | M1.10's point table must use a real caption and header cells; the table is the authoritative route alternative, while the SVG remains a labelled orientation aid. [W3C WAI table captions](https://www.w3.org/WAI/tutorials/tables/caption-summary/) |
+| R37 | PostgreSQL row locks and deadlocks | Row locks block conflicting writers until transaction end; PostgreSQL recommends acquiring multiple objects in one consistent order as the primary deadlock defense. | Sync and revoke lock all active credentials deterministically before the collar; the M1.12 gate includes true multi-connection races and rejects deadlock/timeout output. [PostgreSQL explicit locking](https://www.postgresql.org/docs/17/explicit-locking.html) |
+| R38 | Read Committed lock recheck | At PostgreSQL's default Read Committed level, a waiting `SELECT FOR UPDATE` locks and returns the updated row version after the prior writer finishes. | Revocation rechecks locked mutable state and allows only coherent active or exact already-revoked outcomes; it does not decide from a pre-lock snapshot or follow a new selection. [PostgreSQL transaction isolation](https://www.postgresql.org/docs/current/transaction-iso.html) |
+| R39 | Transaction commit atomicity | PostgreSQL `COMMIT` makes all transaction changes visible together; failure before commit leaves none of them visible. | A new successful sync persists receipt/data plus accepted capability/protocol/diagnostic truth in the same RPC transaction, and revoke changes collar plus credentials in one transaction/timestamp. [PostgreSQL `COMMIT`](https://www.postgresql.org/docs/current/sql-commit.html) |
+| R40 | Security-definer function hygiene | Supabase recommends an empty or explicitly pinned `search_path` for `security definer` functions and explicit execute-grant control. | Replaced gateway/revoke bodies retain fully qualified names, pinned search paths, and least-privilege service-role/authenticated grants; no direct inner function is exposed. [Supabase database functions](https://supabase.com/docs/guides/database/functions) |
+| R41 | Data API grants versus row policy | Supabase treats API exposure/object privileges and RLS as separate controls and supports a dedicated exposed schema. | M1.12 keeps only bounded diagnostics on existing RLS `api.collars`, keeps credentials/receipts in `private`, and proves raw owner/editor/viewer/non-member/anonymous behavior. [Securing the Data API](https://supabase.com/docs/guides/api/securing-your-api), [Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security) |
+| R42 | Next.js mutation authorization | Next.js treats Server Actions as public HTTP endpoints and recommends checking authorization inside each action while returning only necessary DTO data from the DAL. | The collar page uses one composite server DAL; revoke revalidates untrusted fields, fresh identity, owner role, and exact active selection inside the action path before one RPC. [Next.js authentication](https://nextjs.org/docs/app/guides/authentication), [mutating data](https://nextjs.org/docs/app/getting-started/mutating-data) |
+| R43 | Private dynamic response caching | Current Next.js guidance distinguishes user-specific dynamic content from public cached output and documents CDN cache directives separately. | Keep protected collar HTML/RSC dynamic and non-cacheable; M1.12 verifies authenticated response headers and M1.16 must scan every cache/static surface. [Caching without Cache Components](https://nextjs.org/docs/app/guides/caching-without-cache-components), [CDN caching](https://nextjs.org/docs/app/guides/cdn-caching) |
+| R44 | Destructive-action confirmation | W3C technique G168 calls for confirmation before continuing an action whose consequence may be difficult or impossible to reverse. | Owner revoke has a review stage, explicit consequence/retention copy, required acknowledgement, and a cancel/Escape path; a single immediate destructive button is rejected. [W3C technique G168](https://www.w3.org/WAI/WCAG21/Techniques/general/G168) |
+| R45 | Accessible status and target size | W3C requires important status changes to be programmatically available without moving focus, while WCAG 2.2 defines a 24 CSS-pixel minimum target with spacing exceptions and WCAG 2.1 documents a stricter 44-pixel enhanced target. | M1.12 uses a focused semantic result plus live status and 48-pixel primary controls; M1.17 retains the project's stricter 44-pixel minimum across the complete state matrix. [Status messages](https://www.w3.org/WAI/WCAG21/Understanding/status-messages.html), [target size minimum](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html), [target size enhanced](https://www.w3.org/WAI/WCAG21/Understanding/target-size.html) |
 
 ## 13. Definition of foundational success
 

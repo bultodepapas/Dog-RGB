@@ -10,7 +10,9 @@ import {
 } from "../../supabase/functions/_shared/gateway.ts";
 
 const syncFixtureUrl = new URL("../../contracts/device-v1/fixtures/valid/device-v1-sync-request.json", import.meta.url);
+const capabilitiesFixtureUrl = new URL("../../contracts/device-v1/fixtures/valid/capabilities.json", import.meta.url);
 const syncFixture = async () => JSON.parse(await readFile(syncFixtureUrl, "utf8"));
+const capabilitiesFixture = async () => JSON.parse(await readFile(capabilitiesFixtureUrl, "utf8"));
 
 function streamRequest(body, headers = {}) {
   const bytes = typeof body === "string" ? Buffer.from(body) : body;
@@ -121,6 +123,44 @@ test("sync semantics require exact summary duration accounting", async () => {
     status: 422,
     code: "invalid_telemetry",
   });
+});
+
+test("sync semantics reject inconsistent bounded queue diagnostics", async () => {
+  const body = await syncFixture();
+  body.diagnostics.outbox_used_bytes = body.diagnostics.outbox_capacity_bytes + 1;
+  await assert.rejects(() => validateSyncSemantics(body), {
+    status: 422,
+    code: "invalid_diagnostics",
+  });
+});
+
+test("sync semantics validate full changed capabilities and their canonical hash", async () => {
+  const valid = await syncFixture();
+  valid.capabilities = await capabilitiesFixture();
+  await validateSyncSemantics(valid);
+
+  const mismatchedHash = structuredClone(valid);
+  mismatchedHash.device.capability_hash = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+  await assert.rejects(() => validateSyncSemantics(mismatchedHash), {
+    status: 422,
+    code: "invalid_capabilities",
+  });
+
+  const duplicateEffect = structuredClone(valid);
+  duplicateEffect.capabilities.led.effects[1].id = duplicateEffect.capabilities.led.effects[0].id;
+  await assert.rejects(() => validateSyncSemantics(duplicateEffect), {
+    status: 422,
+    code: "invalid_capabilities",
+  });
+});
+
+test("claim persistence receives the validated root protocol version", async () => {
+  const source = await readFile(
+    new URL("../../supabase/functions/device-v1-claim/index.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /p_device:\s*\{[\s\S]*protocol_version:\s*body\.protocol_version/u);
+  assert.doesNotMatch(source, /p_device:\s*device,\s*p_capabilities/u);
 });
 
 test("sync semantics accept a disjoint loss marker and reject one covering an uploaded point", async () => {

@@ -225,10 +225,15 @@ test("the Collares UI keeps the guard, role gate, ephemeral state, and accessibl
     new URL("../../app/app/[dogId]/collars/claim-code-form.tsx", import.meta.url),
     "utf8",
   );
+  const overviewSource = await readFile(
+    new URL("../../app/components/collar-overview.tsx", import.meta.url),
+    "utf8",
+  );
 
-  assert.match(page, /await requireDogPage/u);
-  assert.match(page, /dog\.role === "owner" \|\| dog\.role === "editor"/u);
-  assert.match(page, /<ClaimCodeForm dogId=\{dog\.id\} \/>/u);
+  assert.match(page, /await requireCollarsPage/u);
+  assert.match(page, /<CollarOverview snapshot=\{snapshot\} \/>/u);
+  assert.match(overviewSource, /snapshot\.canIssueClaim/u);
+  assert.match(overviewSource, /<ClaimCodeForm dogId=\{dog\.id\} \/>/u);
   assert.match(formSource, /useActionState/u);
   assert.match(formSource, /submitLocked\.current/u);
   assert.match(formSource, /aria-busy=\{pending\}/u);
@@ -236,7 +241,7 @@ test("the Collares UI keeps the guard, role gate, ephemeral state, and accessibl
   assert.match(formSource, /aria-live="polite"/u);
   assert.match(formSource, /resultRef\.current\?\.focus\(\)/u);
   assert.doesNotMatch(
-    `${page}\n${formSource}`,
+    `${page}\n${overviewSource}\n${formSource}`,
     /localStorage|sessionStorage|indexedDB|navigator\.clipboard|console\.|useOptimistic/u,
   );
 });

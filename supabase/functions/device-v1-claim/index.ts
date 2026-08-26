@@ -41,7 +41,8 @@ export default {
         p_device_public_id: deviceId,
         p_credential_id: credentialId,
         p_secret_digest: postgresBytea(await deviceDigest(rawSecret)),
-        p_device: device, p_capabilities: capabilities,
+        p_device: { ...(device as Record<string, unknown>), protocol_version: body.protocol_version },
+        p_capabilities: capabilities,
       }) as Record<string, unknown>;
       if (result._problem === "claim_unavailable") {
         throw new HttpProblem(401, "claim_unavailable", "Claim unavailable", "The supplied claim is unavailable or expired.");

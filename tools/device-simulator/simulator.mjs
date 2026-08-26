@@ -152,6 +152,13 @@ async function main() {
     unsupportedProtocol.request_id,
   );
 
+  const changedCapabilities = await readFixture("capabilities.json");
+  changedCapabilities.led.effects[0].label = "SOLID SIMULATOR";
+  const changedCapabilityHash = createHash("sha256")
+    .update(canonicalJson(changedCapabilities))
+    .digest("base64url");
+  sync.capabilities = changedCapabilities;
+  sync.device.capability_hash = changedCapabilityHash;
   const firstRaw = JSON.stringify(sync);
   const sendExactSync = () => fetch(`${apiUrl}/functions/v1/device-v1-sync`, {
     method: "POST",
@@ -171,12 +178,27 @@ async function main() {
   assert.equal(replay.telemetry.accepted_chunks[0].accepted_point_count, 3);
   assert.equal(replay.configuration.outcomes.length, 1);
   assert.equal(replay.configuration.outcomes[0].disposition, "winning");
+  assert.equal(
+    replay.accepted_capability_hash,
+    changedCapabilityHash,
+    "a complete changed capability manifest must become accepted sync truth",
+  );
+  sync.capabilities = null;
 
   const emptySync = () => {
     const value = structuredClone(sync);
     value.request_id = randomUUID();
     value.upload = { chunks: [], summaries: [], loss_markers: [] };
     value.configuration = { mutations: [], reported: [] };
+    value.diagnostics = {
+      outbox_chunks: 0,
+      outbox_points: 0,
+      outbox_used_bytes: 0,
+      outbox_capacity_bytes: sync.diagnostics.outbox_capacity_bytes,
+      oldest_unacknowledged_utc_ms: null,
+      dropped_points_total: sync.diagnostics.dropped_points_total,
+      last_error_code: null,
+    };
     return value;
   };
   const makeChunkSync = (chunkSequence, pointSequence, point, bootSequence = 42, isFinal = false) => {
@@ -192,6 +214,10 @@ async function main() {
       is_final: isFinal,
       points: [point],
     }];
+    value.diagnostics.outbox_chunks = 1;
+    value.diagnostics.outbox_points = 1;
+    value.diagnostics.outbox_used_bytes = 16;
+    value.diagnostics.oldest_unacknowledged_utc_ms = point[2] * 1_000;
     return value;
   };
   const nowSeconds = Math.floor(Date.now() / 1000);
@@ -356,6 +382,7 @@ async function main() {
     const value = structuredClone(sync);
     value.request_id = randomUUID();
     value.device.device_id = lwwDeviceId;
+    value.device.capability_hash = lwwClaim.device.capability_hash;
     value.upload = { chunks: [], summaries: [], loss_markers: [] };
     value.configuration = { mutations: [], reported: [] };
     return value;
@@ -533,6 +560,7 @@ async function main() {
     const value = structuredClone(sync);
     value.request_id = randomUUID();
     value.device.device_id = secondDeviceId;
+    value.device.capability_hash = secondClaim.device.capability_hash;
     value.upload = { chunks: [], summaries: [], loss_markers: [] };
     value.configuration = { mutations: [], reported: [] };
     return value;
@@ -683,6 +711,7 @@ async function main() {
       "concurrent-exact-replay", "lost-response", "single-database-effect",
       "persisted-overlap-rejected", "out-of-order-upload", "loss-marker-persisted",
       "persisted-finality", "artifact-replay", "artifact-identity-conflict",
+      "changed-capability-persisted",
       "ap-mutation", "web-winner", "reported-applied",
       "lww-web-then-trusted-ap", "lww-trusted-ap-then-web",
       "lww-independent-resources", "lww-actor-tie-break",

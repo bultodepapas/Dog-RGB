@@ -18,6 +18,10 @@ import {
   type BrightnessConfigurationDto,
 } from "../data-access/configuration";
 import {
+  getCollarPage,
+  type CollarPageDto,
+} from "../data-access/collars";
+import {
   getFreshIdentity,
   type VerifiedIdentity,
 } from "../supabase/identity";
@@ -57,6 +61,13 @@ export async function requireConfigurationPage(
   returnTo: string,
 ): Promise<BrightnessConfigurationDto> {
   return requireDogData(returnTo, () => getBrightnessConfiguration(dogId));
+}
+
+export async function requireCollarsPage(
+  dogId: string,
+  returnTo: string,
+): Promise<CollarPageDto> {
+  return requireDogData(returnTo, () => getCollarPage(dogId));
 }
 
 export async function requireHistoryPage(

@@ -4,10 +4,15 @@ import { FunctionsHttpError } from "@supabase/supabase-js";
 
 import { isCanonicalUuid } from "../../../../lib/auth/protected-route";
 import {
+  type RevokeCollarActionState,
+  revokeCollarMutationHandler,
+} from "../../../../lib/collars/revoke";
+import {
   type IssueClaimActionState,
   issueClaimMutationHandler,
 } from "../../../../lib/claim-code/issue-claim";
 import { requireDogAccess } from "../../../../lib/data-access/dogs";
+import { revokeCollar } from "../../../../lib/data-access/collars";
 import { createServerSupabaseClient } from "../../../../lib/supabase/server";
 
 const SAFE_PROBLEM_CODES = new Set([
@@ -54,10 +59,22 @@ const issueClaimMutation = issueClaimMutationHandler({
   },
 });
 
+const revokeMutation = revokeCollarMutationHandler({
+  isCanonicalUuid,
+  revoke: revokeCollar,
+});
+
 export async function issueClaimAction(
   _previousState: IssueClaimActionState,
   formData: FormData,
 ): Promise<IssueClaimActionState> {
   const result = await issueClaimMutation(formData);
   return result.state;
+}
+
+export async function revokeCollarAction(
+  _previousState: RevokeCollarActionState,
+  formData: FormData,
+): Promise<RevokeCollarActionState> {
+  return revokeMutation(formData);
 }

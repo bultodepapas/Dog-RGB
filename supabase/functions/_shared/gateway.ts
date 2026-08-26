@@ -229,16 +229,103 @@ async function assertHash(
   }
 }
 
+function duplicateCapabilityValue(values: unknown[]): boolean {
+  return new Set(values).size !== values.length;
+}
+
+function invalidCapabilities(): never {
+  throw new HttpProblem(
+    422,
+    "invalid_capabilities",
+    "Invalid capability manifest",
+    "The capability manifest failed validation.",
+  );
+}
+
+export function validateCapabilityManifest(
+  device: Record<string, unknown>,
+  capabilities: unknown,
+): void {
+  if (!capabilities || typeof capabilities !== "object" || Array.isArray(capabilities)) {
+    invalidCapabilities();
+  }
+  const manifest = capabilities as Record<string, unknown>;
+  const resources = manifest.config_resources;
+  const led = manifest.led;
+  const telemetry = manifest.telemetry;
+  if (
+    !Array.isArray(resources) ||
+    !led || typeof led !== "object" || Array.isArray(led) ||
+    !telemetry || typeof telemetry !== "object" || Array.isArray(telemetry) ||
+    !Array.isArray(manifest.protocol_versions) ||
+    !Array.isArray(manifest.config_schemas) ||
+    manifest.hardware_revision !== device.hardware_revision
+  ) invalidCapabilities();
+
+  const ledRecord = led as Record<string, unknown>;
+  const telemetryRecord = telemetry as Record<string, unknown>;
+  if (!Array.isArray(ledRecord.effects) || !Array.isArray(ledRecord.palettes) ||
+      !Array.isArray(telemetryRecord.schemas)) invalidCapabilities();
+
+  const resourceRecords = resources as Array<Record<string, unknown>>;
+  const effects = ledRecord.effects as Array<Record<string, unknown>>;
+  const palettes = ledRecord.palettes as Array<Record<string, unknown>>;
+  if (
+    duplicateCapabilityValue(resourceRecords.map((resource) => resource.resource_key)) ||
+    duplicateCapabilityValue(effects.map((effect) => effect.id)) ||
+    duplicateCapabilityValue(effects.map((effect) => effect.key)) ||
+    duplicateCapabilityValue(palettes.map((palette) => palette.id)) ||
+    duplicateCapabilityValue(palettes.map((palette) => palette.key)) ||
+    !manifest.protocol_versions.includes(1) ||
+    !telemetryRecord.schemas.includes(3) ||
+    !manifest.config_schemas.includes(7)
+  ) invalidCapabilities();
+
+  const paletteIds = new Set(palettes.map((palette) => palette.id));
+  const encoder = new TextEncoder();
+  for (const effect of effects) {
+    if (
+      typeof effect.speed_min !== "number" ||
+      typeof effect.speed_max !== "number" ||
+      typeof effect.intensity_min !== "number" ||
+      typeof effect.intensity_max !== "number" ||
+      effect.speed_min > effect.speed_max ||
+      effect.intensity_min > effect.intensity_max ||
+      typeof effect.label !== "string" ||
+      encoder.encode(effect.label).byteLength > 96 ||
+      (effect.palette_mode === "none" && effect.default_palette_id !== null) ||
+      (effect.default_palette_id !== null && !paletteIds.has(effect.default_palette_id))
+    ) invalidCapabilities();
+  }
+  for (const palette of palettes) {
+    if (typeof palette.label !== "string" || encoder.encode(palette.label).byteLength > 96) {
+      invalidCapabilities();
+    }
+  }
+}
+
 export async function validateCapabilityHash(device: Record<string, unknown>, capabilities: unknown) {
+  validateCapabilityManifest(device, capabilities);
   await assertHash(device.capability_hash, canonicalJson(capabilities), "invalid_capabilities");
 }
 
 export async function validateSyncSemantics(body: Record<string, unknown>) {
   const device = body.device as Record<string, unknown> | undefined;
+  const diagnostics = body.diagnostics as Record<string, unknown> | undefined;
   const upload = body.upload as Record<string, unknown> | undefined;
   const configuration = body.configuration as Record<string, unknown> | undefined;
-  if (!device || !upload || !configuration || typeof device.device_id !== "string") {
+  if (!device || !diagnostics || !upload || !configuration || typeof device.device_id !== "string") {
     throw new HttpProblem(400, "invalid_envelope", "Invalid request envelope", "Required sync sections are missing.");
+  }
+  if (
+    typeof diagnostics.outbox_used_bytes !== "number" ||
+    typeof diagnostics.outbox_capacity_bytes !== "number" ||
+    diagnostics.outbox_used_bytes > diagnostics.outbox_capacity_bytes
+  ) {
+    throw new HttpProblem(422, "invalid_diagnostics", "Invalid diagnostics", "The queue diagnostic values are inconsistent.");
+  }
+  if (body.capabilities !== null) {
+    await validateCapabilityHash(device, body.capabilities);
   }
   const chunks = Array.isArray(upload.chunks) ? upload.chunks as Array<Record<string, unknown>> : [];
   let totalPoints = 0;
@@ -361,6 +448,24 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
   const mutations = Array.isArray(configuration.mutations) ? configuration.mutations as Array<Record<string, unknown>> : [];
   const mutationIds = new Set<unknown>();
   const sequences = new Set<unknown>();
+  const capabilityManifest = body.capabilities && typeof body.capabilities === "object"
+    ? body.capabilities as Record<string, unknown>
+    : null;
+  const capableResources = new Set(
+    capabilityManifest && Array.isArray(capabilityManifest.config_resources)
+      ? (capabilityManifest.config_resources as Array<Record<string, unknown>>)
+        .map((resource) => `${resource.resource_key}:${resource.resource_schema}`)
+      : [],
+  );
+  const capableEffectIds = new Set(
+    capabilityManifest && capabilityManifest.led &&
+        typeof capabilityManifest.led === "object" &&
+        !Array.isArray(capabilityManifest.led) &&
+        Array.isArray((capabilityManifest.led as Record<string, unknown>).effects)
+      ? ((capabilityManifest.led as Record<string, unknown>).effects as Array<Record<string, unknown>>)
+        .map((effect) => effect.id)
+      : [],
+  );
   for (const mutation of mutations) {
     if (mutationIds.has(mutation.mutation_id) || sequences.has(mutation.local_sequence) ||
         (mutation.authored_hlc as Record<string, unknown> | undefined)?.actor_id !== device.device_id) {
@@ -369,6 +474,19 @@ export async function validateSyncSemantics(body: Record<string, unknown>) {
     mutationIds.add(mutation.mutation_id);
     sequences.add(mutation.local_sequence);
     await assertHash(mutation.body_sha256, canonicalJson(mutation.body), "invalid_envelope");
+    if (capabilityManifest && !capableResources.has(`${mutation.resource_key}:${mutation.resource_schema}`)) {
+      invalidCapabilities();
+    }
+    const mutationBody = mutation.body as Record<string, unknown> | undefined;
+    const usedEffectIds = mutation.resource_key === "simple_effect"
+      ? [mutationBody?.effect_id]
+      : mutation.resource_key === "speed_profile" && Array.isArray(mutationBody?.effects)
+        ? (mutationBody.effects as Array<Record<string, unknown>>)
+          .flatMap((effect) => [effect.effect_a, effect.effect_b])
+        : [];
+    if (usedEffectIds.some((effectId) => !capableEffectIds.has(effectId))) {
+      invalidCapabilities();
+    }
   }
 }
 

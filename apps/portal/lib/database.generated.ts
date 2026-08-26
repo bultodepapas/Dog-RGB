@@ -19,16 +19,24 @@ export type Database = {
           config_schema: number | null
           created_at: string
           device_public_id: string
+          diagnostics_observed_at: string | null
           display_name: string | null
           dog_id: string
+          dropped_points_total: number | null
           firmware_version: string | null
           hardware_revision: string | null
           id: string
           last_sync_at: string | null
           linked_at: string | null
+          oldest_unacknowledged_at: string | null
+          outbox_capacity_bytes: number | null
+          outbox_chunks: number | null
+          outbox_points: number | null
+          outbox_used_bytes: number | null
           protocol_version: number | null
           revoked_at: string | null
           state: string
+          sync_error_present: boolean | null
           telemetry_schema: number | null
           updated_at: string
         }
@@ -38,16 +46,24 @@ export type Database = {
           config_schema?: number | null
           created_at?: string
           device_public_id: string
+          diagnostics_observed_at?: string | null
           display_name?: string | null
           dog_id: string
+          dropped_points_total?: number | null
           firmware_version?: string | null
           hardware_revision?: string | null
           id?: string
           last_sync_at?: string | null
           linked_at?: string | null
+          oldest_unacknowledged_at?: string | null
+          outbox_capacity_bytes?: number | null
+          outbox_chunks?: number | null
+          outbox_points?: number | null
+          outbox_used_bytes?: number | null
           protocol_version?: number | null
           revoked_at?: string | null
           state?: string
+          sync_error_present?: boolean | null
           telemetry_schema?: number | null
           updated_at?: string
         }
@@ -57,16 +73,24 @@ export type Database = {
           config_schema?: number | null
           created_at?: string
           device_public_id?: string
+          diagnostics_observed_at?: string | null
           display_name?: string | null
           dog_id?: string
+          dropped_points_total?: number | null
           firmware_version?: string | null
           hardware_revision?: string | null
           id?: string
           last_sync_at?: string | null
           linked_at?: string | null
+          oldest_unacknowledged_at?: string | null
+          outbox_capacity_bytes?: number | null
+          outbox_chunks?: number | null
+          outbox_points?: number | null
+          outbox_used_bytes?: number | null
           protocol_version?: number | null
           revoked_at?: string | null
           state?: string
+          sync_error_present?: boolean | null
           telemetry_schema?: number | null
           updated_at?: string
         }

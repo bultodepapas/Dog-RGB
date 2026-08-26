@@ -695,6 +695,136 @@ button:disabled { cursor: wait; opacity: .62; }
 .brightness-form button,
 .configuration-refresh { width: min(360px, 100%); min-height: 48px; }
 .configuration-refresh { justify-self: start; }
+.collar-view { max-width: 920px; min-width: 0; }
+.collar-heading > p:not(.eyebrow),
+.collar-section-copy { color: var(--text); }
+.collar-heading h1 {
+  max-width: 19ch;
+  margin: .7rem 0 1.25rem;
+  font-size: clamp(2rem, 5vw, 4.25rem);
+  line-height: 1.02;
+}
+.collar-section {
+  min-width: 0;
+  margin-top: clamp(40px, 7vw, 72px);
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+.collar-section > h2 {
+  margin: 0 0 1.25rem;
+  color: var(--text);
+  font-size: clamp(1.2rem, 2.5vw, 1.65rem);
+  line-height: 1.2;
+}
+.collar-section-copy { margin-bottom: 1.5rem; }
+.collar-facts {
+  display: grid;
+  gap: 1.35rem 2rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.collar-facts div { min-width: 0; }
+.collar-facts dd {
+  overflow-wrap: anywhere;
+  color: var(--gold);
+  line-height: 1.5;
+}
+.collar-facts time,
+.collar-truth time { color: var(--text); }
+.collar-facts--queue { margin-top: 1.5rem; }
+.collar-empty,
+.collar-read-only,
+.collar-warning,
+.collar-truth,
+.collar-result {
+  display: grid;
+  gap: .65rem;
+  overflow-wrap: anywhere;
+  color: #91a995;
+  line-height: 1.55;
+}
+.collar-empty strong,
+.collar-read-only strong,
+.collar-warning strong,
+.collar-truth strong,
+.collar-result strong {
+  color: var(--gold);
+  letter-spacing: .045em;
+}
+.collar-empty p,
+.collar-read-only p,
+.collar-warning p,
+.collar-result p { margin: 0; }
+.collar-warning,
+.collar-result {
+  margin-top: 1.5rem;
+  border-left: 3px solid var(--gold);
+  padding: .85rem 1rem;
+  background: #171400;
+}
+.collar-truth {
+  border-left: 3px solid var(--green);
+  padding-left: 1rem;
+}
+.collar-truth strong { color: var(--green); }
+.collar-revoke { width: min(680px, 100%); }
+.collar-review-button,
+.collar-refresh { min-height: 48px; }
+.collar-confirmation {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  border: 1px solid var(--magenta);
+  border-radius: 3px;
+  padding: clamp(18px, 4vw, 28px);
+  background: #11020c;
+}
+.collar-confirmation h3 {
+  margin: 0;
+  color: #ff91d1;
+  font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.collar-confirmation h3:focus,
+.collar-result:focus {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+.collar-confirmation > p { margin: 0; color: var(--text); }
+.collar-revoke-form { display: grid; gap: 1rem; }
+.collar-confirmation-check {
+  display: grid;
+  min-height: 48px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: .75rem;
+  color: var(--text);
+  line-height: 1.5;
+  cursor: pointer;
+}
+.collar-confirmation-check input {
+  width: 22px;
+  height: 22px;
+  margin: .1rem 0 0;
+  accent-color: var(--green);
+}
+.collar-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.collar-confirmation-actions button { min-height: 48px; }
+.button-danger { border-color: var(--magenta); background: var(--magenta); color: #16000f; }
+.button-danger:hover { background: #ff91d1; }
+.button-secondary { background: transparent; color: var(--green); }
+.button-secondary:hover { background: #09200f; }
+.collar-result--success { border-left-color: var(--green); background: #041507; }
+.collar-result--success strong { color: var(--green); }
+.collar-result--error { border-left-color: var(--magenta); background: #1a0312; }
+.collar-result--error strong { color: #ff91d1; }
+.collar-result .collar-refresh { width: min(320px, 100%); }
 .private-footer {
   display: flex;
   width: min(1180px, calc(100% - 32px));
@@ -782,7 +912,8 @@ button:disabled { cursor: wait; opacity: .62; }
   .history-fact--start { grid-column: 1 / -1; }
   .recording-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .recording-fact--time { grid-column: 1 / -1; }
-  .configuration-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .configuration-facts,
+  .collar-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: no-preference) {

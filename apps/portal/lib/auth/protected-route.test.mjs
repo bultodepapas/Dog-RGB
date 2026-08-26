@@ -118,7 +118,7 @@ test("every private leaf route is dynamic and awaits its own page guard", async 
     ["../../app/onboarding/page.tsx", /await requireFreshPageIdentity/u],
     ["../../app/app/[dogId]/today/page.tsx", /await requireTodayPage/u],
     ["../../app/app/[dogId]/history/page.tsx", /await requireHistoryPage/u],
-    ["../../app/app/[dogId]/collars/page.tsx", /await requireDogPage/u],
+    ["../../app/app/[dogId]/collars/page.tsx", /await requireCollarsPage/u],
     [
       "../../app/app/[dogId]/configuration/page.tsx",
       /await requireConfigurationPage/u,
