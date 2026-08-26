@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { chromium } from "@playwright/test";
 
+import { prepareAuthorizationFixture } from "./authorization-fixtures.mjs";
 import { clearMailbox } from "./mailpit.mjs";
 
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -17,7 +18,8 @@ const nextCli = join(workspace, "node_modules", "next", "dist", "bin", "next");
 const playwrightCli = join(workspace, "node_modules", "@playwright", "test", "cli.js");
 const playwrightConfig = join(workspace, "playwright.portal.config.ts");
 const localSecretsPath = join(workspace, "supabase", "functions", ".env");
-const artifactDirectory = join(workspace, "output", "playwright", "m113");
+const ownerArtifactDirectory = join(workspace, "output", "playwright", "m113");
+const authorizationArtifactDirectory = join(workspace, "output", "playwright", "m114");
 const expectedNode = "24.18.0";
 const expectedPlaywright = "1.62.1";
 const portalUrl = "http://127.0.0.1:3000";
@@ -36,7 +38,7 @@ function run(command, args, options = {}) {
     ...options,
   });
   if (result.status !== 0) {
-    throw new Error(`M1.13 command failed: ${command} ${args[0] ?? ""}.`);
+    throw new Error(`Portal E2E command failed: ${command} ${args[0] ?? ""}.`);
   }
 }
 
@@ -48,7 +50,7 @@ function runQuiet(command, args, { allowFailure = false } = {}) {
     timeout: 180_000,
   });
   if (!allowFailure && result.status !== 0) {
-    throw new Error(`M1.13 command failed: ${command} ${args[0] ?? ""}.`);
+    throw new Error(`Portal E2E command failed: ${command} ${args[0] ?? ""}.`);
   }
   return result.stdout.trim();
 }
@@ -61,16 +63,64 @@ function parseLocalEnvironment() {
   }));
   for (const key of ["API_URL", "MAILPIT_URL", "PUBLISHABLE_KEY"]) {
     if (typeof values[key] !== "string" || values[key].length < 1) {
-      throw new Error("M1.13 local Supabase environment was incomplete.");
+      throw new Error("Portal E2E local Supabase environment was incomplete.");
     }
   }
   for (const key of ["API_URL", "MAILPIT_URL"]) {
     const url = new URL(values[key]);
     if (url.protocol !== "http:" || url.hostname !== "127.0.0.1") {
-      throw new Error("M1.13 refused a non-loopback local service.");
+      throw new Error("Portal E2E refused a non-loopback local service.");
     }
   }
   return Object.freeze(values);
+}
+
+function validateAuthorizationArtifact(value, cycle, expectedPhase) {
+  let artifact;
+  try {
+    artifact = JSON.parse(Buffer.isBuffer(value) ? value.toString("utf8") : String(value));
+  } catch {
+    throw new Error("M1.14 authorization artifact is not valid JSON.");
+  }
+  const exactKeys = (object, expected, label) => {
+    if (object === null || typeof object !== "object" || Array.isArray(object)) {
+      throw new Error(`M1.14 ${label} must be an object.`);
+    }
+    const actual = Object.keys(object).sort();
+    if (JSON.stringify(actual) !== JSON.stringify([...expected].sort())) {
+      throw new Error(`M1.14 ${label} fields changed outside the artifact allowlist.`);
+    }
+  };
+
+  exactKeys(
+    artifact,
+    ["schemaVersion", "phase", "cycle", "surface", "graphCounts", "checkpoints"],
+    "artifact",
+  );
+  exactKeys(artifact.surface, ["tables", "rpcs"], "artifact surface");
+  exactKeys(artifact.graphCounts, [
+    "profiles", "dogs", "memberships", "collars", "recordings", "telemetry_points",
+    "daily_summaries", "recording_summaries", "config_revisions", "config_heads",
+    "config_reported", "claims", "credentials", "sync_requests", "chunks",
+    "deletion_tombstones", "deletion_jobs", "deletion_receipts",
+  ], "artifact graph counts");
+  if (
+    artifact.schemaVersion !== 1 ||
+    artifact.phase !== expectedPhase ||
+    artifact.cycle !== cycle ||
+    artifact.surface.tables !== 11 ||
+    artifact.surface.rpcs !== 5 ||
+    !Object.values(artifact.graphCounts).every(Number.isSafeInteger) ||
+    !Object.values(artifact.graphCounts).every((count) => count >= 0) ||
+    !Array.isArray(artifact.checkpoints) ||
+    artifact.checkpoints.some((checkpoint) =>
+      typeof checkpoint !== "string" || !/^[a-z0-9-]+$/u.test(checkpoint)
+    ) ||
+    new Set(artifact.checkpoints).size !== artifact.checkpoints.length
+  ) {
+    throw new Error("M1.14 authorization artifact failed its bounded schema contract.");
+  }
+  return artifact;
 }
 
 async function portIsFree() {
@@ -90,7 +140,7 @@ async function waitForCondition(check, label, timeoutMs = 30_000) {
     if (await check()) return;
     await new Promise((resolveWait) => setTimeout(resolveWait, 250));
   }
-  throw new Error(`M1.13 ${label} did not become ready.`);
+  throw new Error(`Portal E2E ${label} did not become ready.`);
 }
 
 async function verifyServices(environment) {
@@ -156,7 +206,7 @@ function portalEnvironment(environment) {
 
 async function startPortal(environment) {
   if (!await portIsFree()) {
-    throw new Error("M1.13 requires exclusive ownership of 127.0.0.1:3000.");
+    throw new Error("Portal E2E requires exclusive ownership of 127.0.0.1:3000.");
   }
   const child = spawn(process.execPath, [
     nextCli, "start", "--hostname", "127.0.0.1", "--port", "3000",
@@ -170,7 +220,7 @@ async function startPortal(environment) {
   child.stderr?.resume();
   await waitForCondition(async () => {
     if (child.exitCode !== null || child.signalCode !== null) {
-      throw new Error("M1.13 owned portal exited during startup.");
+      throw new Error("Portal E2E owned portal exited during startup.");
     }
     try {
       const response = await fetch(`${portalUrl}/login`, {
@@ -202,49 +252,53 @@ async function stopPortal(child) {
     closed,
     new Promise((resolveWait) => setTimeout(() => resolveWait(false), 5_000)),
   ]);
-  if (!stopped) throw new Error("M1.13 owned portal did not stop.");
+  if (!stopped) throw new Error("Portal E2E owned portal did not stop.");
 }
 
 async function preflight() {
   if (!process.argv.includes("--clean")) {
     throw new Error(
-      "M1.13 refuses to reset the local database implicitly. " +
+      "Portal E2E refuses to reset the local database implicitly. " +
       "Run `node tools/portal-e2e/run.mjs --clean`.",
     );
   }
   if (process.versions.node !== expectedNode) {
-    throw new Error(`M1.13 requires the isolated Node ${expectedNode} runtime.`);
+    throw new Error(`Portal E2E requires the isolated Node ${expectedNode} runtime.`);
   }
   const config = await readFile(join(workspace, "supabase", "config.toml"), "utf8");
   if (!/^project_id\s*=\s*"Dog-RGB-1"\s*$/mu.test(config)) {
-    throw new Error("M1.13 refused an unexpected Supabase project.");
+    throw new Error("Portal E2E refused an unexpected Supabase project.");
   }
   const pinnedSupabase = (await readFile(join(workspace, ".supabase-version"), "utf8")).trim();
   if (runQuiet("supabase", ["--version"]) !== pinnedSupabase) {
-    throw new Error("M1.13 requires the repository-pinned Supabase CLI.");
+    throw new Error("Portal E2E requires the repository-pinned Supabase CLI.");
   }
   const playwrightPackage = JSON.parse(await readFile(
     join(workspace, "node_modules", "@playwright", "test", "package.json"),
     "utf8",
   ));
   if (playwrightPackage.version !== expectedPlaywright) {
-    throw new Error("M1.13 requires the repository-pinned Playwright version.");
+    throw new Error("Portal E2E requires the repository-pinned Playwright version.");
   }
   if (!existsSync(chromium.executablePath())) {
-    throw new Error("M1.13 requires the pinned Playwright Chromium installation.");
+    throw new Error("Portal E2E requires the pinned Playwright Chromium installation.");
   }
   if (!await portIsFree()) {
-    throw new Error("M1.13 requires exclusive ownership of 127.0.0.1:3000.");
+    throw new Error("Portal E2E requires exclusive ownership of 127.0.0.1:3000.");
   }
-  const resolvedArtifacts = resolve(artifactDirectory);
-  if (!resolvedArtifacts.startsWith(`${workspace}\\`) && !resolvedArtifacts.startsWith(`${workspace}/`)) {
-    throw new Error("M1.13 artifact boundary is invalid.");
+  for (const artifactDirectory of [ownerArtifactDirectory, authorizationArtifactDirectory]) {
+    const resolvedArtifacts = resolve(artifactDirectory);
+    if (!resolvedArtifacts.startsWith(`${workspace}\\`) && !resolvedArtifacts.startsWith(`${workspace}/`)) {
+      throw new Error("Portal E2E artifact boundary is invalid.");
+    }
   }
 }
 
 await preflight();
-await rm(artifactDirectory, { recursive: true, force: true });
-await mkdir(artifactDirectory, { recursive: true });
+for (const artifactDirectory of [ownerArtifactDirectory, authorizationArtifactDirectory]) {
+  await rm(artifactDirectory, { recursive: true, force: true });
+  await mkdir(artifactDirectory, { recursive: true });
+}
 
 let portal = null;
 let environment = null;
@@ -292,15 +346,70 @@ try {
     } finally {
       await stopPortal(portal);
       portal = null;
-      await rm(join(artifactDirectory, "test-results"), {
+      await rm(join(ownerArtifactDirectory, "test-results"), {
         recursive: true,
         force: true,
       });
       await clearMailbox().catch(() => undefined);
     }
+
+    console.log(`M1.14: clean authorization matrix ${cycle}/2...`);
+    run("supabase", ["db", "reset"]);
+    await verifyServices(environment);
+    const authorizationFixture = await prepareAuthorizationFixture({
+      apiUrl: environment.API_URL,
+      publishableKey: environment.PUBLISHABLE_KEY,
+      cycle,
+    });
+    portal = await startPortal(environment);
+    let authorizationRunPassed = false;
+    let authorizationRunError = null;
+    try {
+      try {
+        run(process.execPath, [
+          playwrightCli,
+          "test",
+          "--config", playwrightConfig,
+          "--project", "portal-authorization-chromium",
+        ], {
+          env: {
+            ...process.env,
+            M114_CYCLE: String(cycle),
+            M114_SUPABASE_URL: environment.API_URL,
+            M114_PUBLISHABLE_KEY: environment.PUBLISHABLE_KEY,
+            M114_MANIFEST: JSON.stringify(authorizationFixture.manifest),
+          },
+        });
+        authorizationRunPassed = true;
+      } catch (error) {
+        authorizationRunError = error;
+      }
+
+      const artifactPath = join(authorizationArtifactDirectory, `cycle-${cycle}.json`);
+      if (!existsSync(artifactPath)) {
+        throw new Error("M1.14 authorization test produced no sanitized cycle artifact.");
+      }
+      const artifact = await readFile(artifactPath);
+      if (authorizationFixture.artifactContainsPrivateMaterial(artifact)) {
+        throw new Error("M1.14 retained private fixture material in its artifact.");
+      }
+      validateAuthorizationArtifact(
+        artifact,
+        cycle,
+        authorizationRunPassed ? "passed" : "failed",
+      );
+      if (authorizationRunError) throw authorizationRunError;
+    } finally {
+      await stopPortal(portal);
+      portal = null;
+      await rm(join(authorizationArtifactDirectory, "test-results"), {
+        recursive: true,
+        force: true,
+      });
+    }
   }
   completed = true;
-  console.log("M1.13: both independent clean owner journeys passed.");
+  console.log("M1.13/M1.14: both owner and authorization gates passed from two clean resets each.");
 } finally {
   await stopPortal(portal).catch(() => undefined);
   if (environment) {
@@ -312,6 +421,6 @@ try {
     if (error?.code !== "ENOENT") throw error;
   });
   if (!completed) {
-    console.error("M1.13 failed; see the sanitized cycle artifact for its last completed checkpoint.");
+    console.error("Portal E2E failed; see the sanitized cycle artifact for its last completed checkpoint.");
   }
 }

@@ -10,7 +10,7 @@ import {
   parseSignupForm,
 } from "../../lib/auth/form";
 import { resolveProtectedReturnPath } from "../../lib/auth/protected-route";
-import { getVerifiedIdentity } from "../../lib/supabase/identity";
+import { getFreshIdentity } from "../../lib/supabase/identity";
 import { createServerSupabaseClient } from "../../lib/supabase/server";
 
 const LOGIN_ERROR =
@@ -88,7 +88,7 @@ export async function updatePasswordAction(
     return parsed.state;
   }
 
-  const identity = await getVerifiedIdentity();
+  const identity = await getFreshIdentity();
   if (!identity) {
     return {
       status: "error",

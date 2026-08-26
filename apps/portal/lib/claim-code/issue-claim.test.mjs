@@ -79,11 +79,13 @@ test("the frozen claim code is 16 unambiguous Crockford characters", () => {
   assert.equal(CLAIM_TTL_SECONDS, 900);
 });
 
-test("invalid or missing dog identifiers fail before authorization and Edge", async () => {
+test("invalid, missing, or duplicate dog identifiers fail before authorization and Edge", async () => {
   const missing = new FormData();
   const blob = new FormData();
   blob.set("dogId", new Blob());
-  for (const data of [missing, form(""), form("not-a-uuid"), blob]) {
+  const duplicate = form();
+  duplicate.append("dogId", DOG_ID);
+  for (const data of [missing, form(""), form("not-a-uuid"), blob, duplicate]) {
     const { calls, mutate } = harness();
     assert.deepEqual(await mutate(data), {
       ok: false,

@@ -157,3 +157,24 @@ test("logout is explicitly local to the current session", async () => {
   assert.match(actions, /signOut\(\{ scope: "local" \}\)/u);
   assert.doesNotMatch(actions, /user_metadata|service_role|sb_secret_/u);
 });
+
+test("password updates require fresh Auth-server identity before mutation", async () => {
+  const [actions, identitySource] = await Promise.all([
+    readFile(new URL("../../app/auth/actions.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/identity.ts", import.meta.url), "utf8"),
+  ]);
+  const start = actions.indexOf("export async function updatePasswordAction");
+  const end = actions.indexOf("export async function logoutAction", start);
+  const updateAction = actions.slice(start, end);
+  const identityIndex = updateAction.indexOf("await getFreshIdentity()");
+  const mutationIndex = updateAction.indexOf("supabase.auth.updateUser");
+  const freshStart = identitySource.indexOf("export async function getFreshIdentity");
+  const freshIdentity = identitySource.slice(freshStart);
+
+  assert.match(actions, /import \{ getFreshIdentity \} from/u);
+  assert.ok(identityIndex >= 0);
+  assert.ok(mutationIndex > identityIndex);
+  assert.doesNotMatch(updateAction, /getVerifiedIdentity|getClaims|getSession/u);
+  assert.match(freshIdentity, /auth\.getUser\(\)/u);
+  assert.doesNotMatch(freshIdentity, /getClaims|getSession/u);
+});

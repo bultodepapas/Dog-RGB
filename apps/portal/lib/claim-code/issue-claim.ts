@@ -115,6 +115,13 @@ function failure(message = ISSUE_CLAIM_GENERIC_ERROR): IssueClaimResult {
   return { ok: false, state: { status: "error", message } };
 }
 
+function exactText(formData: FormData, name: string): string | null {
+  const values = formData.getAll(name);
+  return values.length === 1 && typeof values[0] === "string"
+    ? values[0]
+    : null;
+}
+
 function problemMessage(problemCode: string | null): string {
   if (problemCode === "active_claim_exists") {
     return ISSUE_CLAIM_ACTIVE_ERROR;
@@ -134,8 +141,8 @@ export function issueClaimMutationHandler(
   return async function issueClaimMutation(
     formData: FormData,
   ): Promise<IssueClaimResult> {
-    const dogId = formData.get("dogId");
-    if (typeof dogId !== "string" || !dependencies.isCanonicalUuid(dogId)) {
+    const dogId = exactText(formData, "dogId");
+    if (dogId === null || !dependencies.isCanonicalUuid(dogId)) {
       return failure();
     }
 

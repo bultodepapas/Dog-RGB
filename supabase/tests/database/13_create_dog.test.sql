@@ -193,9 +193,9 @@ select set_config(
 );
 select throws_ok(
   $$ select api.create_dog_v1('Deleted user', 'America/Bogota') $$,
-  '23503',
-  null,
-  'a stale subject absent from Auth cannot create a dog'
+  '28000',
+  'authentication_required',
+  'a stale subject absent from Auth receives the bounded authentication denial'
 );
 
 reset role;
