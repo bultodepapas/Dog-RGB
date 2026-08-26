@@ -111,7 +111,7 @@ select lives_ok(
     select api.mutate_config_resource_v1(
       '80000000-0000-4000-8000-000000000001', 'brightness', 1,
       '82000000-0000-4000-8000-000000000001', 0,
-      '{"brightness":80}'::jsonb, decode(repeat('21', 32), 'hex')
+      '{"brightness":80}'::jsonb, extensions.digest(convert_to('{"brightness":80}', 'UTF8'), 'sha256')
     )
   $$,
   'a current web form creates the first resource head'
@@ -150,7 +150,7 @@ select lives_ok(
     select api.mutate_config_resource_v1(
       '80000000-0000-4000-8000-000000000001', 'brightness', 1,
       '82000000-0000-4000-8000-000000000002', 2,
-      '{"brightness":70}'::jsonb, decode(repeat('22', 32), 'hex')
+      '{"brightness":70}'::jsonb, extensions.digest(convert_to('{"brightness":70}', 'UTF8'), 'sha256')
     )
   $$,
   'a fresh web form can deliberately supersede the AP head'
@@ -197,7 +197,7 @@ select lives_ok(
     select api.mutate_config_resource_v1(
       '80000000-0000-4000-8000-000000000002', 'brightness', 1,
       '82000000-0000-4000-8000-000000000003', 0,
-      '{"brightness":80}'::jsonb, decode(repeat('23', 32), 'hex')
+      '{"brightness":80}'::jsonb, extensions.digest(convert_to('{"brightness":80}', 'UTF8'), 'sha256')
     )
   $$,
   'the actor tie-break scenario starts with a web head'
@@ -332,7 +332,7 @@ select lives_ok(
     select api.mutate_config_resource_v1(
       '80000000-0000-4000-8000-000000000004', 'brightness', 1,
       '82000000-0000-4000-8000-000000000011', 0,
-      '{"brightness":60}'::jsonb, decode(repeat('31', 32), 'hex')
+      '{"brightness":60}'::jsonb, extensions.digest(convert_to('{"brightness":60}', 'UTF8'), 'sha256')
     )
   $$,
   'the first sequential web mutation succeeds'
@@ -342,7 +342,7 @@ select lives_ok(
     select api.mutate_config_resource_v1(
       '80000000-0000-4000-8000-000000000004', 'brightness', 1,
       '82000000-0000-4000-8000-000000000012', 1,
-      '{"brightness":61}'::jsonb, decode(repeat('32', 32), 'hex')
+      '{"brightness":61}'::jsonb, extensions.digest(convert_to('{"brightness":61}', 'UTF8'), 'sha256')
     )
   $$,
   'the second sequential web mutation succeeds'
@@ -367,10 +367,10 @@ select throws_ok(
     select api.mutate_config_resource_v1(
       '80000000-0000-4000-8000-000000000004', 'brightness', 1,
       '82000000-0000-4000-8000-000000000013', 0,
-      '{"brightness":62}'::jsonb, decode(repeat('33', 32), 'hex')
+      '{"brightness":62}'::jsonb, extensions.digest(convert_to('{"brightness":62}', 'UTF8'), 'sha256')
     )
   $$,
-  '40001', 'stale_base_server_version',
+  'PT409', 'stale_base_server_version',
   'a stale web form is rejected before it can become an LWW mutation'
 );
 reset role;

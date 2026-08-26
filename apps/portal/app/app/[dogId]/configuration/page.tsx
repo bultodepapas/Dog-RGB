@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import { dogAppPath } from "../../../../lib/auth/protected-route";
-import { requireDogPage } from "../../../../lib/auth/route-guard";
-import { ProtectedDogPage } from "../../../components/protected-dog-page";
+import { requireConfigurationPage } from "../../../../lib/auth/route-guard";
+import { BrightnessConfiguration } from "../../../components/brightness-configuration";
 
 export const metadata: Metadata = { title: "Configuración | Dog RGB" };
 export const dynamic = "force-dynamic";
@@ -15,9 +15,17 @@ export default async function ConfigurationPage(
   props: ConfigurationPageProps,
 ) {
   const { dogId } = await props.params;
-  const dog = await requireDogPage(
+  const snapshot = await requireConfigurationPage(
     dogId,
     dogAppPath(dogId, "configuration"),
   );
-  return <ProtectedDogPage dog={dog} section="configuration" />;
+  const mutationId = snapshot.canEdit && snapshot.collar
+    ? crypto.randomUUID()
+    : null;
+  return (
+    <BrightnessConfiguration
+      mutationId={mutationId}
+      snapshot={snapshot}
+    />
+  );
 }

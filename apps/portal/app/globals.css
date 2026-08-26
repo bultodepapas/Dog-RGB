@@ -14,7 +14,7 @@
 }
 
 * { box-sizing: border-box; }
-html { min-width: 320px; }
+html { min-width: 0; }
 body { margin: 0; min-height: 100vh; background: #000; }
 button, input { font: inherit; }
 a { color: var(--green); text-underline-offset: .22em; }
@@ -582,6 +582,119 @@ button:disabled { cursor: wait; opacity: .62; }
   line-height: 1.2;
   user-select: all;
 }
+.configuration-view { max-width: 860px; min-width: 0; }
+.configuration-heading > p:not(.eyebrow) { color: var(--text); }
+.configuration-heading h1 {
+  max-width: 19ch;
+  margin: .7rem 0 1.25rem;
+  font-size: clamp(2rem, 5vw, 4.25rem);
+  line-height: 1.02;
+}
+.configuration-section {
+  min-width: 0;
+  margin-top: clamp(40px, 7vw, 72px);
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+.configuration-section > h2 {
+  margin: 0 0 1.25rem;
+  color: var(--text);
+  font-size: clamp(1.2rem, 2.5vw, 1.65rem);
+  line-height: 1.2;
+}
+.configuration-facts {
+  display: grid;
+  gap: 1.35rem 2rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+.configuration-facts div { min-width: 0; }
+.configuration-facts dd {
+  overflow-wrap: anywhere;
+  color: var(--gold);
+  line-height: 1.5;
+}
+.configuration-facts time { color: var(--text); }
+.configuration-facts--desired { margin-top: 1.5rem; }
+.configuration-empty,
+.configuration-read-only,
+.configuration-warning,
+.configuration-truth,
+.configuration-result {
+  display: grid;
+  gap: .65rem;
+  overflow-wrap: anywhere;
+  color: #91a995;
+  line-height: 1.55;
+}
+.configuration-empty strong,
+.configuration-read-only strong,
+.configuration-warning strong,
+.configuration-truth strong,
+.configuration-result strong {
+  color: var(--gold);
+  letter-spacing: .045em;
+}
+.configuration-empty p,
+.configuration-read-only p,
+.configuration-warning p,
+.configuration-truth p,
+.configuration-result p { margin: 0; }
+.configuration-warning,
+.configuration-result {
+  margin-top: 1.5rem;
+  border-left: 3px solid var(--gold);
+  padding: .85rem 1rem;
+  background: #171400;
+}
+.configuration-truth {
+  border-left: 3px solid var(--gold);
+  padding-left: 1rem;
+}
+.configuration-truth--applied { border-left-color: var(--green); }
+.configuration-truth--applied strong { color: var(--green); }
+.configuration-truth--rejected_unsupported,
+.configuration-truth--rejected_invalid,
+.configuration-truth--storage_failed { border-left-color: var(--magenta); }
+.configuration-result--saved,
+.configuration-result--unchanged { border-left-color: var(--green); background: #041507; }
+.configuration-result--saved strong,
+.configuration-result--unchanged strong { color: var(--green); }
+.configuration-result--stale,
+.configuration-result--ambiguous { border-left-color: var(--magenta); background: #1a0312; }
+.configuration-result--stale strong,
+.configuration-result--ambiguous strong { color: #ff91d1; }
+.configuration-result:focus {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+.brightness-action-stack {
+  display: grid;
+  width: min(560px, 100%);
+  gap: 1rem;
+}
+.brightness-form {
+  display: grid;
+  gap: .65rem;
+}
+.brightness-form label,
+.brightness-action-stack > label { color: var(--text); font-weight: 700; }
+.brightness-form input:not([type="hidden"]),
+.brightness-action-stack > input {
+  min-height: 48px;
+  width: 100%;
+  border: 1px solid #2f5d37;
+  border-radius: 3px;
+  padding: .65rem .8rem;
+  background: #000;
+  color: var(--text);
+}
+.brightness-form input:not([type="hidden"]):hover { border-color: var(--green-muted); }
+.brightness-form p { margin: 0; }
+.brightness-form button,
+.configuration-refresh { width: min(360px, 100%); min-height: 48px; }
+.configuration-refresh { justify-self: start; }
 .private-footer {
   display: flex;
   width: min(1180px, calc(100% - 32px));
@@ -669,6 +782,7 @@ button:disabled { cursor: wait; opacity: .62; }
   .history-fact--start { grid-column: 1 / -1; }
   .recording-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .recording-fact--time { grid-column: 1 / -1; }
+  .configuration-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -44,7 +44,11 @@ export function DogPrivateShell({
           <Link className="brand-mark private-brand" href="/onboarding">
             DOG-RGB_
           </Link>
-          <div className="private-context" aria-label="Contexto del perro">
+          <div
+            className="private-context"
+            aria-label="Contexto del perro"
+            role="group"
+          >
             <span className="eyebrow">EXTENSIÓN WEB / PRIVADA</span>
             <strong>{dog.name}</strong>
             <span>{ROLE_LABELS[dog.role]}</span>

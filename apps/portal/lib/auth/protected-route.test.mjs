@@ -119,7 +119,10 @@ test("every private leaf route is dynamic and awaits its own page guard", async 
     ["../../app/app/[dogId]/today/page.tsx", /await requireTodayPage/u],
     ["../../app/app/[dogId]/history/page.tsx", /await requireHistoryPage/u],
     ["../../app/app/[dogId]/collars/page.tsx", /await requireDogPage/u],
-    ["../../app/app/[dogId]/configuration/page.tsx", /await requireDogPage/u],
+    [
+      "../../app/app/[dogId]/configuration/page.tsx",
+      /await requireConfigurationPage/u,
+    ],
     [
       "../../app/app/[dogId]/recordings/[recordingId]/page.tsx",
       /await requireRecordingPage/u,
@@ -215,7 +218,8 @@ test("M1.4 private path contains no framework or React data cache", async () => 
   const files = [
     "./route-guard.ts",
     "../supabase/identity.ts",
-    "../../app/components/protected-dog-page.tsx",
+    "../data-access/configuration.ts",
+    "../../app/components/brightness-configuration.tsx",
   ];
   const sources = await Promise.all(
     files.map((path) => readFile(new URL(path, import.meta.url), "utf8")),

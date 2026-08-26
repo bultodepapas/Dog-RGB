@@ -14,6 +14,10 @@ import {
   type TodaySnapshotDto,
 } from "../data-access/dogs";
 import {
+  getBrightnessConfiguration,
+  type BrightnessConfigurationDto,
+} from "../data-access/configuration";
+import {
   getFreshIdentity,
   type VerifiedIdentity,
 } from "../supabase/identity";
@@ -46,6 +50,13 @@ export async function requireTodayPage(
   returnTo: string,
 ): Promise<TodaySnapshotDto> {
   return requireDogData(returnTo, () => getTodaySnapshot(dogId));
+}
+
+export async function requireConfigurationPage(
+  dogId: string,
+  returnTo: string,
+): Promise<BrightnessConfigurationDto> {
+  return requireDogData(returnTo, () => getBrightnessConfiguration(dogId));
 }
 
 export async function requireHistoryPage(

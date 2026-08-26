@@ -54,6 +54,7 @@ function localEnvironment() {
     ...process.env,
     SUPABASE_URL: values.API_URL,
     SUPABASE_PUBLISHABLE_KEY: values.PUBLISHABLE_KEY,
+    SUPABASE_JWT_SECRET: values.JWT_SECRET,
   };
 }
 
@@ -91,6 +92,8 @@ try {
   run("npm", ["run", "phase1:check"]);
 
   const environment = localEnvironment();
+  run("node", ["tools/cloud_configuration/m111_rpc_concurrency.mjs"], { env: environment });
+  run("node", ["tools/cloud_configuration/m111_rest_matrix.mjs"], { env: environment });
   console.log("Checking the Edge Function gateway started by Supabase...");
   await waitForGateway(environment.SUPABASE_URL);
   run("node", ["tools/device-simulator/boundary-matrix.mjs"], { env: environment });
