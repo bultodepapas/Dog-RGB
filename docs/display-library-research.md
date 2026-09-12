@@ -1,6 +1,6 @@
 # Bibliotecas y referencias para RGB Dog Display
 
-Investigación consultada el 2026-09-12. **Selección propuesta; ninguna nueva biblioteca instalada, compilada ni probada en Waveshare en esta revisión.** Complementa el [plan incremental](PLANS/2026-09-12_display-incremental-delivery.md), que conserva autoridad sobre el orden de ejecución.
+Investigación consultada el 2026-09-12. **Investigación inicial; actualización I3: Arduino_GFX 1.6.7 instalado y compilado con el core fijado, aún sin prueba física.** Complementa el [plan incremental](PLANS/2026-09-12_display-incremental-delivery.md), que conserva autoridad sobre el orden de ejecución.
 
 ## Selección por capa
 
@@ -19,6 +19,8 @@ No confundir transporte LCD, composición de interfaz y recursos animados: resue
 I0–I2 no incorporan dependencias gráficas. La pantalla sencilla puede verse cuidada con alineación, tamaños y colores consistentes, sin anticipar el motor de animación.
 
 Reconciliación de implementación 2026-09-12: el [contrato incremental](PLANS/2026-09-12_display-incremental-delivery.md) fija targets, aislamiento Classic, semántica GPS y presupuestos. I5 requiere un solo ejecutable y tres PNG estáticos; los modos headless/interactivo completos y runner temporal se incorporan según necesidad en I6. No convertir el catálogo de referencias siguiente en una lista de dependencias a instalar.
+
+Actualización de ejecución: [guía I3](../Platformio/Dog-RGB/docs/display-i3.md), [baseline I3](baselines/display-i3-2026-09-12.md). Se revisaron el demo No Touch y el tag 1.6.7; las alternativas siguientes permanecen referencias, sin instalar.
 
 ## Drivers comparados
 

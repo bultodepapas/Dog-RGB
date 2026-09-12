@@ -9,8 +9,8 @@
 #include "gps/gps.h"
 #include "led/led_ui.h"
 
-#if !defined(DOG_RGB_BRINGUP_STAGE) || DOG_RGB_BRINGUP_STAGE != 2
-#error "GPS check belongs only to bringup stage 2"
+#if !defined(DOG_RGB_BRINGUP_STAGE) || (DOG_RGB_BRINGUP_STAGE != 2 && DOG_RGB_BRINGUP_STAGE != 3)
+#error "GPS check belongs only to bringup stages 2/3"
 #endif
 
 namespace bringup::gps_check {
@@ -31,12 +31,12 @@ void report(Print &sink) {
   const uint8_t requested = LED_DEBUG_BRIGHTNESS_ENABLED ? LED_DEBUG_BRIGHTNESS : cfg.brightness;
   char line[512];
   const int length = snprintf(line, sizeof(line),
-      "[I2] ms=%lu state=%s raw=%d trusted=%d speed_kph=%s day_m=%.1f date=%lu "
+      "[I%u] ms=%lu state=%s raw=%d trusted=%d speed_kph=%s day_m=%.1f date=%lu "
       "sats=%u quality=%u hdop=%.2f uart_seen=%d uart_age_ms=%lu "
       "rmc_seen=%d rmc_age_ms=%lu rx=%lu rmc=%lu gga=%lu stale=%lu "
       "overflow=%lu checksum=%lu parse=%lu mode=%u brightness=%u/%u "
       "budget_ma=%u estimated_ma=%u\n",
-      static_cast<unsigned long>(now), gps::reception_name(state), gps::raw_fix(),
+      DOG_RGB_BRINGUP_STAGE, static_cast<unsigned long>(now), gps::reception_name(state), gps::raw_fix(),
       gps::trusted_fix(), speed, static_cast<double>(gps::total_distance_m()),
       static_cast<unsigned long>(gps::current_date()), gps::sats(), gps::fix_quality(),
       static_cast<double>(gps::hdop()), gps::has_byte_observation(),
@@ -51,7 +51,7 @@ void report(Print &sink) {
   if (length > 0 && static_cast<size_t>(length) < sizeof(line)) {
     sink.write(reinterpret_cast<const uint8_t *>(line), static_cast<size_t>(length));
   } else {
-    sink.print("[I2] report-too-long\n");
+    sink.print("[GPS_CHECK] report-too-long\n");
   }
 }
 } // namespace bringup::gps_check

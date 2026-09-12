@@ -145,7 +145,11 @@ class BoardProfileTests(unittest.TestCase):
         invalid = [[], [CLASSIC, DISPLAY], ["DOG_RGB_BOARD_XIAO_S3=0"],
                    ["DOG_RGB_BOARD_UNKNOWN=1"], [DISPLAY, "DOG_RGB_WOKWI_SIM=1"],
                    [CLASSIC, "DOG_RGB_BRINGUP_STAGE=0"],
+                   [DISPLAY, "DOG_RGB_BRINGUP_STAGE=4"],
                    [DISPLAY, "DOG_RGB_BRINGUP_STAGE=3"],
+                   [CLASSIC, "DOG_RGB_DISPLAY_ENABLED=1"],
+                   [DISPLAY, "DOG_RGB_DISPLAY_ENABLED=0"],
+                   [DISPLAY, "DOG_RGB_DISPLAY_ENABLED=1", "DOG_RGB_BRINGUP_STAGE=2"],
                    [DISPLAY, "DOG_RGB_BRINGUP_STAGE=-1"]]
         for flags in invalid:
             with self.subTest(flags=flags):

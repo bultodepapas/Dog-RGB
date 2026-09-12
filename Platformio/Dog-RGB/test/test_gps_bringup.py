@@ -174,6 +174,12 @@ int main() {
 
 class GpsBringupTests(unittest.TestCase):
     def test_reception_reports_and_transport_only_bench_limits(self):
+        self.check_bench(2)
+
+    def test_stage_three_retains_transport_only_bench_limits(self):
+        self.check_bench(3)
+
+    def check_bench(self, stage):
         compiler = shutil.which("g++")
         self.assertIsNotNone(compiler)
         with tempfile.TemporaryDirectory() as directory:
@@ -193,7 +199,8 @@ class GpsBringupTests(unittest.TestCase):
                        "led/power_limiter.cpp"]
             result = subprocess.run(
                 [compiler, "-std=c++17", "-Wall", "-Wextra", "-Werror", "-pedantic",
-                 "-DDOG_RGB_BOARD_WAVESHARE_LCD169_V2=1", "-DDOG_RGB_BRINGUP_STAGE=2",
+                 "-DDOG_RGB_BOARD_WAVESHARE_LCD169_V2=1", f"-DDOG_RGB_BRINGUP_STAGE={stage}",
+                 *(["-DDOG_RGB_DISPLAY_ENABLED=1"] if stage == 3 else []),
                  "-I", str(folder), "-I", str(ROOT / "include"), str(source),
                  *[str(ROOT / "src" / path) for path in sources], "-o", str(executable)],
                 capture_output=True, text=True)
@@ -207,8 +214,8 @@ class GpsBringupTests(unittest.TestCase):
         main = (ROOT / "src/main.cpp").read_text(encoding="utf-8")
         gps = (ROOT / "src/gps/gps.cpp").read_text(encoding="utf-8")
         self.assertEqual(main.count("defined(DOG_RGB_BRINGUP_STAGE) && DOG_RGB_BRINGUP_STAGE < 2"), 2)
-        self.assertIn("#if DOG_RGB_BRINGUP_STAGE != 2\n    led_ui::start_welcome();", main)
-        self.assertIn("#define Serial periodic_log\n#if DOG_RGB_BRINGUP_STAGE == 2", main)
+        self.assertIn("#if !defined(DOG_RGB_BRINGUP_STAGE) || DOG_RGB_BRINGUP_STAGE < 2\n    led_ui::start_welcome();", main)
+        self.assertIn("#define Serial periodic_log\n#if DOG_RGB_BRINGUP_STAGE >= 2", main)
         self.assertIn("bringup::gps_check::report(Serial);", main)
         self.assertIn("gps::uart_stale(now_ms, gps_byte_observed, gps_last_byte_ms)", gps)
         self.assertIn("gps::rmc_stale(now_ms, gps_rmc_observed, gps_last_rmc_ms)", gps)

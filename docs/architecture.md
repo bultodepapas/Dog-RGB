@@ -71,9 +71,14 @@ I1 adds a command-driven LED diagnostic using the existing bus/conversion/limite
 also excluded from the product. I2 returns to the normal application path with
 `gps::reception_state()` sharing parser expiry helpers, queued GPS reports and
 transport-only brightness/current bench limits; welcome is skipped. Normal
-configuration and GPS persistence remain active. No LCD driver/UI or physical Waveshare acceptance is claimed. See
+configuration and GPS persistence remain active. I3 adds a value-only GPS/LED
+snapshot adapter, text formatter and ST7789 service to the Waveshare product
+and stage-3 diagnostic only. It samples at 1 Hz and draws one changed row per
+loop after HTTP; startup backlight follows the complete first frame. Detected
+driver failure disables only UI. Classic and I0–I2 exclude graphics sources and
+Arduino_GFX. Physical Waveshare acceptance remains open. See
 [board targets](../Platformio/Dog-RGB/docs/boards.md) and the
-[I2 evidence](baselines/display-i2-2026-09-12.md).
+[I3 evidence](baselines/display-i3-2026-09-12.md).
 
 | Module | Primary files | Responsibility |
 | --- | --- | --- |

@@ -9,7 +9,7 @@
 
   Supported hardware:
   - MCU: Seeed Studio XIAO ESP32-S3
-  - Candidate: Waveshare LCD 1.69 No Touch V2 (I0 software only)
+  - Candidate: Waveshare LCD 1.69 No Touch V2 (I3 software, physical checks pending)
   - GNSS: EBYTE E108-GN02 (UART 9600)
   - LEDs: SK6812 RGBW (single-wire)
 
@@ -44,8 +44,11 @@
 #include "ble/summary_ble.h"
 #include "board/board_io.h"
 #include "bringup/bringup.h"
-#if DOG_RGB_BRINGUP_STAGE == 2
+#if DOG_RGB_BRINGUP_STAGE >= 2
 #include "bringup/gps_check.h"
+#endif
+#if DOG_RGB_DISPLAY_ENABLED
+#include "display/display.h"
 #endif
 #include "config/runtime_config.h"
 #include "config.h"
@@ -298,8 +301,11 @@ static void emit_periodic_logs(unsigned long now_ms) {
 #pragma push_macro("Serial")
 #undef Serial
 #define Serial periodic_log
-#if DOG_RGB_BRINGUP_STAGE == 2
+#if DOG_RGB_BRINGUP_STAGE >= 2
   bringup::gps_check::report(Serial);
+#endif
+#if DOG_RGB_DISPLAY_ENABLED
+  display::report(Serial);
 #endif
   static uint8_t next_detail_slot = 0;
   static bool wifi_diag_pending = false;
@@ -699,7 +705,7 @@ void setup() {
 
   if (LED_UI_ENABLED) {
     led_ui::begin();
-#if DOG_RGB_BRINGUP_STAGE != 2
+#if !defined(DOG_RGB_BRINGUP_STAGE) || DOG_RGB_BRINGUP_STAGE < 2
     led_ui::start_welcome();
 #endif
   }
@@ -748,6 +754,9 @@ void setup() {
   Serial.println(PIN_GPS_TX);
   Serial.println("GPS status: waiting for NMEA data...");
   wokwi_control::begin();
+#if DOG_RGB_DISPLAY_ENABLED
+  display::begin();
+#endif
 #endif
 }
 
@@ -842,6 +851,10 @@ void loop() {
   phase_start_us = micros();
   portal_http::handle_client();
   record_phase_max(loop_phase_max.http_us, micros() - phase_start_us);
+
+#if DOG_RGB_DISPLAY_ENABLED
+  display::tick(); // After existing work; included in total/work loop timings.
+#endif
 
   const unsigned long log_drain_start_us = micros();
   serial_log_queue.drain(Serial);

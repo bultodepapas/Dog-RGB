@@ -63,8 +63,10 @@ The firmware and tests are the final source of truth. A document must never turn
 | Document | Status | Notes |
 | --- | --- | --- |
 | [Firmware project README](../Platformio/Dog-RGB/README.md) | Current | Developer quick reference inside the PlatformIO project |
-| [Board profiles and Waveshare I0–I2](../Platformio/Dog-RGB/docs/boards.md) | Current software, physical acceptance pending | Six build targets, candidate No Touch V2 profile, power/USB, LED and normal-core GPS diagnostics; LCD not implemented |
+| [Board profiles and Waveshare I0–I3](../Platformio/Dog-RGB/docs/boards.md) | Current software, physical acceptance pending | Seven build targets, candidate No Touch V2 profile, power/USB/LED/GPS diagnostics and I3 text LCD |
 | [Display I0 baseline](baselines/display-i0-2026-09-12.md) | Software evidence; physical/Wokwi runtime pending | Before/after builds, native GPIO tests, size deltas, CI matrix and open hardware gates |
+| [I3 text LCD guide](../Platformio/Dog-RGB/docs/display-i3.md) | Software implemented; physical acceptance pending | Driver pin, snapshot semantics, partial updates, USB controls and timing protocol |
+| [Display I3 baseline](baselines/display-i3-2026-09-12.md) | Software evidence; physical acceptance pending | Seven builds, native adapter/rendering checks, layout previews and resource deltas |
 | [Display I2 baseline](baselines/display-i2-2026-09-12.md) | Software evidence; physical acceptance pending | GPS reception/readout, normal LED policy with bench limits, six builds and 137 host tests |
 | [Display I1 baseline](baselines/display-i1-2026-09-12.md) | Software evidence; physical acceptance pending | LED commands, actual bus/limiter native tests, five builds, resource comparison and bench limits |
 | [Configuration parameters](config_params.md) | Current | Compile-time constants versus persisted runtime fields |
@@ -93,8 +95,8 @@ The firmware and tests are the final source of truth. A document must never turn
 
 | Document | Status | Notes |
 | --- | --- | --- |
-| [Waveshare display variant research and integration plan](PLANS/2026-09-12_waveshare-display-variant.md) | I0–I2 software implemented; later architecture proposed, Spanish | V2 schematic reference, physical bring-up still pending and future Codex/LVGL UI workflow |
-| [Display incremental delivery](PLANS/2026-09-12_display-incremental-delivery.md) | Active contract; I0–I2 software implemented, Spanish | Execution authority: physical I0–I2, basic display, consolidation, then gradual AI/LVGL UI work |
+| [Waveshare display variant research and integration plan](PLANS/2026-09-12_waveshare-display-variant.md) | I0–I3 software implemented; later architecture proposed, Spanish | V2 schematic reference, physical bring-up still pending and future Codex/LVGL UI workflow |
+| [Display incremental delivery](PLANS/2026-09-12_display-incremental-delivery.md) | Active contract; I0–I3 software implemented, Spanish | Execution authority: physical I0–I3, consolidation, then gradual AI/LVGL UI work |
 | [Display AI design workflow](PLANS/2026-09-12_display-ai-workflow.md) | Proposed from I5, Spanish | Reference → shared LVGL components → minimum simulator → three static captures → corrections → board validation; navigation/motion follows in I6 |
 | [Display libraries and repository research](display-library-research.md) | Research and proposed selection, Spanish | Driver comparison, native animations, fonts, reviewed source examples and bounded evaluation per increment; no hardware benchmark performed |
 | [Companion app MVP](app_mvp_spec.md) | Proposed | BLE reader concept; blocked while BLE remains disabled by default |

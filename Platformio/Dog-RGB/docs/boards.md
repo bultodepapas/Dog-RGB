@@ -1,6 +1,6 @@
-# Board profiles and Waveshare I0/I1/I2 bring-up
+# Board profiles and Waveshare I0–I3 bring-up
 
-Status: **I0–I2 diagnostics implemented in software; physical acceptance pending**, 2026-09-12.
+Status: **I0–I3 diagnostics implemented in software; physical acceptance pending**, 2026-09-12.
 Classic remains the working baseline. Waveshare is a **No Touch V2 candidate**;
 neither a successful build nor its manifest identifies the PCB on your desk.
 The [incremental plan](../../../docs/PLANS/2026-09-12_display-incremental-delivery.md)
@@ -12,22 +12,24 @@ governs subsequent LED, GPS and display work.
 | --- | --- | --- |
 | `seeed_xiao_esp32s3` | `DOG_RGB_BOARD_XIAO_S3=1` | Existing Classic application and defaults; default build target |
 | `wokwi` | Classic, with existing simulation flags | Existing Classic UART routing and LED transport cadence |
-| `waveshare_lcd169` | `DOG_RGB_BOARD_WAVESHARE_LCD169_V2=1` | Shared application with candidate pins; LCD disabled, physical integration unverified |
+| `waveshare_lcd169` | `DOG_RGB_BOARD_WAVESHARE_LCD169_V2=1` | Shared application with candidate pins and I3 text LCD; physical integration unverified |
 | `waveshare_lcd169_bringup` | Waveshare, `DOG_RGB_BRINGUP_STAGE=0` | Power retention, USB and periodic board/memory diagnostics only |
 | `waveshare_lcd169_ledcheck` | Waveshare, `DOG_RGB_BRINGUP_STAGE=1` | Explicitly selected LED bench check; starts black, waits for console commands |
 | `waveshare_lcd169_gpscheck` | Waveshare, `DOG_RGB_BRINGUP_STAGE=2` | Normal GPS/LED/portal/persistence core, queued GPS diagnostic, capped LED output; LCD off |
+| `waveshare_lcd169_displaycheck` | Waveshare, `DOG_RGB_BRINGUP_STAGE=3` | Normal core, I2 bench limits and text LCD with USB calibration/pause controls |
 
 The application has one `main.cpp`. `include/pins.h` remains the facade used by
 the GPS/LED modules, with compile-time selection before global constructors.
 Missing/multiple profiles, Wokwi on Waveshare, and unimplemented diagnostic
-stages fail compilation. Stages 0, 1 and 2 are implemented. Stage 2 uses the
+stages fail compilation. Stages 0 through 3 are implemented. Stages 2/3 use the
 normal application path; stages 0/1 use the minimal diagnostic entry point.
 
-Product source filters exclude `bringup/` and `display/`. I0 bringup includes
+All product filters exclude `bringup/`; Classic and stages 0–2 also exclude
+`display/` and its library. Waveshare product and stage 3 include the text LCD. I0 bringup includes
 only `main.cpp`, `board/` and `bringup/bringup.cpp`; its setup/loop do not start storage,
 scenes, GPS, LEDs, BLE or Wi-Fi. The product Waveshare target still follows the
 normal application boot, including welcome; use **bringup** for the I0 bench
-check, with external strips/GNSS disconnected. No LCD or LVGL library was added.
+check, with external strips/GNSS disconnected. Only the Waveshare product and stage 3 add Arduino_GFX; no LVGL is installed.
 The I1 target adds only `led_check.cpp`, `LedBus`, RGBW conversion and the existing
 limiter. It excludes `led_ui.cpp`, welcome, scenes, GPS and radio/application
 storage; only one driver owns each LED pin.
@@ -65,7 +67,7 @@ project-authored configuration using the pinned pioarduino ESP32-S3 manifest
 schema and generic `esp32s3` Arduino variant. It explicitly selects 16 MiB flash,
 QIO flash/OPI PSRAM (`qio_opi`), 240 MHz CPU, 80 MHz flash and USB CDC on boot.
 It does not inherit the XIAO USB identity or variant. Generic Arduino SPI/I2C
-default pins are not Waveshare pins: future drivers must pass profile pins
+default pins are not Waveshare pins: drivers must pass profile pins
 explicitly. No SPI/I2C peripheral is initialized in I0.
 
 Hardware sources consulted:
@@ -90,6 +92,7 @@ pio run -e seeed_xiao_esp32s3 -e wokwi
 pio run -e waveshare_lcd169 -e waveshare_lcd169_bringup
 pio run -e waveshare_lcd169_ledcheck
 pio run -e waveshare_lcd169_gpscheck
+pio run -e waveshare_lcd169_displaycheck
 python -m unittest discover -s test -p "test_*.py" -v
 ```
 
@@ -220,6 +223,7 @@ Accept only with no unexpected resets or new UART overflows; record checksum/
 parse failures, log drops and loop timings with their conditions. Do not infer
 physical LED response or reception from a passing host test.
 
-No physical upload or bench measurement was performed in I0–I2 software work.
+No physical upload or bench measurement was performed in I0–I3 software work.
 See the [I2 baseline](../../../docs/baselines/display-i2-2026-09-12.md) for six-build
-and host-test evidence. The next software increment is I3, a simple text LCD.
+and host-test evidence. I3 text LCD software is now implemented; follow the [I3 guide](display-i3.md)
+for its targets, controls and still-pending physical acceptance. I4 is next.

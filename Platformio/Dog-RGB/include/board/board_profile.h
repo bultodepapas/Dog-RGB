@@ -21,9 +21,20 @@
 #endif
 
 #if defined(DOG_RGB_BRINGUP_STAGE)
-#if !defined(DOG_RGB_BOARD_WAVESHARE_LCD169_V2) || DOG_RGB_BRINGUP_STAGE < 0 || DOG_RGB_BRINGUP_STAGE > 2
-#error "Only Waveshare bringup stages 0, 1 and 2 are implemented"
+#if !defined(DOG_RGB_BOARD_WAVESHARE_LCD169_V2) || DOG_RGB_BRINGUP_STAGE < 0 || DOG_RGB_BRINGUP_STAGE > 3
+#error "Only Waveshare bringup stages 0 through 3 are implemented"
 #endif
+#endif
+
+#if defined(DOG_RGB_DISPLAY_ENABLED)
+#if DOG_RGB_DISPLAY_ENABLED != 1 || !defined(DOG_RGB_BOARD_WAVESHARE_LCD169_V2)
+#error "Display is supported only on the Waveshare profile with value 1"
+#endif
+#if defined(DOG_RGB_BRINGUP_STAGE) && DOG_RGB_BRINGUP_STAGE < 3
+#error "I0 through I2 must remain display-free"
+#endif
+#elif DOG_RGB_BRINGUP_STAGE == 3
+#error "I3 requires the display service"
 #endif
 
 namespace board {

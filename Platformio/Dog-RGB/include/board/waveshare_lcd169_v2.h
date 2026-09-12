@@ -15,6 +15,11 @@ constexpr int kGpsTx = 43;
 constexpr int kPowerHoldPin = 41; // SYS_EN: HIGH retains power; never a second button.
 constexpr int kPowerButtonPin = 40; // SYS_OUT: observation only in I0.
 constexpr int kBacklightPin = 15;
+// Official No Touch demo: portrait ST7789, 240x280, offsets 0/20/0/0.
+constexpr int kLcdDc = 4, kLcdCs = 5, kLcdSck = 6, kLcdMosi = 7, kLcdReset = 8;
+constexpr int kLcdWidth = 240, kLcdHeight = 280;
+constexpr int kLcdRowOffset = 20;
+constexpr int kLcdSpiHz = 40000000;
 constexpr unsigned long kFlashBytes = 16UL * 1024 * 1024;
 constexpr unsigned long kPsramBytes = 8UL * 1024 * 1024;
 // ADC, LCD, I2C, USB, flash/OPI memory, sensor IRQs, power and buzzer.
