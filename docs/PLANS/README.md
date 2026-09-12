@@ -5,7 +5,7 @@ The 2026-08-13 web-platform plan is the active execution contract for the option
 | Plan | Status in the current repository |
 | --- | --- |
 | [Display incremental delivery — 2026-09-12](2026-09-12_display-incremental-delivery.md) | **Governing contract; I6c opt-in and I6d implemented**, Spanish. V1 optical/button/radio, V2 physical I0–I3, V3 joint I4; then separate transition, timeout, State and estimated-pause packages. Classic remains active |
-| [Display visual identity subplan — 2026-09-12](2026-09-12_display-visual-identity.md) | **Next visual preparation: VIS-1**, name + WhatsApp QR + visible phone; then identity persistence, four pages, components and measured motion. Proposed; no new firmware in this planning delivery |
+| [Display visual identity subplan — 2026-09-12](2026-09-12_display-visual-identity.md) | **Next: VIS-1a QR contract, then VIS-1b layouts**; [28 GitHub/MCP investigations](../display-github-research-2026-09-12.md) and host encoder probe inform the plan. Then persistence, four pages, components and measured motion. Proposed; no new firmware |
 | [Waveshare Display board research — 2026-09-12](2026-09-12_waveshare-display-variant.md) | Supporting hardware evidence and target architecture; physical SKU/revision unconfirmed; follow the incremental contract |
 | [Display AI workflow — 2026-09-12](2026-09-12_display-ai-workflow.md) | Current shared-renderer workflow through I6d: three views, fourteen PNGs, five contracts; temporal animation capture and SDL remain conditional |
 | [Display use and screens — 2026-09-12](2026-09-12_display-use-and-screens.md) | Product contract: Activity/Wi-Fi/State implemented; inactivity is bench opt-in; estimated pause and walk lifecycle proposed |

@@ -8,6 +8,7 @@ QR de WhatsApp incorporado a la primera familia de prototipos.
 Depende del [plan incremental](2026-09-12_display-incremental-delivery.md) para
 integración/aceptación y amplía el [contrato de pantallas](2026-09-12_display-use-and-screens.md).
 Fuentes y comparación: [investigación visual](../display-visual-identity-research.md).
+Ampliación técnica: [28 investigaciones GitHub/MCP y ensayo QR](../display-github-research-2026-09-12.md).
 Composición propuesta: [tablero visual](../assets/display-visual-identity/concepts.svg).
 
 ## Decisión de producto
@@ -113,9 +114,24 @@ tamaño físico mínimo hasta escanear el panel real. El tamaño total es
 
 El encoder real determina N; la implementación 8.4 puede elegir/extender versión
 según el tamaño. Comprobar matriz final y margen, no deducir capacidad solo de
-la longitud del ejemplo. `lv_qrcode` requiere canvas y almacenamiento temporal;
-habilitar sus dependencias mínimas y tratar fallos de asignación/generación.
+la longitud del ejemplo. El wrapper nativo no ofrece recuperación completa de
+sus asignaciones temporales. Ver [R01–R04 y ensayo host](../display-github-research-2026-09-12.md).
 [Código oficial v8.4.0](https://raw.githubusercontent.com/lvgl/lvgl/v8.4.0/src/extra/libs/qrcode/lv_qrcode.c).
+
+**Decisión VIS-1a:** reutilizar el encoder Nayuki incluido, con buffers acotados,
+y un `ContactQr` que controle el canvas indexado y el margen. Para el contrato
+actual, ensayar versiones 1–3, ECC M con aumento dentro de la misma versión,
+escala 4 y matriz máxima 29×29. Separar interior de hasta 116×116 y blanco
+externo de 16 px por lado; obtener N del resultado. No pasar 132/148 como tamaño
+de matriz. Mantener buffers/descriptores vivos y precrear el fallback textual;
+no modificar archivos de `.pio/libdeps` ni regenerar por tick. El ensayo del
+encoder es evidencia parcial: falta render/decodificación en VIS-1.
+
+Error de datos/capacidad se resuelve mostrando texto; la asignación global de
+objetos LVGL conserva sus assertions. Evitar prometer recuperación general de
+OOM por comprobar únicamente el retorno del encoder. Reservar recursos una vez,
+medir su máximo y comprobar errores recuperables del componente sin agotamiento
+artificial de todo el sistema.
 
 Nombre corto: probar 28–32 px arriba, QR de hasta 148 px en el centro y teléfono
 18–20 px debajo, dentro del área segura actual. Con nombre largo, eliminar
@@ -179,8 +195,18 @@ todos los tamaños. Los acentos españoles deben existir realmente en los glifos
 
 El editor mostrará error antes de guardar un nombre que no se pueda representar;
 no sustituir letras silenciosamente. Propuesta inicial: UTF-8, máximo 48 bytes
-y 24 caracteres, conjunto latino explícito; además prueba de ancho con la fuente
-final. Nombre compuesto y mayúsculas anchas necesitan fixtures propios.
+y 24 puntos de código admitidos después de normalización NFC, conjunto latino
+explícito; además prueba de ancho con la fuente final. El portal normaliza y el
+firmware valida por separado; una escritura directa no canónica obtiene error
+explícito inicialmente. No confundir puntos de código con grafemas ni cargar un
+motor Unicode completo. Probar `Niño`, `René`, formas descompuestas, nombres
+compuestos y mayúsculas anchas. Ver R05–R08 de la investigación ampliada.
+
+Receta de assets: fuente/SVG original → conversor y versión fijados → C para
+LVGL 8.4 → captura real. Comparar 2/4 bpp de fuente; un tamaño principal y 6–8
+iconos como máximo en el primer pulido. Registrar bytes, glifos, licencia y hash.
+resvg es candidato host; no hay decoder SVG/PNG nuevo en placa por esta decisión.
+Los colores/alfa se aceptan tras la conversión RGB565, no solo en el preview.
 
 ## Efectos y transiciones: selección acotada
 
@@ -238,7 +264,8 @@ estimaciones de calendario ni autorización para cerrar pruebas sin hardware.
 | Paquete | Cambio y archivos propuestos | Salida verificable | Tamaño |
 | --- | --- | --- | --- |
 | **VIS-0, esta entrega** | Investigación, tablero, subplan y enlaces | Fuentes revisadas; límites y prioridad QR explícitos | S |
-| **VIS-1, siguiente** | `identity.h`, formatter, `ui/identity_view.cpp`, fixtures; QR en el renderer real | Layouts A/B; nombre corto/largo, Unicode, teléfono máximo, QR WhatsApp/llamada/error; payload decodificado; ningún contacto real | M |
+| **VIS-1a, siguiente** | Contrato/formatter puro, encoder acotado, `ContactQr` y fixtures | Matriz y quiet zone correctas en renderer real; payload leído por ZXing host; error recuperable y memoria documentados | S–M |
+| **VIS-1b** | `identity.h`, `ui/identity_view.cpp`, fuentes y fixtures | Layouts A/B; nombre corto/largo, Unicode, teléfono máximo, WhatsApp/llamada/error; ningún contacto real | S–M |
 | **VIS-2** | `config/identity*`, adaptador de lectura, API local, editor `/config` y capabilities | Guardar/leer/reiniciar; errores y recuperación; texto/QR siempre corresponden al mismo contacto; Classic sin regresión | M |
 | **VIS-3** | Integración en `lvgl_port`, ciclo de cuatro páginas y arranque condicionado | Firmware experimental USB con identidad real configurada; BOOT/wake y QR físico aceptados | M |
 | **VIS-4** | Tokens/componentes mínimos y pulido de Actividad/Wi-Fi/Estado | Capturas coherentes; información conservada; recursos comparados | S–M |
@@ -247,6 +274,8 @@ estimaciones de calendario ni autorización para cerrar pruebas sin hardware.
 | **Aceptación conjunta** | V2 → V3 del plan principal | GPS, tiras, portal y persistencia reales; montaje/energía según su protocolo | Según hardware |
 
 VIS-1 puede hacerse sin GPS/LEDs y sin alterar todavía el firmware cargado.
+VIS-1a y VIS-1b son dos pasos del mismo paquete, no una nueva hoja de ruta.
+La investigación ampliada y su ensayo host cierran VIS-0; no cierran VIS-1a.
 Una transición VIS-5 puede prototiparse/medirse en banco por la prioridad visual
 actual; adoptarla en producto requiere la comparación V3. Los siete targets se
 compilan si VIS-2 modifica core/portal/perfiles compartidos; un cambio exclusivo
@@ -282,12 +311,32 @@ o simplificar layout antes de ampliar memoria. Estas cotas son objetivos nuevos,
 no resultados medidos. VIS-5 añade una sola animación simultánea y evita trabajo
 cuando está oculto/oscuro; un QR estable no se regenera cada segundo.
 
+Contabilizar además RAM estática, stack y buffers del componente fuera del pool;
+los 214 bytes del ensayo son únicamente dos arrays del encoder. Reportar por
+separado pico de construcción, primer QR y estado estable. ZXing es herramienta
+de prueba host, nunca dependencia de firmware. La captura debe mostrar un solo
+QR y devolver exactamente el enlace del mismo teléfono que aparece en pantalla.
+
+En VIS-5 añadir registro de regiones/píxeles enviados, fotogramas por segundo
+durante el efecto y página lógica final tras clic intermedio/timeout. Mantener
+estable el par variable/callback de animación; cancelar el trabajo al ocultar.
+Una etiqueta sin cambios no dispara setters por tick. Si solo cambia el
+indicador, la identidad no debe invalidarse como región animada.
+
 **Flujo con IA:** referencia → contrato del componente → LVGL 8.4 compartido →
 fixtures/capturas → inspección de texto y escaneo → corrección → placa → evidencia.
 Un boceto SVG sirve para decidir; únicamente el renderer compartido acredita
 geometría del firmware. Para fuentes/iconos, conservar licencia, origen, versión,
 receta y hashes. No instalar editores comerciales, SDL o generadores externos
 si el flujo actual cubre la necesidad.
+
+EEZ/SquareLine y WASM son opciones de autoría/revisión: se evalúa un componente
+contra el renderer actual antes de adoptarlos. El exportador no controla drivers,
+persistencia ni scheduler. `master` y las respuestas MCP son pistas; contrastar
+APIs/formatos con 8.4 antes de generar código. GIF, ThorVG/Lottie y cambios a
+LovyanGFX/TFT_eSPI/esp_lvgl_port conservan experimentos separados (R11–R27).
+Una tendencia posterior usa muestras temporales reales y huecos explícitos
+(`LV_CHART_POINT_NONE`); no convierte falta de GPS en descanso (R28).
 
 ## Decisiones pendientes en su momento
 

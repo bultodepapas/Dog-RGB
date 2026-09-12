@@ -35,6 +35,23 @@ firmware. La siguiente implementación debe producir las variantes con LVGL 8.4,
 decodificar el QR exacto y después comprobar su escaneo físico. El QR y el teléfono
 permanecen estáticos; la transición se ensaya por separado en VIS-5/I6b.
 
+La [investigación ampliada GitHub/MCP](../display-github-research-2026-09-12.md)
+selecciona herramientas por necesidad. Antes de generar código, comprobar que
+la fuente consultada corresponde a **v8.4.0**: Context7/Semble pueden devolver
+símbolos de `master`. Usar código/docs fijados para confirmar API y formato.
+
+Para VIS-1: contacto ficticio canónico → encoder acotado → canvas con margen
+explícito → captura del renderer → ZXing host → comparación exacta del payload.
+Luego integrar fuentes/layouts A/B y probar casos de ancho/Unicode. La captura
+del boceto no valida la geometría del widget QR; el ensayo host ya encontró una
+diferencia entre tamaño total y tamaño de matriz.
+
+Para assets: fijar origen/licencia, conversor, glifos/bpp o formato RGB565/alfa,
+tamaño y hash. Generar previews para revisión y C para compilación; ambos deben
+corresponder. Un editor opcional exporta componentes, conserva hooks manuales y
+no introduce otro `lv_init`, scheduler, driver o fuente de datos. La galería WASM
+es opcional; el runner nativo sigue verificando el mismo código del dispositivo.
+
 ## 1. Referencia: un brief por cambio
 
 Registrar en la tarea o baseline:
@@ -193,7 +210,7 @@ El cierre conjunto sigue V3/I4 del plan incremental.
 ## Encargo reutilizable al reanudar
 
 ```text
-Retoma el paquete seleccionado del plan incremental desde la base I6a.
+Retoma el paquete seleccionado del plan incremental desde la base I6d.
 Verifica condiciones de entrada y limita el alcance a ese paquete.
 Reutiliza vistas, snapshots, LVGL 8.4.0 y renderer actuales.
 Conserva negro, distancia registrada/fecha, validez GPS y Wi-Fi de solo lectura.

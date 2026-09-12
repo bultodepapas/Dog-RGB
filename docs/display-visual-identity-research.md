@@ -6,6 +6,9 @@ QR WhatsApp, teléfono completo, negro puro y movimiento localizado**. La identi
 poder consultarse sin red; el portal conserva la edición y los detalles extensos.
 
 Este informe sustenta el [subplan visual](PLANS/2026-09-12_display-visual-identity.md).
+La [ampliación GitHub/MCP: 28 investigaciones](display-github-research-2026-09-12.md)
+añade selección de herramientas, compatibilidad 8.4 y un ensayo host del encoder;
+R01–R04 precisan la ruta QR y sus límites de memoria/recuperación.
 Consulta de fuentes: 2026-09-12. Las propuestas de diseño se distinguen de las
 capacidades observadas. No se ejecutaron ni midieron los repositorios externos.
 
@@ -155,11 +158,15 @@ porque el teléfono de ejemplo quepa. No decorar, invertir ni animar el código.
 
 LVGL 8.4 implementa QR sobre canvas indexado de un bit y realiza asignaciones
 temporales al codificar. Hay que habilitar las dependencias de canvas/imagen,
-tratar errores y reservar explícitamente el margen; el borde de cinco píxeles
+reservar explícitamente el margen; el borde de cinco píxeles
 del ejemplo no demuestra cuatro módulos para cualquier escala. Generar al
 cambiar el contacto, nunca cada frame. El tamaño se mide con el payload final.
 [QR 8.4](https://lvgl.io/docs/open/8.4/libs/qrcode.html),
 [implementación v8.4.0](https://raw.githubusercontent.com/lvgl/lvgl/v8.4.0/src/extra/libs/qrcode/lv_qrcode.c).
+
+La ampliación encontró que comprobar `LV_RES_INV` no basta para recuperar fallos
+de asignación del wrapper. El plan elige encoder acotado y canvas propio del
+componente, con fallback textual precreado; falta verificarlo en el renderer real.
 
 ## Foros: pistas, no resultados transferibles
 

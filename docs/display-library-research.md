@@ -4,6 +4,10 @@ Investigación consultada el 2026-09-12. **Actualización de implementación: Ar
 
 Actualización visual posterior a I6d: [identidad, QR y movimiento](display-visual-identity-research.md), con fuentes nuevas y [subplan VIS](PLANS/2026-09-12_display-visual-identity.md). La baseline vigente tiene tres vistas, catorce PNG y cinco CTest; los recuentos I6a siguientes son históricos.
 
+Ampliación: [28 investigaciones GitHub/MCP](display-github-research-2026-09-12.md),
+con decisiones de adopción y ensayo del encoder local. Para el siguiente incremento,
+seguir VIS-1a (QR acotado/margen/lectura) y VIS-1b (nombre/teléfono/layouts).
+
 ## Selección por capa
 
 Reconciliación I6a y pausa: Arduino_GFX 1.6.7/LVGL 8.4.0 permanecen como stack

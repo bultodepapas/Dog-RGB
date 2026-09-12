@@ -57,6 +57,11 @@ limits; full optical/radio and GNSS/LED/HTTP joint acceptance remain open. I6c a
 
 Next visual preparation: [VIS-1 identity/WhatsApp QR prototypes](PLANS/2026-09-12_display-visual-identity.md), followed by bounded identity storage/editor and static integration before motion. This owner-requested priority does not close V2/V3.
 
+[28 GitHub/MCP investigations](display-github-research-2026-09-12.md) refine that
+step into VIS-1a (bounded QR, explicit margin, independent decoder) and VIS-1b
+(font/layout prototypes). Optional editors, sprites and alternate drivers remain
+separate experiments; the host encoder probe is not physical QR acceptance.
+
 | Resume order | Scope |
 | --- | --- |
 | V1 | Confirm final pages, black/border, physical BOOT and real radio/portal client cases |
