@@ -39,8 +39,11 @@ Follow the [Display incremental contract](PLANS/2026-09-12_display-incremental-d
 - [x] I4 software preparation: native configuration save/reload/fault tests for Classic and Display, isolated embedded browser suite, explicitly labeled LCD-only demo and optional serial capture. See [I4 progress](baselines/display-i4-2026-09-12.md).
 - [ ] I4 full bench: combined portal/persistence verification, 30-minute window with real GPS/strips, ten mode changes, three hardware save/restart/read cycles and populated route export. Bare-board LCD testing does not close this item.
 - [x] I5 software: shared LVGL 8.4.0 Paseo view, three static captures, real LVGL/service host contracts and basic-page comparison controls. See [I5 evidence](baselines/display-i5-2026-09-12.md).
-- [ ] I5 acceptance: review the new page on the LCD and complete comparison under real joint load when I4 peripherals are available; keep bare-board measurements distinct.
-- [ ] I6: button/second view, then measured motion after the static view is accepted.
+- [x] I5 USB comparison: ten minutes across LVGL/text/backlight/pause; black palette revision uploaded with a separate 90-second smoke. See [I5 evidence](baselines/display-i5-2026-09-12.md).
+- [x] Display technical investigation: official demo, V2 schematic, ST7789V2 timing/color registers, forums and related repositories; [findings and staged follow-up](waveshare-lcd169-technical-research.md).
+- [ ] I5 acceptance: review black/RGBW/border on the LCD, address the observed 50.485 ms full-redraw maximum against the 50 ms budget, and complete real joint-load comparison when I4 peripherals are available. PWM brightness is a small follow-up if needed.
+- [x] Display product analysis: [use and screen contract](PLANS/2026-09-12_display-use-and-screens.md), with Activity/Connection first and explicit limits for rest, sessions and battery telemetry.
+- [ ] I6: Activity hierarchy and Connection read-only snapshot/view, confirmed button/wake behavior, then measured motion after static acceptance. State details and estimated pauses follow separately; no automatic change to GPS/LED/radio policy.
 
 I0 physical acceptance remains open before LED bench work. Classic fixes continue in parallel; battery telemetry/sensors, advanced tooling and cloud are not dependencies of the basic Display build.
 

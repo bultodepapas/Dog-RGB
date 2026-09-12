@@ -8,11 +8,18 @@ display work while those physical peripherals are unavailable.
 
 ## Composition and behavior
 
-A dark green background, off-white speed at 48 px, restrained brand/title,
+A pure black (`#000000`) background, white speed at 48 px, restrained brand/title,
 explicit GPS status, daily distance with recorded date and the real LED mode.
 Amber identifies unavailable/untrusted data; valid fix uses the existing mint
 color. No decorative images, new metrics, navigation or animation. The large
 speed value is the visual anchor; the lower section retains useful context.
+
+The owner saw the first green-tinted revision but perceived its surface as bright
+gray and requested black. The palette was revised, shared captures regenerated
+and the black image uploaded. Optical black level still needs physical review;
+backlight intensity and pixel color are separate controls. See the
+[technical investigation](../../../docs/waveshare-lcd169-technical-research.md)
+for official initialization, revision differences, reported faults and next tests.
 
 `src/display/ui/walk_view.cpp` consumes the existing `TextView`. All validity,
 zero-speed, retained-distance and mode-name semantics remain in the same

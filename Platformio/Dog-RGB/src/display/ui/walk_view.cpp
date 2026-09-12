@@ -3,8 +3,8 @@
 
 namespace display {
 namespace {
-constexpr uint32_t kBackground = 0x101918, kWhite = 0xF1F5EE;
-constexpr uint32_t kMuted = 0xAABBB4, kRule = 0x354540;
+constexpr uint32_t kBackground = 0x000000, kWhite = 0xFFFFFF;
+constexpr uint32_t kMuted = 0xB8B8B8, kRule = 0x303030;
 lv_obj_t *label(lv_obj_t *parent, int x, int y, int width,
                 const lv_font_t *font, uint32_t color, const char *text) {
   lv_obj_t *obj = lv_label_create(parent);

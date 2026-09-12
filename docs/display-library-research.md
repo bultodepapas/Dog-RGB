@@ -10,7 +10,7 @@ No confundir transporte LCD, composición de interfaz y recursos animados: resue
 | --- | --- | --- |
 | LCD ST7789 y texto | Arduino_GFX, condicionado a smoke test del core actual | I3 |
 | Componentes y estilo | LVGL; versión exacta común a PC y placa | I5 |
-| Simulación | CMake + SDL, tomando como referencia el port oficial de PC | I5, tres escenarios estáticos |
+| Simulación | CMake sin ventana implementado; SDL opcional según necesidad de interacción | I5, tres escenarios estáticos |
 | Tipografía | Fuentes LVGL existentes primero; `lv_font_conv` para personalizarlas | I5, cuando se elija fuente |
 | Movimiento de componentes | Animaciones nativas LVGL y curvas ease-out | I6 |
 | Pequeño sprite de mascota | `lv_animimg`, si aporta identidad sin distraer | I7 opcional |
@@ -18,7 +18,7 @@ No confundir transporte LCD, composición de interfaz y recursos animados: resue
 
 I0–I2 no incorporan dependencias gráficas. La pantalla sencilla puede verse cuidada con alineación, tamaños y colores consistentes, sin anticipar el motor de animación.
 
-Reconciliación de implementación 2026-09-12: el [contrato incremental](PLANS/2026-09-12_display-incremental-delivery.md) fija targets, aislamiento Classic, semántica GPS y presupuestos. I5 requiere un solo ejecutable y tres PNG estáticos; los modos headless/interactivo completos y runner temporal se incorporan según necesidad en I6. No convertir el catálogo de referencias siguiente en una lista de dependencias a instalar.
+Reconciliación de implementación 2026-09-12: el [contrato incremental](PLANS/2026-09-12_display-incremental-delivery.md) fija targets, aislamiento Classic, semántica GPS y presupuestos. I5 ya genera tres PNG con LVGL compartido mediante CMake sin ventana; interacción y runner temporal se incorporan según necesidad en I6. No convertir el catálogo de referencias siguiente en una lista de dependencias a instalar. La [investigación técnica del panel](waveshare-lcd169-technical-research.md) añade esquema/datasheet, experiencias de foros, diagnóstico de negro/backlight y seguimiento del máximo de repintado observado en placa.
 
 Actualización de ejecución: [guía I3](../Platformio/Dog-RGB/docs/display-i3.md), [baseline I3](baselines/display-i3-2026-09-12.md). Se revisaron el demo No Touch y el tag 1.6.7; las alternativas siguientes permanecen referencias, sin instalar.
 

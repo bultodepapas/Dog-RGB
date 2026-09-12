@@ -1,6 +1,16 @@
 # Flujo de diseño de interfaces con IA para RGB Dog Display
 
-Estado: **Proposed**, 2026-09-12. Especificación de trabajo; simulador, comandos y componentes todavía no implementados. Complementa el [plan Waveshare](2026-09-12_waveshare-display-variant.md).
+Estado: **I5 implementado; evolución I6 propuesta**, 2026-09-12. Vista compartida
+LVGL 8.4.0, renderer CMake sin ventana, capturas y comandos de comparación ya
+existen; ver [baseline I5](../baselines/display-i5-2026-09-12.md). Las secciones
+siguientes conservan el flujo de diseño y propuestas posteriores. Complementa el
+[plan Waveshare](2026-09-12_waveshare-display-variant.md).
+
+Revisión de producto: la [especificación de uso del collar](2026-09-12_display-use-and-screens.md)
+propone Actividad y Conexión como primeras páginas, con distancia registrada
+prioritaria, velocidad secundaria y pausa futura solo con evidencia válida.
+Esta jerarquía sustituye la dirección inicial centrada en velocidad como objetivo
+de la próxima revisión; la página I5 cargada mantiene su diseño hasta implementarla.
 
 **Prioridad revisada:** este flujo se aplica desde I5 del [plan incremental acordado](2026-09-12_display-incremental-delivery.md), después de LEDs, GPS, pantalla de texto y consolidación. Sus herramientas se incorporan por necesidad; no son prerrequisitos del collar básico. En I5 comenzar con una vista estática y tres escenarios; navegación, capturas temporales y animaciones pertenecen a I6.
 
@@ -10,7 +20,7 @@ Referencias de implementación seleccionadas: [investigación de bibliotecas y r
 
 Un ciclo reproducible que permita describir una mejora, implementarla en LVGL, verla con datos representativos, corregirla y llevar el mismo código al ESP32. La primera entrega visual, I5, será Paseo estática con estados GNSS. La navegación mediante botón se agrega en I6. Classic sigue sin depender de LVGL.
 
-Decisión de base: C/C++ LVGL y simulador propio, sin dependencia obligatoria de un editor de pago. Mantener LVGL 8.4.0 como candidato de reproducción del demo Waveshare; fijar definitivamente la versión tras un smoke test de compilación/placa, antes de multiplicar componentes. Si se selecciona v9, migrar deliberadamente ambos backends y sus referencias API.
+Decisión de base: C/C++ LVGL y simulador propio, sin dependencia obligatoria de un editor de pago. LVGL 8.4.0 ya está fijado y verificado en PC/placa. CMake sin ventana cubre las primeras capturas; SDL sigue opcional para interacción. Una eventual migración de versión deberá abarcar ambos backends y sus referencias API.
 
 ## 1. Referencia visual: convertir gusto en requisitos verificables
 
@@ -157,4 +167,6 @@ Entrega diferencias visuales, builds y limitaciones físicas explícitas.
 No declares rendimiento del ESP32 a partir de mediciones del PC.
 ```
 
-Documentación completada en esta iteración. No se generaron referencias gráficas, componentes ejecutables ni baselines reales todavía.
+Estado reconciliado con I5: ya hay componentes ejecutables, tres capturas reales
+y baseline USB. Navegación, pausa estimada, política automática de backlight y
+las páginas adicionales descritas para la evolución siguen propuestas.

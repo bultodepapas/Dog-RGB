@@ -40,6 +40,19 @@ TextView format_view(const DisplaySnapshot &sample) {
     snprintf(view.rows[3], sizeof(view.rows[3]), "Fecha sin registrar");
   }
   // Reuse the domain's existing mode names; never infer the active effect.
+  const float meters = sample.daily_distance_m;
+  if (!isfinite(meters) || meters < 0) {
+    snprintf(view.distance_value, sizeof(view.distance_value), "--");
+    snprintf(view.distance_unit, sizeof(view.distance_unit), "m");
+  } else if (meters < 999.5f) {
+    snprintf(view.distance_value, sizeof(view.distance_value), "%.0f", static_cast<double>(meters));
+    snprintf(view.distance_unit, sizeof(view.distance_unit), "m");
+  } else {
+    if (meters > 999999.0f) snprintf(view.distance_value, sizeof(view.distance_value), ">999");
+    else snprintf(view.distance_value, sizeof(view.distance_value), meters < 99950.0f ? "%.2f" : "%.0f",
+        static_cast<double>(meters / 1000.0f));
+    snprintf(view.distance_unit, sizeof(view.distance_unit), "km");
+  }
   snprintf(view.rows[4], sizeof(view.rows[4]), "LED %s", led::led_mode_name(sample.led_mode));
   return view;
 }

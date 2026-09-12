@@ -5,13 +5,13 @@
     280
   ],
   "png_sha256": {
-    "searching": "b19b4527f1c2276e34b5ed1196deae9b36e772d1048513f8f431aa9f30f9141f",
-    "fix": "5903f02bd5944603acb7e5bef18590a70edc9a388b4bf271fc4ea67b670716f1",
-    "stale": "66d0f9442aacaff61ed2f91fb6ff1a1de003b000438290de042693ddbe51669d"
+    "searching": "6306df96f35ad5510efa77ead5c9741c061518c4557fea3f06b355453672ed2b",
+    "fix": "2fa1f69e015780798941fb656e47dd28fbfdb4e067ef9a4246bd3938d4a0e0e4",
+    "stale": "76a4c3d06e473c08c0fa6e88ac1160c82d56e9b8de3af5f893a611445443fddc"
   },
   "input_sha256": {
     "include/lv_conf.h": "381e6229ef0aab166271503cc68a92f4cea700665bfec0118f03fa980245ab6b",
-    "src/display/ui/walk_view.cpp": "bd174e4fb8ca024a84d056fe1d111c923c796dd6e5a92dd773d3423ef6f0b242",
+    "src/display/ui/walk_view.cpp": "36e3d2f840ceb6aa1a2bde8be7a7a5bc6050489653ba77551138be9e03f6828b",
     "src/display/text_view.cpp": "172b60449e445eb4f356d04d093f59578d0426b32c452535a010abf52ba8202b"
   },
   "scope": "shared LVGL rendering on PC; not physical panel or performance evidence"

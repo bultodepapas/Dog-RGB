@@ -51,6 +51,10 @@ After the owner confirmed seeing the I4 demo and authorized continuing, independ
 I5 development added a shared LVGL 8.4.0 static view, three PC captures and USB
 comparison with the basic page. See [I5 progress](baselines/display-i5-2026-09-12.md).
 This does not close I4's real-peripheral gate or introduce I6 animations.
+The ten-minute USB comparison is complete and the owner's requested black palette
+is uploaded with a separate smoke result. The [technical investigation](waveshare-lcd169-technical-research.md)
+informs the next color/backlight checks; the observed 50.485 ms full redraw must
+be addressed against the 50 ms budget before advancing to animation.
 
 Order: **I0 baseline/profiles → I1 LEDs → I2 GPS → I3 simple text display → I4 consolidated collar → I5 LVGL view/simulator → I6 navigation/motion**. I7 battery telemetry, RTC, IMU and other extensions remain optional. A bank-tested base and a portable validated collar are distinct deliveries. This sequence does not postpone Classic improvements or depend on cloud milestones.
 

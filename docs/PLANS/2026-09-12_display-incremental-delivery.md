@@ -3,6 +3,21 @@
 Estado: **I0–I4 software implementados; I5 en desarrollo independiente. Demo I4 visible confirmada por el propietario; aceptación conjunta I4 y Wokwi pendientes**.
 Fecha: 2026-09-12.
 
+Actualización I5: LVGL compartido y simulador verificados; comparación USB de diez
+minutos completada. El propietario vio la primera página y pidió negro al percibir
+el fondo verde como gris brillante. La revisión `#000000` está cargada y tiene
+smoke propio de 90 s; aceptación óptica pendiente. Véanse la [baseline I5](../baselines/display-i5-2026-09-12.md)
+y la [investigación técnica del panel](../waveshare-lcd169-technical-research.md).
+Esta última contrasta demo oficial, esquema, datasheet, fallas reportadas y repositorios.
+
+Orden inmediato de pantalla: observar negro/RGBW/borde; si hace falta, diagnóstico
+PWM acotado; corregir o distribuir el repintado completo antes de I6. El smoke negro
+registró 50,485 ms de máximo agregado frente al presupuesto de 50 ms: ese criterio
+no está cerrado, aunque las actualizaciones normales quedaron por debajo de 20 ms.
+Conservar swap 0 y 40 MHz mientras no exista evidencia para cambiarlos. Confirmar
+revisión física antes de usar botón de alimentación o pines que cambian V1/V2.
+Esto no reemplaza las pruebas conjuntas I1/I2/I4 cuando se conecten periféricos.
+
 Actualización I3: página de texto, adaptador de lectura, actualización parcial y controles de banco implementados; evidencia en la [baseline I3](../baselines/display-i3-2026-09-12.md) y procedimiento en la [guía LCD](../../Platformio/Dog-RGB/docs/display-i3.md). No se cierra aceptación física por compilar o generar una vista previa host.
 
 Actualización I2: preparación software desde `4293f4c72cdfbf26816d7cd21f6e5c1686e421a3`, con seis builds y 137 pruebas host aprobados. Véase la [baseline I2](../baselines/display-i2-2026-09-12.md). La aceptación física conserva el orden I0 → I1 → I2.
@@ -181,6 +196,21 @@ Usar el port oficial CMake/SDL como referencia, con submódulos/versiones compat
 ## I6 — Navegación y movimiento
 
 **Resultado:** agregar una segunda vista y navegación por botón; después una transición breve.
+
+La segunda vista seleccionada es **Conexión**: explicar AP/STA y cómo abrir el
+portal, leyendo el gestor existente. La principal evoluciona hacia **Actividad**,
+con distancia del día registrado como dato prioritario y velocidad secundaria.
+La [especificación de uso y pantallas](2026-09-12_display-use-and-screens.md)
+define contenido, avisos, estados y escenarios. Estado será una tercera página
+posterior; pausa estimada será una variante contextual cuando exista evidencia
+de quietud. No introducir todos estos estados en el primer cambio de navegación.
+
+El apagado por falta de interacción requiere despertar validado y no pausa GPS,
+LEDs ni registro. La clasificación de descanso y el resumen por paseo necesitan
+contratos propios: una sesión de arranque no equivale a una salida, y ausencia
+de fix no demuestra reposo. Wi-Fi desconectado durante una salida no produce
+por sí solo una nueva alerta global. Estas son propuestas de producto pendientes
+de implementar, no nuevos comportamientos ya presentes en la placa.
 
 Tareas secuenciales: botón/despertar compatible con circuito de alimentación; segunda vista útil; pruebas de pulsaciones repetidas; transición; capturas temporales y medición en placa. Optimizar SPI/buffers solo ante evidencia de un cuello de botella. No imponer 20/30 FPS a la pantalla estática de I3.
 

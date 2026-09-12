@@ -70,6 +70,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Display I4 progress](baselines/display-i4-2026-09-12.md) | Software and partial physical evidence | Connected USB board, memory/reboots, LCD measurements, native configuration recovery and embedded browser checks |
 | [I5 shared LVGL guide](../Platformio/Dog-RGB/docs/display-i5.md) | Static view implementation | Shared PC/device components, pinned LVGL, comparison controls and measurement limits |
 | [Display I5 progress](baselines/display-i5-2026-09-12.md) | See recorded acceptance | Three real-renderer captures, UI/service contracts and USB bench results |
+| [Waveshare LCD 1.69 technical investigation](waveshare-lcd169-technical-research.md) | Research applied to I5, Spanish | Black/backlight diagnosis, official V2 circuit and initialization, SPI budget, forum cases and staged follow-up |
 | [Display I3 baseline](baselines/display-i3-2026-09-12.md) | Software evidence; physical acceptance pending | Seven builds, native adapter/rendering checks, layout previews and resource deltas |
 | [Display I2 baseline](baselines/display-i2-2026-09-12.md) | Software evidence; physical acceptance pending | GPS reception/readout, normal LED policy with bench limits, six builds and 137 host tests |
 | [Display I1 baseline](baselines/display-i1-2026-09-12.md) | Software evidence; physical acceptance pending | LED commands, actual bus/limiter native tests, five builds, resource comparison and bench limits |
@@ -102,6 +103,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Waveshare display variant research and integration plan](PLANS/2026-09-12_waveshare-display-variant.md) | I0–I3 software implemented; later architecture proposed, Spanish | V2 schematic reference, physical bring-up still pending and future Codex/LVGL UI workflow |
 | [Display incremental delivery](PLANS/2026-09-12_display-incremental-delivery.md) | Active contract; I0–I3 software implemented, Spanish | Execution authority: physical I0–I3, consolidation, then gradual AI/LVGL UI work |
 | [Display AI design workflow](PLANS/2026-09-12_display-ai-workflow.md) | Proposed from I5, Spanish | Reference → shared LVGL components → minimum simulator → three static captures → corrections → board validation; navigation/motion follows in I6 |
+| [Display use and screen contract](PLANS/2026-09-12_display-use-and-screens.md) | Proposed next increments, Spanish | Collar use, Activity/Connection pages, rest versus missing GPS, screen inactivity, alerts and data availability |
 | [Display libraries and repository research](display-library-research.md) | Research and proposed selection, Spanish | Driver comparison, native animations, fonts, reviewed source examples and bounded evaluation per increment; no hardware benchmark performed |
 | [Companion app MVP](app_mvp_spec.md) | Proposed | BLE reader concept; blocked while BLE remains disabled by default |
 | [Portal configuration presets](portal_config_presets.md) | Proposed | Whole-runtime profiles distinct from implemented visual scenes; no selector/config-preset persistence |
