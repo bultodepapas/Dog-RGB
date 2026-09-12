@@ -53,7 +53,10 @@
 - [x] I6c software: opt-in 30 s backlight timer in stage 3, disabled on boot, deadline/rollover/dark-redraw tests. See [guide](../Platformio/Dog-RGB/docs/display-i6c.md).
 - [x] I6c USB/owner subset: three expirations and thirteen expected reported states; owner confirmed automatic darkness and physical wake. See [evidence](baselines/display-i6c-2026-09-12.md).
 - [ ] I6c final acceptance: V3 continuity and measured power if claiming savings; automatic product policy/configuration remains deferred.
-- [ ] I6d proposed: State page only with useful, valid domain data; extend snapshots without inventing hardware health.
+- [x] I6d software: State with GPS and effective LED policy, independent alerts, three-page cycle, five CTest contracts and fourteen captures. See [guide](../Platformio/Dog-RGB/docs/display-i6d.md) and [evidence](baselines/display-i6d-2026-09-12.md).
+- [x] I6d USB subset: uploaded image verified; thirty page changes and three timeout/wake cycles; maximum service 45.914 ms on the bare USB board.
+- [x] I6d owner observation: all State text readable and physical BOOT cycles State → Activity → Wi-Fi → State.
+- [ ] I6d remaining acceptance: V3 joint timing and mounted-collar readability; no storage-health or battery claims.
 - [ ] I6e proposed: typed movement/still/unknown observation contract before contextual estimated pause; GPS gaps are not rest.
 - [ ] I7 selection: explicit walk lifecycle, calibrated battery, international SSID typography, IMU/RTC or contextual alerts are separate optional increments.
 - [x] Pause reconciliation: governing plan, usage/workflow, research notes, queue and indexes aligned with I6a; that documentation-only pause was subsequently ended by the owner.

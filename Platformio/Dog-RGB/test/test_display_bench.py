@@ -49,7 +49,7 @@ class DisplayBenchTests(unittest.TestCase):
 
     def test_only_bounded_lcd_commands_are_accepted(self):
         self.assertEqual(parse_step("5.5:f"), (5.5, "f"))
-        for command in "tvbdfrslacnio":
+        for command in "tvbdfrslacnioe":
             self.assertEqual(parse_step(f"0:{command}"), (0.0, command))
         for value in ("-1:f", "nan:f", "inf:f", "0:erase", "0:ff", "x:f", "2:x", "f"):
             with self.subTest(value=value), self.assertRaises(argparse.ArgumentTypeError):

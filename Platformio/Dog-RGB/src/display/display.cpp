@@ -77,8 +77,7 @@ void click() {
     enabled = true;
     choose_page(lvgl_port::page()); // First click wakes only, including diagnostic pause.
   } else {
-    choose_page(lvgl_port::page() == lvgl_port::Page::Activity ?
-        lvgl_port::Page::Connection : lvgl_port::Page::Activity);
+    choose_page(lvgl_port::next_page(lvgl_port::page()));
   }
 }
 #endif
@@ -154,6 +153,7 @@ void commands() {
       case 'l': use_lvgl = lvgl_ready; test_pattern = false; redraw = true; break;
       case 'a': choose_page(lvgl_port::Page::Activity); break;
       case 'c': choose_page(lvgl_port::Page::Connection); break;
+      case 'e': choose_page(lvgl_port::Page::Status); break;
       case 'n': click(); break; // Same event as a debounced BOOT release.
       case 'i': if (lvgl_ready) inactivity.configure(30000, millis()); break;
       case 'o': inactivity.configure(0, millis()); break; // Disable, without waking.
@@ -198,7 +198,7 @@ bool begin() {
     sample_ms = last_sample_ms = sample.captured_ms;
     pending = format_view(sample);
 #if DOG_RGB_DISPLAY_LVGL == 1
-    lvgl_ready = lvgl_port::begin(panel, pending, demo, format_connection(capture_connection()));
+    lvgl_ready = lvgl_port::begin(panel, pending, demo, format_connection(capture_connection()), capture_led_status());
     use_lvgl = lvgl_ready;
     pinMode(board::kUiButtonPin, INPUT_PULLUP);
     button.begin(digitalRead(board::kUiButtonPin) == LOW, millis());
@@ -248,7 +248,7 @@ void tick() {
         const DisplaySnapshot sample = sample_now();
         sample_ms = last_sample_ms = sample.captured_ms;
         pending = format_view(sample);
-        lvgl_port::update(pending, demo, format_connection(capture_connection()));
+        lvgl_port::update(pending, demo, format_connection(capture_connection()), capture_led_status());
         lvgl_port::tick(now, true);
       }
       dirty = 0;
@@ -270,7 +270,7 @@ void tick() {
       const DisplaySnapshot sample = sample_now();
       sample_ms = last_sample_ms = sample.captured_ms;
       pending = format_view(sample);
-      lvgl_port::update(pending, demo, format_connection(capture_connection()));
+      lvgl_port::update(pending, demo, format_connection(capture_connection()), capture_led_status());
     }
     drew = lvgl_port::tick(now);
   }
@@ -309,7 +309,7 @@ void report(Print &sink) {
   uint32_t flushes = 0, pixels = 0, flush_max_us = 0, lv_free = 0, lv_largest = 0;
 #if DOG_RGB_DISPLAY_LVGL == 1
   if (use_lvgl) ui = "lvgl";
-  if (use_lvgl) page = lvgl_port::page() == lvgl_port::Page::Activity ? "activity" : "connection";
+  if (use_lvgl) page = lvgl_port::page_name(lvgl_port::page());
   clicks = button_clicks;
   idle_ms = inactivity.timeout_ms(); idle = inactivity.expired();
   timeouts = inactivity.expirations();

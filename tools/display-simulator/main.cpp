@@ -1,5 +1,6 @@
 #include "display/walk_view.h"
 #include "display/connection_view.h"
+#include "display/status_view.h"
 #include "display/button.h"
 #include <array>
 #include <cassert>
@@ -170,12 +171,61 @@ int main(int argc, char **argv) {
   render_connection(nullptr); assert(contains(networks.screen(), "Nombre no compatible"));
   snprintf(connection.ap_ssid, sizeof(connection.ap_ssid), "%s", "Caf\xc3\xa9");
   render_connection(nullptr); assert(contains(networks.screen(), "Nombre no compatible"));
+  // Status uses typed reception and effective LED policy; no storage-health guess.
+  display::StatusView status;
+  display::LedStatusSnapshot lights;
+  lights.transport_enabled = true; lights.body_enabled = true;
+  sample.gps_state = gps::ReceptionState::NoData;
+  assert(status.begin(display::format_status(sample.gps_state, lights), false, root));
+  lv_obj_add_flag(networks.screen(), LV_OBJ_FLAG_HIDDEN);
+  const auto render_status = [&](const char *name) {
+    status.update(display::format_status(sample.gps_state, lights), false);
+    lv_refr_now(disp); verify_layout(status.screen());
+    if (name) save(output / (std::string(name) + ".ppm"));
+  };
+  render_status("status-no-data");
+  assert(contains(status.screen(), "Sin datos") && contains(status.screen(), "Esperando posicion"));
+  const auto status_unchanged = flushes; render_status(nullptr); assert(flushes == status_unchanged);
+  sample.gps_state = gps::ReceptionState::Fix;
+  lights.intent = led::LedIntent::Range;
+  render_status("status-fix"); assert(contains(status.screen(), "Posicion confiable"));
+  sample.gps_state = gps::ReceptionState::Stale;
+  lights.intent = led::LedIntent::DayStatus; lights.body_enabled = false;
+  render_status("status-day");
+  assert(contains(status.screen(), "Datos vencidos") && contains(status.screen(), "Efectos apagados"));
+  lights.alert = led::LedAlert::System;
+  render_status("status-alert");
+  assert(contains(status.screen(), "Modo dia") && contains(status.screen(), "Aviso GPS / Wi-Fi"));
+  lights.transport_enabled = false;
+  render_status("status-paused"); assert(contains(status.screen(), "Salida pausada"));
+  lv_mem_monitor_t status_before; lv_mem_monitor(&status_before);
+  for (unsigned i = 0; i < 120; ++i) {
+    sample.gps_state = static_cast<gps::ReceptionState>(i % 6);
+    lights.intent = static_cast<led::LedIntent>(i % 9);
+    lights.mode = static_cast<led::LedMode>(i % 4);
+    lights.alert = static_cast<led::LedAlert>(i % 3);
+    lights.transport_enabled = i % 2; lights.body_enabled = i % 3;
+    render_status(nullptr);
+  }
+  sample.gps_state = gps::ReceptionState::Stale;
+  lights = {}; lights.intent = led::LedIntent::DayStatus; lights.alert = led::LedAlert::System;
+  render_status(nullptr);
+  lv_mem_monitor_t status_after; lv_mem_monitor(&status_after);
+  assert(status_before.free_size == status_after.free_size);
+  lights.intent = static_cast<led::LedIntent>(255); lights.mode = static_cast<led::LedMode>(255);
+  lights.alert = static_cast<led::LedAlert>(255); lights.transport_enabled = true; lights.body_enabled = true;
+  sample.gps_state = static_cast<gps::ReceptionState>(255);
+  render_status(nullptr);
+  assert(contains(status.screen(), "Estado desconocido") && contains(status.screen(), "Aviso no identificado"));
+  status.update(display::format_status(sample.gps_state, lights), true);
+  lv_refr_now(disp); verify_layout(status.screen()); assert(contains(status.screen(), "RGB DOG / GPS DEMO"));
+  assert(!contains(status.screen(), "Guardado"));
   display::ReleaseButton button;
   button.begin(true, 0); assert(!button.update(false, 10)); assert(!button.update(false, 50));
   button.begin(false, UINT32_MAX - 100);
   assert(!button.update(true, UINT32_MAX - 60)); assert(!button.update(true, UINT32_MAX - 20));
   assert(!button.update(false, 20)); assert(button.update(false, 60)); assert(!button.update(false, 100));
   std::cout << "LVGL " << LVGL_VERSION_MAJOR << '.' << LVGL_VERSION_MINOR << '.' << LVGL_VERSION_PATCH
-            << ": nine captures, non-overlapping bounds, unchanged updates, validity, retained distance, modes, demo isolation passed; "
+            << ": fourteen captures, non-overlapping bounds, unchanged updates, validity, retained distance, modes, demo isolation passed; "
             << "pool_free=" << after.free_size << " largest=" << after.free_biggest_size << '\n';
 }

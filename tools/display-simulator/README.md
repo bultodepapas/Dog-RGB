@@ -1,9 +1,10 @@
-# Shared Display simulator — I5 / I6a
+# Shared Display simulator — I6d
 
 This optional PC tool builds LVGL **8.4.0** and the firmware's actual
-`WalkView`, `ConnectionView` and formatters with the same `lv_conf.h`. It exports
-nine 240×280 PNGs: Activity searching/fix/stale and six Connection scenarios
-(AP, AP+STA, connecting, disconnected, radio-off, long names). There is no second UI
+`WalkView`, `ConnectionView`, `StatusView` and formatters with the same `lv_conf.h`. It exports
+fourteen 240×280 PNGs: Activity searching/fix/stale and six Connection scenarios
+(AP, AP+STA, connecting, disconnected, radio-off, long names), plus five State
+scenarios (no-data, Day Mode, alert, paused output, fix). There is no second UI
 implementation in HTML, Python or a drawing mock.
 
 Requirements: Python 3, CMake ≥3.20, Ninja and a C/C++17 compiler. Resolve the
@@ -20,7 +21,7 @@ python tools/display-simulator/render.py
 ```
 
 Open `output/searching.png`, `output/fix.png`, `output/stale.png` and
-`output/connection-*.png`. `manifest.json`
+`output/connection-*.png` and `output/status-*.png`. `manifest.json`
 records LVGL version, configuration/source hashes and PNG hashes. The runner
 returns nonzero for failed builds or contracts. The default build uses the
 compiler CMake discovers; `CC`/`CXX` may select one before first configuration.
@@ -35,7 +36,7 @@ with fake Arduino/SPI: initial full frame before backlight, init failure without
 retries, bounded commands, pause/backlight independence, text/LVGL switching,
 fixture isolation, page changes, BOOT bounce/long holds, wake-only first click
 and clock rollover. A fourth contract compiles the real Wi-Fi snapshot adapter
-against read-only stubs. Timing from those fakes is not a benchmark.
+against read-only stubs; a fifth does the same for the real LED snapshot adapter. Timing from those fakes is not a benchmark.
 
 The [official PC port](https://github.com/lvgl/lv_port_pc_vscode) informed the
 CMake/shared-source layout. For this first static increment we use a headless
@@ -46,10 +47,10 @@ for the collar. The device uses the same RGB565 partial buffer size but writes
 through the existing Arduino_GFX driver.
 
 Full procedure and limits: [I5 guide](../../Platformio/Dog-RGB/docs/display-i5.md).
-Current pages/input: [I6a guide](../../Platformio/Dog-RGB/docs/display-i6.md).
+Current pages/input: [I6d guide](../../Platformio/Dog-RGB/docs/display-i6d.md).
 
 The I6c service contract also checks the opt-in inactivity deadline, rollover,
-dark redraws, stale data, twenty timeout/wake cycles over both pages and disabled
-boot policy. It still uses four CTest contracts and the same nine images; see
+dark redraws, stale data and disabled boot policy. I6d extends this to thirty
+timeout/wake cycles over three pages and thirty full navigation cycles; see
 [I6c behavior](../../Platformio/Dog-RGB/docs/display-i6c.md). GPIO tests here use
 fake inputs; actual BOOT/wake observations are recorded separately in the baseline.

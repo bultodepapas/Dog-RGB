@@ -1,6 +1,6 @@
 # Flujo de diseño de interfaces con IA para RGB Dog Display
 
-Estado: **Flujo I6a disponible; desarrollo reanudado con I6c experimental**,
+Estado: **Flujo I6d disponible; I6c experimental conservado**,
 2026-09-12. El [plan incremental](2026-09-12_display-incremental-delivery.md)
 decide orden, dependencias y aceptación; el [contrato de uso](2026-09-12_display-use-and-screens.md)
 decide qué significa la información mostrada. Este documento explica cómo
@@ -10,9 +10,9 @@ trabajar sobre lo existente, sin mantener otra cola de implementación.
 
 `Referencia visual → componentes LVGL → simulador → capturas → correcciones → prueba en placa`
 
-Ya recorrimos el ciclo en I5 e I6a. La base actual es Actividad y Wi-Fi,
+Ya recorrimos el ciclo en I5, I6a e I6d. La base actual es Actividad, Wi-Fi y Estado,
 distancia registrada como dato principal, negro `#000000` y BOOT para navegar.
-Classic conserva su aislamiento gráfico. Evidencia: [baseline I6a](../baselines/display-i6-2026-09-12.md).
+Classic conserva su aislamiento gráfico. Evidencia actual: [baseline I6d](../baselines/display-i6d-2026-09-12.md).
 
 | Capa | Implementado | Evolución condicionada |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Classic conserva su aislamiento gráfico. Evidencia: [baseline I6a](../baselines
 | Renderer | LVGL 8.4.0 y configuración compartida PC/ESP32 | No migrar a v9 para añadir una animación |
 | Transporte | Arduino_GFX 1.6.7, SPI 40 MHz, RGB565/swap 0, buffer de 9.600 bytes | DMA/PSRAM/segundo buffer solo ante cuello de botella medido |
 | PC | CMake sin ventana, framebuffer y empaquetado PNG con Python | Capturas temporales para I6b si hacen falta; SDL opcional |
-| Verificación | Cuatro CTest, nueve PNG y manifest con hashes | Casos nuevos ligados al cambio |
+| Verificación | Cinco CTest, catorce PNG y manifest con hashes | Casos nuevos ligados al cambio |
 
 No hay editor comercial ni runtime de IA obligatorio en el collar. Las
 [referencias de bibliotecas y repositorios](../display-library-research.md)
@@ -98,9 +98,9 @@ Desde la raíz, con los requisitos del [README del simulador](../../tools/displa
 python tools/display-simulator/render.py
 ```
 
-El runner compila, ejecuta cuatro contratos y exporta a
+El runner compila, ejecuta cinco contratos y exporta a
 `tools/display-simulator/output/`. Cubre composición/semántica, servicio real
-con SPI falso, fallo de inicialización y adaptador Wi-Fi real con stubs.
+con SPI falso, fallo de inicialización y adaptadores Wi-Fi/LED reales con stubs.
 Las pruebas ya controlan eventos/reloj; para animación falta capturar instantes
 intermedios, no reconstruir la navegación. El transporte falso no mide el ESP32.
 
@@ -121,6 +121,10 @@ Baselines actuales en [docs/assets/display-i6](../assets/display-i6/manifest.jso
 Guardar frame nativo 240×280. Ampliar sin suavizado ayuda a revisar; no cambia
 la resolución de diseño. El framebuffer reconstruye las regiones emitidas por
 LVGL; Python empaqueta esos píxeles, no redibuja widgets.
+
+I6d añade `status-no-data`, `status-day`, `status-alert`, `status-paused` y
+`status-fix`: [catálogo vigente y hashes](../assets/display-i6d/manifest.json).
+Los nueve casos anteriores también se regeneran con los indicadores 1/3 y 2/3.
 
 En I6b añadir una secuencia determinista con capturas inicial, intermedias y
 final; incluir una pulsación que cambie destino antes del final. Los instantes
@@ -147,8 +151,8 @@ real; conservar esa protección.
 | Cambio futuro | Casos adicionales |
 | --- | --- |
 | I6b transición | Evento intermedio, destino sustituido, fin coherente, memoria tras ciclos |
-| I6c timeout | Límite/rollover, ambas páginas, dato caducado en oscuro |
-| I6d Estado | Fuentes válidas/desconocidas/fallidas, tres páginas, modo efectivo de luces |
+| I6c timeout, implementado | Límite/rollover, tres páginas con I6d, dato caducado en oscuro |
+| I6d Estado, implementado | Fuentes válidas/desconocidas, tres páginas, política LED, Modo día con alertas y salida pausada; cinco PNG nuevos |
 | I6e pausa | Quietud observada, hueco GPS, ruido, reanudación y reinicio |
 
 Ejecutar las comprobaciones afectadas según el plan incremental. Documentación
@@ -194,5 +198,5 @@ Separa pruebas PC, eventos USB y observación física; registra binario y límit
 No cierres GPS/LED/HTTP por una demo sin periféricos.
 ```
 
-La pausa terminó por instrucción del propietario; el paquete activo es I6c experimental. Tampoco convierte animaciones,
+La pausa terminó por instrucción del propietario; I6c experimental e I6d están implementados. Tampoco convierte animaciones,
 SDL, batería o nueva persistencia en requisitos de la siguiente entrega.

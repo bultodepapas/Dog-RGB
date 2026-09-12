@@ -2,7 +2,7 @@
 
 This is the canonical documentation index for Dog-RGB. English is the source language; Spanish pages are maintained as convenience translations for builders and users.
 
-Last full code-alignment review: **2026-08-13**. Display documentation reconciled through **I6a on 2026-09-12** against implementation and recorded evidence; development subsequently resumed with I6c opt-in bench preparation. This scoped update does not revalidate unrelated workstreams.
+Last full code-alignment review: **2026-08-13**. Display documentation reconciled through **I6a on 2026-09-12** against implementation and recorded evidence; development subsequently delivered I6c opt-in bench preparation and I6d State. This scoped update does not revalidate unrelated workstreams.
 
 ## Document status
 
@@ -72,6 +72,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Display I5 progress](baselines/display-i5-2026-09-12.md) | See recorded acceptance | Three real-renderer captures, UI/service contracts and USB bench results |
 | [Display I6a pages and input](../Platformio/Dog-RGB/docs/display-i6.md) | Implemented, see physical evidence | Activity/Connection, read-only Wi-Fi adapter, BOOT release/wake and bounded redraw |
 | [Display I6c inactivity](../Platformio/Dog-RGB/docs/display-i6c.md) | Experimental, disabled at boot | 30 s backlight timer, wake-only input and separate [evidence](baselines/display-i6c-2026-09-12.md); joint load remains open |
+| [Display I6d State](../Platformio/Dog-RGB/docs/display-i6d.md) | Experimental third page | GPS and effective LED policy; [evidence](baselines/display-i6d-2026-09-12.md), fourteen PNGs, five CTest contracts |
 | [Display I6a baseline](baselines/display-i6-2026-09-12.md) | See recorded acceptance | Nine shared-renderer captures, navigation tests, resource changes and USB timing |
 | [Waveshare LCD 1.69 technical investigation](waveshare-lcd169-technical-research.md) | Historical I5 research with I6a reconciliation, Spanish | Black/backlight diagnosis, official V2 circuit, SPI budget and forum cases; follow the incremental plan for current tasks |
 | [Display I3 baseline](baselines/display-i3-2026-09-12.md) | Software evidence; physical acceptance pending | Seven builds, native adapter/rendering checks, layout previews and resource deltas |
@@ -105,8 +106,8 @@ The firmware and tests are the final source of truth. A document must never turn
 | --- | --- | --- |
 | [Waveshare display variant research and integration plan](PLANS/2026-09-12_waveshare-display-variant.md) | Supporting research reconciled through I6a, Spanish | V2 schematic, implemented profiles/UI and explicitly optional hardware/tooling extensions |
 | [Display incremental delivery](PLANS/2026-09-12_display-incremental-delivery.md) | Governing contract; resumed after I6a, Spanish | V1 optical/button/radio, V2 physical I0–I3, V3 joint load; separate I6b–I6e packages and I7 decisions |
-| [Display AI design workflow](PLANS/2026-09-12_display-ai-workflow.md) | Current workflow through I6a, Spanish | Shared components → existing renderer → nine captures → corrections → board validation; animation capture remains proposed |
-| [Display use and screen contract](PLANS/2026-09-12_display-use-and-screens.md) | I6a implemented; later states proposed, Spanish | Activity/Wi-Fi, rest versus missing GPS, independent inactivity policy and future State/pause contracts |
+| [Display AI design workflow](PLANS/2026-09-12_display-ai-workflow.md) | Current workflow through I6d, Spanish | Shared components → existing renderer → fourteen captures → corrections → board validation; animation capture remains proposed |
+| [Display use and screen contract](PLANS/2026-09-12_display-use-and-screens.md) | I6d implemented; rest states proposed, Spanish | Activity/Wi-Fi/State, rest versus missing GPS, opt-in inactivity and future pause contract |
 | [Display libraries and repository research](display-library-research.md) | Research with applied stack, Spanish | Arduino_GFX/LVGL pinned and observed locally; other repositories were reviewed, not benchmarked; future evaluations stay conditional |
 ## Optional future work
 

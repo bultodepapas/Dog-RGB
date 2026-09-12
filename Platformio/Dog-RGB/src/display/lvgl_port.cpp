@@ -2,6 +2,7 @@
 #include "display/lvgl_port.h"
 #include "display/walk_view.h"
 #include "display/connection_view.h"
+#include "display/status_view.h"
 #include <Arduino_GFX_Library.h>
 
 namespace display::lvgl_port {
@@ -14,12 +15,17 @@ alignas(4) lv_color_t pixels[240 * 20];
 static_assert(sizeof(pixels) == 9600, "RGB565 partial buffer required");
 WalkView walk;
 ConnectionView connection_view;
+StatusView status_view;
 Page selected = Page::Activity;
 Page visible = Page::Activity;
 bool margins_dirty = false;
 lv_obj_t *root = nullptr;
 uint32_t previous_ms = 0, handler_ms = 0;
 Stats measured;
+
+lv_obj_t *screen(Page page) {
+  return page == Page::Activity ? walk.screen() : page == Page::Connection ? connection_view.screen() : status_view.screen();
+}
 
 void flush(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colors) {
   const uint32_t started = micros();
@@ -35,7 +41,7 @@ void flush(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colors) {
 }
 }
 
-bool begin(Arduino_ST7789 &target, const TextView &view, bool demo, const ConnectionText &connection) {
+bool begin(Arduino_ST7789 &target, const TextView &view, bool demo, const ConnectionText &connection, const LedStatusSnapshot &led) {
   if (display) return true;
   panel = &target;
   lv_init();
@@ -53,8 +59,10 @@ bool begin(Arduino_ST7789 &target, const TextView &view, bool demo, const Connec
   lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(root, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
-  if (!walk.begin(view, demo, connection.summary, root) || !connection_view.begin(connection, demo, root)) return false;
+  if (!walk.begin(view, demo, connection.summary, root) || !connection_view.begin(connection, demo, root) ||
+      !status_view.begin(format_status(view.gps_state, led), demo, root)) return false;
   lv_obj_add_flag(connection_view.screen(), LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(status_view.screen(), LV_OBJ_FLAG_HIDDEN);
   lv_disp_load_scr(root); // First frame initializes the entire panel before backlight.
   previous_ms = handler_ms = millis();
   tick(previous_ms, true);
@@ -74,13 +82,13 @@ bool restore_margins() {
   margins_dirty = false;
   return true;
 }
-void update(const TextView &view, bool demo, const ConnectionText &connection) {
-  auto *screen = selected == Page::Activity ? walk.screen() : connection_view.screen();
+void update(const TextView &view, bool demo, const ConnectionText &connection, const LedStatusSnapshot &led) {
   if (selected == Page::Activity) walk.update(view, demo, connection.summary);
-  else connection_view.update(connection, demo);
+  else if (selected == Page::Connection) connection_view.update(connection, demo);
+  else status_view.update(format_status(view.gps_state, led), demo);
   if (visible != selected) {
-    lv_obj_add_flag(visible == Page::Activity ? walk.screen() : connection_view.screen(), LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(screen, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(screen(visible), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(screen(selected), LV_OBJ_FLAG_HIDDEN);
     visible = selected;
   }
 }
@@ -90,7 +98,7 @@ bool tick(uint32_t now_ms, bool full_redraw) {
   previous_ms = now_ms;
   const uint32_t before = measured.flushes;
   if (full_redraw) {
-    lv_obj_invalidate(selected == Page::Activity ? walk.screen() : connection_view.screen());
+    lv_obj_invalidate(screen(selected));
     lv_refr_now(display);
     handler_ms = now_ms;
   } else if (now_ms - handler_ms >= 5) {

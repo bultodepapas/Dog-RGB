@@ -27,10 +27,10 @@ Not implemented: cloud sync, user accounts, a native mobile app, IMU/heart-rate 
 ## Hardware baseline
 
 Classic XIAO remains the default. An experimental Waveshare LCD 1.69 No Touch
-V2 profile, power/USB/LED/GPS diagnostics and shared LVGL Activity/Wi-Fi pages
+V2 profile, power/USB/LED/GPS diagnostics and shared LVGL Activity/Wi-Fi/State pages
 with BOOT navigation are implemented. I6a is observed on a USB-only board;
 the owner confirmed improved appearance, BOOT and wake; joint peripheral
-acceptance remains pending. Development resumed under the [remaining plan](docs/PLANS/2026-09-12_display-incremental-delivery.md). See [current Display guide](Platformio/Dog-RGB/docs/display-i6.md).
+acceptance remains pending. Development resumed under the [remaining plan](docs/PLANS/2026-09-12_display-incremental-delivery.md). See [current Display guide](Platformio/Dog-RGB/docs/display-i6d.md).
 
 | Component | Current baseline |
 | --- | --- |

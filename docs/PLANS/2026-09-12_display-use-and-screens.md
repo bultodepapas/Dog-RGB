@@ -1,7 +1,7 @@
 # RGB Dog: uso del collar y contrato de pantallas
 
-Estado: **I6a confirmado; I6c experimental de banco y evolución posterior propuesta**, 2026-09-12.
-Las dos páginas y la navegación BOOT se incorporaron según la [guía I6a](../../Platformio/Dog-RGB/docs/display-i6.md).
+Estado: **I6d implementado; I6a/I6c confirmados, aceptación conjunta pendiente**, 2026-09-12.
+Tres páginas y navegación BOOT: [guía I6d](../../Platformio/Dog-RGB/docs/display-i6d.md).
 Descanso y cambios automáticos de radio/LEDs siguen propuestos. El timeout
 I6c se activa explícitamente en diagnóstico; el producto lo mantiene desactivado.
 Complementa el [plan incremental](2026-09-12_display-incremental-delivery.md),
@@ -37,7 +37,7 @@ de la segunda página es `Wi-Fi`, y muestra los dos tipos de conexión.
 | Retirada / fin de paseo | ¿Qué registró? | Primero total del día; después resumen de paseo si existe esa entidad | No confundir un reinicio con un fin de paseo voluntario |
 | Consulta de un problema | ¿Qué función necesita atención? | Aviso concreto y página Estado | Prioridad a información accionable, sin panel permanente de depuración |
 
-## 3. Dos páginas primero, una tercera después
+## 3. Tres páginas incrementales
 
 ### A. Actividad: principal y contextual
 
@@ -48,7 +48,7 @@ Distribución implementada en I6a, 240×280:
 - Encabezado discreto `RGB DOG`, indicador de página y texto corto de estado GPS.
 - Dato central de mayor tamaño: distancia con unidad y período explícitos.
 - Una línea de velocidad, que cambia a `--` si no es utilizable.
-- Una línea de modo de luces; los detalles del efecto y brillo van en Estado.
+- Una línea de modo de luces; Estado detalla política efectiva y avisos, sin brillo aplicado.
 - Un indicador compacto de conexión, cuyo detalle se consulta en Conexión.
 
 Ejemplo de contenido, no captura LVGL: `Actividad / GPS listo / 1,84 km / Día
@@ -101,16 +101,21 @@ se presenta como `Portal: 1 conectado`. Hasta 32 bytes ASCII imprimibles se
 distribuyen sin marquesina; otros bytes producen `Nombre no compatible` y
 mantienen la IP útil. mDNS y QR no están incorporados a la vista actual.
 
-### C. Estado: tercera página posterior
+### C. Estado: tercera página implementada en I6d
 
 Pregunta: «¿Qué está funcionando y qué debo revisar?».
 
-Máximo tres grupos legibles: GPS, luces y registro. GPS puede dar una causa
-entendible y satélites cuando estén disponibles. Luces muestra el modo efectivo
-o `Modo día: efectos apagados`, según el estado del dominio; un valor configurado
-no verifica físicamente que la tira encienda. Registro muestra fallos presentes
-solo si hay señal fiable de salud; un contador histórico distinto de cero no
-significa que la operación actual haya fallado.
+Dos grupos: GPS y `Luces / control`. GPS reutiliza los seis estados de recepción
+de Actividad y ofrece una indicación breve. Luces muestra intención efectiva,
+efectos apagados o modo, y un aviso independiente. `Modo dia` puede coexistir
+con `Aviso GPS / Wi-Fi`. `Salida pausada` significa envío detenido; no verifica
+físicamente que una tira encienda o esté apagada. La demo simula solo GPS y se
+rotula `RGB DOG / GPS DEMO`; política LED y radio siguen siendo reales.
+
+Registro se omite: los contadores históricos no acreditan salud actual.
+Satélites, brillo aplicado y batería también quedan fuera hasta contar con
+observaciones vigentes y semántica comprobada. El ciclo es Actividad → Wi-Fi →
+Estado → Actividad, conservando la primera pulsación solo para despertar.
 
 Contadores UART, heap, SPI, versiones y códigos internos siguen en `/dev`.
 Podrían añadirse a diagnóstico de banco, sin ocupar la navegación diaria.
@@ -232,11 +237,11 @@ El orden y las tareas detalladas están en los paquetes del
 | V2–V3 | LEDs y GPS reales, LCD y prueba conjunta; presupuesto USB observado no sustituye la carga del collar |
 | I6b | Transición opcional después de base aceptada; mantener cambio instantáneo si no aporta utilidad |
 | I6c | Timeout de consulta separado de animación; no cambia GPS/LED/radio ni detecta descanso |
-| I6d | Estado si ayuda a resolver una consulta; máximo tres grupos con fuente fiable |
+| I6d | Implementado: Estado con GPS y política LED; registro/batería omitidos sin observaciones fiables |
 | I6e | Pausa estimada solo tras contrato de observaciones; variante contextual de Actividad |
 | I7 | Paseos explícitos, modo tranquilo, batería/IMU, QR y avisos se priorizan individualmente |
 
-La pausa terminó; I6c quedó verificado como diagnóstico opt-in, sin cerrar V3. Los escenarios siguientes son
+La pausa terminó; I6c opt-in e I6d están implementados, sin cerrar V3. Los escenarios siguientes son
 la matriz de producto; cada caso entra cuando exista su función, no todos a la vez.
 
 Escenarios mínimos: arranque sin receptor; búsqueda al aire libre; fix válido;

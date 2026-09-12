@@ -1,0 +1,46 @@
+{
+  "lvgl": "8.4.0",
+  "resolution": [
+    240,
+    280
+  ],
+  "png_sha256": {
+    "searching": "fe8266979c502524b86761465837df9521aadbaef906d45a2263041368cbfb15",
+    "fix": "094b8a9394ef13ff437cf8c938ccb4239975f53be74708c9ae1877571c65e18d",
+    "stale": "6859f486667b7d77bed19bd58cb64714cc4445f1e6f95a86f2c011c10cb440a8",
+    "connection-ap": "ca9028fe62f134308e5abe5a84c3fd290fcee415ea67972a207453cd1a32ae9d",
+    "connection-both": "139c837cecceeb058f5727d726214839c61864bb7205940e5f994cc95d6839ba",
+    "connection-trying": "6b584f2d019f5445a6283fff091d0147ca2ad847287ab3ea13f2fdff34e1fad0",
+    "connection-idle": "f46f3a6a9c10b191fa23b217f56be4a56e50ecb3aaf16d3579519d114e6bc299",
+    "connection-off": "748cc5656f3e6a2869d0625a2354a043b86b1ef3fa822a656389a9875fb8e57e",
+    "connection-long": "652cb88b5f752d47767618846ba11f8a3123d5b0641ddd95e80e59a5ea6dd119",
+    "status-no-data": "db8a192bf5e27302854b14754660f8b260dd4f2d03537e5fe45d65554e853720",
+    "status-day": "1d7a5130ba45bb3fb2998e3e30b715e3f52698801599409e1753e5562823b18b",
+    "status-alert": "ae23f3fb1f8ebfa3900de82ec2656c01971de1050083e8e34054bb50b71a8bbc",
+    "status-paused": "bcdf396581ecac605ad207bc78b5bbfc36df5a858504a5b485c71ea68a46ae02",
+    "status-fix": "6d704a43cda27e2c14d81ff04eb1f2af10172d6ce3f8bb430a300a418cfd3e04"
+  },
+  "input_sha256": {
+    "include/lv_conf.h": "381e6229ef0aab166271503cc68a92f4cea700665bfec0118f03fa980245ab6b",
+    "src/display/ui/walk_view.cpp": "3a5e11fcdfefbe8e7822f61f88c8c2bfa668ea2b283ece085a47da7cc8374b3d",
+    "src/display/text_view.cpp": "4e46e13e1047a1e4dcdad67e70ba6eb06eaaf50f95d9e166595fdef955e4baef",
+    "src/display/connection.cpp": "a784aa832e629501524e7165673da85d38a231f115b8b8b4593e91c4c6379d08",
+    "src/display/ui/connection_view.cpp": "1b4ade79645161192b74fa94189f57230992bf1d969b00ed19f024d2df38956d",
+    "src/display/display.cpp": "33420290594cc60f6d8a352611435dd55001852feae55f9b0a35bbb75d76ba9c",
+    "src/display/lvgl_port.cpp": "9a228f8284381ec2f512a7289aa2f80306520f8ee12dc8cfb25e6c17e71672bf",
+    "src/display/connection_snapshot.cpp": "44b06b5e16d59ab601d71f55394b0cf1728b2fc3244d0c5051d43af9fb82b36c",
+    "include/display/connection.h": "bbd26b7f9d0238ae4f4d73332e4b0ee2894eb7515ccfce879043905b328e44ce",
+    "include/display/button.h": "972f37098f3aae64991dd9a197d1f40908e5ceb4cb946ee257eca171e881ff4c",
+    "include/display/inactivity.h": "458dad19e7c7f2713968bddbc3d550e413baacdf013ef8f8bebc24abc00ee139",
+    "include/display/status.h": "5eab7072112e647e81e28969c3d25279db82129cbbc976fc047da8ede05dee32",
+    "include/display/status_view.h": "3ea83c1baae13bc0c9dd06156601bfd03d5a9bb232270d938e5812620d5abdb0",
+    "src/display/status.cpp": "305f2f9d6115b45c342cfa2d1f137b9123a19e77af86cc7408cd45af2eb64206",
+    "src/display/status_snapshot.cpp": "a8226656033321f696972588a87c4d4f6b99362f273f1f5769a822be3ca36436",
+    "src/display/ui/status_view.cpp": "5b7a5ee48b7ddfd1d0cd55c9ed793554106b1fb729a26fe94adea9cb373b66c9",
+    "include/display/lvgl_port.h": "7ba93d4629360c2ca8c38e533e9efdfcb6ac9a84155e93f9d84b8168241300a7",
+    "include/display/text_view.h": "20be40bc4ff5e5a2ff6bbadab32c66dd4a7eb3de5a55d389b8a7a8a10f1d6472",
+    "include/display/walk_view.h": "7f5aa7ffa21cc85d5892302ade8810f2184be3cf25b43b8c94438872c6f054f2",
+    "include/display/connection_view.h": "50b1971914842c3f4809dba631444394d7af0cfb5558fca88e5dd76500ec114a"
+  },
+  "scope": "shared LVGL rendering on PC; not physical panel or performance evidence"
+}

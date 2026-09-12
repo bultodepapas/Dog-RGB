@@ -4,7 +4,7 @@
 
 An experimental Waveshare LCD 1.69 No Touch V2 profile, I0 diagnostic target
 and I1 LED/I2 GPS/I3 LCD bench targets are implemented in software. The Waveshare
-product now includes LVGL Activity/Wi-Fi pages, with basic text retained for
+product now includes LVGL Activity/Wi-Fi/State pages, with basic text retained for
 diagnostic comparison. USB boot/memory and LCD diagnostics
 have partial bench evidence; revision/peripheral and full LCD acceptance remain
 pending. See [board targets and bring-up](docs/boards.md);
@@ -23,8 +23,8 @@ LCD bench command: `pio run -e waveshare_lcd169_displaycheck`. It retains I2
 bench limits, adds a partial-update text page and USB bars/backlight/pause
 controls. See the [I3 LCD guide](docs/display-i3.md). Classic and I0–I2 remain
 free of graphics dependencies. [I5](docs/display-i5.md) added LVGL 8.4.0 and
-the shared simulator. [I6a](docs/display-i6.md) now provides Activity/Connection
-and BOOT short-release navigation; `a/c/n` select pages/inject a click in stage 3,
+the shared simulator. [I6d](docs/display-i6d.md) provides Activity/Connection/State
+and BOOT short-release navigation; `a/c/e` select pages and `n` injects a click in stage 3,
 while `s/l` retain basic/LVGL comparison. Animation and automatic sleep remain deferred.
 
 The [I4 bench guide](docs/display-i4.md) adds an explicit LCD-only DEMO (`f`),

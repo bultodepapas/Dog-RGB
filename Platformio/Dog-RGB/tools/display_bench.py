@@ -12,7 +12,7 @@ import re
 import time
 from analyze_wokwi import FATAL_MARKERS, fields
 
-COMMANDS = frozenset("tvbdfrslacnio")
+COMMANDS = frozenset("tvbdfrslacnioe")
 
 
 def summarize(text: str) -> dict:
@@ -76,7 +76,7 @@ def parse_step(value: str) -> tuple[float, str]:
             raise ValueError()
         return when, command
     except ValueError as exc:
-        raise argparse.ArgumentTypeError("Use seconds:command, where command is t/v/b/d/f/r/s/l/a/c/n/i/o") from exc
+        raise argparse.ArgumentTypeError("Use seconds:command, where command is t/v/b/d/f/r/s/l/a/c/n/i/o/e") from exc
 
 
 def main() -> int:

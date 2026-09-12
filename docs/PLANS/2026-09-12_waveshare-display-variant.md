@@ -1,12 +1,12 @@
 # RGB Dog: variante con Waveshare ESP32-S3-LCD-1.69
 
-Fecha: 2026-09-12. Estado: **Investigación de apoyo reconciliada con I6a; desarrollo reanudado con I6c experimental; aceptación conjunta pendiente**.
+Fecha: 2026-09-12. Estado: **Investigación de apoyo reconciliada con I6d e I6c experimental; aceptación conjunta pendiente**.
 
-Actualización: existen siete entornos, diagnósticos I0–I3, texto/LVGL y dos páginas
-con BOOT. I6a está cargado en la placa USB sin GPS ni tiras; véanse
-[baseline I6a](../baselines/display-i6-2026-09-12.md) y
+Actualización: existen siete entornos, diagnósticos I0–I3, texto/LVGL y tres páginas
+con BOOT. I6d añade GPS/política LED en Estado; véanse su
+[baseline](../baselines/display-i6d-2026-09-12.md) y
 [guía de placas](../../Platformio/Dog-RGB/docs/boards.md). Arduino_GFX 1.6.7,
-LVGL 8.4.0 y renderer sin ventana ya están probados; nueve PNG y cuatro CTest.
+LVGL 8.4.0 y renderer sin ventana ya están probados; catorce PNG y cinco CTest.
 La investigación original siguiente conserva alternativas y cálculos de diseño,
 no tareas pendientes por defecto. Sensores y animación siguen propuestos; I6c prepara timeout opt-in de diagnóstico.
 
@@ -183,7 +183,7 @@ inicial Paseo/Luces/Conexión/Resumen por el siguiente:
 | --- | --- |
 | Actividad, implementada | Distancia registrada/fecha principal, GPS, velocidad y modo LED secundarios |
 | Wi-Fi, implementada | AP/STA separados con nombres/IP reales; solo lectura |
-| Estado, I6d propuesto | GPS, luces efectivas y registro si hay datos fiables; una tercera página |
+| Estado, I6d implementado | GPS y luces/control efectivos; registro omitido sin señal de salud actual |
 | Pausa, I6e propuesta | Variante de Actividad tras evidencia válida; sin señal no significa reposo |
 | Resumen por paseo, I7 opcional | Requiere ciclo de vida propio; sesión de arranque no equivale a paseo |
 

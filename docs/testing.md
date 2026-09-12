@@ -301,10 +301,10 @@ The detailed security cases are in the [threat model](cloud/threat-model.md); fi
 The optional [display simulator](../tools/display-simulator/README.md) compiles
 LVGL 8.4.0 with the same configuration, formatter and view as the device. Run
 `python tools/display-simulator/render.py` after resolving stage-3 dependencies.
-It produces nine PNGs and runs four CTest contracts: static UI semantics/layout,
+It produces fourteen PNGs and runs five CTest contracts: static UI semantics/layout,
 actual display service with fake SPI, detected panel-init failure and the real
-Wi-Fi snapshot adapter with read-only stubs. These are
-additional to the 146-test firmware host suite, not browser mocks or measurements
+Wi-Fi and LED snapshot adapters with read-only stubs. These are
+additional to the 147-test firmware host suite, not browser mocks or measurements
 of physical FPS. CI has a separate job and capture artifact for this tool.
 The [I6a baseline](baselines/display-i6-2026-09-12.md) records current results,
 image/source hashes and the final 44.768 ms USB service maximum. The
@@ -316,9 +316,12 @@ BOOT release/wake tests and the Connection scenarios.
 [I6c](baselines/display-i6c-2026-09-12.md) extends the service tests with a
 disabled-by-default timer, exact deadline/rollover, stale data/draws while dark,
 twenty timeout/wake cycles and disable/resume semantics. The firmware suite now
-has 147 tests; the four renderer contracts and nine pixel-identical images remain.
+has 147 tests. I6c retained four contracts and nine pixel-identical images.
+[I6d](baselines/display-i6d-2026-09-12.md) adds the LED adapter contract and five
+State captures (fourteen total); thirty navigation and thirty timeout/wake cycles
+cover all three pages, including unchanged-state no-flush and bounded memory.
 
-Display resumed with I6c opt-in inactivity preparation. Keep V1–V3 in the
+Display now includes I6c opt-in inactivity and I6d State. Keep V1–V3 in the
 [incremental plan](PLANS/2026-09-12_display-incremental-delivery.md): physical
 button/optical/radio, staged peripheral bring-up and then thirty-minute joint
 load. Record physical versus serial-injected events, separate normal-update and

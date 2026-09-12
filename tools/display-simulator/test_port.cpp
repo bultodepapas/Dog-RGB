@@ -6,11 +6,13 @@
 
 display::DisplaySnapshot real_sample;
 display::ConnectionSnapshot real_connection;
+display::LedStatusSnapshot real_led;
 namespace display {
 DisplaySnapshot capture_snapshot() {
   auto value = real_sample; value.captured_ms = millis(); return value;
 }
 ConnectionSnapshot capture_connection() { return real_connection; }
+LedStatusSnapshot capture_led_status() { return real_led; }
 }
 std::string report() { Print sink; display::report(sink); return sink.output; }
 void has(const char *value) { assert(report().find(value) != std::string::npos); }
@@ -70,15 +72,25 @@ int main(int argc, char **) {
   before = bitmap_calls; pump(1100); assert(bitmap_calls == before);
   // Physical input: bounce is ignored, one debounced release changes page.
   button_level = LOW; pump(10); button_level = HIGH; pump(40); has("page=connection");
-  button_level = LOW; pump(80); button_level = HIGH; pump(40); has("page=activity");
+  button_level = LOW; pump(80); button_level = HIGH; pump(40); has("page=status");
+  command('n'); has("page=activity"); // Complete the new three-page cycle.
   button_level = LOW; pump(2000); button_level = HIGH; pump(40); has("page=activity");
   command('b'); assert(light_level == LOW);
   command('n'); has("page=activity"); assert(light_level == HIGH); // Wake, no page advance.
   command('n'); has("page=connection");
   command('d'); command('n'); has("page=connection"); has("enabled=1");
   assert(light_level == HIGH);
+  command('e'); has("page=status");
+  real_led.transport_enabled = true;
+  real_led.intent = led::LedIntent::DayStatus;
+  before = bitmap_calls; pump(1100); assert(bitmap_calls > before);
+  before = bitmap_calls; pump(1100); assert(bitmap_calls == before);
+  command('c');
   const auto connection_baseline = display::lvgl_port::stats().free_bytes;
-  for (unsigned i = 0; i < 30; ++i) { command('a'); command('c'); }
+  for (unsigned i = 0; i < 30; ++i) {
+    command('n'); has("page=status"); command('n'); has("page=activity");
+    command('n'); has("page=connection");
+  }
   assert(display::lvgl_port::stats().free_bytes == connection_baseline);
   command('a');
   const auto baseline = display::lvgl_port::stats().free_bytes;
@@ -101,14 +113,15 @@ int main(int argc, char **) {
   command('n'); has("page=activity"); assert(light_level == HIGH);
   command('n'); has("page=connection");
   const auto idle_baseline = display::lvgl_port::stats().free_bytes;
-  for (const char page_command : {'a', 'c'}) {
+  for (const char page_command : {'a', 'c', 'e'}) {
     command(page_command);
     for (unsigned i = 0; i < 10; ++i) {
       command('i'); advance(30000); assert(light_level == LOW);
       command('n'); assert(light_level == HIGH);
-      has(page_command == 'a' ? "page=activity" : "page=connection");
+      has(page_command == 'a' ? "page=activity" : page_command == 'c' ? "page=connection" : "page=status");
     }
   }
+  command('c');
   assert(display::lvgl_port::stats().free_bytes == idle_baseline);
   // A debounced short release exactly at deadline must wake the selected page.
   command('i'); advance(29900);

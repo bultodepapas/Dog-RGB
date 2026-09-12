@@ -1,6 +1,6 @@
 # RGB Dog Display: desarrollo incremental
 
-Estado: **Desarrollo reanudado. I6a: mejora visual, BOOT y despertar confirmados. I6c opt-in implementado, ensayado por USB y confirmado por el propietario; producto desactivado. V2/V3 y aceptación portátil pendientes**.
+Estado: **I6d Estado implementado, ensayado por USB y lectura/ciclo BOOT confirmados. I6a e I6c confirmados por el propietario; timeout de producto desactivado. V2/V3 y aceptación portátil pendientes**.
 Fecha: 2026-09-12.
 
 ## Punto de reanudación
@@ -17,9 +17,9 @@ al arrancar, sin adoptarla todavía como política automática del producto.
 Esta preparación independiente no cierra las condiciones de aceptación V3.
 I6b animación permanece sin iniciar.
 
-Referencia actual: [guía I6a](../../Platformio/Dog-RGB/docs/display-i6.md),
-[baseline con hash del binario cargado](../baselines/display-i6-2026-09-12.md)
-y [nueve capturas LVGL](../assets/display-i6/manifest.json). No reinstalar I5
+Referencia actual: [guía I6d](../../Platformio/Dog-RGB/docs/display-i6d.md),
+[baseline del incremento](../baselines/display-i6d-2026-09-12.md)
+y [catorce capturas LVGL](../assets/display-i6d/manifest.json). No reinstalar I5
 ni reconstruir el simulador como si fueran trabajo pendiente. Se conservaron
 las imágenes de diagnóstico y el respaldo original. El HEAD cambió durante el
 trabajo y después registró la implementación; al retomar, revisar también el
@@ -39,10 +39,12 @@ estado local. Hash del binario y manifest identifican exactamente lo probado.
    del propietario; cerrar lo que pueda observarse de I6a en la placa USB.
 2. Completar identificación/alimentación I0 antes de cablear. Con periféricos
    disponibles: I1 LEDs → I2 GPS+LEDs → I3 datos reales+LCD → I4 carga conjunta.
-3. Con navegación aceptada y la base conjunta comprobada, evaluar I6b transición
-   breve y después I6c apagado por inactividad, como cambios separados.
-4. Añadir I6d Estado solo si aporta utilidad; I6e pausa estimada exige primero
-   un contrato de observaciones del dominio. Extensiones I7 se eligen una a una.
+3. I6c ya está preparado y confirmado como experimento opt-in; I6d añade Estado
+   con GPS y política LED; lectura y ciclo BOOT ya confirmados. Completar V1/V2
+   restantes y después V3.
+4. Con la base conjunta comprobada, evaluar I6b transición breve. I6e pausa
+   estimada exige primero un contrato de observaciones del dominio. I7 se elige
+   una extensión a la vez.
 
 Sin periféricos se pueden preparar fixtures, contratos y casos de prueba al
 reanudar; la siguiente entrega funcional preferida es cerrar la base física.
@@ -292,9 +294,9 @@ horas de desarrollo ni fechas prometidas.
 
 - **Entrada:** reanudación, placa identificada como la usada en banco y binario
   I6a conservado; registrar si cambió hardware o firmware.
-- **Trabajo:** observar negro, barras RGBW, borde, orientación y ambas páginas;
+- **Trabajo:** observar negro, barras RGBW, borde, orientación y las tres páginas actuales;
   comprobar BOOT corto/liberación, rebote y pulsaciones rápidas. Probar diez
-  despertares distribuidos entre las dos páginas; el primero despierta sin
+  despertares distribuidos entre las tres páginas; el primero despierta sin
   avanzar y el siguiente cambia. Verificar retorno desde barras/texto sin
   márgenes residuales ni frame incompleto iluminado.
 - **Radio:** con teléfono/cliente disponible comprobar AP sin/con cliente,
@@ -384,13 +386,20 @@ V3 sigue siendo condición de aceptación conjunta.
   durante transición, cancelar/completar lógicamente el destino y mantenerlo
   oscuro hasta un despertar explícito. Retener página; no guardar cada evento.
 - **Pruebas:** justo antes/en/después del límite, `millis()` rollover, botón
-  mantenido/rebotado, reinicio, ambas páginas, dato que caduca en oscuro y diez
+  mantenido/rebotado, reinicio, las tres páginas desde I6d, dato que caduca en oscuro y diez
   despertares por página. Comprobar que no cambian GPS/LED/Wi-Fi/NVS por timeout.
 - **Salida:** lectura al despertar completa, continuidad real y consumo
   encendido/apagado medido cuando haya instrumento. No prometer autonomía.
   Suspender además refresco, PWM gradual o deep sleep son evaluaciones distintas.
 
 ### I6d — Estado: tercera página solo si resuelve una consulta
+
+**Implementado:** dos grupos, GPS y luces/control. Reutiliza clasificación GPS
+y copia la política LED efectiva; conserva Modo día y aviso simultáneos, y
+distingue transporte pausado. Sin señal fiable se omiten registro, batería,
+brillo aplicado y satélites. Cinco CTest, catorce PNG y 147 pruebas host;
+recursos, USB y límites en la [baseline I6d](../baselines/display-i6d-2026-09-12.md).
+Navegación Actividad → Wi-Fi → Estado → Actividad; sin animación ni cambio NVS.
 
 - **Entrada:** dos páginas aceptadas; elegir hasta tres grupos útiles tras
   observar el uso: GPS, luces efectivas y registro.
@@ -437,7 +446,7 @@ sus propios contratos. La pantalla no los convierte en prerrequisitos.
 
 ## Mapa de cambios y verificación
 
-Las rutas I0–I6a ya se incorporaron. I6b–I7 siguen propuestas. La tabla conserva la división de trabajo, no sustituye la baseline de ejecución.
+Las rutas I0–I6a, I6c opt-in e I6d ya se incorporaron. I6b/I6e/I7 siguen propuestas. La tabla conserva la división de trabajo, no sustituye la baseline de ejecución.
 
 | Cambio | Archivos o área | Verificación que permite cerrarlo |
 | --- | --- | --- |
@@ -450,7 +459,8 @@ Las rutas I0–I6a ya se incorporaron. I6b–I7 siguen propuestas. La tabla cons
 | I4 | Correcciones concretas + evidencia | Portal/configuración/persistencia bajo carga conjunta |
 | I5 | `src/display/ui/`, `tools/display-simulator/` en raíz, fixtures y tema mínimo | Mismo código LVGL, tres PNG, versiones fijadas, comparativa de recursos |
 | I6a entregado | `display.cpp`, `button.h`, `connection*`, `ui/`, `lvgl_port`, simulador/fixtures | Cuatro CTest, nueve PNG, BOOT/despertar y banco; aceptación física restante V1/V3 |
-| I6b–I6e propuestos | UI/servicio y pruebas; adaptador de dominio solo cuando el dato lo requiera | Entrada/salida por paquete; no ampliar todos simultáneamente |
+| I6c / I6d implementados | Timer opt-in, `status*`, servicio/port y simulador | Cinco CTest, catorce PNG; evidencia y pendientes en sus baselines |
+| I6b / I6e propuestos | UI/servicio y pruebas; adaptador de dominio cuando corresponda | Entrada/salida por paquete; no ampliar simultáneamente |
 
 Desde `Platformio/Dog-RGB`, baseline existente:
 
@@ -506,7 +516,7 @@ Si una etapa falla, corregirla o reducir su alcance explícitamente; conservar e
 | Alimentación/SYS_EN/SYS_OUT y BOOT | Flash 16 MiB/PSRAM 8 MiB ya detectadas; completar revisión y comportamiento de alimentación. BOOT es GPIO0 independiente | Alimentación portátil y cierre del botón físico; no volver a tratar memoria detectada como desconocida |
 | Número/orden de píxeles, fuente y presupuesto de banco | Montaje actual, rieles y prueba de un píxel con límite reducido | Encender tiras I1; no compilación |
 | Contraste/borde y parámetros ópticos | Arduino_GFX 1.6.7, RGB565/swap 0 y 40 MHz ya usados; inspección óptica pendiente | Cierre visual V1; no selección nueva de driver sin fallo |
-| LVGL/port PC | Resuelto: LVGL 8.4.0 compartido, CMake sin ventana, nueve PNG y cuatro contratos | No bloquea; SDL/runner de animación solo si I6b lo necesita |
+| LVGL/port PC | Resuelto: LVGL 8.4.0 compartido, CMake sin ventana, catorce PNG y cinco contratos | No bloquea; SDL/runner de animación solo si I6b lo necesita |
 | Carga, conector, celda, boost y montaje | Topología revisada y medidas eléctricas/mecánicas | Uso portátil; no entrega de banco |
 
 Cada pendiente se resuelve en la baseline de su etapa, sin abrir un proceso de aprobación adicional para decisiones rutinarias. No convertir las incertidumbres de I5/I7 en bloqueo artificial de I0.
@@ -523,7 +533,7 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | I3 | Pantalla de texto implementada; demo visible confirmada, tiempos de banco registrados; colores/convivencia pendientes |
 | I4 | Software y banco LCD sin periféricos registrados; aceptación conjunta con GPS/LEDs/HTTP/persistencia pendiente |
 | I5 | Implementado y evolucionado en I6a; comparación USB registrada; óptica y carga conjunta siguen abiertas |
-| I6 | I6a confirmado; I6c opt-in con pruebas USB y observación física del propietario. Producto sin timeout automático; V1 restante/V3 abiertos; I6b/I6d/I6e sin iniciar |
+| I6 | I6a/I6c confirmados; I6d implementado con evidencia separada. Producto sin timeout automático; V1 restante/V3 abiertos; I6b/I6e sin iniciar |
 | I7 | Opcional, sin priorización de implementación |
 
 Próximo trabajo al reanudar: V1 en la placa disponible y V2 cuando haya periféricos,
