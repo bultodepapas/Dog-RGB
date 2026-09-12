@@ -4,7 +4,8 @@
 
 An experimental Waveshare LCD 1.69 No Touch V2 profile, I0 diagnostic target
 and I1 LED/I2 GPS/I3 LCD bench targets are implemented in software. The Waveshare
-product now includes a simple text display. USB boot/memory and LCD diagnostics
+product now includes LVGL Activity/Wi-Fi pages, with basic text retained for
+diagnostic comparison. USB boot/memory and LCD diagnostics
 have partial bench evidence; revision/peripheral and full LCD acceptance remain
 pending. See [board targets and bring-up](docs/boards.md);
 Classic remains the default target and shares the same application core.
@@ -29,6 +30,11 @@ while `s/l` retain basic/LVGL comparison. Animation and automatic sleep remain d
 The [I4 bench guide](docs/display-i4.md) adds an explicit LCD-only DEMO (`f`),
 optional serial capture and the remaining joint-load procedure. Boot/memory and
 LCD have partial evidence on the USB board; GPS and strips are not yet attached.
+
+**Development paused after I6a, 2026-09-12.** The
+[incremental plan](../../docs/PLANS/2026-09-12_display-incremental-delivery.md)
+records remaining V1–V3 physical acceptance and separate I6b–I6e packages.
+No timeout, rest detection, battery telemetry or animation is implemented.
 
 ## Implemented subsystems
 

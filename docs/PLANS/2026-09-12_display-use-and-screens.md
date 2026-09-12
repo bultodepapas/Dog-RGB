@@ -1,6 +1,6 @@
 # RGB Dog: uso del collar y contrato de pantallas
 
-Estado: **I6a implementa Actividad y Conexión; evolución posterior propuesta**, 2026-09-12.
+Estado: **I6a implementa Actividad y Conexión; desarrollo pausado y evolución posterior propuesta**, 2026-09-12.
 Las dos páginas y la navegación BOOT se incorporaron según la [guía I6a](../../Platformio/Dog-RGB/docs/display-i6.md).
 Se conserva el resto de este documento como contrato de producto; descanso,
 apagado automático y cambios de radio/LEDs siguen sin implementarse.
@@ -43,7 +43,7 @@ de la segunda página es `Wi-Fi`, y muestra los dos tipos de conexión.
 
 Pregunta: «¿Qué lleva registrado el collar y qué está pasando ahora?».
 
-Propuesta de distribución 240×280:
+Distribución implementada en I6a, 240×280:
 
 - Encabezado discreto `RGB DOG`, indicador de página y texto corto de estado GPS.
 - Dato central de mayor tamaño: distancia con unidad y período explícitos.
@@ -57,9 +57,8 @@ corresponde a hoy, usar `Registrado` y su fecha; no etiquetar un dato conservado
 como `Hoy`. Una fecha no disponible se presenta como desconocida.
 
 Los estados GPS cambian el aviso y la validez de la velocidad, no borran la
-distancia acumulada. El nombre `Paseo` puede mantenerse como título de uso, pero
-no convierte la distancia diaria en distancia de una salida. Por claridad,
-proponemos `Actividad` hasta disponer de una sesión de paseo definida.
+distancia acumulada. El título es `Actividad`; el nombre interno `WalkView`
+se conserva por continuidad y no convierte el acumulado diario en un paseo.
 
 `Pausa estimada` será una variante contextual de esta misma página. Conserva el
 acumulado y sustituye el énfasis de movimiento por la duración observada de la
@@ -75,7 +74,7 @@ collar** y **red que ofrece el collar al teléfono**. ESP32 distingue STA y AP;
 estar asociado a una red no demuestra acceso a Internet, sincronización ni
 alcance remoto. [Documentación oficial Wi-Fi de Espressif](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html).
 
-| Estado observado | Texto propuesto | Información útil |
+| Estado observado | Significado de presentación | Información útil |
 | --- | --- | --- |
 | AP activo, sin clientes | `Portal disponible` | SSID real y dirección AP actual |
 | AP con clientes | `1 dispositivo conectado` o plural | Dirección del portal; asociación no equivale a portal abierto |
@@ -95,6 +94,12 @@ se leen de configuración/estado. Un SSID largo debe caber con distribución
 comprobada, sin marquesina obligatoria ni truncado que impida identificarlo.
 No mostrar contraseñas en el ciclo de navegación normal. QR de acceso queda
 opcional para una iteración posterior y se prueba con el teléfono sobre el LCD.
+
+I6a ya implementa estos estados mediante `ConnectionSnapshot` y `ConnectionView`.
+La tabla expresa significado, no fija cada literal: por ejemplo, el cliente AP
+se presenta como `Portal: 1 conectado`. Hasta 32 bytes ASCII imprimibles se
+distribuyen sin marquesina; otros bytes producen `Nombre no compatible` y
+mantienen la IP útil. mDNS y QR no están incorporados a la vista actual.
 
 ### C. Estado: tercera página posterior
 
@@ -140,7 +145,8 @@ solo el intervalo observado; no descontar `tiempo activo` de `tiempo encendido`
 para calcular reposo, porque esa resta también incluye huecos de señal.
 
 Para apagar pantalla, ensayar **30 s sin interacción**, con override de banco.
-Activarlo solo después de comprobar un botón de despertar accesible y compatible
+El paquete I6c lo ensaya como opción inicialmente desactivada y sin persistencia
+nueva; activarlo solo después de comprobar un botón de despertar accesible y compatible
 con la revisión. Una pulsación despierta; la siguiente cambia de página. Evitar
 despertar con cada paso del perro. Política inicial: apagar únicamente backlight;
 posponer suspensión del renderer, deep sleep y cambios automáticos de luces/radio
@@ -181,8 +187,9 @@ flowchart LR
     OFF -->|Una pulsación: solo despertar| LAST[Página previa actualizada]
 ```
 
-La tercera página Estado se insertará más adelante en el ciclo. No hay pulsación
-larga de software hasta comprobar su interacción con el circuito de alimentación.
+La tercera página Estado se insertará más adelante en el ciclo. I6a ignora
+pulsaciones de 1,5 s o más y las que ya estaban mantenidas al iniciar la entrada.
+BOOT/GPIO0 no se reutiliza como botón de alimentación SYS_OUT/SYS_EN.
 Las alertas no cambian la página recordada; despertar no avanza otra página.
 Al apagarse el backlight, la página lógica y los contadores del dominio permanecen.
 
@@ -194,8 +201,8 @@ definiciones directamente antes de concluir sobre sesiones.
 
 | Información | Disponible en firmware | Frontera de implementación |
 | --- | --- | --- |
-| GPS, velocidad con validez, distancia/fecha y modo LED | Ya están en `DisplaySnapshot` | Se pueden reorganizar en Actividad sin cambiar dominio |
-| STA/AP, conexión en curso, clientes, AP IP | Getters existentes en `wifi_mgr` | Añadir snapshot de presentación de solo lectura para Conexión; STA IP/SSID deben resolverse en el adaptador |
+| GPS, velocidad con validez, distancia/fecha y modo LED | `DisplaySnapshot` y formato actual | Ya reorganizados en Actividad sin cambiar dominio |
+| STA/AP, conexión en curso, clientes, IP/nombres | `ConnectionSnapshot`, gestor Wi-Fi y adaptador actual | Implementado en I6a; datos reales de radio incluso con GPS DEMO, sin scan/reconexión desde UI |
 | Tiempo activo diario, satélites/calidad, historial | Existen en GPS | Adaptar con validez y período explícitos; no parsear JSON del portal en cada frame |
 | Descanso/quietud confiable | No hay contrato dedicado en el snapshot LCD | Clasificador y pruebas separados antes de presentar duración |
 | Paseo iniciado/finalizado por el usuario | No hay contrato equivalente en la UI | Definir ciclo de vida antes de resumen por paseo |
@@ -215,15 +222,22 @@ Fuentes locales: [snapshot actual](../../Platformio/Dog-RGB/include/display/snap
 
 ## 8. Desarrollo gradual y aceptación
 
-1. Cerrar contraste/borde y presupuesto de repintado I5. Preparar fixtures de la
-   nueva jerarquía de Actividad con los datos actuales; no añadir métricas ficticias.
-2. I6 inicial: adaptar Wi-Fi y construir Conexión estática; validar navegación y
-   despertar por separado, primero en simulador y luego con botón confirmado.
-3. Una vez estable, transición breve y apagado por inactividad de consulta;
-   comprobar eventos repetidos y que GPS/LED/portal siguen funcionando.
-4. Añadir Estado si el uso demuestra que aporta información que no cabe en las
-   dos páginas anteriores. Después evaluar pausa estimada y su contrato propio.
-5. Resumen de paseo, modo tranquilo, batería e IMU son extensiones independientes.
+El orden y las tareas detalladas están en los paquetes del
+[plan incremental](2026-09-12_display-incremental-delivery.md):
+
+| Paquete | Estado y salida de producto |
+| --- | --- |
+| I6a | Entregado: Actividad/Wi-Fi, BOOT/despertar, nueve capturas; falta aceptación física final |
+| V1 | Confirmar negro/borde, lectura y botón reales; Wi-Fi/portal con cliente cuando esté disponible |
+| V2–V3 | LEDs y GPS reales, LCD y prueba conjunta; presupuesto USB observado no sustituye la carga del collar |
+| I6b | Transición opcional después de base aceptada; mantener cambio instantáneo si no aporta utilidad |
+| I6c | Timeout de consulta separado de animación; no cambia GPS/LED/radio ni detecta descanso |
+| I6d | Estado si ayuda a resolver una consulta; máximo tres grupos con fuente fiable |
+| I6e | Pausa estimada solo tras contrato de observaciones; variante contextual de Actividad |
+| I7 | Paseos explícitos, modo tranquilo, batería/IMU, QR y avisos se priorizan individualmente |
+
+Durante la pausa no se implementa ningún paquete. Los escenarios siguientes son
+la matriz de producto; cada caso entra cuando exista su función, no todos a la vez.
 
 Escenarios mínimos: arranque sin receptor; búsqueda al aire libre; fix válido;
 cero válido; pérdida/recuperación de señal; registro de otra fecha; AP sin/con

@@ -10,6 +10,11 @@ Subsequently the owner confirmed the demo was visible and authorized independent
 [I5 static LVGL development](display-i5.md). I5 adds `s`/`l` backend controls;
 the I4 results below refer to the preserved basic-renderer image.
 
+[I6a](display-i6.md) subsequently added Activity/Wi-Fi and BOOT navigation.
+Development is now paused; the [incremental plan](../../../docs/PLANS/2026-09-12_display-incremental-delivery.md)
+maps remaining physical acceptance to V1–V3. This protocol remains the joint
+load requirement; later USB-only UI measurements do not close it.
+
 ## Available now
 
 Use `waveshare_lcd169_displaycheck` (stage 3), not a new firmware application or
@@ -54,7 +59,8 @@ python tools/display_bench.py --analyze artifacts/display-i4/lcd-demo-10min.txt 
 If the local Python lacks pyserial, invoke the same command with
 `& "$env:USERPROFILE/.platformio/penv/Scripts/python.exe"` instead of `python`.
 Analysis alone uses the standard library and reuses the existing log parser.
-Steps are seconds after capture starts. Only `t/v/b/d/f/r` are accepted; no
+Steps are seconds after capture starts. The current I6a helper accepts
+`t/v/b/d/f/r/s/l/a/c/n`; the older example above uses only the I4 subset. No
 arbitrary serial command is generated. Capture is capped at one hour and writes
 raw logs plus a JSON observation summary. It records missing logs, fatal markers,
 clock regressions, malformed joined records, mode/enable/backlight observations, GPS counters, heap,

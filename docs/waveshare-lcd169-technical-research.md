@@ -4,6 +4,14 @@ Fecha de consulta y banco: **12 de septiembre de 2026**. Alcance: **ESP32-S3-LCD
 
 ## Decisión para la implementación actual
 
+**Nota de reconciliación tras I6a:** las mediciones siguientes pertenecen a la
+investigación I5 y se conservan como historia. El estado actual tiene dos vistas,
+Actividad/Wi-Fi, distancia principal, nueve capturas, BOOT y máximo USB final de
+44,768 ms por llamada. Véanse [baseline I6a](baselines/display-i6-2026-09-12.md)
+y [flujo vigente](PLANS/2026-09-12_display-ai-workflow.md). Desarrollo pausado;
+el plan incremental contiene los pendientes V1–V3/I6b–I7. Esta revisión no
+añade consultas web ni nuevas mediciones del panel.
+
 Conservar Arduino_GFX 1.6.7 y LVGL 8.4.0, cambiar la superficie a **negro `#000000`** y mantener una sola página estática. La primera versión utilizaba `#101918`: el propietario la percibió como gris brillante. Ese comentario justifica corregir la paleta, pero por sí solo no demuestra inversión de color, fallo del panel o problema eléctrico. El cambio a negro ya se compiló y cargó; su apariencia física necesita observación del propietario.
 
 No hace falta reemplazar el stack para mejorar esta pantalla. La comparación USB de diez minutos conservó el heap observado en 160.856 bytes, sin reinicios detectados. En ventanas de actualización normal, el máximo agregado fue 18,479 ms con LVGL y 4,528 ms con texto básico. La interfaz más elaborada tiene un coste medible, aceptable para seguir evaluando una página a 1 Hz, sin demostrar todavía animación fluida ni convivencia con recepción GNSS real. La [baseline I5](baselines/display-i5-2026-09-12.md) conserva imágenes, versiones, condiciones y resultados.
@@ -116,7 +124,11 @@ Para este tamaño proponemos tipografía jerárquica, márgenes constantes, poca
 
 Un simulador puede demostrar composición y lógica, pero no contraste óptico, PWM, latencia SPI, interferencia de radio o recepción UART. La prueba en placa cierra esas diferencias. Las cifras de frames del PC nunca se trasladarán al collar como medición.
 
-## 9. Orden de trabajo incorporado al plan
+## 9. Orden de trabajo histórico de I5
+
+Esta tabla documenta la secuencia propuesta al investigar I5; segunda vista,
+BOOT y optimización de regiones ya se implementaron en I6a. No usar sus filas
+«Ahora/Siguiente» como cola vigente. El plan incremental conserva la autoridad.
 
 | Prioridad | Incremento concreto | Evidencia para avanzar |
 | --- | --- | --- |

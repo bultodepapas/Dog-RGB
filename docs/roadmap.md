@@ -1,6 +1,6 @@
 # Dog-RGB Roadmap
 
-**Status:** Current priorities as of 2026-08-24. Future phases are optional; they do not redefine the local-first DIY baseline.
+**Status:** General priorities as of 2026-08-24; Display subset reconciled on 2026-09-12 through I6a and the owner-requested pause. Future phases are optional; they do not redefine the local-first DIY baseline.
 
 ## Baseline delivered
 
@@ -43,26 +43,32 @@ Detailed evidence remains in the [cloud reports](cloud/README.md). No website, h
 
 ### Parallel board variant — owner-agreed direction, 2026-09-12
 
-Classic XIAO remains active while a Waveshare ESP32-S3-LCD-1.69 No Touch variant is developed with one shared firmware core and separate board profiles. I0 profiles and stage-0 diagnostics, the I1 LED bench target, the I2 normal-core GPS/LED target and I3 text LCD are implemented in software; physical revision, boot, peripherals and display acceptance remain unconfirmed/pending. The [incremental Display plan](PLANS/2026-09-12_display-incremental-delivery.md) is the execution authority, with [I3 software evidence](baselines/display-i3-2026-09-12.md); hardware/visual research is supporting material.
+Classic XIAO remains active with one shared firmware core and separate board
+profiles. The [Display incremental plan](PLANS/2026-09-12_display-incremental-delivery.md)
+is the execution authority. **Display development is paused at the owner's
+request after I6a**; this does not pause or redefine the independent cloud plan.
 
-I4 preparation now includes native configuration save/reload checks and an explicit LCD-only demo on the connected bare board; full joint-load acceptance remains open. See [I4 progress](baselines/display-i4-2026-09-12.md).
+Delivered: seven targets, I0–I3 diagnostics, I4 software preparation, LVGL 8.4.0
+shared renderer, Activity/Wi-Fi, BOOT release/wake, nine PNGs and four CTest
+contracts. Firmware host suite: 146/146. Final USB navigation maximum: 44.768 ms
+per service call after reduced page redraw and staged margin restoration.
+[Baseline I6a](baselines/display-i6-2026-09-12.md) records the exact image and
+limits; actual button/optical and GNSS/LED/HTTP joint acceptance remain open.
 
-After the owner confirmed seeing the I4 demo and authorized continuing, independent
-I5 development added a shared LVGL 8.4.0 static view, three PC captures and USB
-comparison with the basic page. See [I5 progress](baselines/display-i5-2026-09-12.md).
-This does not close I4's real-peripheral gate or introduce I6 animations.
-The ten-minute USB comparison is complete and the owner's requested black palette
-is uploaded with a separate smoke result. The [technical investigation](waveshare-lcd169-technical-research.md)
-informs the next color/backlight checks; the observed 50.485 ms full redraw must
-be addressed against the 50 ms budget before advancing to animation.
+| Resume order | Scope |
+| --- | --- |
+| V1 | Confirm final pages, black/border, physical BOOT and real radio/portal client cases |
+| V2 | Complete physical I0 identification/power, I1 LEDs, I2 GPS+LEDs and I3 LCD/live data |
+| V3 | I4 thirty-minute joint load, persistence/export and final I6a comparison |
+| I6b | Optional transition after accepted navigation and joint baseline |
+| I6c | Separate inactivity timeout, initially backlight only; wake does not navigate |
+| I6d / I6e | Useful State page, then estimated pause only with a validated observation contract |
+| I7 | Choose one extension: battery, walk lifecycle, sensors, typography or alerts |
 
-I6a now implements Activity/Connection, read-only radio presentation and BOOT
-release/wake logic. The first physical navigation run identified full-frame
-redraw cost; the implementation now restricts navigation to the content region.
-See [I6a evidence](baselines/display-i6-2026-09-12.md) for measured results and
-remaining physical acceptance. Animation and automatic screen timeout remain separate.
-
-Order: **I0 baseline/profiles → I1 LEDs → I2 GPS → I3 simple text display → I4 consolidated collar → I5 LVGL view/simulator → I6 navigation/motion**. I7 battery telemetry, RTC, IMU and other extensions remain optional. A bank-tested base and a portable validated collar are distinct deliveries. This sequence does not postpone Classic improvements or depend on cloud milestones.
+Software preparation can proceed without absent peripherals once work resumes;
+it cannot close physical gates. Bench acceptance and portable-collar validation
+remain distinct. No new graphics dependency or copied GPS/LED/portal core is
+required. Wokwi Classic runtime recovery remains a separate regression task.
 
 ### Shared physical evidence
 

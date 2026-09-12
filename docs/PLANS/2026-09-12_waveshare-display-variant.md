@@ -1,14 +1,23 @@
 # RGB Dog: variante con Waveshare ESP32-S3-LCD-1.69
 
-Fecha: 2026-09-12. Estado: **Investigación y arquitectura objetivo; I0/I1 de software implementados, LCD y aceptación física pendientes**.
+Fecha: 2026-09-12. Estado: **Investigación de apoyo reconciliada con I6a; desarrollo pausado y aceptación física conjunta pendiente**.
 
-Actualización de ejecución: existen los perfiles y targets Classic/Display/bringup con diagnósticos de etapas 0 y 1; véanse [baseline I0](../baselines/display-i0-2026-09-12.md) y [guía de placas](../../Platformio/Dog-RGB/docs/boards.md). Las funciones de pantalla, sensores y etapas siguientes descritas aquí siguen siendo propuestas.
+Actualización: existen siete entornos, diagnósticos I0–I3, texto/LVGL y dos páginas
+con BOOT. I6a está cargado en la placa USB sin GPS ni tiras; véanse
+[baseline I6a](../baselines/display-i6-2026-09-12.md) y
+[guía de placas](../../Platformio/Dog-RGB/docs/boards.md). Arduino_GFX 1.6.7,
+LVGL 8.4.0 y renderer sin ventana ya están probados; nueve PNG y cuatro CTest.
+La investigación original siguiente conserva alternativas y cálculos de diseño,
+no tareas pendientes por defecto. Sensores, animación y timeout no están implementados.
 
 Revisión de coherencia 2026-09-12: contratos de targets, diagnóstico, datos y pruebas contrastados con código/CI en el plan incremental. Este documento aporta evidencia y opciones; no define un segundo backlog.
 
 **Orden de ejecución actualizado por el propietario:** [Desarrollo incremental I0–I7](2026-09-12_display-incremental-delivery.md). Primero placa y LEDs, después GPS, pantalla sencilla y consolidación. LVGL, simulador y refinamiento visual se incorporan posteriormente. Este documento conserva la investigación técnica y la arquitectura objetivo.
 
-La versión XIAO sin pantalla continúa activa. Se propone una segunda variante con pantalla y un único núcleo de firmware compartido. Los nombres Classic y Display son provisionales. Este documento está en español por solicitud del propietario.
+La versión XIAO sin pantalla continúa activa. La segunda variante Display ya
+usa el mismo núcleo de firmware con perfil propio. Este documento está en
+español por solicitud del propietario; el estado actual prevalece sobre las
+propuestas históricas de las secciones de investigación.
 
 ## Decisión recomendada
 
@@ -46,6 +55,7 @@ Se extrajo y revisó visualmente la única página del [esquema oficial V2](http
 | SYS_OUT, lectura de botón / SYS_EN, control de alimentación | 40 / 41 |
 | Buzzer | 42 |
 | USB D− / D+ | 19 / 20 |
+| BOOT, entrada UI reservada desde I6a | 0 |
 
 Propuesta de asignación externa, condicionada a identificar PCB y verificar continuidad del cable:
 
@@ -87,38 +97,55 @@ flowchart TD
     UI --> SIM[Simulador PC]
 ```
 
-Estructura propuesta dentro del firmware activo:
+Rutas actuales de las fronteras principales (herramienta PC en la raíz):
 
 ```text
 include/board/board_profile.h
 include/board/xiao_s3.h
 include/board/waveshare_lcd169_v2.h
-include/display/display_service.h
-include/display/display_snapshot.h
-src/board/waveshare_lcd169.cpp
-src/display/display_service.cpp
-src/display/ui/screens.cpp
-src/display/ui/theme.cpp
+include/display/display.h
+include/display/snapshot.h
+include/display/connection.h
+include/display/button.h
+src/display/display.cpp
+src/display/snapshot.cpp
+src/display/connection_snapshot.cpp
+src/display/lvgl_port.cpp
+src/display/ui/walk_view.cpp
+src/display/ui/connection_view.cpp
 tools/display-simulator/            # en la raíz del repositorio
 ```
 
-Un perfil de compilación selecciona pines y capacidades físicas; configuración de usuario selecciona brillo, tiempo de apagado o página. Separar `has_display`, `has_touch`, `has_battery_adc`, `has_imu` de `display_ready` y `battery_valid`: que exista el chip no prueba que el driver esté implementado ni que la lectura sea válida.
+Un perfil de compilación selecciona pines/capacidades; página e iluminación son
+estado de UI. Tiempo de apagado y brillo LCD configurables siguen propuestos,
+no campos persistidos entregados. Que exista un chip no prueba que su driver
+esté implementado ni que su lectura sea válida.
 
-Añadir un entorno `waveshare_lcd169` y un entorno de diagnóstico `waveshare_lcd169_bringup`. Conservar `seeed_xiao_esp32s3` y su derivación Wokwi. Compartir dependencias comunes; incluir LVGL y driver LCD únicamente en Display, con exclusión real de fuentes y dependencias en Classic. Fijar modelo de flash/PSRAM y USB con una definición de board verificada; no heredar a ciegas el manifest XIAO.
+Ya existen `waveshare_lcd169` y cuatro diagnósticos de etapas 0–3, junto a
+Classic/Wokwi. Conservar dependencias comunes y exclusión real de gráficos en
+Classic e I0–I2. Flash 16 MiB y PSRAM 8 MiB fueron detectadas por USB; confirmar
+revisión física sigue siendo una tarea distinta. No rehacer la selección de
+targets como requisito para continuar I6a.
 
 Mantener una rama principal común y ramas cortas por tarea. Cada cambio compartido se compila para ambos dispositivos. Publicar binarios con nombre de placa, revisión, versión y commit. La disponibilidad de dos particiones OTA no significa que exista actualización OTA: esa función sigue fuera del primer alcance.
 
-El contrato mínimo `DisplaySnapshot` de I3 está definido en el [plan incremental](2026-09-12_display-incremental-delivery.md): estado GNSS, velocidad/validez, distancia diaria/fecha, modo LED e instante de captura. `total_distance_m()` representa el día registrado; no es distancia de sesión y `has_current_fix()` no basta para declarar calidad confiable. Tiempo activo, sesión, AP/STA y batería se incorporan únicamente cuando una vista posterior los necesite. Sin HTTP contra el propio ESP32, punteros a estado mutable o escrituras NVS desde callbacks de dibujo. Las acciones futuras de UI entrarán por comandos comunes al portal y al dispositivo.
+El contrato mínimo `DisplaySnapshot` de I3 está definido en el [plan incremental](2026-09-12_display-incremental-delivery.md): estado GNSS, velocidad/validez, distancia diaria/fecha, modo LED e instante de captura. `total_distance_m()` representa el día registrado; no es distancia de sesión y `has_current_fix()` no basta para declarar calidad confiable. AP/STA ya se incorporaron mediante `ConnectionSnapshot` en I6a. Tiempo activo, sesión y batería se ampliarán solo cuando una función los necesite. Sin HTTP contra el propio ESP32, punteros a estado mutable o escrituras NVS desde callbacks de dibujo. Las acciones futuras de UI entrarán por comandos comunes al portal y al dispositivo.
 
 ## Stack de interfaz y rendimiento
 
-Para I3 usar **Arduino y un driver LCD mínimo validado**, con texto directo y una sola página. LVGL no es requisito de esa entrega. Para I5, Arduino_GFX + LVGL 8.4.0 es candidato de reproducción: la wiki referencia Arduino_GFX 1.4.9 y LVGL 8.4.0, sin garantizar compatibilidad con el core actual. Resolver la combinación en un smoke test antes de multiplicar vistas; evaluar v9 solo si existe una razón concreta. No mezclar API v8 y v9.
+I3 incorporó texto directo con Arduino_GFX 1.6.7. I5 añadió LVGL 8.4.0 y I6a
+entregó dos páginas. La combinación está compilada y observada en USB; la
+referencia antigua Arduino_GFX 1.4.9 de la wiki no es la dependencia actual.
+Evaluar v9 solo ante necesidad concreta, cambiando PC y placa juntos.
 
 Para una pantalla de estado simple Arduino_GFX solo sería suficiente. LVGL aporta valor aquí por el crecimiento previsto: varias vistas, estilos, navegación y simulación reutilizable. Un editor visual queda opcional; no hace falta una suscripción de diseño para empezar.
 
 El [simulador oficial LVGL 8.4](https://docs.lvgl.io/8.4/get-started/platforms/pc-simulator.html) permite ejecutar UI real en PC. Usar la misma versión de LVGL y los mismos archivos `ui/` que el firmware, con backend SDL/Windows y entradas de teclado equivalentes al botón físico. Una maqueta HTML puede ayudar a elegir estética, pero no valida memoria, SPI ni el resultado LVGL.
 
-Presupuesto calculado de diseño, todavía sin medición:
+Los cálculos iniciales siguientes no sustituyen la medición I6a: SPI 40 MHz,
+un buffer de 20 filas (9.600 bytes), pool de 48 KiB y máximo USB final de
+44,768 ms por llamada. Dos buffers siguen siendo una alternativa no adoptada.
+La comparación de carga conjunta permanece pendiente.
 
 - Un frame RGB565: `240 × 280 × 2 = 134.400 bytes` (131,25 KiB).
 - Dos buffers parciales de 20 filas: `2 × 240 × 20 × 2 = 19.200 bytes` (18,75 KiB).
@@ -140,20 +167,25 @@ Esta secuencia describe el destino ampliado: I3 incorpora solo alimentación, LC
 5. En I3 dibujar texto directo; en I5 crear buffers, LVGL, tema y primera vista. Encender backlight tras el primer frame; la rampa es un refinamiento posterior. El servicio Display se inicia al final del arranque normal, con trabajo acotado.
 6. Solo en una extensión I7 iniciar I²C y sondear RTC/IMU con timeout. Los errores detectables de sensor/driver deben permitir continuar GPS/LEDs/portal. Un ST7789 conectado por SPI de escritura no ofrece por ello detección fiable de presencia: verificar imagen físicamente.
 7. Servir GPS primero en el loop y publicar snapshots con cadencia limitada después del trabajo existente. Desde I6 muestrear botón sin bloquear.
-8. En I6, al vencer el tiempo de pantalla, apagar backlight y suspender refresco. Seguir recibiendo GNSS y ejecutando el collar. Deep sleep del MCU es una función distinta y no debe activarse durante tracking continuo. En I3, apagado/encendido solo como comprobación de diagnóstico.
+8. Propuesta I6c: timeout opcional que apaga solo backlight, tras validar despertar.
+   Suspender además refresco es una optimización distinta. Seguir recibiendo
+   GNSS y ejecutando el collar. Deep sleep no pertenece a ese timeout.
 
 El RTC puede mantener hora entre arranques, pero no se convierte automáticamente en fecha GNSS confiable. Conservar las reglas existentes de rollover y validez. Un fallo de PSRAM debe tener salida explícita: degradación si caben buffers mínimos o UI deshabilitada y diagnóstico.
 
 ## Diseño de producto y trabajo con Codex
 
-La pantalla sirve para consultar el collar al ponerlo, retirarlo o detenerse. I3 entrega únicamente una página de texto. El catálogo siguiente es una evolución posible desde I5/I6, una vista por incremento:
+La pantalla sirve para consultar el collar al ponerlo, retirarlo o detenerse.
+El [contrato de uso](2026-09-12_display-use-and-screens.md) reemplaza el catálogo
+inicial Paseo/Luces/Conexión/Resumen por el siguiente:
 
 | Vista | Contenido y estados |
 | --- | --- |
-| Paseo | I5 conserva velocidad, distancia diaria/fecha y modo de I3; estado GNSS explícito. Tiempo/sesión requieren extensión de datos posterior |
-| Luces | Modo, escena y brillo; indicación comprensible si actúa el límite de corriente |
-| Conexión | AP disponible, SSID/IP y estado STA; no anunciar enlace activo si está apagado |
-| Resumen | Distancia diaria y tiempo activo; batería únicamente tras su validación I7 |
+| Actividad, implementada | Distancia registrada/fecha principal, GPS, velocidad y modo LED secundarios |
+| Wi-Fi, implementada | AP/STA separados con nombres/IP reales; solo lectura |
+| Estado, I6d propuesto | GPS, luces efectivas y registro si hay datos fiables; una tercera página |
+| Pausa, I6e propuesta | Variante de Actividad tras evidencia válida; sin señal no significa reposo |
+| Resumen por paseo, I7 opcional | Requiere ciclo de vida propio; sesión de arranque no equivale a paseo |
 
 Fondo oscuro, números de 36–48 px, etiquetas de 16–20 px, márgenes iniciales de 16 px ajustados al recorte real, unidades visibles y color acompañado de texto/icono. No reutilizar el portal completo en 240 × 280. El fondo negro mejora contraste; el ahorro principal del LCD se obtiene regulando backlight.
 
@@ -169,7 +201,7 @@ Flujo de diseño con IA:
 4. Exportar PNG de cada estado desde el renderizador real. Codex compara referencia/resultado y corrige recorte, jerarquía y navegación. Guardar baselines revisados, sin aceptarlos automáticamente.
 5. Compilar para ambos targets y verificar en placa lectura exterior, colores, consumo, botón y continuidad GNSS. El simulador no sustituye esas mediciones.
 
-La [documentación oficial de entradas de imagen](https://learn.chatgpt.com/docs/image-inputs) confirma capturas/referencias como contexto y el uso de `codex --image`. Ejemplo de encargo futuro:
+La [documentación oficial de entradas de imagen](https://learn.chatgpt.com/docs/image-inputs) confirma capturas/referencias como contexto y el uso de `codex --image`. Ejemplo histórico del encargo I5, ya ejecutado y sustituido por el encargo de reanudación del flujo vigente:
 
 ```text
 Al llegar a I5, implementa la vista Paseo con la versión LVGL fijada
@@ -212,7 +244,10 @@ Pruebas específicas futuras: selección de perfiles sin pines duplicados, rutas
 
 ### Ampliación: interfaces bonitas y fluidas (investigación web, 2026-09-12)
 
-Investigación aplicable desde I5: UI propia con LVGL y simulador reproducible; editor visual opcional. Diseñar una sola vista Paseo y medirla en la Waveshare antes de extender el catálogo. Estas herramientas no son requisitos de I0–I4 y no han sido instaladas ni probadas en este repositorio.
+La ruta LVGL propia con renderer reproducible ya se aplicó hasta I6a. Los
+editores alternativos de la tabla siguen opcionales y no fueron instalados o
+evaluados localmente. Sus características/licencias son referencias de la
+consulta fechada, por verificar otra vez solo si se decide adoptar alguno.
 
 | Camino | Evidencia y aplicación propuesta |
 | --- | --- |
@@ -227,9 +262,12 @@ LVGL publica un flujo de IA basado en documentación MCP, ejemplos XML y validac
 
 #### Dirección visual específica
 
-Propuesta de diseño, no especificación del fabricante: estética de instrumento deportivo compacto. Fondo casi negro, texto marfil, acento verde lima o cian, y ámbar/rojo reservados para estados. Un dato principal por vista, dos secundarios y una barra pequeña de estado. Usar ancho estable para números y unidades; evitar saltos de alineación entre `9.9` y `10.0`. Los estados “sin fix” y “dato antiguo” deben tener composición deliberada, no parecer errores de layout.
+Dirección revisada tras I6a: negro puro, texto blanco/gris, color acotado a
+estados y distancia registrada principal. La propuesta inicial casi negra con
+fondo verde fue descartada por preferencia del propietario. Mantener unidades
+estables y estados sin fix/caducado deliberados, con geometría probada.
 
-Paseo: encabezado corto; velocidad en el centro; distancia y tiempo debajo; puntos de página al pie. Luces: nombre de escena y una muestra pequeña de paleta. Conexión: estado e IP legibles. Resumen: distancia diaria y tiempo activo. Diseñar pensando en consulta breve y en movimiento: Google recomienda información interpretable de un vistazo y pruebas con distracción para wearables. Aquí se toman esos principios visuales, no el runtime Android ni sus gestos táctiles. [Guía de wearables](https://developer.android.com/design/ui/wear/guides/get-started/design-for-wearables?hl=en)
+La propuesta original centraba Paseo en velocidad y añadía Luces/Resumen; I6a la sustituyó por Actividad con distancia principal y Wi-Fi. Estado/pausa tendrán sus propios incrementos. Diseñar pensando en consulta breve: Google recomienda información interpretable de un vistazo y pruebas con distracción para wearables. Aquí se toman esos principios visuales, no el runtime Android ni sus gestos táctiles. [Guía de wearables](https://developer.android.com/design/ui/wear/guides/get-started/design-for-wearables?hl=en)
 
 Referencia de implementación: el [demo smartwatch de LVGL](https://github.com/lvgl/lv_demos/blob/master/src/smartwatch/lv_demo_smartwatch.c) permite estudiar composición y transiciones. Su código recomienda 384 × 384; no es un ejemplo listo para 240 × 280 ni un benchmark de esta placa. Adaptar jerarquía y densidad en vez de reducir toda la pantalla proporcionalmente.
 
@@ -259,6 +297,12 @@ Desde I6, objetivo base de 20 FPS estables durante movimiento; explorar 30 FPS p
 
 Medir frame times p50/p95/máximo, tiempo SPI, área actualizada, latencia botón→frame, heap mínimo y continuidad GNSS. Repetir con Wi-Fi y ambas tiras activas. Capturas sirven para composición; usar una secuencia temporal o vídeo y medición en dispositivo para juzgar fluidez. Criterio de elección de herramienta: producir la misma vista, exportarla, compilarla y capturar sus estados; elegir la que mantenga mejor el ciclo reproducible con menos trabajo manual.
 
-Registro de la investigación inicial, anterior a I0: se revisaron fuentes oficiales, el esquema V2 y puntos de integración del repositorio; se creó este plan y se enlazó en índices. Esa investigación solo modificó documentos. La implementación y compilaciones I0 posteriores se registran por separado en la baseline enlazada al inicio; todavía no incluyen driver LCD, UI o validación física.
+Registro histórico: la investigación anterior a I0 solo modificó documentos.
+Después se implementaron perfiles, diagnósticos y UI hasta I6a; las baselines
+separan esa evidencia de la investigación. Esta reconciliación también cambia
+solo documentos y conserva fuentes consultadas y resultados históricos.
 
-Pendientes físicos decisivos: SKU/revisión real, polaridad del cable de batería, demo correcto de encendido, corriente de carga, dimensiones/masa y consumo. Ninguno se deduce con certeza de la captura de compra. Tras la implementación I0 de software, corresponde validar arranque de la placa candidata y luego I1, LEDs. El simulador visual corresponde a I5.
+Pendientes físicos: identificación completa, aceptación óptica/BOOT, periféricos,
+carga conjunta y uso portátil. Polaridad de batería, corriente de carga,
+dimensiones/masa y consumo no se deducen de la compra ni de la demo USB.
+Al reanudar, seguir V1–V3 e I6b–I7 del plan incremental; el simulador ya existe.

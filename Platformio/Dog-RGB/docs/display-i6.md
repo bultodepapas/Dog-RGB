@@ -1,5 +1,10 @@
 # I6a — Activity, Connection and BOOT navigation
 
+**Implemented; development paused after USB observation, 2026-09-12.** Remaining
+physical checks and future packages are defined in the
+[incremental plan](../../../docs/PLANS/2026-09-12_display-incremental-delivery.md).
+The pause does not alter the loaded firmware or mark physical acceptance complete.
+
 This increment implements the first two pages from the
 [collar-use contract](../../../docs/PLANS/2026-09-12_display-use-and-screens.md).
 It retains LVGL 8.4.0, Arduino_GFX 1.6.7, RGB565/swap 0, 40 MHz SPI, the existing

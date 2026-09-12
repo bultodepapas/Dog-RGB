@@ -306,10 +306,21 @@ actual display service with fake SPI, detected panel-init failure and the real
 Wi-Fi snapshot adapter with read-only stubs. These are
 additional to the 146-test firmware host suite, not browser mocks or measurements
 of physical FPS. CI has a separate job and capture artifact for this tool.
-The [I5 baseline](baselines/display-i5-2026-09-12.md) records local results and
-distinguishes the board's bare-LCD measurements from the outstanding I4 load gate.
+The [I6a baseline](baselines/display-i6-2026-09-12.md) records current results,
+image/source hashes and the final 44.768 ms USB service maximum. The
+[I5 baseline](baselines/display-i5-2026-09-12.md) retains the earlier comparison.
+Neither closes the outstanding I4 real-peripheral load gate.
 The [I6a guide](../Platformio/Dog-RGB/docs/display-i6.md) adds page selection,
 BOOT release/wake tests and the Connection scenarios.
+
+Display development is paused. On resumption, use V1–V3 in the
+[incremental plan](PLANS/2026-09-12_display-incremental-delivery.md): physical
+button/optical/radio, staged peripheral bring-up and then thirty-minute joint
+load. Record physical versus serial-injected events, separate normal-update and
+navigation histograms, counter deltas within each boot and visible latency
+separately from service time. The two-phase diagnostic restore is not one-frame
+latency evidence. For documentation-only edits, check links, status consistency
+and `git diff --check`; no firmware rebuild or board manipulation is required.
 
 ## Physical validation checklist
 

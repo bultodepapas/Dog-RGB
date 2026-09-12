@@ -4,6 +4,21 @@
 
 Dog-RGB works without an app or cloud account. Use the LEDs for quick status and the collar's local Wi-Fi portal for metrics, route history, configuration, and diagnostics.
 
+## Experimental Display variant — I6a update, 2026-09-12
+
+Waveshare adds two read-only pages: Activity shows registered distance/date,
+valid speed, GPS and LED mode; Wi-Fi shows the collar's AP and station state,
+network names and current addresses. A short BOOT press/release while running
+changes page. If the backlight is off, the first press only wakes the current
+page. There is no automatic screen timeout or rest detection yet.
+
+`DEMO` marks simulated GPS presentation; it does not represent a real recorded
+walk. Registered distance is not necessarily one walk or today's record, and
+missing GPS is not rest. Wi-Fi association does not prove Internet access.
+Final physical button/legibility and joint peripheral checks remain pending;
+development is paused. See [Display guide](../Platformio/Dog-RGB/docs/display-i6.md)
+and [remaining plan](PLANS/2026-09-12_display-incremental-delivery.md).
+
 ## Safety before use
 
 - Complete the [bench-test sequence](manual_de_construccion.en.md#bench-acceptance-checklist) before putting the collar on a dog.

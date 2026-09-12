@@ -2,7 +2,7 @@
 
 This is the canonical documentation index for Dog-RGB. English is the source language; Spanish pages are maintained as convenience translations for builders and users.
 
-Last code-alignment review: **2026-08-13** against the active firmware in [`Platformio/Dog-RGB`](../Platformio/Dog-RGB/).
+Last full code-alignment review: **2026-08-13**. Display documentation reconciled through **I6a on 2026-09-12** against implementation and recorded evidence; development is paused at the owner's request. This scoped update does not revalidate unrelated workstreams.
 
 ## Document status
 
@@ -72,7 +72,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Display I5 progress](baselines/display-i5-2026-09-12.md) | See recorded acceptance | Three real-renderer captures, UI/service contracts and USB bench results |
 | [Display I6a pages and input](../Platformio/Dog-RGB/docs/display-i6.md) | Implemented, see physical evidence | Activity/Connection, read-only Wi-Fi adapter, BOOT release/wake and bounded redraw |
 | [Display I6a baseline](baselines/display-i6-2026-09-12.md) | See recorded acceptance | Nine shared-renderer captures, navigation tests, resource changes and USB timing |
-| [Waveshare LCD 1.69 technical investigation](waveshare-lcd169-technical-research.md) | Research applied to I5, Spanish | Black/backlight diagnosis, official V2 circuit and initialization, SPI budget, forum cases and staged follow-up |
+| [Waveshare LCD 1.69 technical investigation](waveshare-lcd169-technical-research.md) | Historical I5 research with I6a reconciliation, Spanish | Black/backlight diagnosis, official V2 circuit, SPI budget and forum cases; follow the incremental plan for current tasks |
 | [Display I3 baseline](baselines/display-i3-2026-09-12.md) | Software evidence; physical acceptance pending | Seven builds, native adapter/rendering checks, layout previews and resource deltas |
 | [Display I2 baseline](baselines/display-i2-2026-09-12.md) | Software evidence; physical acceptance pending | GPS reception/readout, normal LED policy with bench limits, six builds and 137 host tests |
 | [Display I1 baseline](baselines/display-i1-2026-09-12.md) | Software evidence; physical acceptance pending | LED commands, actual bus/limiter native tests, five builds, resource comparison and bench limits |
@@ -98,15 +98,19 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Visual screenshot workflow](ap_portal_visual_screenshot_workflow_guide.md) | Current | Playwright workflow and baseline rules |
 | [Wokwi guide](../Platformio/Dog-RGB/docs/wokwi.md) | Current | Simulation assets, scenarios, controls, and limitations |
 
+## Display planning and supporting research
+
+| Document | Status | Notes |
+| --- | --- | --- |
+| [Waveshare display variant research and integration plan](PLANS/2026-09-12_waveshare-display-variant.md) | Supporting research reconciled through I6a, Spanish | V2 schematic, implemented profiles/UI and explicitly optional hardware/tooling extensions |
+| [Display incremental delivery](PLANS/2026-09-12_display-incremental-delivery.md) | Governing contract; paused after I6a, Spanish | V1 optical/button/radio, V2 physical I0–I3, V3 joint load; separate I6b–I6e packages and I7 decisions |
+| [Display AI design workflow](PLANS/2026-09-12_display-ai-workflow.md) | Current workflow through I6a, Spanish | Shared components → existing renderer → nine captures → corrections → board validation; animation capture remains proposed |
+| [Display use and screen contract](PLANS/2026-09-12_display-use-and-screens.md) | I6a implemented; later states proposed, Spanish | Activity/Wi-Fi, rest versus missing GPS, independent inactivity policy and future State/pause contracts |
+| [Display libraries and repository research](display-library-research.md) | Research with applied stack, Spanish | Arduino_GFX/LVGL pinned and observed locally; other repositories were reviewed, not benchmarked; future evaluations stay conditional |
 ## Optional future work
 
 | Document | Status | Notes |
 | --- | --- | --- |
-| [Waveshare display variant research and integration plan](PLANS/2026-09-12_waveshare-display-variant.md) | I0–I3 software implemented; later architecture proposed, Spanish | V2 schematic reference, physical bring-up still pending and future Codex/LVGL UI workflow |
-| [Display incremental delivery](PLANS/2026-09-12_display-incremental-delivery.md) | Active contract; I0–I3 software implemented, Spanish | Execution authority: physical I0–I3, consolidation, then gradual AI/LVGL UI work |
-| [Display AI design workflow](PLANS/2026-09-12_display-ai-workflow.md) | Proposed from I5, Spanish | Reference → shared LVGL components → minimum simulator → three static captures → corrections → board validation; navigation/motion follows in I6 |
-| [Display use and screen contract](PLANS/2026-09-12_display-use-and-screens.md) | Proposed next increments, Spanish | Collar use, Activity/Connection pages, rest versus missing GPS, screen inactivity, alerts and data availability |
-| [Display libraries and repository research](display-library-research.md) | Research and proposed selection, Spanish | Driver comparison, native animations, fonts, reviewed source examples and bounded evaluation per increment; no hardware benchmark performed |
 | [Companion app MVP](app_mvp_spec.md) | Proposed | BLE reader concept; blocked while BLE remains disabled by default |
 | [Portal configuration presets](portal_config_presets.md) | Proposed | Whole-runtime profiles distinct from implemented visual scenes; no selector/config-preset persistence |
 | [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–5 implemented in software; physical-HIL acceptance remains separate, Spanish | Current-limiting, effect-registry, palette, segment, scene, and web-asset roadmap |

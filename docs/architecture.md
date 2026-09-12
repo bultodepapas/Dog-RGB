@@ -80,6 +80,23 @@ Arduino_GFX. Physical Waveshare acceptance remains open. See
 [board targets](../Platformio/Dog-RGB/docs/boards.md) and the
 [I3 evidence](baselines/display-i3-2026-09-12.md).
 
+I5/I6a add LVGL 8.4.0 on top of that driver in the two display targets only.
+`WalkView` presents Activity; `ConnectionView` reads a separate bounded
+`ConnectionSnapshot`. The Wi-Fi adapter reads existing AP/STA state without
+scan/reconnect/configuration writes. The cooperative display service owns one
+black root and two reusable content containers, updating the active page at
+1 Hz only when its strings change. BOOT/GPIO0 emits debounced release events;
+page selection and backlight remain independent. No inactivity timeout, rest
+classifier or battery telemetry is implemented.
+
+The PC renderer links the same UI/configuration and exports nine PNGs; four
+native contracts include the actual service and radio adapter with fake
+transports. Display uses a 48 KiB LVGL pool and one 9,600-byte partial buffer.
+Diagnostic returns restore margins and content in separate loop iterations,
+relighting after completion. These architectural changes preserve the common
+GPS/LED/portal core and Classic isolation. See [I6a guide](../Platformio/Dog-RGB/docs/display-i6.md)
+and [measured baseline](baselines/display-i6-2026-09-12.md).
+
 | Module | Primary files | Responsibility |
 | --- | --- | --- |
 | Orchestrator | `src/main.cpp` | Boot order, bounded cooperative loop, heartbeat, periodic diagnostics, serial log queue |
