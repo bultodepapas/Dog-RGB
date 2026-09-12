@@ -34,7 +34,9 @@ All product filters exclude `bringup/`; Classic and stages 0–2 also exclude
 only `main.cpp`, `board/` and `bringup/bringup.cpp`; its setup/loop do not start storage,
 scenes, GPS, LEDs, BLE or Wi-Fi. The product Waveshare target still follows the
 normal application boot, including welcome; use **bringup** for the I0 bench
-check, with external strips/GNSS disconnected. Only the Waveshare product and stage 3 add Arduino_GFX; no LVGL is installed.
+check, with external strips/GNSS disconnected. Only the Waveshare product and
+stage 3 add Arduino_GFX and, from [I5](display-i5.md), LVGL 8.4.0. The basic
+text page remains selectable in stage 3 for comparison.
 The I1 target adds only `led_check.cpp`, `LedBus`, RGBW conversion and the existing
 limiter. It excludes `led_ui.cpp`, welcome, scenes, GPS and radio/application
 storage; only one driver owns each LED pin.

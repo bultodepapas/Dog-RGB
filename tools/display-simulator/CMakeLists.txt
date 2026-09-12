@@ -28,3 +28,20 @@ elseif(MSVC)
 endif()
 enable_testing()
 add_test(NAME display_static_contract COMMAND display_simulator "${CMAKE_CURRENT_BINARY_DIR}/test-output")
+add_executable(display_port_test test_port.cpp
+  "${FIRMWARE}/src/display/display.cpp"
+  "${FIRMWARE}/src/display/lvgl_port.cpp"
+  "${FIRMWARE}/src/display/ui/walk_view.cpp"
+  "${FIRMWARE}/src/display/text_view.cpp"
+  "${FIRMWARE}/src/led/led_state.cpp")
+target_include_directories(display_port_test PRIVATE test-support "${FIRMWARE}/include")
+target_compile_definitions(display_port_test PRIVATE DOG_RGB_BOARD_WAVESHARE_LCD169_V2=1
+  DOG_RGB_DISPLAY_ENABLED=1 DOG_RGB_DISPLAY_LVGL=1 DOG_RGB_BRINGUP_STAGE=3)
+target_link_libraries(display_port_test PRIVATE lvgl)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(display_port_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+elseif(MSVC)
+  target_compile_options(display_port_test PRIVATE /UNDEBUG)
+endif()
+add_test(NAME display_port_contract COMMAND display_port_test)
+add_test(NAME display_port_failure COMMAND display_port_test fail)

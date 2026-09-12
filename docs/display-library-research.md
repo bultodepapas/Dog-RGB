@@ -1,6 +1,6 @@
 # Bibliotecas y referencias para RGB Dog Display
 
-Investigación consultada el 2026-09-12. **Investigación inicial; actualización I3: Arduino_GFX 1.6.7 instalado y compilado con el core fijado, aún sin prueba física.** Complementa el [plan incremental](PLANS/2026-09-12_display-incremental-delivery.md), que conserva autoridad sobre el orden de ejecución.
+Investigación consultada el 2026-09-12. **Actualización de implementación: Arduino_GFX 1.6.7 probado por USB en I4; LVGL 8.4.0 fijado para PC/placa en [I5](../Platformio/Dog-RGB/docs/display-i5.md).** La demo I4 visible fue confirmada por el propietario; la aceptación conjunta sigue abierta. Complementa el [plan incremental](PLANS/2026-09-12_display-incremental-delivery.md), que conserva autoridad sobre el orden de ejecución.
 
 ## Selección por capa
 

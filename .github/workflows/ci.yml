@@ -107,6 +107,27 @@ jobs:
         working-directory: Platformio/Dog-RGB
         run: python -m unittest discover -s test -p "test_*.py" -v
 
+  display-simulator:
+    name: Display (shared LVGL view and port contracts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install platformio==6.1.19
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Resolve the same pinned LVGL as the device
+        working-directory: Platformio/Dog-RGB
+        run: pio pkg install -e waveshare_lcd169_displaycheck
+      - name: Render and test the shared view and display service
+        run: python tools/display-simulator/render.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: display-captures-${{ github.sha }}
+          path: tools/display-simulator/output/
+          retention-days: 14
+
   web-portal:
     name: Web portal (Next.js production build)
     runs-on: ubuntu-latest

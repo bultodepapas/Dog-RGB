@@ -1,6 +1,6 @@
 # RGB Dog Display: desarrollo incremental
 
-Estado: **I0–I3 implementados; I4 en desarrollo. Arranque/memoria y LCD con datos de demostración ensayados en placa; validación conjunta y Wokwi pendientes**.
+Estado: **I0–I4 software implementados; I5 en desarrollo independiente. Demo I4 visible confirmada por el propietario; aceptación conjunta I4 y Wokwi pendientes**.
 Fecha: 2026-09-12.
 
 Actualización I3: página de texto, adaptador de lectura, actualización parcial y controles de banco implementados; evidencia en la [baseline I3](../baselines/display-i3-2026-09-12.md) y procedimiento en la [guía LCD](../../Platformio/Dog-RGB/docs/display-i3.md). No se cierra aceptación física por compilar o generar una vista previa host.
@@ -160,6 +160,16 @@ Si se va a utilizar batería, validar antes polaridad, camino único de carga, c
 
 ## I5 — Mejorar una vista con IA y LVGL
 
+**Incremento activo de software:** el propietario confirmó que ve funcionar la
+demo I4 y autorizó continuar sin GPS/tiras soldados. Se desarrolla una vista
+Paseo con LVGL 8.4.0, formato compartido, buffer único de 20 filas, simulador
+CMake con tres capturas y página sencilla seleccionable para comparación.
+La aceptación física conjunta I4 sigue abierta; no se convierte la ausencia de
+periféricos en una validación simulada. Véanse [guía I5](../../Platformio/Dog-RGB/docs/display-i5.md)
+y [evidencia I5](../baselines/display-i5-2026-09-12.md). Para estas capturas estáticas
+el primer port PC usa callback a framebuffer sin SDL; SDL/interacción quedan
+para cuando la navegación lo necesite. Se mantiene el mismo código/configuración LVGL.
+
 **Resultado:** sustituir la página básica por Paseo bien diseñada, manteniendo iguales los datos y funciones.
 
 Aplicar gradualmente el [flujo visual](2026-09-12_display-ai-workflow.md): elegir versión LVGL probada; una vista compartida PC/placa; tres escenarios iniciales (sin fix, fix, dato caducado); capturas reproducibles estáticas y revisión. Añadir primero herramientas mínimas para esos escenarios. El runner temporal completo, generador de tema y reportes elaborados solo se incorporan cuando resuelvan una necesidad real.
@@ -186,7 +196,7 @@ Batería calibrada, RTC, IMU, buzzer, más vistas, ahorro avanzado y refinamient
 
 ## Mapa de cambios y verificación
 
-Las rutas I0–I3 ya se incorporaron; las de I4–I6 siguen propuestas y se crean en su incremento. La tabla conserva la división de trabajo, no sustituye la baseline de ejecución.
+Las rutas I0–I5 ya se incorporaron; las de I6 siguen propuestas. La tabla conserva la división de trabajo, no sustituye la baseline de ejecución.
 
 | Cambio | Archivos o área | Verificación que permite cerrarlo |
 | --- | --- | --- |
@@ -267,9 +277,10 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | I0 | Software implementado y comprobado; CI configurada, ejecución remota no comprobada; I0 físico y escenarios Wokwi abiertos |
 | I1 | Diagnóstico implementado y comprobado en software; pruebas de ambas tiras y modo normal en placa pendientes |
 | I2 | Diagnóstico GPS con política LED normal verificado en software; recepción/fix, convivencia y pérdida/recuperación físicas pendientes |
-| I3 | Pantalla de texto y diagnóstico implementados en software; orientación, colores, convivencia y tiempos en placa pendientes |
-| I4 | En desarrollo: pruebas software y banco LCD sin periféricos; aceptación conjunta con GPS/LEDs/HTTP/persistencia pendiente |
-| I5–I6 | Planificados para después de la base funcional |
+| I3 | Pantalla de texto implementada; demo visible confirmada, tiempos de banco registrados; colores/convivencia pendientes |
+| I4 | Software y banco LCD sin periféricos registrados; aceptación conjunta con GPS/LEDs/HTTP/persistencia pendiente |
+| I5 | Desarrollo independiente autorizado: vista LVGL compartida, simulador estático y comparación en banco USB; ver baseline |
+| I6 | Planificado; botón, navegación y animaciones aún no implementados |
 | I7 | Opcional, sin priorización de implementación |
 
-Próximo trabajo físico: identificar PCB/revisión y ejecutar I0 antes del diagnóstico I1 de tiras; recuperar escenarios Wokwi cuando CLI/token estén disponibles. Después de I1 físico, validar I2 GPS con LEDs. La pantalla de texto I3 está implementada en software. Sigue I4: consolidar portal/persistencia bajo carga conjunta, con banco I0–I3 aún abierto. Los targets Waveshare siguen experimentales; imagen y rendimiento físicos de LCD no están validados.
+Próximo trabajo físico: completar identificación PCB/revisión y aceptación I0 antes del diagnóstico I1 de tiras; recuperar Wokwi cuando CLI/token estén disponibles. Después de I1 físico, validar I2 GPS con LEDs y cerrar I4 bajo carga conjunta. La demo de texto ya es visible según el propietario y hay tiempos medidos sin periféricos; I5 mejora esa vista con aceptación visual propia. Los targets Waveshare siguen experimentales, sin validar uso portátil.
