@@ -44,13 +44,16 @@ class TimeRolloverTests(unittest.TestCase):
     def test_firmware_uses_explicit_observation_state_and_shared_helpers(self):
         header = (PROJECT_ROOT / "include/util/time_utils.h").read_text(encoding="utf-8")
         gps = (PROJECT_ROOT / "src/gps/gps.cpp").read_text(encoding="utf-8")
+        reception = (PROJECT_ROOT / "include/gps/reception.h").read_text(encoding="utf-8")
         main = (PROJECT_ROOT / "src/main.cpp").read_text(encoding="utf-8")
         portal = (PROJECT_ROOT / "src/web/portal_http.cpp").read_text(encoding="utf-8")
         pages = (REPO_ROOT / "webui/src/pages/dev.html").read_text(encoding="utf-8")
         wifi = (PROJECT_ROOT / "src/wifi/wifi_mgr.cpp").read_text(encoding="utf-8")
 
         self.assertIn("static_assert(time_utils::elapsed_ms", header)
-        self.assertIn("time_utils::elapsed_more_than", gps)
+        self.assertIn("time_utils::elapsed_more_than", reception)
+        self.assertIn("gps::uart_stale", gps)
+        self.assertIn("gps::rmc_stale", gps)
         self.assertIn("time_utils::elapsed_at_most", gps)
         self.assertIn("gps_byte_observed", gps)
         self.assertIn("gps_time_observed", gps)

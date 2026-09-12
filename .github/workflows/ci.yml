@@ -240,6 +240,7 @@ jobs:
           - waveshare_lcd169
           - waveshare_lcd169_bringup
           - waveshare_lcd169_ledcheck
+          - waveshare_lcd169_gpscheck
     steps:
       - uses: actions/checkout@v4
 

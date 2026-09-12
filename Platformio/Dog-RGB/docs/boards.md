@@ -1,6 +1,6 @@
-# Board profiles and Waveshare I0/I1 bring-up
+# Board profiles and Waveshare I0/I1/I2 bring-up
 
-Status: **I0 and I1 diagnostics implemented in software; physical acceptance pending**, 2026-09-12.
+Status: **I0–I2 diagnostics implemented in software; physical acceptance pending**, 2026-09-12.
 Classic remains the working baseline. Waveshare is a **No Touch V2 candidate**;
 neither a successful build nor its manifest identifies the PCB on your desk.
 The [incremental plan](../../../docs/PLANS/2026-09-12_display-incremental-delivery.md)
@@ -15,12 +15,13 @@ governs subsequent LED, GPS and display work.
 | `waveshare_lcd169` | `DOG_RGB_BOARD_WAVESHARE_LCD169_V2=1` | Shared application with candidate pins; LCD disabled, physical integration unverified |
 | `waveshare_lcd169_bringup` | Waveshare, `DOG_RGB_BRINGUP_STAGE=0` | Power retention, USB and periodic board/memory diagnostics only |
 | `waveshare_lcd169_ledcheck` | Waveshare, `DOG_RGB_BRINGUP_STAGE=1` | Explicitly selected LED bench check; starts black, waits for console commands |
+| `waveshare_lcd169_gpscheck` | Waveshare, `DOG_RGB_BRINGUP_STAGE=2` | Normal GPS/LED/portal/persistence core, queued GPS diagnostic, capped LED output; LCD off |
 
 The application has one `main.cpp`. `include/pins.h` remains the facade used by
 the GPS/LED modules, with compile-time selection before global constructors.
 Missing/multiple profiles, Wokwi on Waveshare, and unimplemented diagnostic
-stages fail compilation. Only stages 0 and 1 are implemented. The fifth target
-is a named build of the same diagnostic entry point, not another application.
+stages fail compilation. Stages 0, 1 and 2 are implemented. Stage 2 uses the
+normal application path; stages 0/1 use the minimal diagnostic entry point.
 
 Product source filters exclude `bringup/` and `display/`. I0 bringup includes
 only `main.cpp`, `board/` and `bringup/bringup.cpp`; its setup/loop do not start storage,
@@ -88,6 +89,7 @@ From `Platformio/Dog-RGB`:
 pio run -e seeed_xiao_esp32s3 -e wokwi
 pio run -e waveshare_lcd169 -e waveshare_lcd169_bringup
 pio run -e waveshare_lcd169_ledcheck
+pio run -e waveshare_lcd169_gpscheck
 python -m unittest discover -s test -p "test_*.py" -v
 ```
 
@@ -166,4 +168,58 @@ flicker or overheated connection. The [I1 baseline](../../../docs/baselines/disp
 separates host/build evidence from that still-pending record. GPS integration
 follows as I2; the LCD remains I3.
 
-No physical upload or bench measurement was performed in I0/I1 software work.
+## I2 GPS with normal LED policy
+
+Build `waveshare_lcd169_gpscheck` and use that environment for upload/monitor
+after completing physical I0/I1. This target runs the existing parser, quality
+filters, LED policy, portal and persistence. It skips welcome and caps every
+LED bus brightness request at **16/255**, including later portal apply calls.
+The estimator is forced on with budget at most **1000 mA**; lower requested
+brightness/budgets and the configured calibration coefficients are retained.
+These transport overrides do not change `RuntimeConfig` or save themselves to
+NVS. They remain estimates, not a measurement or a guarantee about the supply.
+
+Normal configuration changes and GPS metrics/routes/sessions **do persist**.
+I2 does not force a mode or disable Day Mode/scenes. Select the existing Speed
+mode through the portal for the GPS-driven check; record its settings and any
+Day Mode or active-scene override. Change those through the normal controls if
+needed to observe the intended effect. A stored brightness above 16 remains
+stored; review it before returning to a product target, which has no bench cap.
+There is one normal LED driver per pin, with no I1 pattern controller.
+
+I2 has **no I1 serial commands, automatic 15-minute stop or USB-disconnect
+shutdown**. It runs normally without a USB host; use the normal LED controls
+to turn output off and end the bench run. LCD/backlight remain disabled.
+USB is the console at 115200; the existing GNSS UART remains RX44/TX43, 9600 baud
+with a 16 KiB RX buffer, subject to the confirmed physical profile/wiring.
+
+An `[I2]` line joins the existing bounded serial queue every normal logging
+interval (600 ms on this target). It does not wait for USB or GPS fix.
+
+| Field | Meaning |
+| --- | --- |
+| `state` | `no-data`: no UART observation; `bytes-no-rmc`: bytes but no accepted RMC observation; `searching`: fresh RMC without raw fix; `untrusted`: raw fix fails trust; `fix`: trusted fresh fix; `stale`: RMC age >3000 ms or UART age >5000 ms |
+| `raw`, `trusted`, `speed_kph` | Domain flags; speed is `--` unless fix is fresh/trusted and speed usable/finite. Valid zero remains `0.00` |
+| `day_m`, `date` | Existing daily accumulation and recorded YYYYMMDD, retained on loss of fix; not trip/session distance or necessarily today's value |
+| `sats`, `quality`, `hdop` | Existing GPS quality observations; assess together with state/ages |
+| `uart_seen`, `rmc_seen`, ages | Observation flags distinguish an unobserved age placeholder of zero from a fresh observation |
+| `rx`, `rmc`, `gga`, `stale`, `overflow`, `checksum`, `parse` | Existing counters; compare start/end differences |
+| `brightness`, `budget_ma`, `estimated_ma` | Effective/requested brightness, effective budget and latest normal LED current estimate |
+
+`gps::reception_state()` and parser expiry share the same rollover-safe age
+helpers. Fresh GGA/other bytes do not refresh an old RMC. Normal loop/phase,
+heap, reset and `log_drop_bytes` diagnostics remain available; a congested
+console drops queued bytes instead of waiting for its reader.
+
+Bench record: identify board/wiring, power and pixel count; record configuration
+and initial counters; acquire a trusted fix outdoors with conditions and elapsed
+time recorded; observe Speed behavior and console/portal agreement for 15 minutes.
+Interrupt GNSS data in a controlled way, observe stale state and invalid speed,
+then restore it and observe recovery. Preserve the ordinary quality filters.
+Accept only with no unexpected resets or new UART overflows; record checksum/
+parse failures, log drops and loop timings with their conditions. Do not infer
+physical LED response or reception from a passing host test.
+
+No physical upload or bench measurement was performed in I0–I2 software work.
+See the [I2 baseline](../../../docs/baselines/display-i2-2026-09-12.md) for six-build
+and host-test evidence. The next software increment is I3, a simple text LCD.

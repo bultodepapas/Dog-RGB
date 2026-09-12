@@ -1,7 +1,9 @@
 # RGB Dog Display: desarrollo incremental
 
-Estado: **I0 e I1 implementados en software; validación física y escenarios Wokwi pendientes**.
+Estado: **I0–I2 implementados en software; validación física y escenarios Wokwi pendientes**.
 Fecha: 2026-09-12.
+
+Actualización I2: preparación software desde `4293f4c72cdfbf26816d7cd21f6e5c1686e421a3`, con seis builds y 137 pruebas host aprobados. Véase la [baseline I2](../baselines/display-i2-2026-09-12.md). La aceptación física conserva el orden I0 → I1 → I2.
 
 Revisión de preparación: contrastado con firmware, pruebas y CI en `dc6789b1c66921ca3b29a1f78410a879aa699ccd`, más los cambios documentales locales. Implementación iniciada desde `3fa9e7bff27b0cc6e10c78eea0a68d966c7294b8`: perfiles y diagnóstico I0, seguidos por preparación software I1 autorizada al continuar el plan. Evidencia en las baselines [I0](../baselines/display-i0-2026-09-12.md) e [I1](../baselines/display-i1-2026-09-12.md); procedimiento en [boards.md](../../Platformio/Dog-RGB/docs/boards.md). I0/I1 físicos siguen abiertos; preparar el software no reemplaza su orden de aceptación.
 
@@ -52,7 +54,8 @@ Este plan decide **orden, contratos, tareas y aceptación**. El plan Waveshare c
 | `wokwi` existente | Regresión simulada Classic | Conservar `extends = env:seeed_xiao_esp32s3`, UART y limitación de transporte actuales |
 | `waveshare_lcd169` implementado en I0 | Producto Display experimental, núcleo compartido | Mismo core/ArduinoJson/NeoPixel; LCD desde I3, LVGL desde I5; sin patrones/fixtures de banco |
 | `waveshare_lcd169_bringup` implementado en I0 | Diagnóstico de la misma placa | Etapa 0; sin publicar como firmware de uso normal |
-| `waveshare_lcd169_ledcheck` implementado en I1 | Mismo diagnóstico, compilado con etapa 1 | Un píxel y después ambas tiras; brillo 16, parada por comando/timeout/desconexión; etapas 2+ rechazadas |
+| `waveshare_lcd169_ledcheck` implementado en I1 | Mismo diagnóstico, compilado con etapa 1 | Un píxel y después ambas tiras; brillo 16, parada por comando/timeout/desconexión |
+| `waveshare_lcd169_gpscheck` implementado en I2 | Núcleo normal, etapa 2 | GPS/LEDs/portal/persistencia existentes; welcome omitido, brillo máximo 16, diagnóstico en cola; etapas 3+ rechazadas |
 
 Mantener un único `main.cpp` y una única implementación de GPS, LED bus/policy, escenas, portal y persistencia. El diagnóstico añade rutinas pequeñas, excluidas del producto mediante compilación. Un selector **solo del target bringup**, `DOG_RGB_BRINGUP_STAGE`, comienza en 0: I0 consola/alimentación; I1 patrones del bus; I2 núcleo real con GPS/LEDs; I3 añade pruebas LCD. Valores desconocidos deben fallar al compilar. En I0/I1 la ruta de diagnóstico termina antes del arranque normal; en I2/I3 se reutilizan `setup/loop` normales con overrides de banco en RAM. No emplear `DEBUG_AP_ONLY_MINIMAL` como sustituto: omite GPS/LEDs. Documentar el valor usado en cada binario y recompilar al cambiarlo.
 
@@ -94,6 +97,8 @@ No entra: nuevos efectos, editor de escenas, interfaz LCD o calibración complet
 
 ## I2 — GPS junto con LEDs
 
+**Preparación software entregada:** `waveshare_lcd169_gpscheck` mantiene arranque y loop normales, parser/filtros, política LED y persistencia. Añade estados tipados de recepción y reporte `[I2]` por la cola serial existente, cada 600 ms. El bus limita brillo a 16/255 y mantiene el estimador activado con presupuesto máximo de 1000 mA, respetando valores inferiores y calibración. Estos límites no se guardan; las operaciones normales de configuración y GPS sí conservan su persistencia. No fuerza modo, Day Mode ni escenas: seleccionar Speed por el portal para la prueba correspondiente. I2 continúa sin USB y no incorpora comandos ni parada automática de I1. LCD apagada. Pruebas nativas verifican clasificación/caducidad/recuperación, formato y bus con entradas simuladas; no prueban recepción UART física.
+
 **Resultado:** recibir GNSS y mantener LEDs operativos simultáneamente.
 
 Tareas: conectar UART al perfil, conservar parser y filtros actuales, verificar recepción NMEA y distinguir recepción de fix válido. Exponer por consola estado, satélites/calidad, velocidad, distancia y antigüedad. Probar un comportamiento LED ya existente alimentado por GPS, sin modificar sus reglas para facilitar la demostración.
@@ -132,7 +137,7 @@ Aceptación física: texto completo y colores correctos; datos coinciden con el 
 | Fecha de distancia | `gps::current_date()`; usar «Dist. día registrado» y mostrar fecha cuando haga falta. No rotular «Hoy» sin fecha vigente confirmada |
 | Modo LED | Estado/modo del dominio LED; no crear otro enum persistido ni copiar políticas en UI |
 
-El parser ya aplica vencimiento RMC de 3.000 ms y UART de 5.000 ms; calidad GGA depende de configuración. Para distinguir caducidad sin duplicar esos umbrales, añadir en I3 una lectura tipada mínima del estado que el dominio ya calcula, si los getters actuales no bastan. Preservar las reglas y probar recuperación/`millis()` con rollover. Nunca inferir caducidad del valor cero ni del número de frames. Que una velocidad caduque no borra distancia persistida. Los fixtures host se convierten al mismo contrato y nunca entran en el producto.
+El parser ya aplica vencimiento RMC de 3.000 ms y UART de 5.000 ms; calidad GGA depende de configuración. I2 incorporó `gps::reception_state()` y helpers de caducidad compartidos con el parser: reutilizarlos en I3 sin duplicar umbrales. Preservar las reglas y probar recuperación/`millis()` con rollover. Nunca inferir caducidad del valor cero ni del número de frames. Que una velocidad caduque no borra distancia persistida. Los fixtures host se convierten al mismo contrato y nunca entran en el producto.
 
 ## I4 — Consolidación del collar básico
 
@@ -174,7 +179,7 @@ Batería calibrada, RTC, IMU, buzzer, más vistas, ahorro avanzado y refinamient
 
 ## Mapa de cambios y verificación
 
-Las rutas I0/I1 ya se incorporaron; las de I2–I6 siguen propuestas y se crean en su incremento. La tabla conserva la división de trabajo, no sustituye la baseline de ejecución.
+Las rutas I0–I2 ya se incorporaron; las de I3–I6 siguen propuestas y se crean en su incremento. La tabla conserva la división de trabajo, no sustituye la baseline de ejecución.
 
 | Cambio | Archivos o área | Verificación que permite cerrarlo |
 | --- | --- | --- |
@@ -206,12 +211,13 @@ Los entornos I0 ya existen; comandos desde `Platformio/Dog-RGB`:
 pio run -e waveshare_lcd169
 pio run -e waveshare_lcd169_bringup
 pio run -e waveshare_lcd169_ledcheck
+pio run -e waveshare_lcd169_gpscheck
 pio pkg list -e waveshare_lcd169
 ```
 
 | Modificación | Comprobación antes de integrar |
 | --- | --- |
-| Perfiles, `main`, core compartido, PlatformIO | Cinco builds actuales + suite host; Wokwi prepare/suite si cambian comportamiento, UART o assets, con disponibilidad/token documentados |
+| Perfiles, `main`, core compartido, PlatformIO | Seis builds actuales + suite host; Wokwi prepare/suite si cambian comportamiento, UART o assets, con disponibilidad/token documentados |
 | Driver/UI exclusivo Display | Builds Waveshare producto/diagnóstico afectados + Classic y pruebas del adaptador; Wokwi adicional si cambian hooks compartidos |
 | Portal o contrato API | Verificación anterior + `webui:check`, `webui:unit`, smoke y casos de navegador afectados, según guía existente |
 | Solo documentación | Enlaces locales, coherencia de alcance/estados y `git diff --check`; no simular una aceptación física |
@@ -252,8 +258,9 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | --- | --- |
 | I0 | Software implementado y comprobado; CI configurada, ejecución remota no comprobada; I0 físico y escenarios Wokwi abiertos |
 | I1 | Diagnóstico implementado y comprobado en software; pruebas de ambas tiras y modo normal en placa pendientes |
-| I2–I4 | Pendientes; primera entrega funcional objetivo |
+| I2 | Diagnóstico GPS con política LED normal verificado en software; recepción/fix, convivencia y pérdida/recuperación físicas pendientes |
+| I3–I4 | Pendientes; primera entrega funcional objetivo |
 | I5–I6 | Planificados para después de la base funcional |
 | I7 | Opcional, sin priorización de implementación |
 
-Próximo trabajo físico: identificar PCB/revisión y ejecutar I0 antes del diagnóstico I1 de tiras; recuperar escenarios Wokwi cuando CLI/token estén disponibles. La siguiente preparación de software es I2, GPS con LEDs. Los targets Waveshare siguen experimentales; la LCD y la validación física aún están pendientes.
+Próximo trabajo físico: identificar PCB/revisión y ejecutar I0 antes del diagnóstico I1 de tiras; recuperar escenarios Wokwi cuando CLI/token estén disponibles. Después de I1 físico, validar I2 GPS con LEDs. La siguiente preparación de software es I3, pantalla de texto con datos reales. Los targets Waveshare siguen experimentales; la LCD y la validación física aún están pendientes.

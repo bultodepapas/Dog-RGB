@@ -21,8 +21,8 @@
 #endif
 
 #if defined(DOG_RGB_BRINGUP_STAGE)
-#if !defined(DOG_RGB_BOARD_WAVESHARE_LCD169_V2) || DOG_RGB_BRINGUP_STAGE < 0 || DOG_RGB_BRINGUP_STAGE > 1
-#error "Only Waveshare bringup stages 0 and 1 are implemented"
+#if !defined(DOG_RGB_BOARD_WAVESHARE_LCD169_V2) || DOG_RGB_BRINGUP_STAGE < 0 || DOG_RGB_BRINGUP_STAGE > 2
+#error "Only Waveshare bringup stages 0, 1 and 2 are implemented"
 #endif
 #endif
 

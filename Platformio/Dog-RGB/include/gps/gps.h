@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <stdint.h>
+#include "gps/reception.h"
 
 namespace gps {
 void begin();
@@ -14,6 +15,7 @@ String build_summary_json();
 bool has_fix();
 bool raw_fix();
 bool trusted_fix();
+ReceptionState reception_state();
 bool has_current_fix();
 bool speed_usable();
 float last_speed_kph();

@@ -44,6 +44,9 @@
 #include "ble/summary_ble.h"
 #include "board/board_io.h"
 #include "bringup/bringup.h"
+#if DOG_RGB_BRINGUP_STAGE == 2
+#include "bringup/gps_check.h"
+#endif
 #include "config/runtime_config.h"
 #include "config.h"
 #include "geofence/home.h"
@@ -295,6 +298,9 @@ static void emit_periodic_logs(unsigned long now_ms) {
 #pragma push_macro("Serial")
 #undef Serial
 #define Serial periodic_log
+#if DOG_RGB_BRINGUP_STAGE == 2
+  bringup::gps_check::report(Serial);
+#endif
   static uint8_t next_detail_slot = 0;
   static bool wifi_diag_pending = false;
   const bool sys_due = (now_ms - last_sys_log_ms >= SYS_LOG_MS);
@@ -668,7 +674,7 @@ void setup() {
 #else
   Serial.begin(CONSOLE_BAUD);
 #endif
-#if defined(DOG_RGB_BRINGUP_STAGE)
+#if defined(DOG_RGB_BRINGUP_STAGE) && DOG_RGB_BRINGUP_STAGE < 2
   bringup::begin();
 #else
 
@@ -693,7 +699,9 @@ void setup() {
 
   if (LED_UI_ENABLED) {
     led_ui::begin();
+#if DOG_RGB_BRINGUP_STAGE != 2
     led_ui::start_welcome();
+#endif
   }
 
   // BLE must be initialized BEFORE WiFi when enabled so the coexistence module
@@ -744,7 +752,7 @@ void setup() {
 }
 
 void loop() {
-#if defined(DOG_RGB_BRINGUP_STAGE)
+#if defined(DOG_RGB_BRINGUP_STAGE) && DOG_RGB_BRINGUP_STAGE < 2
   bringup::tick(millis());
 #else
   const unsigned long loop_start_us = micros();

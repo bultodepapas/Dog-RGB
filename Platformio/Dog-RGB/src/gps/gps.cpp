@@ -61,8 +61,6 @@ uint8_t gps_fix_quality = 0;
 float gps_hdop = NAN;
 unsigned long gps_last_time_ms = 0;
 
-static const unsigned long GPS_RMC_STALE_MS = 3000;
-static const unsigned long GPS_UART_STALE_MS = 5000;
 
 // Rolling metrics for the current day.
 unsigned long last_sample_ms = 0;
@@ -654,12 +652,8 @@ void reset_distance_baseline(bool reset_activity = true) {
 }
 
 void expire_gps_if_stale(unsigned long now_ms) {
-  const bool uart_stale = gps_byte_observed &&
-                          time_utils::elapsed_more_than(now_ms, gps_last_byte_ms,
-                                                       GPS_UART_STALE_MS);
-  const bool rmc_stale = gps_rmc_observed &&
-                         time_utils::elapsed_more_than(now_ms, gps_last_rmc_ms,
-                                                      GPS_RMC_STALE_MS);
+  const bool uart_stale = gps::uart_stale(now_ms, gps_byte_observed, gps_last_byte_ms);
+  const bool rmc_stale = gps::rmc_stale(now_ms, gps_rmc_observed, gps_last_rmc_ms);
   if (!uart_stale && !rmc_stale) {
     return;
   }
@@ -2532,6 +2526,12 @@ void begin() {
 void tick() {
   read_gps();
   expire_gps_if_stale(millis());
+}
+
+ReceptionState reception_state() {
+  return classify_reception({static_cast<uint32_t>(millis()), gps_byte_observed,
+      static_cast<uint32_t>(gps_last_byte_ms), gps_rmc_observed,
+      static_cast<uint32_t>(gps_last_rmc_ms), has_gps_fix_raw, gps_trusted_fix});
 }
 
 void track_tick(unsigned long now_ms) {

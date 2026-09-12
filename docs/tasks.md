@@ -25,14 +25,16 @@
 
 ### Parallel Display integration — planning update 2026-09-12
 
-Follow the [Display incremental contract](PLANS/2026-09-12_display-incremental-delivery.md) for task detail and acceptance. I0/I1 diagnostics are implemented in software; these entries do not claim physical validation or replace the existing Classic queue.
+Follow the [Display incremental contract](PLANS/2026-09-12_display-incremental-delivery.md) for task detail and acceptance. I0–I2 diagnostics are implemented in software; these entries do not claim physical validation or replace the existing Classic queue.
 
 - [x] I0a: reproduce Classic/Wokwi builds and host baseline; preserve local work and record evidence in the [I0 baseline](baselines/display-i0-2026-09-12.md).
 - [x] I0b–I0c software: compile-time profiles, optional heartbeat, product/bringup targets, native GPIO tests and CI matrix.
 - [ ] I0 physical/runtime: identify the physical board, verify boot and memory, and run Wokwi scenarios when CLI/token are available.
 - [x] I1 software: command-driven one-pixel/full-strip diagnostic using the existing bus/limiter, bounded brightness/runtime, RGBW/native tests and a separate build/CI target.
 - [ ] I1 physical: verify RGBW, both strips and off behavior for 15 minutes after I0; record supply and actual current if measured.
-- [ ] I2–I4, sequentially: existing GPS with LEDs, a simple read-only LCD page, then combined portal/persistence verification. Record bank-only versus portable acceptance.
+- [x] I2 software: normal GPS/LED core, typed reception state, bounded queued reports, transport brightness/current limits and native tests; see [I2 evidence](baselines/display-i2-2026-09-12.md).
+- [ ] I2 physical: valid NMEA/trusted fix, 15 minutes with normal Speed mode, data loss/recovery and no new UART overflows or resets.
+- [ ] I3–I4, sequentially: a simple read-only LCD page, then combined portal/persistence verification. Record bank-only versus portable acceptance.
 - [ ] I5–I6 after the functional base: one shared LVGL view and three static captures, then button/second view and measured motion.
 
 I0 physical acceptance remains open before LED bench work. Classic fixes continue in parallel; battery telemetry/sensors, advanced tooling and cloud are not dependencies of the basic Display build.

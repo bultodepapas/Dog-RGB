@@ -1,4 +1,7 @@
 #include "led/led_bus.h"
+#if DOG_RGB_BRINGUP_STAGE == 2
+#include "bringup/bench_limits.h"
+#endif
 
 namespace led {
 
@@ -11,6 +14,9 @@ LedBus::LedBus(uint16_t pixel_count, int16_t pin_a, int16_t pin_b,
       strip_b_(pixel_count, pin_b, NEO_GRBW + NEO_KHZ800) {}
 
 void LedBus::begin(uint8_t brightness) {
+#if DOG_RGB_BRINGUP_STAGE == 2
+  brightness = bringup::bench_limits::brightness(brightness);
+#endif
   brightness_ = brightness;
   strip_a_.begin();
   strip_a_.setBrightness(brightness_);
@@ -25,6 +31,9 @@ void LedBus::begin(uint8_t brightness) {
 }
 
 void LedBus::set_brightness(uint8_t brightness) {
+#if DOG_RGB_BRINGUP_STAGE == 2
+  brightness = bringup::bench_limits::brightness(brightness);
+#endif
   brightness_ = brightness;
   strip_a_.setBrightness(brightness_);
   if (dual_bus_) {
@@ -33,7 +42,11 @@ void LedBus::set_brightness(uint8_t brightness) {
 }
 
 void LedBus::configure_power(const PowerLimitConfig &config) {
+#if DOG_RGB_BRINGUP_STAGE == 2
+  limiter_.configure(bringup::bench_limits::power(config));
+#else
   limiter_.configure(config);
+#endif
 }
 
 void LedBus::write_strip(Adafruit_NeoPixel &strip, const Rgb *pixels,
