@@ -41,6 +41,14 @@ Detailed evidence remains in the [cloud reports](cloud/README.md). No website, h
 
 ## Milestone 1 — Physical MVP evidence (highest priority)
 
+### Parallel board variant — owner-agreed direction, 2026-09-12
+
+Classic XIAO remains active while a Waveshare ESP32-S3-LCD-1.69 No Touch variant is developed with one shared firmware core and separate board profiles. The physical Waveshare revision remains unconfirmed; no Display firmware is claimed implemented. The [incremental Display plan](PLANS/2026-09-12_display-incremental-delivery.md) is the execution authority, and its hardware/visual research is supporting material.
+
+Order: **I0 baseline/profiles → I1 LEDs → I2 GPS → I3 simple text display → I4 consolidated collar → I5 LVGL view/simulator → I6 navigation/motion**. I7 battery telemetry, RTC, IMU and other extensions remain optional. A bank-tested base and a portable validated collar are distinct deliveries. This sequence does not postpone Classic improvements or depend on cloud milestones.
+
+### Shared physical evidence
+
 - Freeze the actual schematic/BOM with exact charger, protection, boost, regulator, connectors, cell, and strip part numbers.
 - Measure cell/rail current, converter efficiency, voltage drop, brownout margin, heat, and runtime under defined profiles.
 - Calibrate the schema-6 LED base/channel model conservatively against those measurements and freeze the safe whole-device budget for the selected hardware.

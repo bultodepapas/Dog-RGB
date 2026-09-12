@@ -10,5 +10,6 @@ Current references:
 - [SK6812 wiring](../docs/sk6812_wiring.md)
 - [XIAO pin map](../xiao_s3_pin.md)
 - [Proposed Waveshare display variant](../docs/PLANS/2026-09-12_waveshare-display-variant.md) — separate board profile and power/wiring investigation; Classic remains the current baseline, and the physical Waveshare revision is not yet confirmed.
+- [Display incremental implementation contract](../docs/PLANS/2026-09-12_display-incremental-delivery.md) — identify revision/power controls before physical bring-up, then LEDs, GPS and simple LCD. Bench acceptance is separate from battery/charging and portable mounting validation; Classic wiring is not a Waveshare wiring recipe.
 
 Do not treat firmware defaults or planning estimates as a finished schematic, safe load rating, waterproofing claim, or runtime guarantee.

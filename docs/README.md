@@ -91,6 +91,8 @@ The firmware and tests are the final source of truth. A document must never turn
 | --- | --- | --- |
 | [Waveshare display variant research and integration plan](PLANS/2026-09-12_waveshare-display-variant.md) | Proposed, Spanish | Parallel Classic/Display targets, verified V2 schematic reference, electrical bring-up and Codex/LVGL UI workflow; not implemented |
 | [Display incremental delivery](PLANS/2026-09-12_display-incremental-delivery.md) | Owner-agreed sequence; implementation pending, Spanish | Execution authority: LEDs, GPS, basic display, consolidation, then gradual AI/LVGL UI work |
+| [Display AI design workflow](PLANS/2026-09-12_display-ai-workflow.md) | Proposed from I5, Spanish | Reference → shared LVGL components → minimum simulator → three static captures → corrections → board validation; navigation/motion follows in I6 |
+| [Display libraries and repository research](display-library-research.md) | Research and proposed selection, Spanish | Driver comparison, native animations, fonts, reviewed source examples and bounded evaluation per increment; no hardware benchmark performed |
 | [Companion app MVP](app_mvp_spec.md) | Proposed | BLE reader concept; blocked while BLE remains disabled by default |
 | [Portal configuration presets](portal_config_presets.md) | Proposed | Whole-runtime profiles distinct from implemented visual scenes; no selector/config-preset persistence |
 | [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–5 implemented in software; physical-HIL acceptance remains separate, Spanish | Current-limiting, effect-registry, palette, segment, scene, and web-asset roadmap |

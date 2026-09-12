@@ -4,6 +4,8 @@ Estado: **Proposed**, 2026-09-12. Especificación de trabajo; simulador, comando
 
 **Prioridad revisada:** este flujo se aplica desde I5 del [plan incremental acordado](2026-09-12_display-incremental-delivery.md), después de LEDs, GPS, pantalla de texto y consolidación. Sus herramientas se incorporan por necesidad; no son prerrequisitos del collar básico. En I5 comenzar con una vista estática y tres escenarios; navegación, capturas temporales y animaciones pertenecen a I6.
 
+Referencias de implementación seleccionadas: [investigación de bibliotecas y repositorios](../display-library-research.md). Port CMake/SDL para simulación, actualización por cambios, fuentes LVGL y animaciones nativas; sprites y GIF son opcionales posteriores. Toda referencia API debe concordar con la versión fijada, tanto en PC como en placa.
+
 ## Resultado que buscamos
 
 Un ciclo reproducible que permita describir una mejora, implementarla en LVGL, verla con datos representativos, corregirla y llevar el mismo código al ESP32. La primera entrega visual, I5, será Paseo estática con estados GNSS. La navegación mediante botón se agrega en I6. Classic sigue sin depender de LVGL.
@@ -14,14 +16,14 @@ Decisión de base: C/C++ LVGL y simulador propio, sin dependencia obligatoria de
 
 Primero preparar dos o tres propuestas de una sola vista, con los mismos datos. Evaluar jerarquía, contraste, identidad y lectura a 240 × 280. Las imágenes conceptuales, incluidas las generadas por IA, sirven como dirección artística: su tipografía y efectos deben traducirse a componentes ejecutables.
 
-El brief debe contener resolución, esquinas, uso sin táctil, información principal/secundaria, estados, textos, colores, fuentes, espacios y movimiento. La dirección inicial es instrumento deportivo: velocidad grande, distancia y tiempo secundarios, estado GNSS discreto pero inequívoco. No decidir una estética solo con una imagen de datos ideales.
+El brief debe contener resolución, esquinas, uso sin táctil, información principal/secundaria, estados, textos, colores, fuentes y espacios; desde I6 incluye movimiento. La dirección inicial es instrumento deportivo: velocidad grande, distancia diaria y modo secundarios, estado GNSS discreto pero inequívoco. Conservar la semántica de I3; tiempo activo y distancia de sesión no se agregan implícitamente por adoptar el nombre `WalkScreen`. No decidir una estética solo con una imagen de datos ideales.
 
-Entregables propuestos:
+Entregable mínimo I5: un brief breve con dirección elegida y referencias, un tema C/C++ compartido y tres capturas. Evitar duplicar decisiones en varios archivos. Si el material crece, usar esta organización opcional:
 
 - `docs/display/brief.md`: objetivos de uso y restricciones.
 - `docs/display/design-decisions.md`: dirección elegida, alternativas descartadas y motivo cuando afecte al desarrollo.
 - `design/display/references/`: referencias con origen y permiso de reutilización cuando aplique.
-- `design/display/theme.json`: colores, tamaños, espaciados y duraciones; fuente de un header generado, sin editar ambos manualmente.
+- `design/display/theme.json`: solo si un generador aporta valor; entonces es la fuente del header generado, sin editar ambos manualmente. Inicialmente basta un header de tema escrito a mano.
 
 Contratos iniciales: márgenes de 16 px por ajustar a la placa; velocidad 40–48 px, secundarios 20–24 px y etiquetas 16 px. Son valores de partida. Usar números de ancho estable, incluir glifos españoles y dimensionar con la cadena máxima esperada. Determinar qué se abrevia y qué pasa a otra línea.
 
@@ -40,26 +42,30 @@ flowchart LR
     UI --> DEVICE[Driver SPI y LCD]
 ```
 
-Componentes iniciales: `StatusBar`, `PrimaryMetric`, `MetricPair`, `PageIndicator` y `GpsStateNotice`. Una sola pantalla coordinadora, `WalkScreen`, crea y actualiza esos objetos. Evitar un sistema genérico de plugins o widgets antes de necesitarlo.
+Componentes I5: `StatusBar`, `PrimaryMetric`, `MetricPair` y `GpsStateNotice`, según la composición elegida. Una sola pantalla coordinadora, `WalkScreen`, crea y actualiza esos objetos. `PageIndicator` entra en I6 junto con la segunda página. Evitar un sistema genérico de plugins o widgets antes de necesitarlo.
 
 Contratos propuestos, sin compromiso todavía sobre nombres de API:
 
-- `DisplaySnapshot`: copia acotada de valores, unidades, validez y antigüedad; incluye secuencia/tiempo de muestra cuando sea necesario.
-- `UiEvent`: pulsación corta, solicitud de despertar y cambios de disponibilidad; la interpretación eléctrica del botón queda en el backend.
-- `UiController`: página seleccionada, transición activa y política ante pulsaciones repetidas. No es dueño del GPS ni de NVS.
+- `DisplaySnapshot`, I3/I5: reutiliza el contrato mínimo del plan incremental, sin ampliar dominio por razones estéticas. El adaptador real conserva las reglas de confianza y vencimiento GPS.
+- `UiEvent`, I6: pulsación corta y solicitud de despertar; la interpretación eléctrica del botón queda en el backend.
+- `UiController`, I6: página seleccionada, transición activa y política ante pulsaciones repetidas. No es dueño del GPS ni de NVS; no hace falta una máquina de navegación en I5.
 - `UiView`: presenta el modelo y actualiza solo valores visuales modificados.
 
-Los ejemplos JSON de simulación se convierten a las mismas estructuras que los adaptadores de dominio. No exigen añadir un parser de fixtures al firmware. Un dato inválido se representa explícitamente: `--` y “Buscando GPS”, no cero ni el último valor sin identificación. Caducidad deriva de tiempo de muestra y reloj actual; no de contar frames.
+Los fixtures estáticos pueden ser estructuras C++ inicialmente. Si después se usan JSON, se convierten al mismo contrato; no exigen añadir un parser de fixtures al firmware. Velocidad inválida se representa con `--` y aviso de estado, nunca como cero válido. La distancia diaria registrada puede seguir visible durante la pérdida de fix y mantiene su fecha/período. Caducidad proviene del dominio GPS; el simulador inyecta ese estado o ejercita el mismo adaptador con reloj controlado. La vista no crea otro umbral de vencimiento ni cuenta frames para decidir validez.
 
-Una transición interrumpida termina en un estado coherente. Las alertas se presentan con prioridad. Despertar no avanza también la página por accidente. Para navegación simple, las pulsaciones repetidas pueden sustituir la transición hacia la página destino más reciente; esa regla se debe probar.
+Desde I6, una transición interrumpida termina en un estado coherente. Despertar no avanza también la página por accidente. Para navegación simple, las pulsaciones repetidas pueden sustituir la transición hacia la página destino más reciente; esa regla se debe probar. Alertas adicionales entran junto con la función que las produzca.
 
-## 3. Simulador: dos modos con la misma UI
+## 3. Simulador mínimo y evolución a dos modos
+
+**I5 mínimo:** un ejecutable CMake/SDL con los mismos archivos UI, que selecciona uno de tres fixtures, dibuja hasta completar el frame y guarda un PNG 240 × 280. Fijar versión LVGL, compilador/entorno, fuentes y configuración visual. Se puede capturar desde el framebuffer de ese mismo ejecutable; no exigir todavía dos backends, editor de escenarios, CI visual complejo ni runner temporal. Desde un checkout limpio debe poder compilarse y producir las tres imágenes siguiendo comandos documentados.
+
+**I6 y herramientas posteriores:** extender ese ejecutable cuando las pruebas de navegación/movimiento lo requieran:
 
 **Interactivo:** ventana SDL a resolución lógica 240 × 280, zoom entero 1×/2×/3× sin alterar layout, botón mediante teclado, selector de escenarios y métricas de desarrollo fuera del área del panel. En un monitor, 1× significa correspondencia de píxeles, no tamaño físico de 1,69 pulgadas; la legibilidad física se confirma en dispositivo.
 
 **Reproducible:** backend de memoria sin ventana, tiempo virtual, eventos fechados y salida PNG. Avanza en pasos fijos, inyecta eventos en orden definido, ejecuta temporizadores y completa el refresco antes de capturar. No usa el reloj de Windows, Wi-Fi real ni números aleatorios sin semilla.
 
-LVGL necesita una fuente de tiempo y ejecución periódica de su handler. El simulador controlará ese tiempo; en placa se alimentará del tiempo monotónico real. No incrementar ficticiamente siempre 5 ms si el loop real tarda más. [Tick v8.4](https://lvgl.io/docs/open/8.4/porting/tick.html), [Timer handler](https://lvgl.io/docs/open/8.4/porting/timer-handler.html).
+LVGL necesita una fuente de tiempo y ejecución periódica de su handler. En capturas estáticas I5 fijar el instante y completar los refrescos pendientes; en las secuencias I6 el runner controla el tiempo. En placa se alimenta del tiempo monotónico real. No incrementar ficticiamente siempre 5 ms si el loop real tarda más. [Tick v8.4](https://lvgl.io/docs/open/8.4/porting/tick.html), [Timer handler](https://lvgl.io/docs/open/8.4/porting/timer-handler.html).
 
 Propuesta de carpetas adicionales:
 
@@ -68,7 +74,7 @@ tools/display-simulator/
   CMakeLists.txt
   host_main.cpp
   framebuffer_backend.cpp
-  scenario_runner.cpp
+  scenario_runner.cpp             # desde I6, si requiere eventos temporales
 tests/display/scenarios/
 tests/display/baselines/
 output/display/<run-id>/
@@ -82,7 +88,7 @@ El backend copiará cada región enviada por LVGL a un framebuffer completo RGB5
 
 LVGL también ofrece snapshots de objetos. Son útiles para componentes aislados; no prueban por sí solos el montaje de regiones en el backend ni equivalen automáticamente a un archivo PNG. [Snapshot v8.4](https://lvgl.io/docs/open/8.4/others/snapshot.html).
 
-Por escenario producir:
+En I5 producir un PNG nativo por escenario, revisar ampliación sin suavizado y registrar commit/versiones en la nota de ejecución. Desde I6, según necesidad, ampliar con:
 
 - PNG nativo y ampliación sin suavizado.
 - Hoja de contacto de momentos significativos de animación.
@@ -101,18 +107,18 @@ Aplicar una familia de cambios por iteración: espaciado, tipografía o transici
 
 La comparación de píxeles detecta cambios, no decide calidad. Acompañarla de verificaciones sobre texto esperado, visibilidad, bounds y estado del controlador. Evitar reglas rígidas que rechacen solapamientos deliberados; identificar regiones de layout y overlays permitidos.
 
-Matriz inicial:
+Matriz escalonada; solo se exige una fila cuando existe la función correspondiente:
 
-| Escenario | Qué comprueba |
-| --- | --- |
-| Arranque y búsqueda GNSS | Sin métricas inventadas, aviso legible |
-| Primera muestra válida | Cambio de estado sin salto de composición |
-| Velocidad 9,9 → 10,0 | Ancho estable y unidad alineada |
-| GNSS caducado | El valor anterior no aparenta estar actualizado |
-| Batería desconocida/baja | Semántica explícita, sin porcentaje inventado |
-| Nombre largo y español | Límites, abreviación y glifos |
-| Botón repetido durante transición | Destino coherente, sin cola de animaciones |
-| Apagar/despertar | No avanza página involuntariamente ni muestra frame incompleto |
+| Escenario | Incremento | Qué comprueba |
+| --- | --- | --- |
+| Arranque y búsqueda GNSS | I5, fixture sin fix | Sin velocidad inventada, aviso legible |
+| Muestra válida | I5, fixture fix | Dato principal y unidades; fecha/período correcto de distancia |
+| GNSS caducado | I5, fixture stale | Velocidad inválida; distancia registrada no se borra |
+| Velocidad 9,9 → 10,0 | I6, secuencia | Ancho estable y unidad alineada |
+| Botón repetido durante transición | I6 | Destino coherente, sin cola de animaciones |
+| Apagar/despertar | I6 | No avanza página involuntariamente ni muestra frame incompleto |
+| Batería desconocida/baja | I7, después del adaptador batería | Semántica explícita, sin porcentaje inventado |
+| Nombre largo | Solo si se añade nombre | Abreviación/límites; glifos españoles de los textos existentes se revisan ya en I5 |
 
 Ejemplo temporal propuesto: estado inicial a 0 ms, muestra GPS a 1.000 ms, botón a 2.000 ms; capturas a 2.000, 2.050, 2.100 y 2.200 ms. Añadir una segunda pulsación a 2.075 ms en otro escenario. La caducidad GNSS se toma del contrato del producto, no de estos instantes ilustrativos.
 
@@ -124,7 +130,7 @@ Primero ejecutar la misma vista con fixtures locales de diagnóstico y sin perif
 
 Comparar fotografía de LCD con captura host para encontrar discrepancias de color/recorte; no exigir igualdad de píxeles a una foto, afectada por cámara, exposición y backlight. Medir pulsación→primer cambio visible y regularidad de frames con vídeo o instrumentación adecuada. El final de DMA es fin del envío, no necesariamente el instante exacto en que el usuario ve el píxel.
 
-Aceptar provisionalmente una transición de 200 ms con objetivo de 20 FPS estables y respuesta p95 menor de 100 ms, sujeto a medición. Registrar periodos entre actualizaciones, tiempo SPI, duración UI, heap mínimo y bloqueo del loop bajo carga. Comprobar GNSS continuo, ambas tiras y portal activo. No usar promedio FPS como único criterio: puede ocultar pausas largas.
+En I5 comparar recursos y datos con I4; una pantalla estática no tiene requisito de FPS. Desde I6 proponer una transición de 200 ms con objetivo de 20 FPS estables y respuesta p95 menor de 100 ms, sujeto a medición y los presupuestos del plan incremental. Registrar periodos entre actualizaciones, tiempo SPI, duración UI, heap mínimo y bloqueo del loop bajo carga. Comprobar GNSS continuo, ambas tiras y portal activo. No usar promedio FPS como único criterio: puede ocultar pausas largas.
 
 Repetir cambio de páginas/apagado durante un periodo definido, buscando crecimiento de memoria y fallos. Medir consumo con backlight apagado y en varios niveles; documentar condiciones. Reducir área animada, assets o cadencia si el resultado compromete tareas del collar.
 
@@ -132,12 +138,12 @@ Repetir cambio de páginas/apagado durante un periodo definido, buscando crecimi
 
 1. Brief y tema inicial de Paseo, con referencia identificable.
 2. Smoke test de versión LVGL y backend mínimo de placa cuando esté disponible.
-3. `WalkScreen` compartida y simulador interactivo/headless.
-4. Ocho escenarios anteriores, capturas temporales y manifest.
+3. I5: `WalkScreen` compartida y un ejecutable mínimo capaz de dibujar/capturar tres fixtures.
+4. I6: navegación y runner temporal; modos interactivo/headless según necesidad, solo escenarios de funciones implementadas.
 5. Revisión visual con correcciones focalizadas y baseline explícita.
 6. Compilación Classic y Display; informe separado de validación física pendiente o realizada.
 
-Esta lista es el destino del flujo, no una tarea indivisible: I5 toma una vista y tres escenarios estáticos; I6 añade eventos, escenarios restantes aplicables y secuencias temporales. Generadores, manifest detallado y reportes avanzados son mejoras de herramientas cuando se justifiquen. No ampliar a todas las vistas hasta poder repetir el ciclo básico desde un checkout limpio.
+Esta lista es el destino del flujo, no una tarea indivisible: I5 toma una vista y tres escenarios estáticos; I6 añade eventos y secuencias temporales. Batería y otros datos no forman parte de I6 por aparecer en una tabla. Generadores, manifest detallado y reportes avanzados son mejoras de herramientas cuando se justifiquen. No ampliar a todas las vistas hasta poder repetir el ciclo básico desde un checkout limpio.
 
 Encargo sugerido para la futura implementación:
 

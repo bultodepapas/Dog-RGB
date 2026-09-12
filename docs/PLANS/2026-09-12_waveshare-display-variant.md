@@ -2,6 +2,8 @@
 
 Fecha: 2026-09-12. Estado: **Proposed / investigación y plan; firmware no implementado**.
 
+Revisión de coherencia 2026-09-12: contratos de targets, diagnóstico, datos y pruebas contrastados con código/CI en el plan incremental. Este documento aporta evidencia y opciones; no define un segundo backlog.
+
 **Orden de ejecución actualizado por el propietario:** [Desarrollo incremental I0–I7](2026-09-12_display-incremental-delivery.md). Primero placa y LEDs, después GPS, pantalla sencilla y consolidación. LVGL, simulador y refinamiento visual se incorporan posteriormente. Este documento conserva la investigación técnica y la arquitectura objetivo.
 
 La versión XIAO sin pantalla continúa activa. Se propone una segunda variante con pantalla y un único núcleo de firmware compartido. Los nombres Classic y Display son provisionales. Este documento está en español por solicitud del propietario.
@@ -104,7 +106,7 @@ Añadir un entorno `waveshare_lcd169` y un entorno de diagnóstico `waveshare_lc
 
 Mantener una rama principal común y ramas cortas por tarea. Cada cambio compartido se compila para ambos dispositivos. Publicar binarios con nombre de placa, revisión, versión y commit. La disponibilidad de dos particiones OTA no significa que exista actualización OTA: esa función sigue fuera del primer alcance.
 
-Un `DisplaySnapshot` de tamaño acotado copiará valores y flags de validez del dominio: velocidad, distancia diaria/sesión, tiempo activo, calidad y antigüedad GNSS, modo/escena, estado AP/STA y voltaje de batería. Sin HTTP contra el propio ESP32, punteros a estado mutable o escrituras NVS desde callbacks de dibujo. Las acciones futuras de UI entrarán por comandos comunes al portal y al dispositivo.
+El contrato mínimo `DisplaySnapshot` de I3 está definido en el [plan incremental](2026-09-12_display-incremental-delivery.md): estado GNSS, velocidad/validez, distancia diaria/fecha, modo LED e instante de captura. `total_distance_m()` representa el día registrado; no es distancia de sesión y `has_current_fix()` no basta para declarar calidad confiable. Tiempo activo, sesión, AP/STA y batería se incorporan únicamente cuando una vista posterior los necesite. Sin HTTP contra el propio ESP32, punteros a estado mutable o escrituras NVS desde callbacks de dibujo. Las acciones futuras de UI entrarán por comandos comunes al portal y al dispositivo.
 
 ## Stack de interfaz y rendimiento
 
@@ -119,7 +121,7 @@ Presupuesto calculado de diseño, todavía sin medición:
 - Un frame RGB565: `240 × 280 × 2 = 134.400 bytes` (131,25 KiB).
 - Dos buffers parciales de 20 filas: `2 × 240 × 20 × 2 = 19.200 bytes` (18,75 KiB).
 - A SPI hipotético de 40 MHz, un frame completo necesita al menos 26,88 ms solo de datos. No prometer 60 FPS; comandos y software agregan tiempo.
-- Objetivo inicial: datos a 2–5 Hz, animaciones breves hasta 15–20 FPS, refresco por regiones, sin repintado continuo cuando nada cambia. Son objetivos de ingeniería, no especificaciones del panel.
+- I3 actualiza datos cambiados a un máximo de 1 Hz; I5 conserva esa semántica. I6 propone 20 FPS durante una transición breve, con refresco por regiones y sin repintado continuo en reposo. Una cadencia superior de presentación necesita un caso de uso; no aumenta por sí sola la frecuencia de muestras GNSS. Son objetivos de ingeniería, no especificaciones del panel.
 
 Usar buffers parciales en memoria compatible con el transporte elegido y PSRAM para recursos cuando corresponda. Medir heap interno libre/mínimo, bloque máximo, PSRAM, latencia de UI y máximos del loop. LVGL tiene soporte de [renderizado parcial](https://lvgl.io/docs/open/9.1/porting/display); ese enlace describe API v9 y no debe copiarse literalmente al target v8.
 
@@ -129,14 +131,14 @@ Empezar con un único dueño de LVGL en el loop y transferencias acotadas. Si la
 
 Esta secuencia describe el destino ampliado: I3 incorpora solo alimentación, LCD y texto; pasos LVGL corresponden a I5, y RTC/IMU permanecen opcionales en I7. No activar todos los periféricos desde el primer arranque.
 
-1. Seleccionar perfil al compilar. Establecer enseguida control de alimentación según revisión y demo; mantener apagadas las salidas LED y backlight durante preparación.
+1. Seleccionar perfil al compilar, antes de la construcción global del bus LED. Establecer enseguida control de alimentación según revisión y demo; mantener backlight apagado. Para apagar tiras alimentadas, enviar negro mediante el bus: suspender el transporte no borra el último frame.
 2. Inicializar consola, comprobar flash/PSRAM y registrar board ID/revisión. Sin esperas indefinidas a un monitor USB.
-3. Cargar NVS, configuración y escenas; iniciar GNSS y geofence, conservando la secuencia funcional actual.
+3. Cargar NVS, configuración y escenas; iniciar GNSS, geofence, LEDs y resto del núcleo en el orden actual, incluido BLE antes de Wi-Fi si está habilitado. El diagnóstico I0/I1 tiene una ruta mínima que termina antes; en I2/I3 usa el núcleo real con overrides de banco y sin welcome a brillo elevado. No alterar defaults Classic.
 4. Configurar bus SPI, reset ST7789 y ventana visible 240 × 280. Verificar offsets, rotación, orden RGB/BGR e inversión con barras de color y marco de un píxel. No asumir que la memoria 240 × 320 del controlador es toda visible.
-5. Crear buffers, LVGL, tema y primera vista. Encender backlight gradualmente tras el primer frame válido.
-6. Iniciar I²C y sondear RTC/IMU con timeout. Un fallo de sensor o LCD debe generar diagnóstico y permitir GPS/LEDs/portal; no bloquear el arranque esperando periféricos opcionales.
-7. Iniciar el resto del sistema y mantener el orden BLE/Wi-Fi actual si BLE está habilitado. Muestrear botón sin bloquear y publicar snapshots con cadencia limitada.
-8. Al vencer el tiempo de pantalla, apagar backlight y suspender refresco. Seguir recibiendo GNSS y ejecutando el collar. Deep sleep del MCU es una función distinta y no debe activarse durante tracking continuo.
+5. En I3 dibujar texto directo; en I5 crear buffers, LVGL, tema y primera vista. Encender backlight tras el primer frame; la rampa es un refinamiento posterior. El servicio Display se inicia al final del arranque normal, con trabajo acotado.
+6. Solo en una extensión I7 iniciar I²C y sondear RTC/IMU con timeout. Los errores detectables de sensor/driver deben permitir continuar GPS/LEDs/portal. Un ST7789 conectado por SPI de escritura no ofrece por ello detección fiable de presencia: verificar imagen físicamente.
+7. Servir GPS primero en el loop y publicar snapshots con cadencia limitada después del trabajo existente. Desde I6 muestrear botón sin bloquear.
+8. En I6, al vencer el tiempo de pantalla, apagar backlight y suspender refresco. Seguir recibiendo GNSS y ejecutando el collar. Deep sleep del MCU es una función distinta y no debe activarse durante tracking continuo. En I3, apagado/encendido solo como comprobación de diagnóstico.
 
 El RTC puede mantener hora entre arranques, pero no se convierte automáticamente en fecha GNSS confiable. Conservar las reglas existentes de rollover y validez. Un fallo de PSRAM debe tener salida explícita: degradación si caben buffers mínimos o UI deshabilitada y diagnóstico.
 
@@ -146,10 +148,10 @@ La pantalla sirve para consultar el collar al ponerlo, retirarlo o detenerse. I3
 
 | Vista | Contenido y estados |
 | --- | --- |
-| Paseo | Velocidad grande, distancia, tiempo; “Buscando GPS” o dato caducado en vez de 0 falso |
+| Paseo | I5 conserva velocidad, distancia diaria/fecha y modo de I3; estado GNSS explícito. Tiempo/sesión requieren extensión de datos posterior |
 | Luces | Modo, escena y brillo; indicación comprensible si actúa el límite de corriente |
 | Conexión | AP disponible, SSID/IP y estado STA; no anunciar enlace activo si está apagado |
-| Resumen | Distancia diaria, tiempo activo y batería con validez |
+| Resumen | Distancia diaria y tiempo activo; batería únicamente tras su validación I7 |
 
 Fondo oscuro, números de 36–48 px, etiquetas de 16–20 px, márgenes iniciales de 16 px ajustados al recorte real, unidades visibles y color acompañado de texto/icono. No reutilizar el portal completo en 240 × 280. El fondo negro mejora contraste; el ahorro principal del LCD se obtiene regulando backlight.
 
@@ -161,18 +163,19 @@ Flujo de diseño con IA:
 
 1. Escribir un brief con 240 × 280, no táctil, estados, tipografía, colores y límites de memoria. Elegir una propuesta visual con capturas a escala 1:1 y ampliadas.
 2. Pedir a Codex componentes C/C++ LVGL y un tema central; recursos compactos y tipografía con `áéíóúñ`, sin texto incrustado en imágenes decorativas.
-3. Alimentar el simulador con fixtures deterministas: arranque, sin fix, paseo, dato viejo, batería desconocida/baja, AP apagado y nombres largos.
+3. En I5 alimentar el simulador con tres fixtures estáticos: sin fix, fix válido y dato caducado. I6 añade eventos de botón y secuencias temporales. Batería, AP y nombre se prueban cuando se incorporen sus funciones, no antes.
 4. Exportar PNG de cada estado desde el renderizador real. Codex compara referencia/resultado y corrige recorte, jerarquía y navegación. Guardar baselines revisados, sin aceptarlos automáticamente.
 5. Compilar para ambos targets y verificar en placa lectura exterior, colores, consumo, botón y continuidad GNSS. El simulador no sustituye esas mediciones.
 
 La [documentación oficial de entradas de imagen](https://learn.chatgpt.com/docs/image-inputs) confirma capturas/referencias como contexto y el uso de `codex --image`. Ejemplo de encargo futuro:
 
 ```text
-Implementa la vista Paseo para RGB Dog Display en LVGL 8.4.0.
-Resolución 240x280 RGB565, sin táctil, con botón corto para avanzar.
+Al llegar a I5, implementa la vista Paseo con la versión LVGL fijada
+en el ensayo de compatibilidad. Resolución 240x280 RGB565, sin táctil.
 Usa DisplaySnapshot; no recalcules métricas ni accedas a Wi-Fi/NVS desde UI.
 Comparte ui/ entre simulador PC y firmware. Incluye estados sin fix,
-dato caducado y batería desconocida. Genera capturas reproducibles.
+fix válido y dato caducado. Conserva el contrato de datos de I3.
+Genera tres capturas estáticas; navegación queda en I6 y batería en I7.
 Verifica márgenes de esquinas y texto español. Compila también Classic.
 ```
 
@@ -199,7 +202,7 @@ Enclosure independiente para Display: medir PCB/pantalla, altura de conectores y
 | I6 | Navegación y animación gradual | Botón, segunda vista y después transición medida |
 | I7 | Extensiones opcionales | Una función y aceptación específica por entrega |
 
-Los criterios detallados y dependencias están en el [plan incremental](2026-09-12_display-incremental-delivery.md). Un incremento funcional activo; si falta placa, avanzar trabajo independiente sin declarar cerrada su validación física. No mantener dos copias divergentes de GPS, escenas o portal.
+Los criterios detallados y dependencias están en el [plan incremental](2026-09-12_display-incremental-delivery.md). Un incremento funcional Display activo, con Classic evolucionando en paralelo; si falta placa, avanzar trabajo independiente sin declarar cerrada su validación física. No mantener dos copias divergentes de GPS, escenas o portal.
 
 Pruebas específicas futuras: selección de perfiles sin pines duplicados, rutas de LED de estado ausente, transiciones del botón y timeout con rollover de `millis()`, snapshots inválidos, ADC fallido, OOM de UI, largas respuestas HTTP con GNSS continuo, cambios de escena durante animación y apagado/despertar repetido. Ejecutar la suite host existente y Wokwi Classic; no anunciar simulación de la placa Waveshare sin verificar soporte de sus periféricos.
 
@@ -250,7 +253,7 @@ Evitar animaciones que persigan datos falsos: mostrar la velocidad válida recib
 4. Preconvertir recursos y limitar glifos necesarios; conservar antialiasing del texto. Empezar con geometría simple y un icono de mascota pequeño. Fondos animados y GIF de pantalla completa quedan fuera del MVP por su área de refresco y decodificación.
 5. Considerar `esp_lcd`/adaptadores Espressif si el driver inicial resulta bloqueante. No asumir que una migración o PSRAM adicional elimina el cuello de botella SPI. Los modos antitearing RGB/MIPI del adaptador no están soportados para su ruta SPI. Dos buffers de dibujo no garantizan ausencia de tearing en el panel. [ESP LVGL Adapter](https://docs.espressif.com/projects/esp-iot-solution/en/latest/display/tools/esp_lvgl_adapter.html)
 
-Objetivo base: 20 FPS estables durante movimiento; explorar 30 FPS para regiones pequeñas si las mediciones lo permiten. Esto afina el objetivo previo de 15–20 FPS sin convertirlo en rendimiento garantizado. A 40 MHz hipotéticos, 30 frames completos consumen 32,256 Mbit/s antes de overhead; 60 requieren 64,512 Mbit/s. La frecuencia soportada y estable debe verificarse en el panel concreto.
+Desde I6, objetivo base de 20 FPS estables durante movimiento; explorar 30 FPS para regiones pequeñas solo si una necesidad y las mediciones lo justifican. I3/I5 estáticos no tienen ese requisito. A 40 MHz hipotéticos, 30 frames completos consumen 32,256 Mbit/s antes de overhead; 60 requieren 64,512 Mbit/s. La frecuencia soportada y estable debe verificarse en el panel concreto.
 
 Medir frame times p50/p95/máximo, tiempo SPI, área actualizada, latencia botón→frame, heap mínimo y continuidad GNSS. Repetir con Wi-Fi y ambas tiras activas. Capturas sirven para composición; usar una secuencia temporal o vídeo y medición en dispositivo para juzgar fluidez. Criterio de elección de herramienta: producir la misma vista, exportarla, compilarla y capturar sus estados; elegir la que mantenga mejor el ciclo reproducible con menos trabajo manual.
 

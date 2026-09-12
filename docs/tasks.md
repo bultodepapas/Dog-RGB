@@ -23,6 +23,19 @@
 
 ## P1 — Firmware and diagnostics
 
+### Parallel Display integration — planning update 2026-09-12
+
+Follow the [Display incremental contract](PLANS/2026-09-12_display-incremental-delivery.md) for task detail and acceptance. These entries do not claim an implemented Waveshare target or replace the existing Classic queue.
+
+- [ ] I0a: reproduce Classic/Wokwi builds and host baseline; preserve local work and record evidence.
+- [ ] I0b–I0c: introduce compile-time board profiles, optional heartbeat, product/bringup targets and CI matrix; identify the physical board and verify boot separately.
+- [ ] I1–I4, sequentially: two LED strips, existing GPS, a simple read-only LCD page, then combined portal/persistence verification. Record bank-only versus portable acceptance.
+- [ ] I5–I6 after the functional base: one shared LVGL view and three static captures, then button/second view and measured motion.
+
+The next executable increment is I0. Classic fixes continue in parallel; battery/sensors, advanced tooling and cloud are not dependencies of the basic Display build.
+
+### Existing shared firmware queue
+
 - [ ] Add native PlatformIO/Unity tests for extracted pure C++ logic; keep Python contracts as complementary regression tests.
 - [ ] Define physical-device loop-latency, UART-overflow, heap, and radio-retry acceptance thresholds.
 - [ ] Exercise slow/aborted route exports against a real phone while recording GNSS overflow and loop diagnostics.
