@@ -27,7 +27,7 @@ Not implemented: cloud sync, user accounts, a native mobile app, IMU/heart-rate 
 ## Hardware baseline
 
 Classic XIAO remains the default. An experimental Waveshare LCD 1.69 No Touch
-V2 profile and power/USB diagnostic are now implemented in software; physical
+V2 profile, power/USB diagnostic and LED bench diagnostic are now implemented in software; physical
 validation and LCD functionality are pending. See [board targets and I0 bring-up](Platformio/Dog-RGB/docs/boards.md).
 
 | Component | Current baseline |

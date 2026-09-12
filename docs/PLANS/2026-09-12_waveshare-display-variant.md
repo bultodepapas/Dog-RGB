@@ -1,8 +1,8 @@
 # RGB Dog: variante con Waveshare ESP32-S3-LCD-1.69
 
-Fecha: 2026-09-12. Estado: **Investigación y arquitectura objetivo; I0 de software implementado, LCD y aceptación física pendientes**.
+Fecha: 2026-09-12. Estado: **Investigación y arquitectura objetivo; I0/I1 de software implementados, LCD y aceptación física pendientes**.
 
-Actualización de ejecución: existen los perfiles y targets Classic/Display/bringup con diagnóstico etapa 0; véanse [baseline I0](../baselines/display-i0-2026-09-12.md) y [guía de placas](../../Platformio/Dog-RGB/docs/boards.md). Las funciones de pantalla, sensores y etapas siguientes descritas aquí siguen siendo propuestas.
+Actualización de ejecución: existen los perfiles y targets Classic/Display/bringup con diagnósticos de etapas 0 y 1; véanse [baseline I0](../baselines/display-i0-2026-09-12.md) y [guía de placas](../../Platformio/Dog-RGB/docs/boards.md). Las funciones de pantalla, sensores y etapas siguientes descritas aquí siguen siendo propuestas.
 
 Revisión de coherencia 2026-09-12: contratos de targets, diagnóstico, datos y pruebas contrastados con código/CI en el plan incremental. Este documento aporta evidencia y opciones; no define un segundo backlog.
 

@@ -67,7 +67,8 @@ XIAO or experimental Waveshare LCD 1.69 No Touch V2 pins through `include/pins.h
 `board::begin()` handles early power/backlight and the optional heartbeat. The
 separate stage-0 diagnostic target shares `main.cpp` but excludes the normal
 application modules. The Waveshare product target reuses the existing core;
-no LCD driver/UI or physical Waveshare acceptance is claimed. See
+I1 adds a command-driven LED diagnostic using the existing bus/conversion/limiter,
+also excluded from the product. No LCD driver/UI or physical Waveshare acceptance is claimed. See
 [board targets](../Platformio/Dog-RGB/docs/boards.md) and the
 [I0 evidence](baselines/display-i0-2026-09-12.md).
 

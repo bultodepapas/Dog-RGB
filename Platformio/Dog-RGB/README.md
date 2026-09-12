@@ -2,10 +2,14 @@
 
 **Active PlatformIO project** for the Seeed Studio XIAO ESP32-S3 collar. Repository-wide onboarding and hardware cautions are in the [root README](../../README.md).
 
-An experimental Waveshare LCD 1.69 No Touch V2 profile and I0 diagnostic target
-are also implemented in software. Physical revision/boot validation and LCD
+An experimental Waveshare LCD 1.69 No Touch V2 profile, I0 diagnostic target
+and I1 LED bench target are also implemented in software. Physical revision/boot/LED validation and LCD
 functionality remain pending. See [board targets and bring-up](docs/boards.md);
 Classic remains the default target and shares the same application core.
+
+LED bench command: `pio run -e waveshare_lcd169_ledcheck`. This separate
+diagnostic starts black; USB commands run one-pixel/full-strip checks at fixed
+brightness 16/255. See the board guide before wiring or flashing.
 
 ## Implemented subsystems
 

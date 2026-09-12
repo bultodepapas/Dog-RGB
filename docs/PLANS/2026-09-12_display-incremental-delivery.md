@@ -1,9 +1,9 @@
 # RGB Dog Display: desarrollo incremental
 
-Estado: **I0 implementado en software; validación física y escenarios Wokwi pendientes**.
+Estado: **I0 e I1 implementados en software; validación física y escenarios Wokwi pendientes**.
 Fecha: 2026-09-12.
 
-Revisión de preparación: contrastado con firmware, pruebas y CI en `dc6789b1c66921ca3b29a1f78410a879aa699ccd`, más los cambios documentales locales. Implementación I0 iniciada posteriormente desde `3fa9e7bff27b0cc6e10c78eea0a68d966c7294b8`: perfiles, cuatro targets, heartbeat opcional y diagnóstico etapa 0. Evidencia y límites en la [baseline I0](../baselines/display-i0-2026-09-12.md); procedimiento en [boards.md](../../Platformio/Dog-RGB/docs/boards.md). No se declara I0 físico cerrado ni I1 iniciado.
+Revisión de preparación: contrastado con firmware, pruebas y CI en `dc6789b1c66921ca3b29a1f78410a879aa699ccd`, más los cambios documentales locales. Implementación iniciada desde `3fa9e7bff27b0cc6e10c78eea0a68d966c7294b8`: perfiles y diagnóstico I0, seguidos por preparación software I1 autorizada al continuar el plan. Evidencia en las baselines [I0](../baselines/display-i0-2026-09-12.md) e [I1](../baselines/display-i1-2026-09-12.md); procedimiento en [boards.md](../../Platformio/Dog-RGB/docs/boards.md). I0/I1 físicos siguen abiertos; preparar el software no reemplaza su orden de aceptación.
 
 Este documento gobierna la secuencia de trabajo de la variante Display. Ante diferencias de prioridad con el [plan de investigación Waveshare](2026-09-12_waveshare-display-variant.md) o el [flujo visual con IA](2026-09-12_display-ai-workflow.md), prevalece este orden. Esos documentos conservan valor como referencias técnicas; no convierten sus propuestas avanzadas en requisitos del primer incremento.
 
@@ -51,7 +51,8 @@ Este plan decide **orden, contratos, tareas y aceptación**. El plan Waveshare c
 | `seeed_xiao_esp32s3` existente | Producto Classic | Pines/defaults actuales, sin LCD/LVGL ni código de diagnóstico Display |
 | `wokwi` existente | Regresión simulada Classic | Conservar `extends = env:seeed_xiao_esp32s3`, UART y limitación de transporte actuales |
 | `waveshare_lcd169` implementado en I0 | Producto Display experimental, núcleo compartido | Mismo core/ArduinoJson/NeoPixel; LCD desde I3, LVGL desde I5; sin patrones/fixtures de banco |
-| `waveshare_lcd169_bringup` implementado en I0 | Diagnóstico de la misma placa | Etapa 0 disponible; etapas posteriores aún rechazadas; sin publicar como firmware de uso normal |
+| `waveshare_lcd169_bringup` implementado en I0 | Diagnóstico de la misma placa | Etapa 0; sin publicar como firmware de uso normal |
+| `waveshare_lcd169_ledcheck` implementado en I1 | Mismo diagnóstico, compilado con etapa 1 | Un píxel y después ambas tiras; brillo 16, parada por comando/timeout/desconexión; etapas 2+ rechazadas |
 
 Mantener un único `main.cpp` y una única implementación de GPS, LED bus/policy, escenas, portal y persistencia. El diagnóstico añade rutinas pequeñas, excluidas del producto mediante compilación. Un selector **solo del target bringup**, `DOG_RGB_BRINGUP_STAGE`, comienza en 0: I0 consola/alimentación; I1 patrones del bus; I2 núcleo real con GPS/LEDs; I3 añade pruebas LCD. Valores desconocidos deben fallar al compilar. En I0/I1 la ruta de diagnóstico termina antes del arranque normal; en I2/I3 se reutilizan `setup/loop` normales con overrides de banco en RAM. No emplear `DEBUG_AP_ONLY_MINIMAL` como sustituto: omite GPS/LEDs. Documentar el valor usado en cada binario y recompilar al cambiarlo.
 
@@ -78,6 +79,8 @@ Aceptación I0-software: comandos y resultados de Classic registrados; builds de
 Dividir I0 en tres cambios revisables: **I0a**, baseline y evidencia; **I0b**, perfiles, heartbeat y targets; **I0c**, diagnóstico mínimo, matriz CI y arranque de banco. No mezclar aquí extracción masiva de módulos, actualizaciones de dependencias o herramientas gráficas. Falta de hardware deja I0-placa abierto; permite preparar pruebas y revisar I1, sin declarar que el collar ya funciona.
 
 ## I1 — LEDs en Waveshare
+
+**Preparación software entregada:** target `waveshare_lcd169_ledcheck`, reutilizando bus/conversión/limitador. Arranca en negro y admite `1` (un píxel, 30 s), `f` (longitud configurada, hasta 15 min), `0` (apagado) y `?` (diagnóstico). `f` requiere completar antes los pasos de `1`; desconectar USB apaga sin reanudar al reconectar. El código no prueba por sí solo colores, corriente ni cableado. Véanse evidencia y protocolo enlazados al inicio.
 
 **Resultado:** controlar las dos tiras desde la nueva placa.
 
@@ -171,7 +174,7 @@ Batería calibrada, RTC, IMU, buzzer, más vistas, ahorro avanzado y refinamient
 
 ## Mapa de cambios y verificación
 
-Las rutas I0 ya se incorporaron; las de I1–I6 siguen propuestas y se crean en su incremento. La tabla conserva la división de trabajo, no sustituye la baseline de ejecución.
+Las rutas I0/I1 ya se incorporaron; las de I2–I6 siguen propuestas y se crean en su incremento. La tabla conserva la división de trabajo, no sustituye la baseline de ejecución.
 
 | Cambio | Archivos o área | Verificación que permite cerrarlo |
 | --- | --- | --- |
@@ -202,13 +205,14 @@ Los entornos I0 ya existen; comandos desde `Platformio/Dog-RGB`:
 ```powershell
 pio run -e waveshare_lcd169
 pio run -e waveshare_lcd169_bringup
+pio run -e waveshare_lcd169_ledcheck
 pio pkg list -e waveshare_lcd169
 ```
 
 | Modificación | Comprobación antes de integrar |
 | --- | --- |
-| Perfiles, `main`, core compartido, PlatformIO | Cuatro builds + suite host; Wokwi prepare/suite si cambian comportamiento, UART o assets, con disponibilidad/token documentados |
-| Driver/UI exclusivo Display | Dos builds Waveshare + Classic y pruebas del adaptador; Wokwi adicional si cambian hooks compartidos |
+| Perfiles, `main`, core compartido, PlatformIO | Cinco builds actuales + suite host; Wokwi prepare/suite si cambian comportamiento, UART o assets, con disponibilidad/token documentados |
+| Driver/UI exclusivo Display | Builds Waveshare producto/diagnóstico afectados + Classic y pruebas del adaptador; Wokwi adicional si cambian hooks compartidos |
 | Portal o contrato API | Verificación anterior + `webui:check`, `webui:unit`, smoke y casos de navegador afectados, según guía existente |
 | Solo documentación | Enlaces locales, coherencia de alcance/estados y `git diff --check`; no simular una aceptación física |
 
@@ -247,8 +251,9 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | Incremento | Estado al revisar estos planes |
 | --- | --- |
 | I0 | Software implementado y comprobado; CI configurada, ejecución remota no comprobada; I0 físico y escenarios Wokwi abiertos |
-| I1–I4 | Pendientes; primera entrega funcional objetivo |
+| I1 | Diagnóstico implementado y comprobado en software; pruebas de ambas tiras y modo normal en placa pendientes |
+| I2–I4 | Pendientes; primera entrega funcional objetivo |
 | I5–I6 | Planificados para después de la base funcional |
 | I7 | Opcional, sin priorización de implementación |
 
-Próximo trabajo concreto: identificar PCB/revisión, ejecutar arranque I0 de banco y recuperar la ejecución de escenarios Wokwi (CLI/token no disponibles localmente). Después, I1: dos tiras a brillo reducido usando el bus actual. Los targets Waveshare son experimentales; la LCD, patrones I1 y validación física todavía no están implementados/completados.
+Próximo trabajo físico: identificar PCB/revisión y ejecutar I0 antes del diagnóstico I1 de tiras; recuperar escenarios Wokwi cuando CLI/token estén disponibles. La siguiente preparación de software es I2, GPS con LEDs. Los targets Waveshare siguen experimentales; la LCD y la validación física aún están pendientes.
