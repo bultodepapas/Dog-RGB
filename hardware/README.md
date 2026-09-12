@@ -9,5 +9,6 @@ Current references:
 - [BOM and power worksheet](../docs/bom_power_budget.md)
 - [SK6812 wiring](../docs/sk6812_wiring.md)
 - [XIAO pin map](../xiao_s3_pin.md)
+- [Proposed Waveshare display variant](../docs/PLANS/2026-09-12_waveshare-display-variant.md) — separate board profile and power/wiring investigation; Classic remains the current baseline, and the physical Waveshare revision is not yet confirmed.
 
 Do not treat firmware defaults or planning estimates as a finished schematic, safe load rating, waterproofing claim, or runtime guarantee.
