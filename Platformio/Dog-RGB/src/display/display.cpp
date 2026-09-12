@@ -5,6 +5,9 @@
 #include <string.h>
 #include "board/board_profile.h"
 #include "display/text_view.h"
+#if DOG_RGB_DISPLAY_LVGL == 1
+#include "display/lvgl_port.h"
+#endif
 #if DOG_RGB_BRINGUP_STAGE == 3
 #include "bringup/display_demo.h"
 #endif
@@ -24,6 +27,9 @@ Arduino_ST7789 panel(&bus, board::kLcdReset, 0, true, board::kLcdWidth,
 bool attempted = false, ready = false, enabled = true, backlight = false;
 bool test_pattern = false, redraw = false;
 bool demo = false;
+#if DOG_RGB_DISPLAY_LVGL == 1
+bool lvgl_ready = false, use_lvgl = true;
+#endif
 #if DOG_RGB_BRINGUP_STAGE == 3
 uint32_t demo_started_ms = 0;
 #endif
@@ -110,6 +116,10 @@ void commands() {
         demo = true; demo_started_ms = millis();
         test_pattern = false; redraw = true;
         break;
+#if DOG_RGB_DISPLAY_LVGL == 1
+      case 's': use_lvgl = false; test_pattern = false; redraw = true; break;
+      case 'l': use_lvgl = lvgl_ready; test_pattern = false; redraw = true; break;
+#endif
       case 'b': light(!backlight); break;
       case 'd':
         enabled = !enabled;
@@ -119,6 +129,9 @@ void commands() {
       case 'r':
         draw_ticks = max_tick_us = rows_drawn = max_service_us = 0;
         memset(histogram, 0, sizeof(histogram));
+#if DOG_RGB_DISPLAY_LVGL == 1
+        if (lvgl_ready) lvgl_port::reset_stats();
+#endif
         break;
       default: break;
     }
@@ -134,11 +147,18 @@ bool begin() {
   light(false);
   ready = panel.begin(board::kLcdSpiHz);
   if (ready) {
-    frame();
     const DisplaySnapshot sample = sample_now();
     sample_ms = last_sample_ms = sample.captured_ms;
     pending = format_view(sample);
-    for (uint8_t i = 0; i < kRowCount; ++i) row(i);
+#if DOG_RGB_DISPLAY_LVGL == 1
+    lvgl_ready = lvgl_port::begin(panel, pending, demo);
+    use_lvgl = lvgl_ready;
+    if (!use_lvgl)
+#endif
+    {
+      frame();
+      for (uint8_t i = 0; i < kRowCount; ++i) row(i);
+    }
     light(true); // Only after the first complete frame, never before init.
   }
   init_us = micros() - started;
@@ -163,7 +183,18 @@ void tick() {
     if (test_pattern) {
       bars();
       dirty = 0;
-    } else {
+    }
+#if DOG_RGB_DISPLAY_LVGL == 1
+    else if (use_lvgl) {
+      const DisplaySnapshot sample = sample_now();
+      sample_ms = last_sample_ms = sample.captured_ms;
+      pending = format_view(sample);
+      lvgl_port::update(pending, demo);
+      lvgl_port::tick(now, true);
+      dirty = 0;
+    }
+#endif
+    else {
       frame();
       const DisplaySnapshot sample = sample_now();
       sample_ms = last_sample_ms = sample.captured_ms;
@@ -172,7 +203,19 @@ void tick() {
     }
     light(true);
     drew = true;
-  } else if (!test_pattern) {
+  }
+#if DOG_RGB_DISPLAY_LVGL == 1
+  else if (!test_pattern && use_lvgl) {
+    if (time_utils::elapsed_at_least(now, last_sample_ms, kSampleMs)) {
+      const DisplaySnapshot sample = sample_now();
+      sample_ms = last_sample_ms = sample.captured_ms;
+      pending = format_view(sample);
+      lvgl_port::update(pending, demo);
+    }
+    drew = lvgl_port::tick(now);
+  }
+#endif
+  else if (!test_pattern) {
     if (dirty == 0 && time_utils::elapsed_at_least(now, last_sample_ms, kSampleMs)) {
       const DisplaySnapshot sample = sample_now();
       sample_ms = last_sample_ms = sample.captured_ms;
@@ -198,14 +241,28 @@ void tick() {
 }
 
 void report(Print &sink) {
-  char line[320];
+  char line[448];
+  const char *ui = "text";
+  uint32_t flushes = 0, pixels = 0, flush_max_us = 0, lv_free = 0, lv_largest = 0;
+#if DOG_RGB_DISPLAY_LVGL == 1
+  if (use_lvgl) ui = "lvgl";
+  if (lvgl_ready) {
+    const auto stats = lvgl_port::stats();
+    flushes = stats.flushes; pixels = stats.pixels; flush_max_us = stats.flush_max_us;
+    lv_free = stats.free_bytes; lv_largest = stats.largest_free;
+  }
+#endif
   const int n = snprintf(line, sizeof(line),
       "[LCD] ready=%d enabled=%d light=%d test=%d demo=%d sample_ms=%lu pending=%u "
-      "init_us=%lu draw_ticks=%lu rows=%lu draw_max_us=%lu p95_upper_us=%lu tick_max_us=%lu\n",
+      "init_us=%lu draw_ticks=%lu rows=%lu draw_max_us=%lu p95_upper_us=%lu tick_max_us=%lu "
+      "ui=%s flushes=%lu pixels=%lu flush_max_us=%lu lv_free=%lu lv_largest=%lu\n",
       ready, enabled, backlight, test_pattern, demo, static_cast<unsigned long>(sample_ms), dirty,
       static_cast<unsigned long>(init_us), static_cast<unsigned long>(draw_ticks),
       static_cast<unsigned long>(rows_drawn), static_cast<unsigned long>(max_tick_us),
-      static_cast<unsigned long>(p95_upper_us()), static_cast<unsigned long>(max_service_us));
+      static_cast<unsigned long>(p95_upper_us()), static_cast<unsigned long>(max_service_us), ui,
+      static_cast<unsigned long>(flushes), static_cast<unsigned long>(pixels),
+      static_cast<unsigned long>(flush_max_us), static_cast<unsigned long>(lv_free),
+      static_cast<unsigned long>(lv_largest));
   if (n > 0 && static_cast<size_t>(n) < sizeof(line))
     sink.write(reinterpret_cast<const uint8_t *>(line), static_cast<size_t>(n));
 }
