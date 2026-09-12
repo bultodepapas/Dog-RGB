@@ -1,0 +1,430 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="980" viewBox="0 0 1280 980"><title>RGB Dog: placa digital y sistema visual propuesto</title><desc>Boceto conceptual. LUNA y todos los datos son ficticios. QR con número inválido. No es LVGL.</desc><rect width="1280" height="980" fill="#eef0e9"/>
+<text x="40" y="48" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#5a6258">RGB DOG / DIRECCIÓN VISUAL</text>
+<text x="40" y="96" font-family="Arial,sans-serif" font-size="38" font-weight="700" fill="#161c17">Su nombre. Tu contacto. Una mirada.</text>
+<text x="40" y="125" font-family="Arial,sans-serif" font-size="16" font-weight="400" fill="#576054">Propuesta · 240 × 280 px por pantalla · LUNA y teléfono ficticios · QR de demostración inválido</text>
+<text x="40" y="156" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#4b5049">01 / PLACA · QR WHATSAPP</text>
+<rect x="40" y="178" width="240" height="280" rx="28" fill="#000"/>
+<text x="64" y="210" font-family="Arial,sans-serif" font-size="30" font-weight="700" fill="#fff">LUNA</text>
+<text x="231" y="207" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#50efab">ID</text>
+<text x="64" y="231" font-family="Arial,sans-serif" font-size="11" font-weight="400" fill="#b8b8b8">CONTACTO · DEMO</text>
+<rect x="94.0" y="244" width="132" height="132" rx="0" fill="#fff"/>
+<rect x="110.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="114.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="130.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="162.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="260" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="264" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="264" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="264" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="264" width="4" height="4" rx="0" fill="#000"/>
+<rect x="162.0" y="264" width="4" height="4" rx="0" fill="#000"/>
+<rect x="166.0" y="264" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="264" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="264" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="268" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="162.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="272" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="162.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="276" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="280" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="280" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="280" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="280" width="4" height="4" rx="0" fill="#000"/>
+<rect x="162.0" y="280" width="4" height="4" rx="0" fill="#000"/>
+<rect x="166.0" y="280" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="280" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="280" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="114.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="130.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="166.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="284" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="288" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="288" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="288" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="288" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="288" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="138.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="166.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="178.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="292" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="296" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="296" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="296" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="296" width="4" height="4" rx="0" fill="#000"/>
+<rect x="162.0" y="296" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="296" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="296" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="296" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="296" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="130.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="178.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="300" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="304" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="130.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="138.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="166.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="308" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="130.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="162.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="312" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="130.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="316" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="138.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="178.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="320" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="114.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="138.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="166.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="178.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="324" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="328" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="328" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="328" width="4" height="4" rx="0" fill="#000"/>
+<rect x="162.0" y="328" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="328" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="328" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="114.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="130.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="332" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="336" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="166.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="178.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="340" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="158.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="162.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="178.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="344" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="146.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="174.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="178.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="348" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="150.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="154.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="186.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="190.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="194.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="352" width="4" height="4" rx="0" fill="#000"/>
+<rect x="110.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="114.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="118.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="122.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="126.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="130.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="134.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="142.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="166.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="170.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="178.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="182.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="198.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="202.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<rect x="206.0" y="356" width="4" height="4" rx="0" fill="#000"/>
+<text x="64" y="405" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#fff">+00 000 000 0000</text>
+<text x="64" y="429" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">Escanea para WhatsApp</text>
+<rect x="64" y="440" width="16" height="3" rx="1" fill="#50efab"/>
+<rect x="84" y="440" width="12" height="3" rx="1" fill="#777"/>
+<rect x="104" y="440" width="12" height="3" rx="1" fill="#777"/>
+<rect x="124" y="440" width="12" height="3" rx="1" fill="#777"/>
+<text x="350" y="156" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#4b5049">02 / PLACA · ALTERNATIVA TEXTUAL</text>
+<rect x="350" y="178" width="240" height="280" rx="28" fill="#000"/>
+<text x="374" y="208" font-family="Arial,sans-serif" font-size="11" font-weight="400" fill="#b8b8b8">MI NOMBRE ES · DEMO</text>
+<text x="374" y="269" font-family="Arial,sans-serif" font-size="48" font-weight="700" fill="#fff">LUNA</text>
+<text x="374" y="305" font-family="Arial,sans-serif" font-size="16" font-weight="400" fill="#fff">Si estoy sola,</text>
+<text x="374" y="327" font-family="Arial,sans-serif" font-size="16" font-weight="400" fill="#fff">llama a mi familia.</text>
+<rect x="374" y="348" width="192" height="1" rx="0" fill="#303030"/>
+<text x="374" y="384" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#fff">+00 000</text>
+<text x="374" y="412" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#fff">000 0000</text>
+<rect x="374" y="440" width="16" height="3" rx="1" fill="#50efab"/>
+<rect x="394" y="440" width="12" height="3" rx="1" fill="#777"/>
+<rect x="414" y="440" width="12" height="3" rx="1" fill="#777"/>
+<rect x="434" y="440" width="12" height="3" rx="1" fill="#777"/>
+<text x="660" y="156" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#4b5049">03 / ACTIVIDAD · UNA MÉTRICA</text>
+<rect x="660" y="178" width="240" height="280" rx="28" fill="#000"/>
+<text x="684" y="208" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">LUNA / DEMO</text>
+<text x="684" y="244" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#fff">Actividad</text>
+<text x="684" y="269" font-family="Arial,sans-serif" font-size="14" font-weight="400" fill="#50efab">GPS listo</text>
+<text x="684" y="324" font-family="Arial,sans-serif" font-size="48" font-weight="700" fill="#fff">1,84</text>
+<text x="684" y="346" font-family="Arial,sans-serif" font-size="14" font-weight="400" fill="#b8b8b8">km registrados</text>
+<text x="684" y="366" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">12 sep 2026</text>
+<rect x="684" y="380" width="192" height="1" rx="0" fill="#303030"/>
+<text x="684" y="405" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#fff">7,2 km/h</text>
+<text x="684" y="427" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">Luces · Velocidad</text>
+<rect x="684" y="440" width="12" height="3" rx="1" fill="#777"/>
+<rect x="704" y="440" width="16" height="3" rx="1" fill="#50efab"/>
+<rect x="724" y="440" width="12" height="3" rx="1" fill="#777"/>
+<rect x="744" y="440" width="12" height="3" rx="1" fill="#777"/>
+<text x="970" y="156" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#4b5049">04 / WI-FI · ACCESO LOCAL</text>
+<rect x="970" y="178" width="240" height="280" rx="28" fill="#000"/>
+<text x="994" y="208" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">LUNA / DEMO</text>
+<text x="994" y="247" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#fff">Wi-Fi</text>
+<text x="994" y="285" font-family="Arial,sans-serif" font-size="16" font-weight="400" fill="#fff">Portal disponible</text>
+<text x="994" y="311" font-family="Arial,sans-serif" font-size="14" font-weight="400" fill="#b8b8b8">DogRGB</text>
+<text x="994" y="354" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#fff">192.168.4.1</text>
+<rect x="994" y="373" width="192" height="1" rx="0" fill="#303030"/>
+<text x="994" y="401" font-family="Arial,sans-serif" font-size="14" font-weight="400" fill="#b8b8b8">Sin red configurada</text>
+<rect x="994" y="440" width="12" height="3" rx="1" fill="#777"/>
+<rect x="1014" y="440" width="12" height="3" rx="1" fill="#777"/>
+<rect x="1034" y="440" width="16" height="3" rx="1" fill="#50efab"/>
+<rect x="1054" y="440" width="12" height="3" rx="1" fill="#777"/>
+<text x="40" y="485" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#454c42">Contacto visible aunque falle el escaneo.</text>
+<text x="40" y="505" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#454c42">El QR real se validará en el LCD.</text>
+<text x="350" y="485" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#454c42">Sin QR, nombre y número más grandes.</text>
+<text x="350" y="505" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#454c42">Fallback; no agrega otra página al ciclo.</text>
+<text x="660" y="485" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#454c42">Datos válidos, fecha y jerarquía estable.</text>
+<text x="660" y="505" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#454c42">Sin barras de progreso inventadas.</text>
+<text x="970" y="485" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#454c42">AP y STA conservan su significado.</text>
+<text x="970" y="505" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#454c42">La pantalla no ofrece botones táctiles.</text>
+<text x="40" y="570" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#4b5049">05 / ESTADO · DETALLE ÚTIL</text>
+<rect x="40" y="592" width="240" height="280" rx="28" fill="#000"/>
+<text x="64" y="622" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">LUNA / DEMO</text>
+<text x="64" y="655" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#fff">Estado</text>
+<text x="64" y="692" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">GPS</text>
+<text x="64" y="718" font-family="Arial,sans-serif" font-size="16" font-weight="400" fill="#50efab">Posición confiable</text>
+<text x="64" y="740" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">Datos GPS vigentes</text>
+<rect x="64" y="760" width="192" height="1" rx="0" fill="#303030"/>
+<text x="64" y="786" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">Luces / control</text>
+<text x="64" y="812" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#fff">Modo día</text>
+<text x="64" y="836" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">Efectos apagados</text>
+<rect x="64" y="854" width="12" height="3" rx="1" fill="#777"/>
+<rect x="84" y="854" width="12" height="3" rx="1" fill="#777"/>
+<rect x="104" y="854" width="12" height="3" rx="1" fill="#777"/>
+<rect x="124" y="854" width="16" height="3" rx="1" fill="#50efab"/>
+<text x="350" y="592" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#20261f">Movimiento pequeño. Información estable.</text>
+<text x="350" y="623" font-family="Arial,sans-serif" font-size="17" font-weight="400" fill="#4b5447">Primer experimento: animar el indicador, no el teléfono ni el QR.</text>
+<rect x="350" y="655" width="240" height="78" rx="12" fill="#000"/>
+<text x="370" y="681" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">0 ms</text>
+<rect x="370" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="402" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="434" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="466" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="370" y="708" width="20" height="3" rx="1" fill="#50efab"/>
+<rect x="642" y="655" width="240" height="78" rx="12" fill="#000"/>
+<text x="662" y="681" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">80 ms</text>
+<rect x="662" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="694" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="726" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="758" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="678" y="708" width="20" height="3" rx="1" fill="#50efab"/>
+<rect x="934" y="655" width="240" height="78" rx="12" fill="#000"/>
+<text x="954" y="681" font-family="Arial,sans-serif" font-size="12" font-weight="400" fill="#b8b8b8">160 ms</text>
+<rect x="954" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="986" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="1018" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="1050" y="708" width="20" height="3" rx="1" fill="#454545"/>
+<rect x="986" y="708" width="20" height="3" rx="1" fill="#50efab"/>
+<text x="350" y="779" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#65715f">FAMILIA DE COMPONENTES</text>
+<text x="350" y="813" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#20261f">Nombre · Contacto · QR · Métrica · Estado · Paginación</text>
+<text x="350" y="848" font-family="Arial,sans-serif" font-size="17" font-weight="400" fill="#4b5447">Después: entrada breve de título y una huella animada opcional.</text>
+<text x="350" y="877" font-family="Arial,sans-serif" font-size="17" font-weight="400" fill="#4b5447">Sin fondos verdes, carruseles automáticos ni animaciones continuas.</text>
+<rect x="40" y="914" width="1200" height="1" rx="0" fill="#c6cdc0"/>
+<text x="40" y="945" font-family="Arial,sans-serif" font-size="14" font-weight="400" fill="#576054">BOCETO VECTORIAL · Tipografía aproximada; no es LVGL ni prueba de rendimiento. Datos y destino QR no utilizables.</text>
+</svg>

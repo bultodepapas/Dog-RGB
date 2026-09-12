@@ -7,6 +7,12 @@ I6c se activa explícitamente en diagnóstico; el producto lo mantiene desactiva
 Complementa el [plan incremental](2026-09-12_display-incremental-delivery.md),
 que conserva autoridad sobre el orden y las pruebas de aceptación.
 
+Nueva prioridad visual: [Identificación con nombre, QR WhatsApp y teléfono](2026-09-12_display-visual-identity.md).
+Es una cuarta página propuesta, todavía no implementada; las tres actuales
+siguen siendo la baseline. El contacto será visible sin red y el QR abrirá
+WhatsApp desde el teléfono del visitante, sin enviar mensajes automáticamente.
+La primera pulsación en oscuro conserva el despertar de la misma página.
+
 ## 1. Diseñar para quien consulta el collar
 
 Hipótesis de uso: el propietario lo mira al colocarlo, durante una parada y al

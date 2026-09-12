@@ -55,6 +55,8 @@ per service call after reduced page redraw and staged margin restoration.
 [Baseline I6a](baselines/display-i6-2026-09-12.md) records the exact image and
 limits; full optical/radio and GNSS/LED/HTTP joint acceptance remain open. I6c adds an opt-in bench timeout, disabled on boot; see the [guide](../Platformio/Dog-RGB/docs/display-i6c.md).
 
+Next visual preparation: [VIS-1 identity/WhatsApp QR prototypes](PLANS/2026-09-12_display-visual-identity.md), followed by bounded identity storage/editor and static integration before motion. This owner-requested priority does not close V2/V3.
+
 | Resume order | Scope |
 | --- | --- |
 | V1 | Confirm final pages, black/border, physical BOOT and real radio/portal client cases |

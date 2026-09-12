@@ -33,6 +33,20 @@ estado local. Hash del binario y manifest identifican exactamente lo probado.
 | Datos reales de radio y demo solo de GPS | AP observado; adaptador AP/STA probado con stubs | HTTP físico, asociación de teléfono o acceso a Internet |
 | Preparación I4 de portal/persistencia | Pruebas de software y banco parcial | NVS/ruta/portal bajo GPS y ambas tiras reales durante 30 minutos |
 
+### Prioridad visual solicitada después de I6d
+
+El [subplan de identidad y evolución visual](2026-09-12_display-visual-identity.md)
+detalla nombre del perro, placa digital con QR WhatsApp/teléfono y componentes.
+La [investigación](../display-visual-identity-research.md) aporta fuentes y límites.
+Esta entrega es planificación; no modifica la imagen I6d cargada.
+
+Secuencia visual activa: VIS-1 prototipo LVGL de identificación/QR → VIS-2 datos,
+portal y persistencia → VIS-3 integración estática y escaneo físico → VIS-4 pulido
+común → VIS-5 transición localizada del I6b existente. VIS-6 reúne extensiones
+opcionales individuales. Esta prioridad permite preparar/ensayar UI sin los
+periféricos ausentes; no cierra V2/V3 ni aceptación portátil. I7-identidad queda
+priorizado; las demás extensiones I7 no se activan en bloque.
+
 ### Secuencia para retomar
 
 1. Revisar estado local, imagen preservada, conexiones actuales y confirmaciones
@@ -536,7 +550,7 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | I6 | I6a/I6c confirmados; I6d implementado con evidencia separada. Producto sin timeout automático; V1 restante/V3 abiertos; I6b/I6e sin iniciar |
 | I7 | Opcional, sin priorización de implementación |
 
-Próximo trabajo al reanudar: V1 en la placa disponible y V2 cuando haya periféricos,
+Próximo trabajo: VIS-1 del subplan visual solicitado. Mantener V1 restante y V2 cuando haya periféricos,
 seguido de V3. Recuperar Wokwi cuando CLI/token estén disponibles como tarea de
 regresión Classic independiente; no acredita el panel Waveshare. Los targets
 Display siguen experimentales y el uso portátil permanece sin validar.

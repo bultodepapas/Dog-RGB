@@ -2,6 +2,8 @@
 
 Investigación consultada el 2026-09-12. **Actualización de implementación: Arduino_GFX 1.6.7 probado por USB en I4; LVGL 8.4.0 fijado para PC/placa en [I5](../Platformio/Dog-RGB/docs/display-i5.md).** La demo I4 visible fue confirmada por el propietario; la aceptación conjunta sigue abierta. Complementa el [plan incremental](PLANS/2026-09-12_display-incremental-delivery.md), que conserva autoridad sobre el orden de ejecución.
 
+Actualización visual posterior a I6d: [identidad, QR y movimiento](display-visual-identity-research.md), con fuentes nuevas y [subplan VIS](PLANS/2026-09-12_display-visual-identity.md). La baseline vigente tiene tres vistas, catorce PNG y cinco CTest; los recuentos I6a siguientes son históricos.
+
 ## Selección por capa
 
 Reconciliación I6a y pausa: Arduino_GFX 1.6.7/LVGL 8.4.0 permanecen como stack

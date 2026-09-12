@@ -1,0 +1,13 @@
+{
+  "scope": "concept SVG, not firmware renderer or optical acceptance",
+  "date": "2026-09-12",
+  "qr_payload": "https://wa.me/000000000000",
+  "qr_note": "Invalid demo contact; destination not opened. Bundled qrcodegen matrix, not LVGL canvas layout.",
+  "qr_modules": 25,
+  "qr_scale_px": 4,
+  "quiet_zone_modules": 4,
+  "font": "Arial approximation; final LVGL fonts need their own captures",
+  "svg_sha256": "cc77a4e0d220d710965ab597ba7f54fe5eaa2a31afd1d97c2546ba8871308c63",
+  "png_sha256": "b0e329b23f4a1c447615c5026e09343e5b72933f722a4d59b261191ab91b78ac",
+  "visual_review": "Chromium rendered, full-board bounds checked and screenshot visually inspected. Not LVGL or physical display evidence."
+}

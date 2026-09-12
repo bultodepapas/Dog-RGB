@@ -58,7 +58,11 @@
 - [x] I6d owner observation: all State text readable and physical BOOT cycles State → Activity → Wi-Fi → State.
 - [ ] I6d remaining acceptance: V3 joint timing and mounted-collar readability; no storage-health or battery claims.
 - [ ] I6e proposed: typed movement/still/unknown observation contract before contextual estimated pause; GPS gaps are not rest.
-- [ ] I7 selection: explicit walk lifecycle, calibrated battery, international SSID typography, IMU/RTC or contextual alerts are separate optional increments.
+- [x] VIS-0: [visual identity subplan](PLANS/2026-09-12_display-visual-identity.md), [research](display-visual-identity-research.md) and conceptual board; QR WhatsApp prioritized by owner.
+- [ ] VIS-1 next: actual LVGL identity prototypes with name, WhatsApp QR and visible phone; textual fallback, long/invalid fixtures and payload checks.
+- [ ] VIS-2–3: bounded identity persistence/local editor, four-page navigation and physical QR/BOOT acceptance.
+- [ ] VIS-4–5: shared visual components, then one measured optional transition; V3 acceptance stays open.
+- [ ] I7 other extensions: identity is prioritized through VIS; walk lifecycle, calibrated battery, international SSID typography, IMU/RTC and contextual alerts remain separate optional increments.
 - [x] Pause reconciliation: governing plan, usage/workflow, research notes, queue and indexes aligned with I6a; that documentation-only pause was subsequently ended by the owner.
 
 I0 physical acceptance remains open before LED bench work. Classic fixes continue in parallel; battery telemetry/sensors, advanced tooling and cloud are not dependencies of the basic Display build.

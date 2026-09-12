@@ -29,6 +29,12 @@ No hay editor comercial ni runtime de IA obligatorio en el collar. Las
 son apoyo, no dependencias para instalar. El simulador interactivo no es un
 prerrequisito de una vista verificable mediante el renderer existente.
 
+Siguiente aplicación del flujo: [VIS-1, placa digital y QR](2026-09-12_display-visual-identity.md).
+El tablero vectorial nuevo es una decisión de composición, no una captura del
+firmware. La siguiente implementación debe producir las variantes con LVGL 8.4,
+decodificar el QR exacto y después comprobar su escaneo físico. El QR y el teléfono
+permanecen estáticos; la transición se ensaya por separado en VIS-5/I6b.
+
 ## 1. Referencia: un brief por cambio
 
 Registrar en la tarea o baseline:
