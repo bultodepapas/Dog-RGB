@@ -38,7 +38,9 @@ Follow the [Display incremental contract](PLANS/2026-09-12_display-incremental-d
 - [ ] I3 physical: bars/window/colors, real-data agreement, 15 minutes with GPS/LEDs/LCD, backlight/service independence and measured timing.
 - [x] I4 software preparation: native configuration save/reload/fault tests for Classic and Display, isolated embedded browser suite, explicitly labeled LCD-only demo and optional serial capture. See [I4 progress](baselines/display-i4-2026-09-12.md).
 - [ ] I4 full bench: combined portal/persistence verification, 30-minute window with real GPS/strips, ten mode changes, three hardware save/restart/read cycles and populated route export. Bare-board LCD testing does not close this item.
-- [ ] I5–I6 after the functional base: one shared LVGL view and three static captures, then button/second view and measured motion.
+- [x] I5 software: shared LVGL 8.4.0 Paseo view, three static captures, real LVGL/service host contracts and basic-page comparison controls. See [I5 evidence](baselines/display-i5-2026-09-12.md).
+- [ ] I5 acceptance: review the new page on the LCD and complete comparison under real joint load when I4 peripherals are available; keep bare-board measurements distinct.
+- [ ] I6: button/second view, then measured motion after the static view is accepted.
 
 I0 physical acceptance remains open before LED bench work. Classic fixes continue in parallel; battery telemetry/sensors, advanced tooling and cloud are not dependencies of the basic Display build.
 

@@ -6,6 +6,10 @@ display operation and diagnostic behavior, but cannot close that acceptance.
 The owner authorized using the connected board without soldered GPS/LEDs and
 showing simulated data. This guide distinguishes that subset from full I4.
 
+Subsequently the owner confirmed the demo was visible and authorized independent
+[I5 static LVGL development](display-i5.md). I5 adds `s`/`l` backend controls;
+the I4 results below refer to the preserved basic-renderer image.
+
 ## Available now
 
 Use `waveshare_lcd169_displaycheck` (stage 3), not a new firmware application or

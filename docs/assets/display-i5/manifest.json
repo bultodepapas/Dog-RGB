@@ -1,0 +1,18 @@
+{
+  "lvgl": "8.4.0",
+  "resolution": [
+    240,
+    280
+  ],
+  "png_sha256": {
+    "searching": "b19b4527f1c2276e34b5ed1196deae9b36e772d1048513f8f431aa9f30f9141f",
+    "fix": "5903f02bd5944603acb7e5bef18590a70edc9a388b4bf271fc4ea67b670716f1",
+    "stale": "66d0f9442aacaff61ed2f91fb6ff1a1de003b000438290de042693ddbe51669d"
+  },
+  "input_sha256": {
+    "include/lv_conf.h": "381e6229ef0aab166271503cc68a92f4cea700665bfec0118f03fa980245ab6b",
+    "src/display/ui/walk_view.cpp": "bd174e4fb8ca024a84d056fe1d111c923c796dd6e5a92dd773d3423ef6f0b242",
+    "src/display/text_view.cpp": "172b60449e445eb4f356d04d093f59578d0426b32c452535a010abf52ba8202b"
+  },
+  "scope": "shared LVGL rendering on PC; not physical panel or performance evidence"
+}

@@ -47,6 +47,11 @@ Classic XIAO remains active while a Waveshare ESP32-S3-LCD-1.69 No Touch variant
 
 I4 preparation now includes native configuration save/reload checks and an explicit LCD-only demo on the connected bare board; full joint-load acceptance remains open. See [I4 progress](baselines/display-i4-2026-09-12.md).
 
+After the owner confirmed seeing the I4 demo and authorized continuing, independent
+I5 development added a shared LVGL 8.4.0 static view, three PC captures and USB
+comparison with the basic page. See [I5 progress](baselines/display-i5-2026-09-12.md).
+This does not close I4's real-peripheral gate or introduce I6 animations.
+
 Order: **I0 baseline/profiles → I1 LEDs → I2 GPS → I3 simple text display → I4 consolidated collar → I5 LVGL view/simulator → I6 navigation/motion**. I7 battery telemetry, RTC, IMU and other extensions remain optional. A bank-tested base and a portable validated collar are distinct deliveries. This sequence does not postpone Classic improvements or depend on cloud milestones.
 
 ### Shared physical evidence
