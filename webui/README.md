@@ -47,3 +47,10 @@ preview files exist, smoke also requires byte-for-byte equivalence.
 
 Do not edit files under `webui/generated`, `.ap-portal-preview`, or
 `generated_assets.*` by hand.
+
+VIS-2 adds the Display-only identity editor in `/config`. Its GET capability
+hides the controls on Classic; writes use the existing portal/PIN guard. Name
+normalization, explicit contact preview, save/clear, generation conflicts and
+dirty state are separate from LED/GPS settings. [API contract](../docs/display-identity-api.md).
+The per-route gzip allowance is now 24 KiB (previously 23 KiB); the total budget
+remains 55 KiB. The editor adds no external browser library or QR generator.

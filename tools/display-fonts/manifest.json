@@ -1,0 +1,27 @@
+{
+  "font_source": "https://github.com/google/fonts/tree/main/ofl/montserrat",
+  "source_sha256": "0f7b311b2f3279e4eef9b2f968bcdbab6e28f4daeb1f049f4f278a902bcd82f7",
+  "converter": "lv_font_conv 1.5.3",
+  "instancer": "fonttools 4.63.0",
+  "weight": 600,
+  "format": "LVGL 8.4 C, uncompressed, 4bpp selected",
+  "name_range": "0x20,0x27,0x2b,0x2d,0x30-0x39,0x41-0x5a,0x61-0x7a,0xc0-0xd6,0xd8-0xf6,0xf8-0xff",
+  "outputs": {
+    "dog_name_28-2bpp": {
+      "c_bytes": 85642,
+      "sha256": "f0d2fe6fde5d58f264b9f2160c5f0370a4a7176fdaef2df6bba416ccd2dd5c7d"
+    },
+    "dog_name_28-4bpp": {
+      "c_bytes": 151251,
+      "sha256": "c0f51ef4dadca1819fea7ae6d8b358bf3af1fa5cf24b8eda452d74e49f448eed"
+    },
+    "dog_phone_18-2bpp": {
+      "c_bytes": 6512,
+      "sha256": "89a8833bdafefa95cc9daa2fb273224b60a8678582ba5f865853b919d7460f43"
+    },
+    "dog_phone_18-4bpp": {
+      "c_bytes": 8716,
+      "sha256": "e2d4e63965ad1e1c7d70d0bb87c30708d7a57fc9971e815525868cfcff58d2d1"
+    }
+  }
+}

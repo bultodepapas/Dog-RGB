@@ -61,8 +61,9 @@
 - [x] VIS-0: [visual identity subplan](PLANS/2026-09-12_display-visual-identity.md), [research](display-visual-identity-research.md) and conceptual board; QR WhatsApp prioritized by owner.
 - [x] VIS-0 extension: [28 GitHub/MCP investigations](display-github-research-2026-09-12.md), adoption decisions and limited host QR geometry/workspace probe; firmware unchanged.
 - [x] VIS-1a host: bounded QR/component, explicit quiet zone, LVGL captures and exact ZXing decoding; fallback/recovery and memory documented in the [baseline](baselines/display-vis1a-2026-09-12.md). Physical stack/heap/scan acceptance remains VIS-3.
-- [ ] VIS-1b: identity layouts A/B with final fonts, name and complete phone; NFC/UTF-8/width limits, long/invalid fixtures and unchanged QR payload.
-- [ ] VIS-2–3: bounded identity persistence/local editor, four-page navigation and physical QR/BOOT acceptance.
+- [x] VIS-1b host: identity layouts A/B, 28/18 px fonts, complete name/phone; NFC alphabet/UTF-8/width contracts, 13 fixtures with independent QR checks and stable pool. [Baseline](baselines/display-vis1b-2026-09-12.md).
+- [x] VIS-2 software: identity A/B store, local API/editor, NFC, independent dirty state and generation conflicts. [Baseline](baselines/display-vis2-2026-09-12.md).
+- [ ] VIS-3: store-to-view adapter, four-page navigation, USB configuration and physical QR/BOOT/reboot acceptance.
 - [ ] VIS-4–5: shared visual components, then one measured optional transition; V3 acceptance stays open.
 - [ ] I7 other extensions: identity is prioritized through VIS; walk lifecycle, calibrated battery, international SSID typography, IMU/RTC and contextual alerts remain separate optional increments.
 - [x] Pause reconciliation: governing plan, usage/workflow, research notes, queue and indexes aligned with I6a; that documentation-only pause was subsequently ended by the owner.

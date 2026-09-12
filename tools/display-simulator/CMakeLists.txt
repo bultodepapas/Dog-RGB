@@ -31,6 +31,62 @@ elseif(MSVC)
   target_compile_options(display_simulator PRIVATE /UNDEBUG)
 endif()
 enable_testing()
+add_executable(display_identity_store_test test_identity_store.cpp
+  "${FIRMWARE}/src/display/identity_store.cpp"
+  "${FIRMWARE}/src/display/identity.cpp"
+  "${FIRMWARE}/src/display/contact.cpp")
+target_include_directories(display_identity_store_test PRIVATE test-support "${FIRMWARE}/include")
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(display_identity_store_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+elseif(MSVC)
+  target_compile_options(display_identity_store_test PRIVATE /UNDEBUG)
+endif()
+add_test(NAME display_identity_store_contract COMMAND display_identity_store_test)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${FIRMWARE}/src/web/portal_http.cpp")
+file(READ "${FIRMWARE}/src/web/portal_http.cpp" PORTAL_SOURCE)
+string(FIND "${PORTAL_SOURCE}" "void send_identity_error(" IDENTITY_API_START)
+string(FIND "${PORTAL_SOURCE}" "void handle_config_get(" IDENTITY_API_END)
+if(IDENTITY_API_START LESS 0 OR IDENTITY_API_END LESS IDENTITY_API_START)
+  message(FATAL_ERROR "Identity API handler extraction bounds changed")
+endif()
+math(EXPR IDENTITY_API_LENGTH "${IDENTITY_API_END} - ${IDENTITY_API_START}")
+string(SUBSTRING "${PORTAL_SOURCE}" ${IDENTITY_API_START} ${IDENTITY_API_LENGTH} IDENTITY_API_SOURCE)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/identity_routes.inc" "${IDENTITY_API_SOURCE}")
+foreach(IDENTITY_DISPLAY IN ITEMS 0 1)
+  set(API_TARGET "display_identity_api_${IDENTITY_DISPLAY}_test")
+  add_executable(${API_TARGET} test_identity_api.cpp
+    "${FIRMWARE}/src/display/identity_store.cpp"
+    "${FIRMWARE}/src/display/identity.cpp"
+    "${FIRMWARE}/src/display/contact.cpp")
+  target_include_directories(${API_TARGET} PRIVATE test-support "${CMAKE_CURRENT_BINARY_DIR}"
+    "${FIRMWARE}/include" "${FIRMWARE}/.pio/libdeps/waveshare_lcd169_displaycheck/ArduinoJson/src")
+  target_compile_definitions(${API_TARGET} PRIVATE DOG_RGB_DISPLAY_LVGL=${IDENTITY_DISPLAY})
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(${API_TARGET} PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+  elseif(MSVC)
+    target_compile_options(${API_TARGET} PRIVATE /UNDEBUG)
+  endif()
+  add_test(NAME "display_identity_api_${IDENTITY_DISPLAY}_contract" COMMAND ${API_TARGET})
+endforeach()
+set(IDENTITY_FONT_DIR "${FIRMWARE}/src/display/fonts" CACHE PATH "Identity font variant")
+add_executable(display_identity_test test_identity.cpp
+  "${FIRMWARE}/src/display/ui/walk_view.cpp"
+  "${FIRMWARE}/src/display/ui/connection_view.cpp"
+  "${FIRMWARE}/src/display/ui/status_view.cpp"
+  "${FIRMWARE}/src/display/identity.cpp"
+  "${FIRMWARE}/src/display/contact.cpp"
+  "${FIRMWARE}/src/display/ui/contact_qr.cpp"
+  "${FIRMWARE}/src/display/ui/identity_view.cpp"
+  "${IDENTITY_FONT_DIR}/dog_name_28.c"
+  "${IDENTITY_FONT_DIR}/dog_phone_18.c")
+target_include_directories(display_identity_test PRIVATE "${FIRMWARE}/include")
+target_link_libraries(display_identity_test PRIVATE lvgl)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(display_identity_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+elseif(MSVC)
+  target_compile_options(display_identity_test PRIVATE /UNDEBUG /utf-8)
+endif()
+add_test(NAME display_identity_contract COMMAND display_identity_test "${CMAKE_CURRENT_BINARY_DIR}/identity-test-output")
 add_executable(display_contact_qr_test test_contact_qr.cpp
   "${FIRMWARE}/src/display/contact.cpp"
   "${FIRMWARE}/src/display/ui/contact_qr.cpp")

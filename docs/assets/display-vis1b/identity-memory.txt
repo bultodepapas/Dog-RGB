@@ -1,0 +1,5 @@
+instance_bytes=3264
+pool_I6d=33840
+pool_created=32064
+pool_first=31968
+pool_stable=31968

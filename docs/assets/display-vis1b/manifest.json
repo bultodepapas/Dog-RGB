@@ -1,0 +1,89 @@
+{
+  "lvgl": "8.4.0",
+  "bpp": 4,
+  "decoder": "2.3.0",
+  "images": {
+    "identity-short": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "7fcfa8b6c7962431d86b7138d012f040451ab01780496a548dea4c8eb2b37562"
+    },
+    "identity-accent": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "2e1363a9ea073f48a98948572a960cf6b846940c0d08bb0249a3cdd58e0154d2"
+    },
+    "identity-enye": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "b099630622a7442205d8887a906a9520c2f9a88cd4eeb9a9ee6798805e01a1fc"
+    },
+    "identity-max-phone": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "b52c7e4ab1c3e4bb7e365a6eddcf848e0833fd09e230a401ec33b896d8fc2172"
+    },
+    "identity-long": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "cc229d8d72b17d76d2c54c68b809f98f109db6d776f1bdebe8d4f7e17aee830c"
+    },
+    "identity-wide": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "52a5274626d2225c0f22034493a38a88f34d192350a2729291a47fc28239db5b"
+    },
+    "identity-wordwrap": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "ee2a06ab7ca848613d3b6630132077a22ddcf6c6d3527f6f407ca64f0e9b3090"
+    },
+    "identity-disabled": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "59c726a11468dac793da6b465841249ca1c5b1294946a5b5558dd5fc9001a595"
+    },
+    "identity-invalid-phone": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "1bf52a0a07477dcf2d3f929732831cf7359eede3344fd4033263f1d892739d15"
+    },
+    "identity-empty": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "732e392fb60866670ec047bcb9c52f6f183f04a66db66ea3062463d4aaaebb00"
+    },
+    "identity-nfd": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "3e6ad4df3056cc432a7ec0b4283d8fa983fad2632aae18cecf6a0f2db9f9f6c4"
+    },
+    "identity-unsupported": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "3e6ad4df3056cc432a7ec0b4283d8fa983fad2632aae18cecf6a0f2db9f9f6c4"
+    },
+    "identity-recovered": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "7fcfa8b6c7962431d86b7138d012f040451ab01780496a548dea4c8eb2b37562"
+    }
+  },
+  "source_sha256": {
+    "Platformio/Dog-RGB/include/lv_conf.h": "8b2e590f8364f00ee8e67ed8a63038da5a18472fd888b9f47851a3a9389b6ad0",
+    "Platformio/Dog-RGB/include/display/contact.h": "a4f4f4dde20743140cabb14492facfea068337fd2db657bde0e37f88baa1abc1",
+    "Platformio/Dog-RGB/include/display/contact_qr.h": "9eb17dc44f1df4b43da6a9424af8d0a377eb309152fe13254d021bc592211a7b",
+    "Platformio/Dog-RGB/include/display/identity.h": "162a18ca2bf8dca9fe34b459cba1cf76c9a29cec66adea8d33ddc2bd9dd043b4",
+    "Platformio/Dog-RGB/include/display/identity_view.h": "ba64926f5f48bc88b08fe2ed24f809c39f47ed89b2e0742e49a19ec56efa7b57",
+    "Platformio/Dog-RGB/src/display/contact.cpp": "e55ffc2fd3a20b6c1be1a4908cb3f29dc5a398b9b49a5ab2e68596f924dd4895",
+    "Platformio/Dog-RGB/src/display/identity.cpp": "2e5f0fbd1ac617b5bd5c78d54c30c796cd8af34aa482ec3979af790a6260e133",
+    "Platformio/Dog-RGB/src/display/ui/contact_qr.cpp": "3b2d299eece601f246ece651bcf571232900d602c90db40375792f44c0d6799d",
+    "Platformio/Dog-RGB/src/display/ui/identity_view.cpp": "e0006b86678f4a1ebaaa053651a581c562a0511e27630a422dc2a90f66cab8d9",
+    "Platformio/Dog-RGB/src/display/fonts/dog_name_28.c": "c0f51ef4dadca1819fea7ae6d8b358bf3af1fa5cf24b8eda452d74e49f448eed",
+    "Platformio/Dog-RGB/src/display/fonts/dog_phone_18.c": "e2d4e63965ad1e1c7d70d0bb87c30708d7a57fc9971e815525868cfcff58d2d1",
+    "tools/display-simulator/test_identity.cpp": "35fb03bd719097007b53ab3699c84608e03bd76d1c09fc0dfccc328775cd29c9",
+    "tools/display-simulator/render_identity.py": "38b4b5e4dfa17cc84aad048799b713fab05614f756dc351d92393b03b76ee0dc",
+    "tools/display-simulator/CMakeLists.txt": "25241006587b00f53ea40b60460056a5f32b5baf35be565ef64fe7c08f735083"
+  },
+  "scope": "Shared LVGL host render; physical panel, input and performance pending"
+}

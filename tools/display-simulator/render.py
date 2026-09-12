@@ -28,7 +28,7 @@ def main():
     build = ROOT / "build"
     subprocess.run(["cmake", "-S", str(ROOT), "-B", str(build), "-G", "Ninja",
                     "-DCMAKE_BUILD_TYPE=Release"], check=True)
-    subprocess.run(["cmake", "--build", str(build), "--target", "display_simulator", "display_port_test", "display_connection_adapter_test", "display_status_adapter_test", "display_contact_qr_test", "-j", "4"], check=True)
+    subprocess.run(["cmake", "--build", str(build), "--target", "display_simulator", "display_port_test", "display_connection_adapter_test", "display_status_adapter_test", "display_contact_qr_test", "display_identity_test", "display_identity_store_test", "display_identity_api_0_test", "display_identity_api_1_test", "-j", "4"], check=True)
     subprocess.run(["ctest", "--test-dir", str(build), "--output-on-failure"], check=True)
     exe = build / "display_simulator"
     if exe.with_suffix(".exe").exists():

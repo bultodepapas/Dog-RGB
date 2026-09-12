@@ -37,6 +37,11 @@ async function mockPortalApis(page: Page, state: MockState = {}) {
     const url = new URL(request.url());
     const method = request.method();
 
+    if (url.pathname === '/api/identity') {
+      await route.fulfill({ json: { schema_version: 1, supported: false } });
+      return;
+    }
+
     if (url.pathname === '/api/summary') {
       await route.fulfill({ json: fixtureJson(fixtures.summary) });
       return;

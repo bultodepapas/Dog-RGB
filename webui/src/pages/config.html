@@ -30,6 +30,25 @@
       <span id="status" class="muted"></span>
     </div>
 
+    <details class="card section" id="identity_block" hidden open>
+      <summary>Placa de mi perro</summary>
+      <div class="section-body">
+        <p class="help">Contacto público para quien encuentre a tu perro.</p>
+        <fieldset id="identity_fields" disabled style="border:0;padding:0;margin:0">
+          <div class="field"><label for="identity_name">Nombre</label><input id="identity_name" type="text" maxlength="48" autocomplete="off" aria-describedby="identity_name_help"><div class="help" id="identity_name_help">Hasta 24 caracteres. Nombres largos: placa sin QR.</div></div>
+          <div class="field"><label for="identity_phone">Teléfono internacional</label><input id="identity_phone" type="tel" maxlength="63" autocomplete="tel" placeholder="+57 …"></div>
+          <div class="field"><label for="identity_kind">Contacto con QR</label><select id="identity_kind"><option value="whatsapp">WhatsApp</option><option value="call">Llamada</option><option value="disabled">Sin QR</option></select></div>
+          <div class="notice" aria-label="Vista previa del contacto">
+            <strong id="identity_preview_name"></strong><div id="identity_preview_phone"></div>
+            <div id="identity_preview_link" class="help"></div>
+          </div>
+          <div class="actions"><button class="btn" id="identity_save" type="button">Guardar placa</button><button class="btn ghost" id="identity_clear" type="button">Borrar placa</button></div>
+        </fieldset>
+        <div id="identity_status" class="help" role="status" aria-live="polite"></div>
+        <button class="btn ghost" id="identity_reload" type="button">Recargar placa</button>
+      </div>
+    </details>
+
     <details class="card section" id="common_block" open>
       <summary>Modo y brillo</summary>
       <div class="section-body">
@@ -437,24 +456,27 @@
     // section is excluded because it has its own save button and its own state.
     let dirty = false;
     let sceneDirty = false;
+    let identityDirty = false;
     function markDirty(){ dirty = true; }
     function markClean(){ dirty = false; }
     function markSceneDirty(){ sceneDirty = true; updateSceneActions(); }
     function markSceneClean(){ sceneDirty = false; updateSceneActions(); }
     function confirmLeave(){
-      return (!dirty && !sceneDirty) || confirm('Tienes cambios sin guardar. Si sales ahora se pierden.');
+      return (!dirty && !sceneDirty && !identityDirty) || confirm('Tienes cambios sin guardar. Si sales ahora se pierden.');
     }
     document.querySelector('main').addEventListener('input', (e)=>{
+      if (e.target.closest('#identity_block')) { identityDirty=true; return; }
       if (!e.target.closest('#lock_section') && !e.target.closest('#scenes_block')) markDirty();
     });
     document.querySelector('main').addEventListener('change', (e)=>{
+      if (e.target.closest('#identity_block')) { identityDirty=true; return; }
       if (!e.target.closest('#lock_section') && !e.target.closest('#scenes_block')) markDirty();
     });
     document.querySelectorAll('a[href="/"]').forEach(a=>{
       a.addEventListener('click',(e)=>{ if(!confirmLeave()) e.preventDefault(); });
     });
     window.addEventListener('beforeunload',(e)=>{
-      if (!dirty && !sceneDirty) return;
+      if (!dirty && !sceneDirty && !identityDirty) return;
       e.preventDefault();
       e.returnValue = '';
     });
@@ -1809,6 +1831,81 @@
         return false;
       }
     }
+
+    let identityGeneration = null;
+    let identityBusy = false;
+    function identityDraft(){
+      const name=$('identity_name').value.normalize('NFC');
+      const rawPhone=$('identity_phone').value;
+      const phone=rawPhone.replace(/[ ()-]/g,'');
+      const qr_kind=$('identity_kind').value;
+      if(!['whatsapp','call','disabled'].includes(qr_kind)) throw new Error('Elige el tipo de contacto.');
+      if(name==='' && rawPhone==='' && qr_kind==='disabled') return {name,phone:'',qr_kind};
+      if(!name || [...name].length>24 || new TextEncoder().encode(name).length>48 ||
+          !/^[A-Za-z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF '-]+$/.test(name) ||
+          name.trim()!==name || name.includes('  ')) throw new Error('Nombre: hasta 24 caracteres latinos, sin espacios dobles o exteriores.');
+      if(rawPhone.length>63 || !/^\+[1-9][0-9]{6,14}$/.test(phone)) throw new Error('Teléfono: +, país y 7–15 dígitos.');
+      return {name,phone,qr_kind};
+    }
+    function previewIdentity(){
+      try{
+        const draft=identityDraft();
+        $('identity_preview_name').textContent=draft.name || 'Sin placa configurada';
+        $('identity_preview_phone').textContent=draft.phone;
+        $('identity_preview_link').textContent=draft.qr_kind==='whatsapp' ? 'QR: https://wa.me/'+draft.phone.slice(1) : draft.qr_kind==='call' ? 'QR: tel:'+draft.phone : 'Sin QR';
+      }catch(e){
+        $('identity_preview_name').textContent='Completa la placa';
+        $('identity_preview_phone').textContent=''; $('identity_preview_link').textContent=e.message;
+      }
+    }
+    function applyIdentity(data){
+      if(data.schema_version!==1 || data.supported!==true || !Number.isInteger(data.generation) || data.generation<0 || data.generation>4294967295 ||
+          typeof data.name!=='string' || typeof data.phone!=='string' || !['whatsapp','call','disabled'].includes(data.qr_kind)) throw new Error('Respuesta de placa inválida.');
+      identityGeneration=data.generation;
+      identityDirty=false;
+      $('identity_name').value=data.name; $('identity_phone').value=data.phone; $('identity_kind').value=data.qr_kind;
+      previewIdentity();
+    }
+    async function loadIdentity(){
+      if(identityBusy) return;
+      identityBusy=true; $('identity_fields').disabled=true; $('identity_reload').disabled=true;
+      try{
+        const response=await fetch('/api/identity');
+        if(!response.ok) throw new Error('Sin respuesta del collar. Reintenta.');
+        const data=await response.json();
+        if(data.schema_version===1 && data.supported===false){$('identity_block').hidden=true;identityGeneration=null;identityDirty=false;return;}
+        applyIdentity(data); $('identity_block').hidden=false;
+        $('identity_status').textContent=data.configured?'Contacto guardado.':'Sin placa configurada.';
+      }catch(e){
+        identityGeneration=null; $('identity_block').hidden=false; $('identity_status').textContent=e.message;
+      }finally{
+        identityBusy=false; $('identity_fields').disabled=identityGeneration===null; $('identity_reload').disabled=false;
+      }
+    }
+    async function saveIdentity(clear){
+      if(identityBusy || identityGeneration===null) return;
+      if(clear && !confirm('¿Borrar el nombre y teléfono de la placa?')) return;
+      let draft;
+      try{draft=clear ? {name:'',phone:'',qr_kind:'disabled'} : identityDraft();}
+      catch(e){$('identity_status').textContent=e.message;return;}
+      identityBusy=true; $('identity_fields').disabled=true; $('identity_reload').disabled=true;
+      $('identity_status').textContent='Guardando placa…';
+      try{
+        const response=await dogPost('/api/identity',{headers:{'Content-Type':'application/json'},body:JSON.stringify({...draft,expected_generation:identityGeneration})});
+        const data=await response.json();
+        if(!response.ok){
+          const messages={conflict:'Otra sesión cambió la placa. Recarga antes de guardar.',storage:'Guardado sin confirmar. Recarga la placa.',name:'Revisa el nombre.',phone:'Revisa el teléfono.'};
+          throw new Error(messages[data.reason] || 'Error al guardar.');
+        }
+        applyIdentity(data); $('identity_status').textContent=clear?'Placa borrada.':'Placa guardada.';
+      }catch(e){$('identity_status').textContent=e.message;}
+      finally{identityBusy=false; $('identity_fields').disabled=false; $('identity_reload').disabled=false;}
+    }
+    ['identity_name','identity_phone','identity_kind'].forEach(id=>$(id).addEventListener('input',previewIdentity));
+    $('identity_save').addEventListener('click',()=>saveIdentity(false));
+    $('identity_clear').addEventListener('click',()=>saveIdentity(true));
+    $('identity_reload').addEventListener('click',loadIdentity);
+    loadIdentity();
 
     async function bootstrapConfig(){
       if (!await loadCapabilities()) return;

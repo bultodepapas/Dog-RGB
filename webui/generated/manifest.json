@@ -3,7 +3,7 @@
   "generator": "webui/build.mjs",
   "node_version": "24.18.0",
   "html_minifier_terser_version": "7.2.0",
-  "source_sha256": "f3ad9a1de14e61372ada3965226931d2d59165b6b5cf5d736efabea9321a634d",
+  "source_sha256": "183953196c6aa8664e17700757320489307e396a14b0be41fefcf1ff9f68240e",
   "inputs": [
     {
       "path": ".node-version",
@@ -22,8 +22,8 @@
     },
     {
       "path": "webui/build.mjs",
-      "sha256": "9cec3f767479567f39849f8f0cfce0fd94a26938e8abf16b97c395f6588296dd",
-      "bytes": 13053
+      "sha256": "cc223fe3193629726b251196e84645748ad076ea4765dee938e8441f449a5fee",
+      "bytes": 13129
     },
     {
       "path": "webui/src/styles/app.css",
@@ -42,8 +42,8 @@
     },
     {
       "path": "webui/src/pages/config.html",
-      "sha256": "7d687afce82e93d0ba245dc8cbf56449895c70d643521610b6cb7bb81647d1aa",
-      "bytes": 87486
+      "sha256": "67bb41576b74947d52c3ff90a60aa4f228a43e87c2c6a35e13efa99cb82ecce8",
+      "bytes": 94192
     },
     {
       "path": "webui/src/pages/dev.html",
@@ -58,12 +58,12 @@
     },
     {
       "path": "Platformio/Dog-RGB/src/web/generated_assets.cpp",
-      "sha256": "ea010a877571c2c3ac09fb6d69e223b2677db99f1700ac8e751b1c2d137fce37"
+      "sha256": "52c71753e87aa9f2688ac9706828a641c6d3e341d2306b6f729a6e8ed13bafdb"
     }
   ],
   "totals": {
-    "decoded_bytes": 175095,
-    "gzip_bytes": 45886,
+    "decoded_bytes": 180882,
+    "gzip_bytes": 47414,
     "gzip_budget_bytes": 56320
   },
   "pages": [
@@ -103,11 +103,11 @@
       "symbol": "CONFIG_PAGE",
       "content_type": "text/html; charset=utf-8",
       "content_encoding": "gzip",
-      "decoded_bytes": 83328,
-      "gzip_bytes": 22352,
-      "gzip_budget_bytes": 23552,
-      "gzip_sha256": "ccbd6abd939b2b5e164eb43f45ec327b6bed6480d9a7994a02975f6df9a88b21",
-      "etag": "\"sha256-ccbd6abd939b2b5e164eb43f45ec327b6bed6480d9a7994a02975f6df9a88b21\""
+      "decoded_bytes": 89115,
+      "gzip_bytes": 23880,
+      "gzip_budget_bytes": 24576,
+      "gzip_sha256": "87de4a351233bb4e4edb276ec83ec72b8e03a6413e40d2b7d0497c09a1b747ec",
+      "etag": "\"sha256-87de4a351233bb4e4edb276ec83ec72b8e03a6413e40d2b7d0497c09a1b747ec\""
     },
     {
       "key": "dev",

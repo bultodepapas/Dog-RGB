@@ -1,11 +1,14 @@
 # RGB Dog Display: identidad, QR y evolución visual
 
-**Estado: VIS-1a implementado y verificado en host; VIS-1b es el siguiente incremento. Sin nueva carga a placa.**
+**Estado: VIS-1a/1b y VIS-2 implementados y verificados en software; sigue VIS-3 (cuarta página y aceptación física). Sin nueva carga a placa.**
 Fecha: 2026-09-12. Base: I6d, con lectura y ciclo físico de tres páginas confirmados.
 Prioridad solicitada: diseño visual, nombre del perro y placa digital de contacto;
 QR de WhatsApp incorporado a la primera familia de prototipos.
 
 Evidencia actual: [baseline VIS-1a](../baselines/display-vis1a-2026-09-12.md).
+Identidad, fuentes y layouts A/B: [baseline VIS-1b](../baselines/display-vis1b-2026-09-12.md).
+Persistencia/editor y contrato: [baseline VIS-2](../baselines/display-vis2-2026-09-12.md) /
+[API de identidad](../display-identity-api.md).
 `ContactQr` ya comparte encoder/render entre firmware y PC. El prototipo local
 usa el nombre/contacto facilitados por el propietario; no son valores por defecto.
 
@@ -131,7 +134,8 @@ escala 4 y matriz máxima 29×29. Separar interior de hasta 116×116 y blanco
 externo de 16 px por lado; obtener N del resultado. No pasar 132/148 como tamaño
 de matriz. Mantener buffers/descriptores vivos y precrear el fallback textual;
 no modificar archivos de `.pio/libdeps` ni regenerar por tick. El ensayo del
-encoder es evidencia parcial: falta render/decodificación en VIS-1.
+encoder quedó ampliado por los renders/decodificación reales de VIS-1a/1b;
+el escaneo físico sigue pendiente.
 
 Error de datos/capacidad se resuelve mostrando texto; la asignación global de
 objetos LVGL conserva sus assertions. Evitar prometer recuperación general de
@@ -196,8 +200,11 @@ espaciado base de 4 px; se conservan márgenes 24/20 hasta comprobar el montaje.
 Tokens iniciales: fondo `#000000`, texto `#FFFFFF`, secundario `#B8B8B8`,
 divisor `#303030`, válido `#50EFAB`, atención `#FFB547`. Elegir un acento de
 identidad neutro o verde suave que no convierta toda la página en una señal GPS.
-Nombre 28/32/36 según prueba; contacto 18/20; secundarios 12/14. No habilitar
-todos los tamaños. Los acentos españoles deben existir realmente en los glifos.
+VIS-1b seleccionó Montserrat 600, nombre 28 px y teléfono 18 px, ambos 4 bpp;
+secundarios 12/14. La receta fijada y comparación 2/4 bpp están en
+[display-fonts](../../tools/display-fonts/README.md). Los acentos españoles se
+verifican contra los glifos reales. A muestra un nombre de una línea y QR;
+B centra hasta cinco líneas de nombre sobre el teléfono completo, sin QR.
 
 El editor mostrará error antes de guardar un nombre que no se pueda representar;
 no sustituir letras silenciosamente. Propuesta inicial: UTF-8, máximo 48 bytes
@@ -271,9 +278,9 @@ estimaciones de calendario ni autorización para cerrar pruebas sin hardware.
 | --- | --- | --- | --- |
 | **VIS-0, completo** | Investigación, tablero, subplan y enlaces | Fuentes revisadas; límites y prioridad QR explícitos | S |
 | **VIS-1a, implementado en host** | Contrato/formatter puro, encoder acotado, `ContactQr` y fixtures | QR y quiet zone comprobados; payload exacto leído por ZXing; errores, estabilidad y memoria host documentados | S–M |
-| **VIS-1b, siguiente** | `identity.h`, `ui/identity_view.cpp`, fuentes y fixtures | Layouts A/B; nombre corto/largo, Unicode, teléfono máximo, WhatsApp/llamada/error; fixtures públicas sin contacto real | S–M |
-| **VIS-2** | `config/identity*`, adaptador de lectura, API local, editor `/config` y capabilities | Guardar/leer/reiniciar; errores y recuperación; texto/QR siempre corresponden al mismo contacto; Classic sin regresión | M |
-| **VIS-3** | Integración en `lvgl_port`, ciclo de cuatro páginas y arranque condicionado | Firmware experimental USB con identidad real configurada; BOOT/wake y QR físico aceptados | M |
+| **VIS-1b, implementado en host** | `identity.h`, `ui/identity_view.cpp`, fuentes y fixtures | 13 capturas A/B; UTF-8/glifos/límites, QR independiente, memoria con las tres vistas I6d; contacto local separado | S–M |
+| **VIS-2, implementado en software** | `display/identity_store.*`, API local, editor `/config` y capability | Store/handlers reales con transportes de prueba; NFC, conflictos, errores/reinicio; Classic sin gráficos | M |
+| **VIS-3, siguiente** | Adaptador desde store e integración en `lvgl_port`, cuatro páginas y arranque condicionado | Firmware experimental USB con identidad real configurada; BOOT/wake y QR físico aceptados | M |
 | **VIS-4** | Tokens/componentes mínimos y pulido de Actividad/Wi-Fi/Estado | Capturas coherentes; información conservada; recursos comparados | S–M |
 | **VIS-5 / I6b** | Captura temporal y una transición localizada | Instantes 0/40/80/120/160/200 ms; nueva pulsación/timeout; medición USB; alternativa instantánea | M |
 | **VIS-6, opcional** | Una utilidad elegida: atajo de identidad, sprite, ayuda explícita o tendencia | Contrato y fixtures propios; no implementar todas juntas | S–M |
@@ -357,6 +364,6 @@ Una tendencia posterior usa muestras temporales reales y huecos explícitos
 | Foto/sprite/tema personal | Huella mínima, ningún bitmap grande | VIS-6, con presupuesto |
 | Mensaje perdido / retener identidad al apagar | Sin activación automática ni cambio del despertar | Contrato posterior explícito |
 
-El siguiente cambio concreto es **VIS-1b: IdentityView con nombre y teléfono,
-fuentes verificadas y layouts A/B, reutilizando ContactQr**. Persistencia, navegación
-física y efectos se integran después en entregas separadas.
+El siguiente cambio concreto es **VIS-3: integrar IdentityView con la identidad
+persistida y el ciclo de cuatro páginas**, conservando BOOT/despertar. La carga
+y el escaneo físico cierran esa aceptación; efectos permanecen VIS-5.

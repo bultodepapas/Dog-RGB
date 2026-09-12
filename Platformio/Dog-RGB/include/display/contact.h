@@ -2,7 +2,8 @@
 #include <stddef.h>
 
 namespace display {
-enum class QrContactKind { Disabled, WhatsApp, Call };
+// Stable IDs persisted by Identity record v1; do not renumber.
+enum class QrContactKind { Disabled = 0, WhatsApp = 1, Call = 2 };
 enum class ContactResult { Ready, Disabled, InvalidPhone, InvalidKind, NotInitialized, EncodeFailed };
 struct ContactText {
   char phone[17]{}; // '+' and at most 15 digits, plus NUL.

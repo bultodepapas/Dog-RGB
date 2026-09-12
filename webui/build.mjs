@@ -56,7 +56,8 @@ export const PAGE_DEFINITIONS = Object.freeze([
     route: '/config',
     filename: 'config.html',
     symbol: 'CONFIG_PAGE',
-    budgetGzip: 23 * 1024,
+    // VIS-2 identity editor: +1 KiB route allowance; total remains 55 KiB.
+    budgetGzip: 24 * 1024,
   },
   {
     key: 'dev',

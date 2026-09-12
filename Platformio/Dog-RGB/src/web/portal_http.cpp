@@ -12,6 +12,9 @@
 
 #include "config/runtime_config.h"
 #include "config.h"
+#if DOG_RGB_DISPLAY_LVGL
+#include "display/identity_store.h"
+#endif
 #include "geofence/home.h"
 #include "gps/gps.h"
 #include "led/led_ui.h"
@@ -1441,6 +1444,66 @@ void handle_track_geojson() {
   }
 }
 
+void send_identity_error(int status, const char *reason) {
+  JsonDocument doc;
+  doc["status"] = "error"; doc["reason"] = reason;
+  String out; serializeJson(doc, out); server.send(status, "application/json", out);
+}
+
+void handle_identity_get() {
+  note_activity();
+  JsonDocument doc;
+  doc["schema_version"] = 1;
+#if DOG_RGB_DISPLAY_LVGL
+  const auto &cfg = identity::get();
+  doc["supported"] = true;
+  doc["configured"] = identity::configured();
+  doc["name"] = cfg.name; doc["phone"] = cfg.phone;
+  doc["qr_kind"] = cfg.kind == display::QrContactKind::WhatsApp ? "whatsapp" :
+                   cfg.kind == display::QrContactKind::Call ? "call" : "disabled";
+  const auto contact = display::format_contact(cfg.phone, cfg.kind);
+  doc["qr_payload"] = contact.payload;
+  doc["generation"] = identity::generation();
+#else
+  doc["supported"] = false;
+#endif
+  String out; serializeJson(doc, out); server.send(200, "application/json", out);
+}
+
+void handle_identity_post() {
+  note_activity();
+  if (!write_allowed()) return;
+#if DOG_RGB_DISPLAY_LVGL
+  if (!server.hasArg("plain")) { send_identity_error(400, "body"); return; }
+  const String body = server.arg("plain");
+  if (body.length() > 512) { send_identity_error(413, "body_size"); return; }
+  JsonDocument doc;
+  if (deserializeJson(doc, body) || !doc.is<JsonObject>() || doc.size() != 4 ||
+      !doc["name"].is<const char *>() || !doc["phone"].is<const char *>() ||
+      !doc["qr_kind"].is<const char *>() || !doc["expected_generation"].is<uint32_t>()) {
+    send_identity_error(400, "fields"); return;
+  }
+  const JsonString name = doc["name"].as<JsonString>(), phone = doc["phone"].as<JsonString>(), kind = doc["qr_kind"].as<JsonString>();
+  if (name.size() != strlen(name.c_str()) || phone.size() != strlen(phone.c_str()) || kind.size() != strlen(kind.c_str())) {
+    send_identity_error(400, "fields"); return;
+  }
+  display::QrContactKind channel;
+  if (!strcmp(kind.c_str(), "whatsapp")) channel = display::QrContactKind::WhatsApp;
+  else if (!strcmp(kind.c_str(), "call")) channel = display::QrContactKind::Call;
+  else if (!strcmp(kind.c_str(), "disabled")) channel = display::QrContactKind::Disabled;
+  else { send_identity_error(400, "qr_kind"); return; }
+  const auto result = identity::save(name.c_str(), phone.c_str(), channel, doc["expected_generation"].as<uint32_t>());
+  using Result = identity::SaveResult;
+  if (result == Result::Conflict) { send_identity_error(409, "conflict"); return; }
+  if (result == Result::InvalidName) { send_identity_error(400, "name"); return; }
+  if (result == Result::InvalidPhone) { send_identity_error(400, "phone"); return; }
+  if (result != Result::Saved && result != Result::Unchanged) { send_identity_error(500, "storage"); return; }
+  handle_identity_get();
+#else
+  send_identity_error(404, "unsupported");
+#endif
+}
+
 void handle_config_get() {
   note_activity();
   JsonDocument doc;
@@ -2034,6 +2097,9 @@ void handle_wifi_save() {
 
 void begin() {
   portal_lock::begin();
+#if DOG_RGB_DISPLAY_LVGL
+  identity::load();
+#endif
   // WebServer discards headers it was not told to keep, so csrf_ok() would
   // never see the guard header without this.
   server.collectHeaders(COLLECTED_HEADERS,
@@ -2061,6 +2127,8 @@ void begin() {
   server.on("/api/track.csv", HTTP_GET, handle_track_csv);
   server.on("/api/track.geojson", HTTP_GET, handle_track_geojson);
   server.on("/api/config", HTTP_GET, handle_config_get);
+  server.on("/api/identity", HTTP_GET, handle_identity_get);
+  server.on("/api/identity", HTTP_POST, handle_identity_post);
   server.on("/api/config", HTTP_POST, handle_config_post);
   server.on("/api/config/reset", HTTP_POST, handle_config_reset);
   server.on("/config", HTTP_GET, handle_config_page);

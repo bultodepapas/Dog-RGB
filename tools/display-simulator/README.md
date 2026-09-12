@@ -1,4 +1,4 @@
-# Shared Display simulator — I6d + VIS-1a
+# Shared Display simulator — I6d + VIS-1/2
 
 This optional PC tool builds LVGL **8.4.0** and the firmware's actual
 `WalkView`, `ConnectionView`, `StatusView` and formatters with the same `lv_conf.h`. It exports
@@ -80,3 +80,46 @@ use intentionally non-dialable synthetic numbers. No URLs are opened.
 
 Evidence and remaining hardware measurements:
 [VIS-1a baseline](../../docs/baselines/display-vis1a-2026-09-12.md).
+
+## Identity layouts (VIS-1b)
+
+The seventh CTest builds `IdentityView`, the bounded UTF-8 name formatter and
+the generated fonts. It keeps the three I6d views allocated, then verifies safe
+bounds, pairwise overlap, complete text, every supported glyph, 24-character
+extremes, decomposed/invalid Unicode, QR caching and 30 update cycles.
+NFC input is accepted for the explicit alphabet; decomposed accents return
+`NeedsNormalization`. Portal normalization/persistence remains VIS-2.
+
+Using the QR decoder environment above:
+
+```powershell
+tools/display-simulator/build/qr-venv/Scripts/python.exe tools/display-simulator/render_identity.py
+```
+
+Thirteen public fixtures go to `output/identity-4bpp`: short/accent/ñ names,
+maximum phone, long/unbroken/word-wrapped names, disabled QR, invalid/empty data,
+NFD/unsupported names and recovery. Each image is independently checked for its
+exact QR payload or absence of codes. Add `--name` and `--phone` for a local
+preview; those captures are not public test defaults.
+
+The optional [font recipe](../display-fonts/README.md) enables `--bpp 2` for the
+alternative font build. This separate build leaves the normal 4 bpp CMake cache
+intact. [VIS-1b baseline](../../docs/baselines/display-vis1b-2026-09-12.md).
+
+## Identity storage and HTTP (VIS-2)
+
+`render.py` now runs ten CTest contracts. Three additions compile the real
+identity store with an in-memory Preferences transport and the actual HTTP
+handler source with a recording WebServer/guard for Display and Classic.
+ArduinoJson comes from the pinned Display diagnostic dependencies above.
+These test software persistence and request/response behavior, not ESP32 NVS
+power loss, radio or HTTP timing. The ordinary portal guard tests remain separate.
+
+Covered: alternating 84-byte A/B records, CRC/canonical data rejection, reboot,
+partial/corrupt/rejected writes, indeterminate readback error, no-op, generation
+conflict/rollover, clear and unsupported Classic. Handler extraction follows
+the current source at CMake configuration; changed boundaries fail explicitly.
+
+Portal draft/NFC tests: `npm run webui:unit`; browser checks use the generated
+page and existing API fixtures. [API contract](../../docs/display-identity-api.md)
+and [VIS-2 evidence](../../docs/baselines/display-vis2-2026-09-12.md).
