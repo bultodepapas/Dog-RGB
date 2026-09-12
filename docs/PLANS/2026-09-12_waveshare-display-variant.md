@@ -1,6 +1,6 @@
 # RGB Dog: variante con Waveshare ESP32-S3-LCD-1.69
 
-Fecha: 2026-09-12. Estado: **Investigación de apoyo reconciliada con I6a; desarrollo pausado y aceptación física conjunta pendiente**.
+Fecha: 2026-09-12. Estado: **Investigación de apoyo reconciliada con I6a; desarrollo reanudado con I6c experimental; aceptación conjunta pendiente**.
 
 Actualización: existen siete entornos, diagnósticos I0–I3, texto/LVGL y dos páginas
 con BOOT. I6a está cargado en la placa USB sin GPS ni tiras; véanse
@@ -8,7 +8,7 @@ con BOOT. I6a está cargado en la placa USB sin GPS ni tiras; véanse
 [guía de placas](../../Platformio/Dog-RGB/docs/boards.md). Arduino_GFX 1.6.7,
 LVGL 8.4.0 y renderer sin ventana ya están probados; nueve PNG y cuatro CTest.
 La investigación original siguiente conserva alternativas y cálculos de diseño,
-no tareas pendientes por defecto. Sensores, animación y timeout no están implementados.
+no tareas pendientes por defecto. Sensores y animación siguen propuestos; I6c prepara timeout opt-in de diagnóstico.
 
 Revisión de coherencia 2026-09-12: contratos de targets, diagnóstico, datos y pruebas contrastados con código/CI en el plan incremental. Este documento aporta evidencia y opciones; no define un segundo backlog.
 

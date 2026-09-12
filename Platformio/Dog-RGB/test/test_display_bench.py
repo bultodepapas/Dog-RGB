@@ -49,11 +49,22 @@ class DisplayBenchTests(unittest.TestCase):
 
     def test_only_bounded_lcd_commands_are_accepted(self):
         self.assertEqual(parse_step("5.5:f"), (5.5, "f"))
-        for command in "tvbdfrslacn":
+        for command in "tvbdfrslacnio":
             self.assertEqual(parse_step(f"0:{command}"), (0.0, command))
         for value in ("-1:f", "nan:f", "inf:f", "0:erase", "0:ff", "x:f", "2:x", "f"):
             with self.subTest(value=value), self.assertRaises(argparse.ArgumentTypeError):
                 parse_step(value)
+
+    def test_idle_reports_preserve_disabled_and_expired_states(self):
+        result = summarize("\n".join([
+            "[LCD] idle_ms=0 idle=0 timeouts=0 light=1",
+            "[LCD] idle_ms=30000 idle=0 timeouts=0 light=1",
+            "[LCD] idle_ms=30000 idle=1 timeouts=1 light=0",
+            "[LCD] idle_ms=30000 idle=0 timeouts=1 light=1",
+        ]))
+        self.assertEqual(result["lcd_idle_states"], [[0, 0], [30000, 0], [30000, 1]])
+        self.assertEqual(result["lcd_timeouts"], {"first": 0, "last": 1, "min": 0, "max": 1})
+        self.assertEqual(result["lcd_last"]["idle"], 0)
 
     def test_joined_records_do_not_mix_counters_or_hide_resets(self):
         result = summarize("\n".join([

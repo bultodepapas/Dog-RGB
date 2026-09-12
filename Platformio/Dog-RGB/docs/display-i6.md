@@ -1,9 +1,9 @@
 # I6a — Activity, Connection and BOOT navigation
 
-**Implemented; development paused after USB observation, 2026-09-12.** Remaining
+**Implemented; owner confirmed improved appearance, BOOT and wake, 2026-09-12.** Remaining
 physical checks and future packages are defined in the
 [incremental plan](../../../docs/PLANS/2026-09-12_display-incremental-delivery.md).
-The pause does not alter the loaded firmware or mark physical acceptance complete.
+Development resumed with [I6c opt-in inactivity](display-i6c.md); joint acceptance remains open.
 
 This increment implements the first two pages from the
 [collar-use contract](../../../docs/PLANS/2026-09-12_display-use-and-screens.md).
@@ -61,8 +61,7 @@ during reset; use short presses after the application has started for UI checks.
 
 If the backlight is off, the first click redraws/wakes the current page only.
 The next click advances. The same wake behavior resumes a diagnostic `d` pause.
-There is no automatic timeout yet: USB tests explicitly turn the light/service
-off before testing wake. Physical press/visibility confirmation remains separate
+I6a used manual light-off for wake tests; [I6c](display-i6c.md) adds optional diagnostic inactivity, disabled on boot. Physical press/visibility confirmation remains separate
 from tests that inject the same event by serial.
 
 ## Stage-3 controls and observations

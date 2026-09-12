@@ -8,6 +8,7 @@
 #if DOG_RGB_DISPLAY_LVGL == 1
 #include "display/lvgl_port.h"
 #include "display/button.h"
+#include "display/inactivity.h"
 #endif
 #if DOG_RGB_BRINGUP_STAGE == 3
 #include "bringup/display_demo.h"
@@ -31,6 +32,7 @@ bool demo = false;
 #if DOG_RGB_DISPLAY_LVGL == 1
 bool lvgl_ready = false, use_lvgl = true;
 ReleaseButton button;
+InactivityTimer inactivity; // Disabled on every boot; stage 3 can opt in for testing.
 uint32_t button_clicks = 0;
 #endif
 #if DOG_RGB_BRINGUP_STAGE == 3
@@ -55,6 +57,9 @@ DisplaySnapshot sample_now() {
 }
 
 void light(bool on) {
+#if DOG_RGB_DISPLAY_LVGL == 1
+  if (inactivity.poll(millis())) on = false;
+#endif
   backlight = ready && enabled && on;
   digitalWrite(board::kBacklightPin, backlight ? HIGH : LOW);
 }
@@ -67,6 +72,7 @@ void choose_page(lvgl_port::Page value) {
 void click() {
   if (!lvgl_ready) return;
   ++button_clicks;
+  inactivity.activity(millis());
   if (!enabled || !backlight) {
     enabled = true;
     choose_page(lvgl_port::page()); // First click wakes only, including diagnostic pause.
@@ -149,12 +155,23 @@ void commands() {
       case 'a': choose_page(lvgl_port::Page::Activity); break;
       case 'c': choose_page(lvgl_port::Page::Connection); break;
       case 'n': click(); break; // Same event as a debounced BOOT release.
+      case 'i': if (lvgl_ready) inactivity.configure(30000, millis()); break;
+      case 'o': inactivity.configure(0, millis()); break; // Disable, without waking.
 #endif
-      case 'b': light(!backlight); break;
+      case 'b':
+#if DOG_RGB_DISPLAY_LVGL == 1
+        if (!backlight) inactivity.activity(millis());
+#endif
+        light(!backlight); break;
       case 'd':
         enabled = !enabled;
         light(false);
-        if (enabled) redraw = true;
+        if (enabled) {
+#if DOG_RGB_DISPLAY_LVGL == 1
+          inactivity.activity(millis());
+#endif
+          redraw = true;
+        }
         break;
       case 'r':
         draw_ticks = max_tick_us = rows_drawn = max_service_us = 0;
@@ -201,6 +218,8 @@ void tick() {
   if (!ready) return; // No retries/restart loop after a known driver failure.
   const uint32_t started = micros();
 #if DOG_RGB_DISPLAY_LVGL == 1
+  // Expire before processing input: release at the deadline wakes, never advances.
+  if (inactivity.poll(millis()) && backlight) light(false);
   if (button.update(digitalRead(board::kUiButtonPin) == LOW, millis())) click();
 #endif
 #if DOG_RGB_BRINGUP_STAGE == 3
@@ -286,11 +305,14 @@ void report(Print &sink) {
   const char *ui = "text";
   const char *page = "text";
   uint32_t clicks = 0;
+  uint32_t idle_ms = 0, idle = 0, timeouts = 0;
   uint32_t flushes = 0, pixels = 0, flush_max_us = 0, lv_free = 0, lv_largest = 0;
 #if DOG_RGB_DISPLAY_LVGL == 1
   if (use_lvgl) ui = "lvgl";
   if (use_lvgl) page = lvgl_port::page() == lvgl_port::Page::Activity ? "activity" : "connection";
   clicks = button_clicks;
+  idle_ms = inactivity.timeout_ms(); idle = inactivity.expired();
+  timeouts = inactivity.expirations();
   if (lvgl_ready) {
     const auto stats = lvgl_port::stats();
     flushes = stats.flushes; pixels = stats.pixels; flush_max_us = stats.flush_max_us;
@@ -300,14 +322,17 @@ void report(Print &sink) {
   const int n = snprintf(line, sizeof(line),
       "[LCD] ready=%d enabled=%d light=%d test=%d demo=%d sample_ms=%lu pending=%u "
       "init_us=%lu draw_ticks=%lu rows=%lu draw_max_us=%lu p95_upper_us=%lu tick_max_us=%lu "
-      "ui=%s flushes=%lu pixels=%lu flush_max_us=%lu lv_free=%lu lv_largest=%lu page=%s clicks=%lu\n",
+      "ui=%s flushes=%lu pixels=%lu flush_max_us=%lu lv_free=%lu lv_largest=%lu page=%s clicks=%lu "
+      "idle_ms=%lu idle=%lu timeouts=%lu\n",
       ready, enabled, backlight, test_pattern, demo, static_cast<unsigned long>(sample_ms), dirty,
       static_cast<unsigned long>(init_us), static_cast<unsigned long>(draw_ticks),
       static_cast<unsigned long>(rows_drawn), static_cast<unsigned long>(max_tick_us),
       static_cast<unsigned long>(p95_upper_us()), static_cast<unsigned long>(max_service_us), ui,
       static_cast<unsigned long>(flushes), static_cast<unsigned long>(pixels),
       static_cast<unsigned long>(flush_max_us), static_cast<unsigned long>(lv_free),
-      static_cast<unsigned long>(lv_largest), page, static_cast<unsigned long>(clicks));
+      static_cast<unsigned long>(lv_largest), page, static_cast<unsigned long>(clicks),
+      static_cast<unsigned long>(idle_ms), static_cast<unsigned long>(idle),
+      static_cast<unsigned long>(timeouts));
   if (n > 0 && static_cast<size_t>(n) < sizeof(line))
     sink.write(reinterpret_cast<const uint8_t *>(line), static_cast<size_t>(n));
 }

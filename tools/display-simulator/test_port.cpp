@@ -2,6 +2,7 @@
 #include <cstring>
 #include "display/display.h"
 #include "display/lvgl_port.h"
+#include "display/inactivity.h"
 
 display::DisplaySnapshot real_sample;
 display::ConnectionSnapshot real_connection;
@@ -17,7 +18,17 @@ void pump(unsigned ms) {
   for (unsigned i = 0; i < ms; i += 5) { now_ms += 5; now_us += 5000; display::tick(); }
 }
 void command(char value) { Serial.input = value; display::tick(); }
+void advance(uint32_t ms) { now_ms += ms; now_us += ms * 1000U; display::tick(); }
 int main(int argc, char **) {
+  display::InactivityTimer timer;
+  assert(!timer.poll(UINT32_MAX)); // Disabled by default.
+  timer.configure(30000, UINT32_MAX - 10000);
+  assert(!timer.poll(19998)); assert(timer.poll(19999));
+  assert(timer.expirations() == 1);
+  assert(timer.poll(UINT32_MAX - 10000)); // Expired stays latched across another wrap.
+  assert(timer.expirations() == 1);
+  timer.activity(100); assert(!timer.poll(30099)); assert(timer.poll(30100));
+  timer.configure(0, 30100); assert(!timer.poll(UINT32_MAX));
   if (argc > 1) {
     begin_result = false;
     assert(!display::begin()); assert(!display::begin());
@@ -27,6 +38,8 @@ int main(int argc, char **) {
   assert(display::begin()); assert(display::begin());
   assert(begins == 1 && bitmap_pixels == 240 * 280 && light_level == HIGH);
   has("ui=lvgl"); has("demo=0");
+  has("idle_ms=0 idle=0 timeouts=0");
+  advance(31000); assert(light_level == HIGH); // Reboot default has no timeout.
   auto before = bitmap_calls;
   pump(2000); assert(bitmap_calls == before); // No redraw for an unchanged sample.
   command('f'); pump(10000);
@@ -71,6 +84,53 @@ int main(int argc, char **) {
   const auto baseline = display::lvgl_port::stats().free_bytes;
   for (unsigned i = 0; i < 30; ++i) { command('s'); command('l'); pump(5); }
   assert(display::lvgl_port::stats().free_bytes == baseline);
+  // Real service: idle is independent of GPS samples, page redraw and rendering.
+  command('v'); command('a'); command('i');
+  advance(29999); assert(light_level == HIGH);
+  advance(1); assert(light_level == LOW); has("idle_ms=30000 idle=1 timeouts=1");
+  before = bitmap_calls;
+  real_sample.gps_state = gps::ReceptionState::Fix;
+  real_sample.speed_valid = true; real_sample.speed_kph = 7;
+  advance(1100); assert(bitmap_calls > before && light_level == LOW);
+  real_sample.gps_state = gps::ReceptionState::Stale;
+  real_sample.speed_valid = false;
+  advance(1100); assert(light_level == LOW);
+  command('c'); has("page=connection"); assert(light_level == LOW);
+  command('t'); command('a'); pump(5); assert(light_level == LOW);
+  command('s'); command('l'); pump(5); assert(light_level == LOW);
+  command('n'); has("page=activity"); assert(light_level == HIGH);
+  command('n'); has("page=connection");
+  const auto idle_baseline = display::lvgl_port::stats().free_bytes;
+  for (const char page_command : {'a', 'c'}) {
+    command(page_command);
+    for (unsigned i = 0; i < 10; ++i) {
+      command('i'); advance(30000); assert(light_level == LOW);
+      command('n'); assert(light_level == HIGH);
+      has(page_command == 'a' ? "page=activity" : "page=connection");
+    }
+  }
+  assert(display::lvgl_port::stats().free_bytes == idle_baseline);
+  // A debounced short release exactly at deadline must wake the selected page.
+  command('i'); advance(29900);
+  button_level = LOW; display::tick(); advance(35); advance(35);
+  button_level = HIGH; display::tick(); advance(30);
+  has("page=connection"); assert(light_level == HIGH);
+  // A held button and a bounce do not extend the inactivity period.
+  command('i'); advance(29900); button_level = LOW; display::tick();
+  advance(100); assert(light_level == LOW);
+  advance(2000); button_level = HIGH; display::tick(); advance(35);
+  assert(light_level == LOW);
+  button_level = LOW; pump(10); button_level = HIGH; pump(40);
+  assert(light_level == LOW);
+  button_level = LOW; pump(80); button_level = HIGH; pump(40);
+  assert(light_level == HIGH); has("page=connection");
+  // Disabled timer does not wake; next release still wakes without navigation.
+  advance(30000); assert(light_level == LOW); command('o');
+  advance(31000); assert(light_level == LOW); has("idle_ms=0 idle=0");
+  command('n'); advance(31000); assert(light_level == HIGH); has("page=connection");
+  command('i'); command('d'); advance(31000); has("enabled=0");
+  command('n'); assert(light_level == HIGH); has("enabled=1"); has("page=connection");
+  command('o'); command('a'); // Restore the GPS page for the existing clock-wrap check.
   command('r'); has("flushes=0"); has("pixels=0");
   now_ms = UINT32_MAX - 500; display::tick(); pump(1000);
   real_sample.gps_state = gps::ReceptionState::Fix;

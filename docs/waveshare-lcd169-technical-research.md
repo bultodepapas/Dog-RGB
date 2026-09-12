@@ -8,7 +8,7 @@ Fecha de consulta y banco: **12 de septiembre de 2026**. Alcance: **ESP32-S3-LCD
 investigación I5 y se conservan como historia. El estado actual tiene dos vistas,
 Actividad/Wi-Fi, distancia principal, nueve capturas, BOOT y máximo USB final de
 44,768 ms por llamada. Véanse [baseline I6a](baselines/display-i6-2026-09-12.md)
-y [flujo vigente](PLANS/2026-09-12_display-ai-workflow.md). Desarrollo pausado;
+y [flujo vigente](PLANS/2026-09-12_display-ai-workflow.md). Tras esa pausa se reanudó el desarrollo de I6c opt-in;
 el plan incremental contiene los pendientes V1–V3/I6b–I7. Esta revisión no
 añade consultas web ni nuevas mediciones del panel.
 

@@ -47,3 +47,9 @@ through the existing Arduino_GFX driver.
 
 Full procedure and limits: [I5 guide](../../Platformio/Dog-RGB/docs/display-i5.md).
 Current pages/input: [I6a guide](../../Platformio/Dog-RGB/docs/display-i6.md).
+
+The I6c service contract also checks the opt-in inactivity deadline, rollover,
+dark redraws, stale data, twenty timeout/wake cycles over both pages and disabled
+boot policy. It still uses four CTest contracts and the same nine images; see
+[I6c behavior](../../Platformio/Dog-RGB/docs/display-i6c.md). GPIO tests here use
+fake inputs; actual BOOT/wake observations are recorded separately in the baseline.

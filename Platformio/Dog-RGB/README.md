@@ -31,10 +31,10 @@ The [I4 bench guide](docs/display-i4.md) adds an explicit LCD-only DEMO (`f`),
 optional serial capture and the remaining joint-load procedure. Boot/memory and
 LCD have partial evidence on the USB board; GPS and strips are not yet attached.
 
-**Development paused after I6a, 2026-09-12.** The
+**Development resumed after I6a confirmation, 2026-09-12.** The
 [incremental plan](../../docs/PLANS/2026-09-12_display-incremental-delivery.md)
 records remaining V1–V3 physical acceptance and separate I6b–I6e packages.
-No timeout, rest detection, battery telemetry or animation is implemented.
+[I6c](docs/display-i6c.md) adds an opt-in 30 s bench timeout; product remains disabled. Rest detection, battery telemetry and animation remain proposed.
 
 ## Implemented subsystems
 

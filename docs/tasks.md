@@ -25,7 +25,7 @@
 
 ### Parallel Display integration — planning update 2026-09-12
 
-**Display development paused by owner request.** Follow the [Display incremental contract](PLANS/2026-09-12_display-incremental-delivery.md) for detailed entry/work/exit criteria. I0–I6a implementation/evidence is retained; physical acceptance remains distinct. Resume with V1 on the available board, V2 when peripherals are available and then V3. This pause does not replace the Classic queue.
+**Display resumed by owner request after I6a visual/BOOT/wake confirmation.** Follow the [Display incremental contract](PLANS/2026-09-12_display-incremental-delivery.md) for detailed entry/work/exit criteria. I0–I6a implementation/evidence is retained; physical acceptance remains distinct. Resume with V1 on the available board, V2 when peripherals are available and then V3. I6c is opt-in bench preparation; V3 is still open. Classic continues independently.
 
 - [x] I0a: reproduce Classic/Wokwi builds and host baseline; preserve local work and record evidence in the [I0 baseline](baselines/display-i0-2026-09-12.md).
 - [x] I0b–I0c software: compile-time profiles, optional heartbeat, product/bringup targets, native GPIO tests and CI matrix.
@@ -45,15 +45,18 @@
 - [ ] V1 / I5 visual acceptance: black/RGBW/border/orientation and final page readability; investigate PWM separately only if needed. V3 retains the real joint-load timing gate.
 - [x] Display product analysis: [use and screen contract](PLANS/2026-09-12_display-use-and-screens.md), with Activity/Connection first and explicit limits for rest, sessions and battery telemetry.
 - [x] I6a software: Activity distance hierarchy, Connection read-only snapshot/view, BOOT release/wake logic, nine PNGs and four CTest contracts. See [guide](../Platformio/Dog-RGB/docs/display-i6.md).
-- [ ] V1 / I6a input and radio: actual BOOT short/rapid/release/wake observations and real AP/STA/portal client checks; see the [baseline](baselines/display-i6-2026-09-12.md).
+- [x] V1 subset: owner confirmed improved appearance, BOOT navigation and wake-only first press. See [I6c observations](baselines/display-i6c-2026-09-12.md).
+- [ ] V1 remainder: complete RGBW/border/rapid-input and real AP/STA/portal-client checks.
 - [ ] V2: close physical I0 → I1 → I2 → I3 items above with identified wiring and connected peripherals.
 - [ ] V3: close I4 joint acceptance and compare final I6a with text/backlight-off/UI-paused windows; no claim of joint performance from USB-only results.
 - [ ] I6b proposed: one optional measured transition after V1/V3, retaining instant change if it adds no value.
-- [ ] I6c proposed: separate, disableable 30 s inactivity timeout; first validate wake and continuity, initially backlight only.
+- [x] I6c software: opt-in 30 s backlight timer in stage 3, disabled on boot, deadline/rollover/dark-redraw tests. See [guide](../Platformio/Dog-RGB/docs/display-i6c.md).
+- [x] I6c USB/owner subset: three expirations and thirteen expected reported states; owner confirmed automatic darkness and physical wake/navigation. See [evidence](baselines/display-i6c-2026-09-12.md).
+- [ ] I6c final acceptance: V3 continuity and measured power if claiming savings; automatic product policy/configuration remains deferred.
 - [ ] I6d proposed: State page only with useful, valid domain data; extend snapshots without inventing hardware health.
 - [ ] I6e proposed: typed movement/still/unknown observation contract before contextual estimated pause; GPS gaps are not rest.
 - [ ] I7 selection: explicit walk lifecycle, calibrated battery, international SSID typography, IMU/RTC or contextual alerts are separate optional increments.
-- [x] Pause reconciliation: governing plan, usage/workflow, research notes, queue and indexes aligned with I6a; implementation is not resumed by this documentation update.
+- [x] Pause reconciliation: governing plan, usage/workflow, research notes, queue and indexes aligned with I6a; that documentation-only pause was subsequently ended by the owner.
 
 I0 physical acceptance remains open before LED bench work. Classic fixes continue in parallel; battery telemetry/sensors, advanced tooling and cloud are not dependencies of the basic Display build.
 

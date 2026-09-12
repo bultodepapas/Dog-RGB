@@ -313,7 +313,12 @@ Neither closes the outstanding I4 real-peripheral load gate.
 The [I6a guide](../Platformio/Dog-RGB/docs/display-i6.md) adds page selection,
 BOOT release/wake tests and the Connection scenarios.
 
-Display development is paused. On resumption, use V1–V3 in the
+[I6c](baselines/display-i6c-2026-09-12.md) extends the service tests with a
+disabled-by-default timer, exact deadline/rollover, stale data/draws while dark,
+twenty timeout/wake cycles and disable/resume semantics. The firmware suite now
+has 147 tests; the four renderer contracts and nine pixel-identical images remain.
+
+Display resumed with I6c opt-in inactivity preparation. Keep V1–V3 in the
 [incremental plan](PLANS/2026-09-12_display-incremental-delivery.md): physical
 button/optical/radio, staged peripheral bring-up and then thirty-minute joint
 load. Record physical versus serial-injected events, separate normal-update and

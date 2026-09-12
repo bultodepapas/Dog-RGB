@@ -9,11 +9,11 @@ Dog-RGB funciona de forma local, sin app ni cuenta cloud. Los LEDs muestran el e
 Actividad muestra distancia registrada/fecha, velocidad válida, GPS y modo de
 luces; Wi-Fi muestra AP/STA, nombres e IP actuales. Una pulsación breve de BOOT
 alterna páginas mientras funciona el firmware. Si está oscura, la primera
-pulsación solo despierta la página actual. Aún no hay timeout ni detector de descanso.
+pulsación solo despierta la página actual. El producto no activa timeout ni detecta descanso; [I6c](../Platformio/Dog-RGB/docs/display-i6c.md) permite ensayar 30 s solo en diagnóstico.
 
 `DEMO` identifica datos GPS simulados: no es un paseo registrado. Sin GPS no
-significa reposo y conexión Wi-Fi no demuestra Internet. Falta confirmar botón,
-lectura final y convivencia con periféricos reales. Desarrollo pausado; véanse
+significa reposo y conexión Wi-Fi no demuestra Internet. El propietario confirmó mejora visual, botón y despertar; falta completar
+óptica y convivencia con periféricos reales. Desarrollo reanudado; véanse
 [guía actual](../Platformio/Dog-RGB/docs/display-i6.md) y
 [plan restante](PLANS/2026-09-12_display-incremental-delivery.md).
 

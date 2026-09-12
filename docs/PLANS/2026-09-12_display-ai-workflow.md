@@ -1,6 +1,6 @@
 # Flujo de diseño de interfaces con IA para RGB Dog Display
 
-Estado: **Flujo ejecutable hasta I6a; desarrollo pausado por el propietario**,
+Estado: **Flujo I6a disponible; desarrollo reanudado con I6c experimental**,
 2026-09-12. El [plan incremental](2026-09-12_display-incremental-delivery.md)
 decide orden, dependencias y aceptación; el [contrato de uso](2026-09-12_display-use-and-screens.md)
 decide qué significa la información mostrada. Este documento explica cómo
@@ -194,5 +194,5 @@ Separa pruebas PC, eventos USB y observación física; registra binario y límit
 No cierres GPS/LED/HTTP por una demo sin periféricos.
 ```
 
-Este encargo no inicia trabajo durante la pausa. Tampoco convierte animaciones,
+La pausa terminó por instrucción del propietario; el paquete activo es I6c experimental. Tampoco convierte animaciones,
 SDL, batería o nueva persistencia en requisitos de la siguiente entrega.

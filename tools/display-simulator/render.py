@@ -41,7 +41,7 @@ def main():
         hashes[name] = hashlib.sha256(data).hexdigest()
     firmware = ROOT.parents[1] / "Platformio/Dog-RGB"
     inputs = ["include/lv_conf.h", "src/display/ui/walk_view.cpp", "src/display/text_view.cpp", "src/display/connection.cpp", "src/display/ui/connection_view.cpp", "src/display/display.cpp", "src/display/lvgl_port.cpp",
-              "src/display/connection_snapshot.cpp", "include/display/connection.h", "include/display/button.h",
+              "src/display/connection_snapshot.cpp", "include/display/connection.h", "include/display/button.h", "include/display/inactivity.h",
               "include/display/text_view.h", "include/display/walk_view.h", "include/display/connection_view.h"]
     result = {"lvgl": "8.4.0", "resolution": [240, 280], "png_sha256": hashes,
               "input_sha256": {p: hashlib.sha256((firmware / p).read_bytes()).hexdigest() for p in inputs},

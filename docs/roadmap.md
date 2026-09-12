@@ -1,6 +1,6 @@
 # Dog-RGB Roadmap
 
-**Status:** General priorities as of 2026-08-24; Display subset reconciled on 2026-09-12 through I6a and the owner-requested pause. Future phases are optional; they do not redefine the local-first DIY baseline.
+**Status:** General priorities as of 2026-08-24; Display subset reconciled on 2026-09-12 through I6a confirmation and I6c experimental preparation. Future phases are optional; they do not redefine the local-first DIY baseline.
 
 ## Baseline delivered
 
@@ -45,15 +45,14 @@ Detailed evidence remains in the [cloud reports](cloud/README.md). No website, h
 
 Classic XIAO remains active with one shared firmware core and separate board
 profiles. The [Display incremental plan](PLANS/2026-09-12_display-incremental-delivery.md)
-is the execution authority. **Display development is paused at the owner's
-request after I6a**; this does not pause or redefine the independent cloud plan.
+is the execution authority. **Display resumed after owner confirmation of I6a appearance, BOOT and wake**; this does not pause or redefine the independent cloud plan.
 
 Delivered: seven targets, I0–I3 diagnostics, I4 software preparation, LVGL 8.4.0
 shared renderer, Activity/Wi-Fi, BOOT release/wake, nine PNGs and four CTest
 contracts. Firmware host suite: 146/146. Final USB navigation maximum: 44.768 ms
 per service call after reduced page redraw and staged margin restoration.
 [Baseline I6a](baselines/display-i6-2026-09-12.md) records the exact image and
-limits; actual button/optical and GNSS/LED/HTTP joint acceptance remain open.
+limits; full optical/radio and GNSS/LED/HTTP joint acceptance remain open. I6c adds an opt-in bench timeout, disabled on boot; see the [guide](../Platformio/Dog-RGB/docs/display-i6c.md).
 
 | Resume order | Scope |
 | --- | --- |

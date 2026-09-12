@@ -1,9 +1,9 @@
 # RGB Dog: uso del collar y contrato de pantallas
 
-Estado: **I6a implementa Actividad y Conexión; desarrollo pausado y evolución posterior propuesta**, 2026-09-12.
+Estado: **I6a confirmado; I6c experimental de banco y evolución posterior propuesta**, 2026-09-12.
 Las dos páginas y la navegación BOOT se incorporaron según la [guía I6a](../../Platformio/Dog-RGB/docs/display-i6.md).
-Se conserva el resto de este documento como contrato de producto; descanso,
-apagado automático y cambios de radio/LEDs siguen sin implementarse.
+Descanso y cambios automáticos de radio/LEDs siguen propuestos. El timeout
+I6c se activa explícitamente en diagnóstico; el producto lo mantiene desactivado.
 Complementa el [plan incremental](2026-09-12_display-incremental-delivery.md),
 que conserva autoridad sobre el orden y las pruebas de aceptación.
 
@@ -236,7 +236,7 @@ El orden y las tareas detalladas están en los paquetes del
 | I6e | Pausa estimada solo tras contrato de observaciones; variante contextual de Actividad |
 | I7 | Paseos explícitos, modo tranquilo, batería/IMU, QR y avisos se priorizan individualmente |
 
-Durante la pausa no se implementa ningún paquete. Los escenarios siguientes son
+La pausa terminó; I6c quedó verificado como diagnóstico opt-in, sin cerrar V3. Los escenarios siguientes son
 la matriz de producto; cada caso entra cuando exista su función, no todos a la vez.
 
 Escenarios mínimos: arranque sin receptor; búsqueda al aire libre; fix válido;

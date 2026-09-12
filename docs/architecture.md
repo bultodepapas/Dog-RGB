@@ -86,8 +86,10 @@ I5/I6a add LVGL 8.4.0 on top of that driver in the two display targets only.
 scan/reconnect/configuration writes. The cooperative display service owns one
 black root and two reusable content containers, updating the active page at
 1 Hz only when its strings change. BOOT/GPIO0 emits debounced release events;
-page selection and backlight remain independent. No inactivity timeout, rest
-classifier or battery telemetry is implemented.
+page selection and backlight remain independent. I6c adds an interaction-only
+timer, disabled at boot and opt-in via stage-3 `i/o`; it gates only backlight,
+without changing domain sampling/rendering or persistence. Rest classification
+and battery telemetry remain unimplemented.
 
 The PC renderer links the same UI/configuration and exports nine PNGs; four
 native contracts include the actual service and radio adapter with fake

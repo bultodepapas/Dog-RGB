@@ -1,10 +1,10 @@
 # Implementation and historical plans
 
-The 2026-08-13 web-platform plan is the active execution contract for the optional cloud workstream. The 2026-09-12 Display incremental plan governs parallel board integration through delivered I6a; Display development is paused at the owner's request, with physical acceptance and subsequent packages explicitly planned. These workstreams have separate scope; neither makes the other a prerequisite. Other files are supporting research or design history as labelled below. Executable contracts, migrations, and tests remain authoritative for behavior that already exists.
+The 2026-08-13 web-platform plan is the active execution contract for the optional cloud workstream. The 2026-09-12 Display incremental plan governs parallel board integration through delivered I6a; Display resumed after owner confirmation of appearance/BOOT/wake, with I6c opt-in bench preparation and joint acceptance still open. These workstreams have separate scope; neither makes the other a prerequisite. Other files are supporting research or design history as labelled below. Executable contracts, migrations, and tests remain authoritative for behavior that already exists.
 
 | Plan | Status in the current repository |
 | --- | --- |
-| [Display incremental delivery — 2026-09-12](2026-09-12_display-incremental-delivery.md) | **Governing contract; development paused after I6a**, Spanish. V1 optical/button/radio, V2 physical I0–I3, V3 joint I4; then separate transition, timeout, State and estimated-pause packages. Classic remains active |
+| [Display incremental delivery — 2026-09-12](2026-09-12_display-incremental-delivery.md) | **Governing contract; resumed with I6c bench preparation**, Spanish. V1 optical/button/radio, V2 physical I0–I3, V3 joint I4; then separate transition, timeout, State and estimated-pause packages. Classic remains active |
 | [Waveshare Display board research — 2026-09-12](2026-09-12_waveshare-display-variant.md) | Supporting hardware evidence and target architecture; physical SKU/revision unconfirmed; follow the incremental contract |
 | [Display AI workflow — 2026-09-12](2026-09-12_display-ai-workflow.md) | Current shared-renderer workflow through I6a: two views, nine PNGs, four contracts; temporal animation capture and SDL remain conditional |
 | [Display use and screens — 2026-09-12](2026-09-12_display-use-and-screens.md) | Product contract: Activity/Wi-Fi implemented; State, inactivity, estimated pause and walk lifecycle explicitly proposed |

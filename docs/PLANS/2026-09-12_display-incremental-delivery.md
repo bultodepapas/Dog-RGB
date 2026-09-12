@@ -1,20 +1,21 @@
 # RGB Dog Display: desarrollo incremental
 
-Estado: **Desarrollo Display en pausa solicitada por el propietario. I0–I6a tienen implementación/evidencia de software; I4 físico y aceptación final I6a abiertos. Próximos incrementos planificados, no iniciados**.
+Estado: **Desarrollo reanudado. I6a: mejora visual, BOOT y despertar confirmados. I6c opt-in implementado, ensayado por USB y confirmado por el propietario; producto desactivado. V2/V3 y aceptación portátil pendientes**.
 Fecha: 2026-09-12.
 
-## Punto de pausa y reanudación
+## Punto de reanudación
 
-Esta revisión integra lo entregado hasta I6a y ordena lo que falta. Durante la
-pausa se actualizan documentos; no se cambia firmware, no se flashea ni se
-ejecutan pruebas que manipulen la placa. Reanudar desarrollo requiere una nueva
-indicación de continuar, no una nueva aprobación para cada tarea rutinaria.
+El propietario confirmó que la pantalla se ve mejor y BOOT cambia de página;
+tras apagar manualmente el backlight confirmó que el primer clic despierta la
+misma página y el segundo navega. Son observaciones físicas del usuario, además
+de los eventos USB previos; no cierran barras/borde, radio con cliente ni V3.
 
-La placa conectada durante I6a fue COM6, alimentada por USB, sin GPS ni tiras
-soldados. El propietario confirmó ver demos anteriores; todavía no confirmó
-la legibilidad de ambas páginas finales ni una pulsación física BOOT. Los
-eventos USB del banco no sustituyen esa comprobación. COM6 es una observación
-histórica: al reanudar se identifica de nuevo el dispositivo disponible.
+La pausa documental terminó con su instrucción de continuar. COM6 volvió a
+responder con las dos páginas I6a, GPS sin datos y cero bytes RX; no se informó
+conexión de GPS o tiras. Se entregó I6c como opción de diagnóstico desactivada
+al arrancar, sin adoptarla todavía como política automática del producto.
+Esta preparación independiente no cierra las condiciones de aceptación V3.
+I6b animación permanece sin iniciar.
 
 Referencia actual: [guía I6a](../../Platformio/Dog-RGB/docs/display-i6.md),
 [baseline con hash del binario cargado](../baselines/display-i6-2026-09-12.md)
@@ -27,7 +28,7 @@ estado local. Hash del binario y manifest identifican exactamente lo probado.
 | Entregado | Evidencia disponible | Lo que todavía no demuestra |
 | --- | --- | --- |
 | Perfiles Classic/Display y diagnósticos I0–I3 | Siete entornos compilados; aislamiento gráfico verificado | Revisión física/pinout completo ni funcionamiento de periféricos no conectados |
-| Actividad y Wi-Fi, negro `#000000`, BOOT corto/despertar | 146 pruebas host, cuatro CTest y nueve PNG revisados | Legibilidad final en el collar y respuesta del botón real |
+| Actividad y Wi-Fi, negro `#000000`, BOOT corto/despertar | 146 pruebas host, cuatro CTest y nueve PNG revisados | Lectura en el montaje final y comprobación completa de barras/borde; BOOT/despertar ya confirmados |
 | Navegación optimizada, restauración de márgenes en dos pasos | Ventana final USB de 120,078 s: 30 cambios y 10 despertares; máximo 44,768 ms por llamada | Latencia botón→píxel, 20 FPS, autonomía o carga conjunta |
 | Datos reales de radio y demo solo de GPS | AP observado; adaptador AP/STA probado con stubs | HTTP físico, asociación de teléfono o acceso a Internet |
 | Preparación I4 de portal/persistencia | Pruebas de software y banco parcial | NVS/ruta/portal bajo GPS y ambas tiras reales durante 30 minutos |
@@ -363,8 +364,17 @@ mantener abierto el caso conjunto; no simular su cierre.
 
 ### I6c — Pantalla sin consultar: timeout independiente
 
-- **Entrada:** despertar físico V1 y continuidad V3 probados. No depende de
-  adoptar la animación I6b; se realiza en un cambio posterior separado.
+**Entregado como experimento opt-in:** `i/o` en etapa 3, plazo 30 s, apagado
+solo de backlight y sin persistencia. Cuatro CTest ampliados, 147 pruebas host,
+tres builds, secuencia USB de 190 s y confirmación del propietario de apagado
+automático/despertar. Ver [guía](../../Platformio/Dog-RGB/docs/display-i6c.md)
+y [baseline](../baselines/display-i6c-2026-09-12.md). Producto no lo activa;
+V3 sigue siendo condición de aceptación conjunta.
+
+- **Entrada para aceptación:** despertar físico V1 y continuidad V3 probados.
+  El despertar ya está confirmado. La reanudación permite preparar y ensayar
+  I6c por USB con activación explícita de diagnóstico; V3 sigue abierto y la
+  política del producto permanece desactivada. No depende de adoptar I6b.
 - **Cambio inicial:** opción desactivable de 30 s sin interacción, con override
   de banco; solo backlight. La opción nace desactivada para comparar, sin nueva
   persistencia o interfaz de configuración extensa en esta primera prueba.
@@ -513,7 +523,7 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | I3 | Pantalla de texto implementada; demo visible confirmada, tiempos de banco registrados; colores/convivencia pendientes |
 | I4 | Software y banco LCD sin periféricos registrados; aceptación conjunta con GPS/LEDs/HTTP/persistencia pendiente |
 | I5 | Implementado y evolucionado en I6a; comparación USB registrada; óptica y carga conjunta siguen abiertas |
-| I6 | I6a implementado y cargado; desarrollo pausado. V1/V3 pendientes; I6b animación, I6c timeout, I6d Estado e I6e pausa son propuestas separadas |
+| I6 | I6a confirmado; I6c opt-in con pruebas USB y observación física del propietario. Producto sin timeout automático; V1 restante/V3 abiertos; I6b/I6d/I6e sin iniciar |
 | I7 | Opcional, sin priorización de implementación |
 
 Próximo trabajo al reanudar: V1 en la placa disponible y V2 cuando haya periféricos,

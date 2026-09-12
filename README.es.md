@@ -23,8 +23,8 @@ No están implementados: nube, cuentas, app móvil, IMU, ritmo cardíaco, teleme
 
 Classic XIAO sigue siendo la versión predeterminada. La variante experimental
 Waveshare ya tiene Actividad/Wi-Fi con LVGL y navegación BOOT; I6a está probado
-parcialmente por USB, sin GPS ni tiras conectados. El desarrollo queda pausado
-con [pendientes y próximos incrementos detallados](docs/PLANS/2026-09-12_display-incremental-delivery.md).
+parcialmente por USB, sin GPS ni tiras conectados. El propietario confirmó mejora visual, BOOT y despertar; se retoma el
+[plan de próximos incrementos](docs/PLANS/2026-09-12_display-incremental-delivery.md).
 Los comandos siguientes corresponden a Classic.
 
 ```powershell
