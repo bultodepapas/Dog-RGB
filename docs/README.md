@@ -70,6 +70,8 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Display I4 progress](baselines/display-i4-2026-09-12.md) | Software and partial physical evidence | Connected USB board, memory/reboots, LCD measurements, native configuration recovery and embedded browser checks |
 | [I5 shared LVGL guide](../Platformio/Dog-RGB/docs/display-i5.md) | Static view implementation | Shared PC/device components, pinned LVGL, comparison controls and measurement limits |
 | [Display I5 progress](baselines/display-i5-2026-09-12.md) | See recorded acceptance | Three real-renderer captures, UI/service contracts and USB bench results |
+| [Display I6a pages and input](../Platformio/Dog-RGB/docs/display-i6.md) | Implemented, see physical evidence | Activity/Connection, read-only Wi-Fi adapter, BOOT release/wake and bounded redraw |
+| [Display I6a baseline](baselines/display-i6-2026-09-12.md) | See recorded acceptance | Nine shared-renderer captures, navigation tests, resource changes and USB timing |
 | [Waveshare LCD 1.69 technical investigation](waveshare-lcd169-technical-research.md) | Research applied to I5, Spanish | Black/backlight diagnosis, official V2 circuit and initialization, SPI budget, forum cases and staged follow-up |
 | [Display I3 baseline](baselines/display-i3-2026-09-12.md) | Software evidence; physical acceptance pending | Seven builds, native adapter/rendering checks, layout previews and resource deltas |
 | [Display I2 baseline](baselines/display-i2-2026-09-12.md) | Software evidence; physical acceptance pending | GPS reception/readout, normal LED policy with bench limits, six builds and 137 host tests |

@@ -1,6 +1,6 @@
 # RGB Dog Display: desarrollo incremental
 
-Estado: **I0–I4 software implementados; I5 en desarrollo independiente. Demo I4 visible confirmada por el propietario; aceptación conjunta I4 y Wokwi pendientes**.
+Estado: **I0–I4 software implementados; I5 e I6a avanzan en banco USB. Actividad/Conexión y BOOT implementados; aceptación conjunta I4 y Wokwi pendientes**.
 Fecha: 2026-09-12.
 
 Actualización I5: LVGL compartido y simulador verificados; comparación USB de diez
@@ -10,10 +10,14 @@ smoke propio de 90 s; aceptación óptica pendiente. Véanse la [baseline I5](..
 y la [investigación técnica del panel](../waveshare-lcd169-technical-research.md).
 Esta última contrasta demo oficial, esquema, datasheet, fallas reportadas y repositorios.
 
-Orden inmediato de pantalla: observar negro/RGBW/borde; si hace falta, diagnóstico
-PWM acotado; corregir o distribuir el repintado completo antes de I6. El smoke negro
-registró 50,485 ms de máximo agregado frente al presupuesto de 50 ms: ese criterio
-no está cerrado, aunque las actualizaciones normales quedaron por debajo de 20 ms.
+Orden de aceptación de pantalla: observar negro/RGBW/borde; si hace falta, diagnóstico
+PWM acotado; verificar el repintado antes de animar. El smoke negro histórico I5
+registró 50,485 ms de máximo agregado frente al presupuesto de 50 ms. I6a reduce
+el área de cambio de página y restaura diagnósticos en dos iteraciones del loop:
+su prueba USB final registró 44,768 ms de máximo por llamada y p95 normal con
+cota superior de 20 ms. Cumple el presupuesto en esa ventana de banco; falta
+la aceptación bajo carga conjunta. Mediciones, alcance y binario en la
+[baseline I6](../baselines/display-i6-2026-09-12.md).
 Conservar swap 0 y 40 MHz mientras no exista evidencia para cambiarlos. Confirmar
 revisión física antes de usar botón de alimentación o pines que cambian V1/V2.
 Esto no reemplaza las pruebas conjuntas I1/I2/I4 cuando se conecten periféricos.
@@ -197,6 +201,14 @@ Usar el port oficial CMake/SDL como referencia, con submódulos/versiones compat
 
 **Resultado:** agregar una segunda vista y navegación por botón; después una transición breve.
 
+**I6a software implementado:** Actividad con distancia prioritaria, Conexión con
+snapshot Wi-Fi de solo lectura, BOOT GPIO0 con debounce/liberación y despertar
+sin avance accidental. Nueve capturas y cuatro contratos CTest; ver [guía](../../Platformio/Dog-RGB/docs/display-i6.md)
+y [baseline](../baselines/display-i6-2026-09-12.md). Cambios instantáneos, sin
+animaciones ni timeout automático. El circuito de alimentación no se reutiliza
+como entrada UI. La observación física del botón y las pruebas de carga real
+se registran por separado, no se infieren de la inyección USB del evento.
+
 La segunda vista seleccionada es **Conexión**: explicar AP/STA y cómo abrir el
 portal, leyendo el gestor existente. La principal evoluciona hacia **Actividad**,
 con distancia del día registrado como dato prioritario y velocidad secundaria.
@@ -209,8 +221,8 @@ El apagado por falta de interacción requiere despertar validado y no pausa GPS,
 LEDs ni registro. La clasificación de descanso y el resumen por paseo necesitan
 contratos propios: una sesión de arranque no equivale a una salida, y ausencia
 de fix no demuestra reposo. Wi-Fi desconectado durante una salida no produce
-por sí solo una nueva alerta global. Estas son propuestas de producto pendientes
-de implementar, no nuevos comportamientos ya presentes en la placa.
+por sí solo una nueva alerta global. La [guía I6a](../../Platformio/Dog-RGB/docs/display-i6.md)
+distingue lo incorporado de las propuestas posteriores.
 
 Tareas secuenciales: botón/despertar compatible con circuito de alimentación; segunda vista útil; pruebas de pulsaciones repetidas; transición; capturas temporales y medición en placa. Optimizar SPI/buffers solo ante evidencia de un cuello de botella. No imponer 20/30 FPS a la pantalla estática de I3.
 
@@ -310,7 +322,7 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | I3 | Pantalla de texto implementada; demo visible confirmada, tiempos de banco registrados; colores/convivencia pendientes |
 | I4 | Software y banco LCD sin periféricos registrados; aceptación conjunta con GPS/LEDs/HTTP/persistencia pendiente |
 | I5 | Desarrollo independiente autorizado: vista LVGL compartida, simulador estático y comparación en banco USB; ver baseline |
-| I6 | Planificado; botón, navegación y animaciones aún no implementados |
+| I6 | I6a implementa dos páginas y BOOT/despertar; evidencia en baseline. Animación, timeout y aceptación conjunta pendientes |
 | I7 | Opcional, sin priorización de implementación |
 
 Próximo trabajo físico: completar identificación PCB/revisión y aceptación I0 antes del diagnóstico I1 de tiras; recuperar Wokwi cuando CLI/token estén disponibles. Después de I1 físico, validar I2 GPS con LEDs y cerrar I4 bajo carga conjunta. La demo de texto ya es visible según el propietario y hay tiempos medidos sin periféricos; I5 mejora esa vista con aceptación visual propia. Los targets Waveshare siguen experimentales, sin validar uso portátil.

@@ -1,0 +1,34 @@
+{
+  "lvgl": "8.4.0",
+  "resolution": [
+    240,
+    280
+  ],
+  "png_sha256": {
+    "searching": "05f5e9a8670e7ea3f7e1e7bcd149c1b4fc790dd4fc298582b85687ac5b2c9f36",
+    "fix": "079066fb1c11f70937c1d76b3b1a30f70d8a453005ef77dcb6a766d9247cf1b7",
+    "stale": "0e726e81fc757c5c3e218c058db114015a4401b9ff34769097096e58ded0a2a7",
+    "connection-ap": "e256d5ceff5aa889a9295139ea0645b06ff3d4eb90831e009ab18a086fc3aaae",
+    "connection-both": "9b8f8da50d266e17a4106ffd2142bfdeeb79df934fd27a9f369e68ac86a961ae",
+    "connection-trying": "47ea6c19c2bcd782b37176e9f6c516d18d85a227c0105806a0286d294704ba7a",
+    "connection-idle": "9cc7a08511dbe1964b6e73e5e11aeee640f68f02ae051bea11cf6cb74ce2e1f3",
+    "connection-off": "513b819d781d8bc2fe78963ab71a7b125136d37cdb4434eb4294cef83cf1bea4",
+    "connection-long": "730d4d9473ffa727f5c1b916d5fd1e5c65adbe5f39ac333a1281ba8906d28fbd"
+  },
+  "input_sha256": {
+    "include/lv_conf.h": "381e6229ef0aab166271503cc68a92f4cea700665bfec0118f03fa980245ab6b",
+    "src/display/ui/walk_view.cpp": "652dfabc6f5cf7dd021b890458a97cf2b57ae8c977a1e9a2394f9c2a1ecab9b1",
+    "src/display/text_view.cpp": "4e46e13e1047a1e4dcdad67e70ba6eb06eaaf50f95d9e166595fdef955e4baef",
+    "src/display/connection.cpp": "a784aa832e629501524e7165673da85d38a231f115b8b8b4593e91c4c6379d08",
+    "src/display/ui/connection_view.cpp": "da379e61a7f86ff24a8e20220fd359cd11debe30991ed73edf013779b8634fb2",
+    "src/display/display.cpp": "9b531505eea9bcae586803679974fe54d2da6b14095991edc124eb1f2e351f63",
+    "src/display/lvgl_port.cpp": "8e0b4fbc7dd0f40006a1217d3f5cf8e28a5c4456435f09a6b49a15a99c902124",
+    "src/display/connection_snapshot.cpp": "44b06b5e16d59ab601d71f55394b0cf1728b2fc3244d0c5051d43af9fb82b36c",
+    "include/display/connection.h": "bbd26b7f9d0238ae4f4d73332e4b0ee2894eb7515ccfce879043905b328e44ce",
+    "include/display/button.h": "972f37098f3aae64991dd9a197d1f40908e5ceb4cb946ee257eca171e881ff4c",
+    "include/display/text_view.h": "20be40bc4ff5e5a2ff6bbadab32c66dd4a7eb3de5a55d389b8a7a8a10f1d6472",
+    "include/display/walk_view.h": "7f5aa7ffa21cc85d5892302ade8810f2184be3cf25b43b8c94438872c6f054f2",
+    "include/display/connection_view.h": "50b1971914842c3f4809dba631444394d7af0cfb5558fca88e5dd76500ec114a"
+  },
+  "scope": "shared LVGL rendering on PC; not physical panel or performance evidence"
+}

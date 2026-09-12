@@ -1,4 +1,4 @@
-"""Build the shared LVGL view, verify it and export three deterministic PNGs."""
+"""Build the shared LVGL view, verify it and export deterministic Activity/Connection PNGs."""
 import argparse
 import hashlib
 import json
@@ -28,19 +28,21 @@ def main():
     build = ROOT / "build"
     subprocess.run(["cmake", "-S", str(ROOT), "-B", str(build), "-G", "Ninja",
                     "-DCMAKE_BUILD_TYPE=Release"], check=True)
-    subprocess.run(["cmake", "--build", str(build), "--target", "display_simulator", "display_port_test", "-j", "4"], check=True)
+    subprocess.run(["cmake", "--build", str(build), "--target", "display_simulator", "display_port_test", "display_connection_adapter_test", "-j", "4"], check=True)
     subprocess.run(["ctest", "--test-dir", str(build), "--output-on-failure"], check=True)
     exe = build / "display_simulator"
     if exe.with_suffix(".exe").exists():
         exe = exe.with_suffix(".exe")
     subprocess.run([str(exe), str(args.output.resolve())], check=True)
     hashes = {}
-    for name in ("searching", "fix", "stale"):
+    for name in ("searching", "fix", "stale", "connection-ap", "connection-both", "connection-trying", "connection-idle", "connection-off", "connection-long"):
         data = png_from_ppm(args.output / f"{name}.ppm")
         (args.output / f"{name}.png").write_bytes(data)
         hashes[name] = hashlib.sha256(data).hexdigest()
     firmware = ROOT.parents[1] / "Platformio/Dog-RGB"
-    inputs = ["include/lv_conf.h", "src/display/ui/walk_view.cpp", "src/display/text_view.cpp"]
+    inputs = ["include/lv_conf.h", "src/display/ui/walk_view.cpp", "src/display/text_view.cpp", "src/display/connection.cpp", "src/display/ui/connection_view.cpp", "src/display/display.cpp", "src/display/lvgl_port.cpp",
+              "src/display/connection_snapshot.cpp", "include/display/connection.h", "include/display/button.h",
+              "include/display/text_view.h", "include/display/walk_view.h", "include/display/connection_view.h"]
     result = {"lvgl": "8.4.0", "resolution": [240, 280], "png_sha256": hashes,
               "input_sha256": {p: hashlib.sha256((firmware / p).read_bytes()).hexdigest() for p in inputs},
               "scope": "shared LVGL rendering on PC; not physical panel or performance evidence"}

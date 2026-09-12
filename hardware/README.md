@@ -16,3 +16,8 @@ Current references:
 - [LCD 1.69 technical investigation](../docs/waveshare-lcd169-technical-research.md) — official V2 backlight circuit, V1/V2 pin differences, color/offset diagnostics and measured SPI work. The black palette is uploaded; PWM remains a proposed diagnostic, not an implemented or calibrated brightness control.
 
 Do not treat firmware defaults or planning estimates as a finished schematic, safe load rating, waterproofing claim, or runtime guarantee.
+
+[I6a input](../Platformio/Dog-RGB/docs/display-i6.md) now reads BOOT/GPIO0 for
+short-release navigation and reserves that pin explicitly. The power button,
+SYS_EN/SYS_OUT, LED/GPS wiring and charging behavior are unchanged. A serial
+injection of the click event tests software behavior, not the physical switch.

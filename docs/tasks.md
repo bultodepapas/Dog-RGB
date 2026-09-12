@@ -43,7 +43,9 @@ Follow the [Display incremental contract](PLANS/2026-09-12_display-incremental-d
 - [x] Display technical investigation: official demo, V2 schematic, ST7789V2 timing/color registers, forums and related repositories; [findings and staged follow-up](waveshare-lcd169-technical-research.md).
 - [ ] I5 acceptance: review black/RGBW/border on the LCD, address the observed 50.485 ms full-redraw maximum against the 50 ms budget, and complete real joint-load comparison when I4 peripherals are available. PWM brightness is a small follow-up if needed.
 - [x] Display product analysis: [use and screen contract](PLANS/2026-09-12_display-use-and-screens.md), with Activity/Connection first and explicit limits for rest, sessions and battery telemetry.
-- [ ] I6: Activity hierarchy and Connection read-only snapshot/view, confirmed button/wake behavior, then measured motion after static acceptance. State details and estimated pauses follow separately; no automatic change to GPS/LED/radio policy.
+- [x] I6a software: Activity distance hierarchy, Connection read-only snapshot/view, BOOT release/wake logic, nine PNGs and four CTest contracts. See [guide](../Platformio/Dog-RGB/docs/display-i6.md).
+- [ ] I6 physical acceptance: confirm actual BOOT presses/readability and joint GNSS/LED/HTTP behavior; USB-injected clicks and bare-board timing are separate evidence in the [baseline](baselines/display-i6-2026-09-12.md).
+- [ ] I6b: measured transition and optional inactivity timeout after navigation acceptance. State details and estimated pauses follow separately; no automatic change to GPS/LED/radio policy.
 
 I0 physical acceptance remains open before LED bench work. Classic fixes continue in parallel; battery telemetry/sensors, advanced tooling and cloud are not dependencies of the basic Display build.
 

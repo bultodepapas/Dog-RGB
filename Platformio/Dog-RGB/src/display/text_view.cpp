@@ -5,6 +5,8 @@
 namespace display {
 TextView format_view(const DisplaySnapshot &sample) {
   TextView view;
+  view.gps_state = sample.gps_state;
+  view.led_mode = sample.led_mode;
   const char *state = "SIN DATOS";
   view.gps_color = 0xFDC0; // Amber: lack of trustworthy current data.
   switch (sample.gps_state) {

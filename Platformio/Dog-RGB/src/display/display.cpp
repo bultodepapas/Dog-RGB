@@ -7,6 +7,7 @@
 #include "display/text_view.h"
 #if DOG_RGB_DISPLAY_LVGL == 1
 #include "display/lvgl_port.h"
+#include "display/button.h"
 #endif
 #if DOG_RGB_BRINGUP_STAGE == 3
 #include "bringup/display_demo.h"
@@ -29,6 +30,8 @@ bool test_pattern = false, redraw = false;
 bool demo = false;
 #if DOG_RGB_DISPLAY_LVGL == 1
 bool lvgl_ready = false, use_lvgl = true;
+ReleaseButton button;
+uint32_t button_clicks = 0;
 #endif
 #if DOG_RGB_BRINGUP_STAGE == 3
 uint32_t demo_started_ms = 0;
@@ -55,6 +58,24 @@ void light(bool on) {
   backlight = ready && enabled && on;
   digitalWrite(board::kBacklightPin, backlight ? HIGH : LOW);
 }
+#if DOG_RGB_DISPLAY_LVGL == 1
+void choose_page(lvgl_port::Page value) {
+  if (!lvgl_ready) return;
+  lvgl_port::select_page(value);
+  use_lvgl = true; test_pattern = false; redraw = true;
+}
+void click() {
+  if (!lvgl_ready) return;
+  ++button_clicks;
+  if (!enabled || !backlight) {
+    enabled = true;
+    choose_page(lvgl_port::page()); // First click wakes only, including diagnostic pause.
+  } else {
+    choose_page(lvgl_port::page() == lvgl_port::Page::Activity ?
+        lvgl_port::Page::Connection : lvgl_port::Page::Activity);
+  }
+}
+#endif
 void text(int y, const char *value, uint8_t size, uint16_t color) {
   panel.setTextSize(size);
   panel.setTextColor(color, kBackground);
@@ -63,6 +84,9 @@ void text(int y, const char *value, uint8_t size, uint16_t color) {
 }
 void frame() {
   panel.fillScreen(kBackground);
+#if DOG_RGB_DISPLAY_LVGL == 1
+  lvgl_port::external_draw();
+#endif
   panel.setTextWrap(false);
   text(22, demo ? "RGB DOG DEMO" : "RGB DOG", 2, kWhite);
   panel.drawFastHLine(24, 48, 192, kMuted);
@@ -81,6 +105,9 @@ void row(uint8_t index) {
 }
 void bars() {
   panel.fillScreen(kBackground);
+#if DOG_RGB_DISPLAY_LVGL == 1
+  lvgl_port::external_draw();
+#endif
   panel.drawRect(0, 0, board::kLcdWidth, board::kLcdHeight, kWhite);
   const uint16_t colors[] = {0xF800, 0x07E0, 0x001F, 0xFFFF};
   for (int i = 0; i < 4; ++i) panel.fillRect(24 + 48 * i, 80, 48, 100, colors[i]);
@@ -119,6 +146,9 @@ void commands() {
 #if DOG_RGB_DISPLAY_LVGL == 1
       case 's': use_lvgl = false; test_pattern = false; redraw = true; break;
       case 'l': use_lvgl = lvgl_ready; test_pattern = false; redraw = true; break;
+      case 'a': choose_page(lvgl_port::Page::Activity); break;
+      case 'c': choose_page(lvgl_port::Page::Connection); break;
+      case 'n': click(); break; // Same event as a debounced BOOT release.
 #endif
       case 'b': light(!backlight); break;
       case 'd':
@@ -151,8 +181,10 @@ bool begin() {
     sample_ms = last_sample_ms = sample.captured_ms;
     pending = format_view(sample);
 #if DOG_RGB_DISPLAY_LVGL == 1
-    lvgl_ready = lvgl_port::begin(panel, pending, demo);
+    lvgl_ready = lvgl_port::begin(panel, pending, demo, format_connection(capture_connection()));
     use_lvgl = lvgl_ready;
+    pinMode(board::kUiButtonPin, INPUT_PULLUP);
+    button.begin(digitalRead(board::kUiButtonPin) == LOW, millis());
     if (!use_lvgl)
 #endif
     {
@@ -168,6 +200,9 @@ bool begin() {
 void tick() {
   if (!ready) return; // No retries/restart loop after a known driver failure.
   const uint32_t started = micros();
+#if DOG_RGB_DISPLAY_LVGL == 1
+  if (button.update(digitalRead(board::kUiButtonPin) == LOW, millis())) click();
+#endif
 #if DOG_RGB_BRINGUP_STAGE == 3
   commands();
 #endif
@@ -186,11 +221,17 @@ void tick() {
     }
 #if DOG_RGB_DISPLAY_LVGL == 1
     else if (use_lvgl) {
-      const DisplaySnapshot sample = sample_now();
-      sample_ms = last_sample_ms = sample.captured_ms;
-      pending = format_view(sample);
-      lvgl_port::update(pending, demo);
-      lvgl_port::tick(now, true);
+      if (lvgl_port::restore_margins()) {
+        // Let GPS/LED/HTTP run before the content redraw. Relight only on completion.
+        light(false);
+        redraw = true;
+      } else {
+        const DisplaySnapshot sample = sample_now();
+        sample_ms = last_sample_ms = sample.captured_ms;
+        pending = format_view(sample);
+        lvgl_port::update(pending, demo, format_connection(capture_connection()));
+        lvgl_port::tick(now, true);
+      }
       dirty = 0;
     }
 #endif
@@ -201,7 +242,7 @@ void tick() {
       pending = format_view(sample);
       dirty = (1U << kRowCount) - 1U;
     }
-    light(true);
+    if (!redraw) light(true);
     drew = true;
   }
 #if DOG_RGB_DISPLAY_LVGL == 1
@@ -210,7 +251,7 @@ void tick() {
       const DisplaySnapshot sample = sample_now();
       sample_ms = last_sample_ms = sample.captured_ms;
       pending = format_view(sample);
-      lvgl_port::update(pending, demo);
+      lvgl_port::update(pending, demo, format_connection(capture_connection()));
     }
     drew = lvgl_port::tick(now);
   }
@@ -241,11 +282,15 @@ void tick() {
 }
 
 void report(Print &sink) {
-  char line[448];
+  char line[512];
   const char *ui = "text";
+  const char *page = "text";
+  uint32_t clicks = 0;
   uint32_t flushes = 0, pixels = 0, flush_max_us = 0, lv_free = 0, lv_largest = 0;
 #if DOG_RGB_DISPLAY_LVGL == 1
   if (use_lvgl) ui = "lvgl";
+  if (use_lvgl) page = lvgl_port::page() == lvgl_port::Page::Activity ? "activity" : "connection";
+  clicks = button_clicks;
   if (lvgl_ready) {
     const auto stats = lvgl_port::stats();
     flushes = stats.flushes; pixels = stats.pixels; flush_max_us = stats.flush_max_us;
@@ -255,14 +300,14 @@ void report(Print &sink) {
   const int n = snprintf(line, sizeof(line),
       "[LCD] ready=%d enabled=%d light=%d test=%d demo=%d sample_ms=%lu pending=%u "
       "init_us=%lu draw_ticks=%lu rows=%lu draw_max_us=%lu p95_upper_us=%lu tick_max_us=%lu "
-      "ui=%s flushes=%lu pixels=%lu flush_max_us=%lu lv_free=%lu lv_largest=%lu\n",
+      "ui=%s flushes=%lu pixels=%lu flush_max_us=%lu lv_free=%lu lv_largest=%lu page=%s clicks=%lu\n",
       ready, enabled, backlight, test_pattern, demo, static_cast<unsigned long>(sample_ms), dirty,
       static_cast<unsigned long>(init_us), static_cast<unsigned long>(draw_ticks),
       static_cast<unsigned long>(rows_drawn), static_cast<unsigned long>(max_tick_us),
       static_cast<unsigned long>(p95_upper_us()), static_cast<unsigned long>(max_service_us), ui,
       static_cast<unsigned long>(flushes), static_cast<unsigned long>(pixels),
       static_cast<unsigned long>(flush_max_us), static_cast<unsigned long>(lv_free),
-      static_cast<unsigned long>(lv_largest));
+      static_cast<unsigned long>(lv_largest), page, static_cast<unsigned long>(clicks));
   if (n > 0 && static_cast<size_t>(n) < sizeof(line))
     sink.write(reinterpret_cast<const uint8_t *>(line), static_cast<size_t>(n));
 }

@@ -1,8 +1,9 @@
 # RGB Dog: uso del collar y contrato de pantallas
 
-Estado: **propuesta de producto para los siguientes incrementos**, 2026-09-12.
-La placa mantiene la página I5 existente. Este análisis no implementa navegación,
-clasificación de descanso, apagado automático ni cambios de radio/LEDs.
+Estado: **I6a implementa Actividad y Conexión; evolución posterior propuesta**, 2026-09-12.
+Las dos páginas y la navegación BOOT se incorporaron según la [guía I6a](../../Platformio/Dog-RGB/docs/display-i6.md).
+Se conserva el resto de este documento como contrato de producto; descanso,
+apagado automático y cambios de radio/LEDs siguen sin implementarse.
 Complementa el [plan incremental](2026-09-12_display-incremental-delivery.md),
 que conserva autoridad sobre el orden y las pruebas de aceptación.
 
@@ -19,9 +20,9 @@ secundarios por vista. Se conserva negro puro, tipografía blanca, colores de es
 acotados y márgenes amplios para las esquinas. No se alternan páginas automáticamente
 mientras se leen ni se utiliza una animación continua como indicador de actividad.
 
-La primera UI priorizó velocidad como prueba del renderer. Para el producto,
-proponemos dar prioridad a distancia registrada y estado; velocidad pasa a segundo
-plano. Esta revisión de jerarquía es una propuesta, no un cambio ya aplicado.
+La primera UI priorizó velocidad como prueba del renderer. I6a da prioridad a
+distancia registrada y estado; velocidad pasa a segundo plano. El título visible
+de la segunda página es `Wi-Fi`, y muestra los dos tipos de conexión.
 
 ## 2. Momentos de uso
 

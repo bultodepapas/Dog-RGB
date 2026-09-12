@@ -6,8 +6,8 @@ namespace display {
 // Same composition on PC and device. No clock, hardware, input or domain writes.
 class WalkView {
  public:
-  bool begin(const TextView &view, bool demo);
-  void update(const TextView &view, bool demo);
+  bool begin(const TextView &view, bool demo, const char *connection = "", lv_obj_t *parent = nullptr);
+  void update(const TextView &view, bool demo, const char *connection = "");
   lv_obj_t *screen() const { return screen_; }
  private:
   lv_obj_t *screen_ = nullptr;
@@ -15,6 +15,8 @@ class WalkView {
   lv_obj_t *status_ = nullptr;
   lv_obj_t *speed_ = nullptr;
   lv_obj_t *distance_ = nullptr;
+  lv_obj_t *unit_ = nullptr;
+  lv_obj_t *connection_ = nullptr;
   lv_obj_t *date_ = nullptr;
   lv_obj_t *mode_ = nullptr;
   uint16_t color_ = 0;

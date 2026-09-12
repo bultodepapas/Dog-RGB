@@ -21,9 +21,10 @@ brightness capped at 16/255 and the current estimator enabled (budget at most
 LCD bench command: `pio run -e waveshare_lcd169_displaycheck`. It retains I2
 bench limits, adds a partial-update text page and USB bars/backlight/pause
 controls. See the [I3 LCD guide](docs/display-i3.md). Classic and I0–I2 remain
-free of graphics dependencies. [I5](docs/display-i5.md) now adds LVGL 8.4.0 and
-a shared static Paseo view/simulator; `s` selects the basic page and `l` LVGL
-in the diagnostic target. Animation/navigation remain deferred.
+free of graphics dependencies. [I5](docs/display-i5.md) added LVGL 8.4.0 and
+the shared simulator. [I6a](docs/display-i6.md) now provides Activity/Connection
+and BOOT short-release navigation; `a/c/n` select pages/inject a click in stage 3,
+while `s/l` retain basic/LVGL comparison. Animation and automatic sleep remain deferred.
 
 The [I4 bench guide](docs/display-i4.md) adds an explicit LCD-only DEMO (`f`),
 optional serial capture and the remaining joint-load procedure. Boot/memory and

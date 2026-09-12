@@ -12,7 +12,7 @@ import re
 import time
 from analyze_wokwi import FATAL_MARKERS, fields
 
-COMMANDS = frozenset("tvbdfrsl")
+COMMANDS = frozenset("tvbdfrslacn")
 
 
 def summarize(text: str) -> dict:
@@ -56,6 +56,7 @@ def summarize(text: str) -> dict:
         "lcd_draw_p95_upper_max_us": max(values(lcd, "p95_upper_us"), default=None),
         "lcd_last": lcd[-1] if lcd else None,
         "lcd_backends": sorted({str(r["ui"]) for r in lcd if "ui" in r}),
+        "lcd_pages": sorted({str(r["page"]) for r in lcd if "page" in r}),
         "heap": span(system, "heap"), "min_heap": span(system, "min_heap"),
         "log_drop_bytes": span(system, "log_drop_bytes"),
         "gps_rx": span(gps, "rx"), "gps_overflow": span(gps, "overflow"),
@@ -72,7 +73,7 @@ def parse_step(value: str) -> tuple[float, str]:
             raise ValueError()
         return when, command
     except ValueError as exc:
-        raise argparse.ArgumentTypeError("Use seconds:command, where command is t/v/b/d/f/r/s/l") from exc
+        raise argparse.ArgumentTypeError("Use seconds:command, where command is t/v/b/d/f/r/s/l/a/c/n") from exc
 
 
 def main() -> int:

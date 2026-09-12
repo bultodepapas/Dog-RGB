@@ -1,4 +1,6 @@
 #include "display/walk_view.h"
+#include "display/connection_view.h"
+#include "display/button.h"
 #include <array>
 #include <cassert>
 #include <cstring>
@@ -40,10 +42,16 @@ void verify_layout(lv_obj_t *screen) {
     auto *obj = lv_obj_get_child(screen, i);
     lv_area_t area; lv_obj_get_coords(obj, &area);
     assert(area.x1 >= 20 && area.x2 < 220 && area.y1 >= 20 && area.y2 < 264);
+    for (uint32_t j = 0; j < i; ++j) {
+      lv_area_t other; lv_obj_get_coords(lv_obj_get_child(screen, j), &other);
+      const bool separated = area.x2 < other.x1 || other.x2 < area.x1 || area.y2 < other.y1 || other.y2 < area.y1;
+      if (!separated) std::cerr << "overlap children " << i << " / " << j << " at y=" << area.y1 << ".." << area.y2 << " / " << other.y1 << ".." << other.y2 << '\n';
+      assert(separated);
+    }
     if (lv_obj_check_type(obj, &lv_label_class)) {
       lv_point_t size;
       lv_txt_get_size(&size, lv_label_get_text(obj), lv_obj_get_style_text_font(obj, 0),
-                     0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+                     0, 0, lv_obj_get_width(obj), LV_TEXT_FLAG_NONE);
       assert(size.x <= lv_obj_get_width(obj)); // No hidden horizontal truncation.
       assert(size.y <= lv_obj_get_height(obj));
     }
@@ -69,40 +77,45 @@ int main(int argc, char **argv) {
   driver.draw_buf = &draw_buffer; driver.flush_cb = flush;
   auto *disp = lv_disp_drv_register(&driver);
   assert(disp);
+  auto *root = lv_obj_create(nullptr);
+  lv_obj_remove_style_all(root); lv_obj_set_size(root, 240, 280);
+  lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_bg_color(root, lv_color_hex(0), 0);
+  lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
   display::WalkView walk;
   display::DisplaySnapshot sample;
   sample.gps_state = gps::ReceptionState::Searching;
   sample.daily_distance_m = 1842; sample.distance_date = 20260912;
-  assert(walk.begin(display::format_view(sample), true));
-  lv_disp_load_scr(walk.screen());
+  assert(walk.begin(display::format_view(sample), true, "Portal disponible", root));
+  lv_disp_load_scr(root);
   const auto render = [&](const char *name) {
-    walk.update(display::format_view(sample), true);
+    walk.update(display::format_view(sample), true, "Portal disponible");
     lv_refr_now(disp);
     verify_layout(walk.screen());
     if (name) save(output / (std::string(name) + ".ppm"));
   };
   render("searching");
-  assert(contains(walk.screen(), "--") && contains(walk.screen(), "RGB DOG / DEMO"));
+  assert(contains(walk.screen(), "-- km/h") && contains(walk.screen(), "RGB DOG / DEMO"));
   sample.gps_state = gps::ReceptionState::Fix; sample.speed_valid = true; sample.speed_kph = 7.2f;
-  render("fix"); assert(contains(walk.screen(), "7.2"));
+  render("fix"); assert(contains(walk.screen(), "7.2 km/h"));
   const auto before = flushes;
   render(nullptr); assert(flushes == before); // Identical values do not invalidate.
   lv_mem_monitor_t baseline; lv_mem_monitor(&baseline);
   sample.gps_state = gps::ReceptionState::Stale;
   render("stale");
-  assert(contains(walk.screen(), "--") && contains(walk.screen(), "1842 m"));
+  assert(contains(walk.screen(), "-- km/h") && contains(walk.screen(), "1.84"));
   sample.gps_state = gps::ReceptionState::Fix; sample.speed_kph = 0;
-  render(nullptr); assert(contains(walk.screen(), "0.0"));
+  render(nullptr); assert(contains(walk.screen(), "0.0 km/h"));
   for (unsigned i = 0; i < 120; ++i) {
     sample.gps_state = static_cast<gps::ReceptionState>(i % 6);
     sample.speed_kph = i % 2 ? 0 : std::numeric_limits<float>::quiet_NaN();
     render(nullptr);
-    assert(contains(walk.screen(), sample.gps_state == gps::ReceptionState::Fix && i % 2 ? "0.0" : "--"));
+    assert(contains(walk.screen(), sample.gps_state == gps::ReceptionState::Fix && i % 2 ? "0.0 km/h" : "-- km/h"));
   }
   sample.gps_state = gps::ReceptionState::Fix; sample.speed_kph = 10000;
   sample.daily_distance_m = 1e20f; sample.distance_date = 0;
   render(nullptr);
-  assert(contains(walk.screen(), "999+") && contains(walk.screen(), ">999 km"));
+  assert(contains(walk.screen(), "999+ km/h") && contains(walk.screen(), ">999"));
   for (auto mode : {led::LedMode::Speed, led::LedMode::Geofence, led::LedMode::Show, led::LedMode::Simple}) {
     sample.led_mode = mode; render(nullptr);
   }
@@ -114,7 +127,55 @@ int main(int argc, char **argv) {
   walk.update(display::format_view(sample), false);
   lv_refr_now(disp);
   assert(contains(walk.screen(), "RGB DOG") && !contains(walk.screen(), "RGB DOG / DEMO"));
+  display::ConnectionSnapshot connection;
+  connection.ap_enabled = true;
+  snprintf(connection.ap_ssid, sizeof(connection.ap_ssid), "%s", "DogRGB"); snprintf(connection.ap_ip, sizeof(connection.ap_ip), "%s", "192.168.4.1");
+  display::ConnectionView networks;
+  assert(networks.begin(display::format_connection(connection), false, root));
+  lv_obj_add_flag(walk.screen(), LV_OBJ_FLAG_HIDDEN);
+  const auto render_connection = [&](const char *name) {
+    networks.update(display::format_connection(connection), false);
+    lv_refr_now(disp); verify_layout(networks.screen());
+    if (name) save(output / (std::string(name) + ".ppm"));
+  };
+  render_connection("connection-ap");
+  assert(contains(networks.screen(), "Portal disponible"));
+  assert(contains(networks.screen(), "192.168.4.1"));
+  const auto unchanged = flushes; render_connection(nullptr); assert(flushes == unchanged);
+  connection.sta_connected = true; connection.clients = 1;
+  snprintf(connection.sta_ssid, sizeof(connection.sta_ssid), "%s", "Casa"); snprintf(connection.sta_ip, sizeof(connection.sta_ip), "%s", "192.168.1.42");
+  render_connection("connection-both");
+  assert(contains(networks.screen(), "Red conectada"));
+  assert(contains(networks.screen(), "Portal: 1 conectado"));
+  const auto connected_text = display::format_connection(connection);
+  assert(strcmp(connected_text.sta_address, "192.168.1.42") == 0);
+  connection.sta_connected = false; connection.sta_connecting = true;
+  render_connection("connection-trying");
+  assert(!contains(networks.screen(), "192.168.1.42"));
+  connection.sta_connecting = false;
+  render_connection(nullptr); assert(contains(networks.screen(), "Red no conectada"));
+  connection.ap_enabled = false;
+  render_connection("connection-idle");
+  assert(!contains(networks.screen(), "192.168.4.1"));
+  assert(!contains(networks.screen(), "Wi-Fi apagado"));
+  connection.radio_off = true;
+  render_connection("connection-off"); assert(contains(networks.screen(), "Wi-Fi apagado"));
+  connection.radio_off = false; connection.ap_enabled = true; connection.sta_connected = true;
+  connection.clients = 255;
+  memset(connection.ap_ssid, 'W', 32); connection.ap_ssid[32] = 0;
+  memset(connection.sta_ssid, 'W', 32); connection.sta_ssid[32] = 0;
+  render_connection("connection-long");
+  assert(contains(networks.screen(), "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"));
+  snprintf(connection.ap_ssid, sizeof(connection.ap_ssid), "%s", "Red\\nFalsa"); connection.ap_ssid[3] = '\n';
+  render_connection(nullptr); assert(contains(networks.screen(), "Nombre no compatible"));
+  snprintf(connection.ap_ssid, sizeof(connection.ap_ssid), "%s", "Caf\xc3\xa9");
+  render_connection(nullptr); assert(contains(networks.screen(), "Nombre no compatible"));
+  display::ReleaseButton button;
+  button.begin(true, 0); assert(!button.update(false, 10)); assert(!button.update(false, 50));
+  button.begin(false, UINT32_MAX - 100);
+  assert(!button.update(true, UINT32_MAX - 60)); assert(!button.update(true, UINT32_MAX - 20));
+  assert(!button.update(false, 20)); assert(button.update(false, 60)); assert(!button.update(false, 100));
   std::cout << "LVGL " << LVGL_VERSION_MAJOR << '.' << LVGL_VERSION_MINOR << '.' << LVGL_VERSION_PATCH
-            << ": three captures, bounds, unchanged updates, validity, retained distance, modes, demo isolation passed; "
+            << ": nine captures, non-overlapping bounds, unchanged updates, validity, retained distance, modes, demo isolation passed; "
             << "pool_free=" << after.free_size << " largest=" << after.free_biggest_size << '\n';
 }

@@ -296,17 +296,20 @@ Cloud-disabled regression is a hard gate in every firmware phase: run the comple
 
 The detailed security cases are in the [threat model](cloud/threat-model.md); field ownership/exclusions are in the [Phase 0 matrix](cloud/phase0-field-matrix.md). The [active master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) controls current M0–M6 order: independent/physical outbox proof gates M2, while the provider comparison gates M4 map integration and does not block the local M1 portal slice.
 
-## Display I5 shared renderer
+## Display I5 / I6a shared renderer
 
 The optional [display simulator](../tools/display-simulator/README.md) compiles
 LVGL 8.4.0 with the same configuration, formatter and view as the device. Run
 `python tools/display-simulator/render.py` after resolving stage-3 dependencies.
-It produces three PNGs and runs three CTest contracts: static UI semantics/layout,
-actual display service with fake SPI, and detected panel-init failure. These are
+It produces nine PNGs and runs four CTest contracts: static UI semantics/layout,
+actual display service with fake SPI, detected panel-init failure and the real
+Wi-Fi snapshot adapter with read-only stubs. These are
 additional to the 146-test firmware host suite, not browser mocks or measurements
 of physical FPS. CI has a separate job and capture artifact for this tool.
 The [I5 baseline](baselines/display-i5-2026-09-12.md) records local results and
 distinguishes the board's bare-LCD measurements from the outstanding I4 load gate.
+The [I6a guide](../Platformio/Dog-RGB/docs/display-i6.md) adds page selection,
+BOOT release/wake tests and the Connection scenarios.
 
 ## Physical validation checklist
 

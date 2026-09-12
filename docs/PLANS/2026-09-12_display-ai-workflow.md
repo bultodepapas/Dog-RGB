@@ -1,16 +1,17 @@
 # Flujo de diseño de interfaces con IA para RGB Dog Display
 
-Estado: **I5 implementado; evolución I6 propuesta**, 2026-09-12. Vista compartida
+Estado: **I5 e I6a implementados; movimiento posterior propuesto**, 2026-09-12. Vista compartida
 LVGL 8.4.0, renderer CMake sin ventana, capturas y comandos de comparación ya
 existen; ver [baseline I5](../baselines/display-i5-2026-09-12.md). Las secciones
 siguientes conservan el flujo de diseño y propuestas posteriores. Complementa el
 [plan Waveshare](2026-09-12_waveshare-display-variant.md).
 
 Revisión de producto: la [especificación de uso del collar](2026-09-12_display-use-and-screens.md)
-propone Actividad y Conexión como primeras páginas, con distancia registrada
+define Actividad y Conexión como primeras páginas, con distancia registrada
 prioritaria, velocidad secundaria y pausa futura solo con evidencia válida.
-Esta jerarquía sustituye la dirección inicial centrada en velocidad como objetivo
-de la próxima revisión; la página I5 cargada mantiene su diseño hasta implementarla.
+Esta jerarquía sustituye la dirección inicial centrada en velocidad y está
+incorporada en [I6a](../../Platformio/Dog-RGB/docs/display-i6.md), junto con
+Conexión de solo lectura y navegación BOOT. Pausa estimada y movimiento siguen posteriores.
 
 **Prioridad revisada:** este flujo se aplica desde I5 del [plan incremental acordado](2026-09-12_display-incremental-delivery.md), después de LEDs, GPS, pantalla de texto y consolidación. Sus herramientas se incorporan por necesidad; no son prerrequisitos del collar básico. En I5 comenzar con una vista estática y tres escenarios; navegación, capturas temporales y animaciones pertenecen a I6.
 
@@ -167,6 +168,6 @@ Entrega diferencias visuales, builds y limitaciones físicas explícitas.
 No declares rendimiento del ESP32 a partir de mediciones del PC.
 ```
 
-Estado reconciliado con I5: ya hay componentes ejecutables, tres capturas reales
-y baseline USB. Navegación, pausa estimada, política automática de backlight y
-las páginas adicionales descritas para la evolución siguen propuestas.
+Estado reconciliado con I6a: ya hay dos vistas ejecutables, nueve capturas reales,
+navegación BOOT y comparación USB. Pausa estimada, política automática de backlight,
+animación y páginas adicionales siguen propuestas.

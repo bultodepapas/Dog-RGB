@@ -1,5 +1,6 @@
 #include "display/walk_view.h"
 #include <string.h>
+#include <stdio.h>
 
 namespace display {
 namespace {
@@ -9,7 +10,8 @@ lv_obj_t *label(lv_obj_t *parent, int x, int y, int width,
                 const lv_font_t *font, uint32_t color, const char *text) {
   lv_obj_t *obj = lv_label_create(parent);
   lv_obj_remove_style_all(obj);
-  lv_obj_set_pos(obj, x, y);
+  lv_obj_set_pos(obj, x - (lv_obj_get_parent(parent) ? 24 : 0),
+                     y - (lv_obj_get_parent(parent) ? 20 : 0));
   lv_obj_set_width(obj, width);
   lv_obj_set_style_text_font(obj, font, 0);
   lv_obj_set_style_text_color(obj, lv_color_hex(color), 0);
@@ -22,45 +24,66 @@ void set_text(lv_obj_t *obj, const char *text) {
 }
 }
 
-bool WalkView::begin(const TextView &view, bool demo) {
+bool WalkView::begin(const TextView &view, bool demo, const char *connection, lv_obj_t *parent) {
   if (screen_) return true;
-  screen_ = lv_obj_create(nullptr);
+  screen_ = lv_obj_create(parent);
   if (!screen_) return false;
   lv_obj_remove_style_all(screen_);
-  lv_obj_set_size(screen_, 240, 280);
+  lv_obj_set_size(screen_, parent ? 192 : 240, parent ? 244 : 280);
+  if (parent) lv_obj_set_pos(screen_, 24, 20);
   lv_obj_clear_flag(screen_, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_bg_color(screen_, lv_color_hex(kBackground), 0);
   lv_obj_set_style_bg_opa(screen_, LV_OPA_COVER, 0);
-  title_ = label(screen_, 24, 20, 192, &lv_font_montserrat_12, kMuted, "");
-  label(screen_, 24, 41, 192, &lv_font_montserrat_20, kWhite, "Paseo");
-  status_ = label(screen_, 24, 71, 192, &lv_font_montserrat_12, kMuted, "");
-  speed_ = label(screen_, 20, 91, 200, &lv_font_montserrat_48, kWhite, "");
-  lv_obj_set_style_text_align(speed_, LV_TEXT_ALIGN_CENTER, 0);
-  auto *units = label(screen_, 24, 143, 192, &lv_font_montserrat_12, kMuted, "km/h");
-  lv_obj_set_style_text_align(units, LV_TEXT_ALIGN_CENTER, 0);
+  title_ = label(screen_, 24, 20, 164, &lv_font_montserrat_12, kMuted, "");
+  label(screen_, 192, 20, 24, &lv_font_montserrat_12, kMuted, "1/2");
+  label(screen_, 24, 41, 192, &lv_font_montserrat_20, kWhite, "Actividad");
+  status_ = label(screen_, 24, 70, 192, &lv_font_montserrat_14, kMuted, "");
+  distance_ = label(screen_, 24, 90, 192, &lv_font_montserrat_48, kWhite, "");
+  unit_ = label(screen_, 24, 149, 192, &lv_font_montserrat_12, kMuted, "");
+  date_ = label(screen_, 24, 167, 192, &lv_font_montserrat_12, kMuted, "");
   auto *rule = lv_obj_create(screen_);
   lv_obj_remove_style_all(rule);
-  lv_obj_set_pos(rule, 24, 168);
+  lv_obj_set_pos(rule, parent ? 0 : 24, parent ? 170 : 190);
   lv_obj_set_size(rule, 192, 1);
   lv_obj_set_style_bg_color(rule, lv_color_hex(kRule), 0);
   lv_obj_set_style_bg_opa(rule, LV_OPA_COVER, 0);
   lv_obj_clear_flag(rule, LV_OBJ_FLAG_SCROLLABLE);
-  label(screen_, 24, 180, 192, &lv_font_montserrat_12, kMuted, "Dist. dia registrado");
-  distance_ = label(screen_, 24, 197, 192, &lv_font_montserrat_20, kWhite, "");
-  date_ = label(screen_, 24, 224, 192, &lv_font_montserrat_12, kMuted, "");
-  mode_ = label(screen_, 24, 246, 192, &lv_font_montserrat_12, kMuted, "");
-  update(view, demo);
+  speed_ = label(screen_, 24, 201, 192, &lv_font_montserrat_20, kWhite, "");
+  mode_ = label(screen_, 24, 230, 192, &lv_font_montserrat_12, kMuted, "");
+  connection_ = label(screen_, 24, 248, 192, &lv_font_montserrat_12, kMuted, "");
+  update(view, demo, connection);
   return true;
 }
 
-void WalkView::update(const TextView &view, bool demo) {
+void WalkView::update(const TextView &view, bool demo, const char *connection) {
   if (!screen_) return;
   set_text(title_, demo ? "RGB DOG / DEMO" : "RGB DOG");
-  set_text(status_, view.rows[0]);
-  set_text(speed_, view.rows[1]);
-  set_text(distance_, view.rows[2]);
+  const char *status = "GPS: sin datos";
+  switch (view.gps_state) {
+    case gps::ReceptionState::NoData: break;
+    case gps::ReceptionState::Receiving: status = "GPS: recibiendo"; break;
+    case gps::ReceptionState::Searching: status = "Buscando GPS"; break;
+    case gps::ReceptionState::Untrusted: status = "GPS: baja calidad"; break;
+    case gps::ReceptionState::Fix: status = "GPS listo"; break;
+    case gps::ReceptionState::Stale: status = "GPS: dato vencido"; break;
+  }
+  set_text(status_, status);
+  char value[40];
+  snprintf(value, sizeof(value), "%s km/h", view.rows[1]);
+  set_text(speed_, value);
+  set_text(distance_, view.distance_value);
+  snprintf(value, sizeof(value), "%s registrados", view.distance_unit);
+  set_text(unit_, value);
   set_text(date_, view.rows[3]);
-  set_text(mode_, view.rows[4]);
+  const char *mode = "Luces: Velocidad";
+  switch (view.led_mode) {
+    case led::LedMode::Speed: break;
+    case led::LedMode::Geofence: mode = "Luces: Zona"; break;
+    case led::LedMode::Show: mode = "Luces: Show"; break;
+    case led::LedMode::Simple: mode = "Luces: Simple"; break;
+  }
+  set_text(mode_, mode);
+  set_text(connection_, connection);
   if (color_ != view.gps_color) {
     color_ = view.gps_color;
     lv_color_t color; color.full = color_;

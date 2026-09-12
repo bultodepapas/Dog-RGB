@@ -231,6 +231,9 @@ parse failures, log drops and loop timings with their conditions. Do not infer
 physical LED response or reception from a passing host test.
 
 No physical upload or bench measurement was performed in I0–I3 software work.
+Later [I6a](display-i6.md) adds BOOT GPIO0 short-release navigation to the two
+graphics targets and reserves GPIO0 from external use. It does not reinterpret
+the SYS_OUT power button or add graphics/input to Classic and I0–I2.
 See the [I2 baseline](../../../docs/baselines/display-i2-2026-09-12.md) for six-build
 and host-test evidence. I3 text LCD software is now implemented; follow the [I3 guide](display-i3.md)
 for its targets, controls and still-pending physical acceptance. I4 is next.
