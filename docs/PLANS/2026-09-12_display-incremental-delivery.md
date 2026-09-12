@@ -40,9 +40,10 @@ detalla nombre del perro, placa digital con QR WhatsApp/teléfono y componentes.
 La [investigación](../display-visual-identity-research.md) aporta fuentes y límites.
 La [ampliación de 28 investigaciones GitHub/MCP](../display-github-research-2026-09-12.md)
 incluye un ensayo host y selección por paquete: VIS-1a resuelve encoder/margen/
-decoder independiente; VIS-1b integra tipografía y layouts A/B. No se han
-implementado esos dos pasos. Drivers alternativos y editores siguen opcionales.
-Esta entrega es planificación; no modifica la imagen I6d cargada.
+decoder independiente; VIS-1b integra tipografía y layouts A/B.
+[VIS-1a ya está implementado y verificado en host](../baselines/display-vis1a-2026-09-12.md).
+VIS-1b sigue pendiente. Drivers alternativos y editores siguen opcionales.
+La imagen I6d cargada se mantiene; aún no se integró identidad en su navegación.
 
 Secuencia visual activa: VIS-1 prototipo LVGL de identificación/QR → VIS-2 datos,
 portal y persistencia → VIS-3 integración estática y escaneo físico → VIS-4 pulido
@@ -554,7 +555,7 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | I6 | I6a/I6c confirmados; I6d implementado con evidencia separada. Producto sin timeout automático; V1 restante/V3 abiertos; I6b/I6e sin iniciar |
 | I7 | Identidad/QR priorizados mediante VIS-1a/1b y siguientes; otras extensiones opcionales |
 
-Próximo trabajo: VIS-1a y después VIS-1b del subplan visual solicitado. Mantener V1 restante y V2 cuando haya periféricos,
+Próximo trabajo: VIS-1b del subplan visual solicitado. Mantener V1 restante y V2 cuando haya periféricos,
 seguido de V3. Recuperar Wokwi cuando CLI/token estén disponibles como tarea de
 regresión Classic independiente; no acredita el panel Waveshare. Los targets
 Display siguen experimentales y el uso portátil permanece sin validar.

@@ -1,9 +1,13 @@
 # RGB Dog Display: identidad, QR y evolución visual
 
-**Estado: subplan preparado; sin implementación ni carga de firmware en esta entrega.**
+**Estado: VIS-1a implementado y verificado en host; VIS-1b es el siguiente incremento. Sin nueva carga a placa.**
 Fecha: 2026-09-12. Base: I6d, con lectura y ciclo físico de tres páginas confirmados.
 Prioridad solicitada: diseño visual, nombre del perro y placa digital de contacto;
 QR de WhatsApp incorporado a la primera familia de prototipos.
+
+Evidencia actual: [baseline VIS-1a](../baselines/display-vis1a-2026-09-12.md).
+`ContactQr` ya comparte encoder/render entre firmware y PC. El prototipo local
+usa el nombre/contacto facilitados por el propietario; no son valores por defecto.
 
 Depende del [plan incremental](2026-09-12_display-incremental-delivery.md) para
 integración/aceptación y amplía el [contrato de pantallas](2026-09-12_display-use-and-screens.md).
@@ -95,6 +99,8 @@ Reglas propuestas de implementación:
 - Al generar `wa.me`, quitar el `+` y los separadores; conservar los dígitos.
   El límite de almacenamiento propuesto es 15 dígitos más `+` y terminador;
   es un límite del producto, no validación exhaustiva del plan telefónico mundial.
+  VIS-1a fija sintaxis de 7–15 dígitos, primer dígito distinto de cero, `+`
+  explícito y entrada menor de 64 bytes; acepta espacios, guiones y paréntesis.
 - No añadir `?text=` inicialmente: aumenta densidad y longitud del QR. Un
   mensaje prellenado como «Encontré a tu perro» puede ensayarse después con
   escape URL correcto; abrirlo nunca envía el mensaje por sí solo.
@@ -263,9 +269,9 @@ estimaciones de calendario ni autorización para cerrar pruebas sin hardware.
 
 | Paquete | Cambio y archivos propuestos | Salida verificable | Tamaño |
 | --- | --- | --- | --- |
-| **VIS-0, esta entrega** | Investigación, tablero, subplan y enlaces | Fuentes revisadas; límites y prioridad QR explícitos | S |
-| **VIS-1a, siguiente** | Contrato/formatter puro, encoder acotado, `ContactQr` y fixtures | Matriz y quiet zone correctas en renderer real; payload leído por ZXing host; error recuperable y memoria documentados | S–M |
-| **VIS-1b** | `identity.h`, `ui/identity_view.cpp`, fuentes y fixtures | Layouts A/B; nombre corto/largo, Unicode, teléfono máximo, WhatsApp/llamada/error; ningún contacto real | S–M |
+| **VIS-0, completo** | Investigación, tablero, subplan y enlaces | Fuentes revisadas; límites y prioridad QR explícitos | S |
+| **VIS-1a, implementado en host** | Contrato/formatter puro, encoder acotado, `ContactQr` y fixtures | QR y quiet zone comprobados; payload exacto leído por ZXing; errores, estabilidad y memoria host documentados | S–M |
+| **VIS-1b, siguiente** | `identity.h`, `ui/identity_view.cpp`, fuentes y fixtures | Layouts A/B; nombre corto/largo, Unicode, teléfono máximo, WhatsApp/llamada/error; fixtures públicas sin contacto real | S–M |
 | **VIS-2** | `config/identity*`, adaptador de lectura, API local, editor `/config` y capabilities | Guardar/leer/reiniciar; errores y recuperación; texto/QR siempre corresponden al mismo contacto; Classic sin regresión | M |
 | **VIS-3** | Integración en `lvgl_port`, ciclo de cuatro páginas y arranque condicionado | Firmware experimental USB con identidad real configurada; BOOT/wake y QR físico aceptados | M |
 | **VIS-4** | Tokens/componentes mínimos y pulido de Actividad/Wi-Fi/Estado | Capturas coherentes; información conservada; recursos comparados | S–M |
@@ -275,7 +281,8 @@ estimaciones de calendario ni autorización para cerrar pruebas sin hardware.
 
 VIS-1 puede hacerse sin GPS/LEDs y sin alterar todavía el firmware cargado.
 VIS-1a y VIS-1b son dos pasos del mismo paquete, no una nueva hoja de ruta.
-La investigación ampliada y su ensayo host cierran VIS-0; no cierran VIS-1a.
+La investigación ampliada cerró VIS-0. VIS-1a añade renderer real y decoder
+independiente; su aceptación host no acredita lectura, stack ni tiempos en placa.
 Una transición VIS-5 puede prototiparse/medirse en banco por la prioridad visual
 actual; adoptarla en producto requiere la comparación V3. Los siete targets se
 compilan si VIS-2 modifica core/portal/perfiles compartidos; un cambio exclusivo
@@ -350,6 +357,6 @@ Una tendencia posterior usa muestras temporales reales y huecos explícitos
 | Foto/sprite/tema personal | Huella mínima, ningún bitmap grande | VIS-6, con presupuesto |
 | Mensaje perdido / retener identidad al apagar | Sin activación automática ni cambio del despertar | Contrato posterior explícito |
 
-El siguiente cambio concreto es **VIS-1: prototipos LVGL de Placa con nombre,
-QR WhatsApp y teléfono, más la alternativa textual**. Persistencia, navegación
+El siguiente cambio concreto es **VIS-1b: IdentityView con nombre y teléfono,
+fuentes verificadas y layouts A/B, reutilizando ContactQr**. Persistencia, navegación
 física y efectos se integran después en entregas separadas.

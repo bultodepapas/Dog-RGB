@@ -1,0 +1,7 @@
+component_size=3104
+canvas_bytes=2820
+encoder_arrays=214
+pool_before=43864
+pool_created=43736
+pool_first=43632
+pool_stable=43632

@@ -19,17 +19,17 @@
 #define LV_USE_THEME_MONO 0
 #define LV_USE_FLEX 0
 #define LV_USE_GRID 0
-// This increment needs only labels and base objects. Extra widgets depend on
-// flex/grid and must not be left enabled implicitly by the upstream defaults.
+// Labels/base objects plus the VIS-1a indexed QR canvas (requires IMG).
+// Other widgets remain explicit; do not enable extra layout dependencies.
 #define LV_USE_LABEL 1
 #define LV_USE_ARC 0
 #define LV_USE_BAR 0
 #define LV_USE_BTN 0
 #define LV_USE_BTNMATRIX 0
-#define LV_USE_CANVAS 0
+#define LV_USE_CANVAS 1
 #define LV_USE_CHECKBOX 0
 #define LV_USE_DROPDOWN 0
-#define LV_USE_IMG 0
+#define LV_USE_IMG 1
 #define LV_USE_LINE 0
 #define LV_USE_ROLLER 0
 #define LV_USE_SLIDER 0

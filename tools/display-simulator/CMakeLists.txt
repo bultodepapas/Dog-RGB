@@ -31,6 +31,17 @@ elseif(MSVC)
   target_compile_options(display_simulator PRIVATE /UNDEBUG)
 endif()
 enable_testing()
+add_executable(display_contact_qr_test test_contact_qr.cpp
+  "${FIRMWARE}/src/display/contact.cpp"
+  "${FIRMWARE}/src/display/ui/contact_qr.cpp")
+target_include_directories(display_contact_qr_test PRIVATE "${FIRMWARE}/include")
+target_link_libraries(display_contact_qr_test PRIVATE lvgl)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(display_contact_qr_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+elseif(MSVC)
+  target_compile_options(display_contact_qr_test PRIVATE /UNDEBUG)
+endif()
+add_test(NAME display_contact_qr_contract COMMAND display_contact_qr_test "${CMAKE_CURRENT_BINARY_DIR}/qr-test-output")
 add_test(NAME display_static_contract COMMAND display_simulator "${CMAKE_CURRENT_BINARY_DIR}/test-output")
 add_executable(display_port_test test_port.cpp
   "${FIRMWARE}/src/display/display.cpp"

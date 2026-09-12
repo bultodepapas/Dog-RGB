@@ -60,7 +60,7 @@
 - [ ] I6e proposed: typed movement/still/unknown observation contract before contextual estimated pause; GPS gaps are not rest.
 - [x] VIS-0: [visual identity subplan](PLANS/2026-09-12_display-visual-identity.md), [research](display-visual-identity-research.md) and conceptual board; QR WhatsApp prioritized by owner.
 - [x] VIS-0 extension: [28 GitHub/MCP investigations](display-github-research-2026-09-12.md), adoption decisions and limited host QR geometry/workspace probe; firmware unchanged.
-- [ ] VIS-1a next: bounded QR encoder/component, explicit quiet zone, actual LVGL capture and independent host decoding; recoverable component errors and total memory accounting.
+- [x] VIS-1a host: bounded QR/component, explicit quiet zone, LVGL captures and exact ZXing decoding; fallback/recovery and memory documented in the [baseline](baselines/display-vis1a-2026-09-12.md). Physical stack/heap/scan acceptance remains VIS-3.
 - [ ] VIS-1b: identity layouts A/B with final fonts, name and complete phone; NFC/UTF-8/width limits, long/invalid fixtures and unchanged QR payload.
 - [ ] VIS-2–3: bounded identity persistence/local editor, four-page navigation and physical QR/BOOT acceptance.
 - [ ] VIS-4–5: shared visual components, then one measured optional transition; V3 acceptance stays open.

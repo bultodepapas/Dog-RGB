@@ -1,0 +1,65 @@
+{
+  "lvgl": "8.4.0",
+  "decoder": "2.3.0",
+  "images": {
+    "qr-whatsapp": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "39daeab58a882635dd4a0c2aa7133c14821fd99addcdb018b59fd505261520c6"
+    },
+    "qr-whatsapp-max": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "8125ae4cbfc192a8b0333050eb94e5b0cdf35916bcf5831adb487b1645724ee5"
+    },
+    "qr-call": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "3e7c37b61ced6c9b3968c5dead124921784f38415cf4f96c38391ff838b9cac1"
+    },
+    "qr-call-max": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "d0194be5287a1e403c178ea6e63727d86ddee16155a0d8ce88d13eb53369e2a6"
+    },
+    "qr-min": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "8e9250cc76eb701070b1863c2a8572b9e6883777ed32c29f2180e14ae4f027a2"
+    },
+    "qr-disabled": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "cb4688b38bf61b78ef74c53ae1db4d69deae09fa73258dfade6e11b2f70b724f"
+    },
+    "qr-invalid": {
+      "decoded_count": 0,
+      "payload_matches": true,
+      "sha256": "8d44b27df6f502191967731fe1c077f6221cc4d8a0d48380431e5ea9e33aec97"
+    },
+    "qr-recovered": {
+      "decoded_count": 1,
+      "payload_matches": true,
+      "sha256": "39daeab58a882635dd4a0c2aa7133c14821fd99addcdb018b59fd505261520c6"
+    }
+  },
+  "source_sha256": {
+    "include/lv_conf.h": "8b2e590f8364f00ee8e67ed8a63038da5a18472fd888b9f47851a3a9389b6ad0",
+    "include/display/contact.h": "a4f4f4dde20743140cabb14492facfea068337fd2db657bde0e37f88baa1abc1",
+    "include/display/contact_qr.h": "9eb17dc44f1df4b43da6a9424af8d0a377eb309152fe13254d021bc592211a7b",
+    "src/display/contact.cpp": "e55ffc2fd3a20b6c1be1a4908cb3f29dc5a398b9b49a5ab2e68596f924dd4895",
+    "src/display/ui/contact_qr.cpp": "3b2d299eece601f246ece651bcf571232900d602c90db40375792f44c0d6799d"
+  },
+  "encoder_sha256": {
+    "qrcodegen.c": "9f1f23b8f800784740da16b9fff08ad0b75072dedb00caed2ae0d4475419cd34",
+    "qrcodegen.h": "aae0f724eda6c4dec74804b66f35d03d256f25e19cdb1411db94398754dd466c"
+  },
+  "runner_sha256": {
+    "test_contact_qr.cpp": "4fa4030b2030bb96937fa8a604d60d0277d48034e7fb927879084df60f107f9c",
+    "render_qr.py": "e68c945244bba735b3b5051903951044b45c536c5f3f583d56334779f5690860",
+    "render.py": "9ed7be0cb2aa2e21eaaa6dc9cf868074e1c0b9e6ebf4c6fbda7307f28797e8d4",
+    "CMakeLists.txt": "94589d527962f3adb2f2a89c55981f732abd48132d593fab8cbec8ae550de3f5",
+    "requirements-qr.txt": "738a1ebd27bb7e954f33f60643d4ae40b825835b1f8a9475476bf9fc856b59aa"
+  },
+  "scope": "LVGL RGB565 host pixels; physical scanning/performance pending"
+}

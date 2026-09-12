@@ -1,0 +1,3 @@
+# Optional host decoder, never linked into firmware.
+zxing-cpp==2.3.0
+Pillow==12.1.0
