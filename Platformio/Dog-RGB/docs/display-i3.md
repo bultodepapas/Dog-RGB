@@ -89,12 +89,13 @@ All commands affect only the LCD service; there is no physical-button UI yet.
 | Command | Action |
 | --- | --- |
 | `t` | Show RGB/white bars, one-pixel outer border, top label and dimensions |
-| `v` | Return to the live page and redraw; enables backlight when service is running |
+| `v` | Return to real live data, disable demo and redraw; enables backlight when service is running |
+| `f` | Explicit LCD-only synthetic cycle labeled DEMO; see [I4 guide](display-i4.md). Never injects GPS data or writes fixture metrics |
 | `b` | Toggle backlight; updates continue while it is dark |
 | `d` | Toggle the display service; pause turns backlight off, resume redraws the selected page |
 | `r` | Reset LCD timing/row counters for a new observation window |
 
-`t`/`v` do not resume a paused service; use `d` first. These are not I1's LED
+`t`/`v`/`f` do not resume a paused service; use `d` first. These are not I1's LED
 commands. They do not alter GPS reception, LED transport or NVS.
 
 Normal bounded serial reports add `[LCD] ready/enabled/light/test`, `sample_ms`,

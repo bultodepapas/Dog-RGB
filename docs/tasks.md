@@ -29,14 +29,15 @@ Follow the [Display incremental contract](PLANS/2026-09-12_display-incremental-d
 
 - [x] I0a: reproduce Classic/Wokwi builds and host baseline; preserve local work and record evidence in the [I0 baseline](baselines/display-i0-2026-09-12.md).
 - [x] I0b–I0c software: compile-time profiles, optional heartbeat, product/bringup targets, native GPIO tests and CI matrix.
-- [ ] I0 physical/runtime: identify the physical board, verify boot and memory, and run Wokwi scenarios when CLI/token are available.
+- [ ] I0 physical/runtime: complete PCB identification and power/soak checks; five USB resets and 16 MiB flash / 8 MiB PSRAM detection now have [partial bench evidence](baselines/display-i4-2026-09-12.md). Run Wokwi scenarios when CLI/token are available.
 - [x] I1 software: command-driven one-pixel/full-strip diagnostic using the existing bus/limiter, bounded brightness/runtime, RGBW/native tests and a separate build/CI target.
 - [ ] I1 physical: verify RGBW, both strips and off behavior for 15 minutes after I0; record supply and actual current if measured.
 - [x] I2 software: normal GPS/LED core, typed reception state, bounded queued reports, transport brightness/current limits and native tests; see [I2 evidence](baselines/display-i2-2026-09-12.md).
 - [ ] I2 physical: valid NMEA/trusted fix, 15 minutes with normal Speed mode, data loss/recovery and no new UART overflows or resets.
 - [x] I3 software: pinned ST7789 driver, value-only snapshot, partial text page, bounded diagnostic controls, native tests and display-free Classic/I0–I2 builds; see [I3 evidence](baselines/display-i3-2026-09-12.md).
 - [ ] I3 physical: bars/window/colors, real-data agreement, 15 minutes with GPS/LEDs/LCD, backlight/service independence and measured timing.
-- [ ] I4: combined portal/persistence verification, 30-minute bench window, ten mode changes, three save/restart/read cycles and route export. Record bench-only versus portable acceptance.
+- [x] I4 software preparation: native configuration save/reload/fault tests for Classic and Display, isolated embedded browser suite, explicitly labeled LCD-only demo and optional serial capture. See [I4 progress](baselines/display-i4-2026-09-12.md).
+- [ ] I4 full bench: combined portal/persistence verification, 30-minute window with real GPS/strips, ten mode changes, three hardware save/restart/read cycles and populated route export. Bare-board LCD testing does not close this item.
 - [ ] I5–I6 after the functional base: one shared LVGL view and three static captures, then button/second view and measured motion.
 
 I0 physical acceptance remains open before LED bench work. Classic fixes continue in parallel; battery telemetry/sensors, advanced tooling and cloud are not dependencies of the basic Display build.

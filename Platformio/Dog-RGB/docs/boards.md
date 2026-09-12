@@ -6,6 +6,11 @@ neither a successful build nor its manifest identifies the PCB on your desk.
 The [incremental plan](../../../docs/PLANS/2026-09-12_display-incremental-delivery.md)
 governs subsequent LED, GPS and display work.
 
+The [I4 USB-only bench record](../../../docs/baselines/display-i4-2026-09-12.md)
+now records five successful requested resets, detected 16 MiB flash / 8 MiB
+PSRAM and ten minutes of LCD-only demo diagnostics. No GNSS/strips were attached;
+PCB identification, visible panel checks and full physical acceptance remain open.
+
 ## Targets and ownership
 
 | Environment | Board profile | Current behavior |

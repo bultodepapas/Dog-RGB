@@ -89,6 +89,7 @@ HARNESS = r'''
 #include <limits>
 #include "display/display.h"
 #include "display/text_view.h"
+#include "bringup/display_demo.h"
 #include "gps/gps.h"
 #include "led/led_ui.h"
 gps::ReceptionState state = gps::ReceptionState::NoData;
@@ -170,6 +171,23 @@ int main(int argc, char **) {
   has(report(), "test=0");
   command("xxxxxxxxx"); assert(Serial.input == "x"); display::tick();
   command("r"); has(report(), "draw_ticks=0"); has(report(), "p95_upper_us=0");
+  // Explicit LCD-only demo preserves the real getters/configured mode.
+  const auto real_sample = display::capture_snapshot();
+  command("f"); for (int i=0;i<5;++i) display::tick();
+  has(report(), "demo=1");
+  assert(display::capture_snapshot().gps_state == real_sample.gps_state);
+  assert(display::capture_snapshot().daily_distance_m == real_sample.daily_distance_m);
+  const gps::ReceptionState expected[] = {gps::ReceptionState::Searching,
+      gps::ReceptionState::Fix, gps::ReceptionState::Fix,
+      gps::ReceptionState::Untrusted, gps::ReceptionState::Stale, gps::ReceptionState::Fix};
+  for (unsigned i=0;i<6;++i) {
+    const auto fixture = bringup::display_demo(real_sample, i*5000);
+    assert(fixture.gps_state == expected[i] && fixture.led_mode == real_sample.led_mode);
+    assert(fixture.captured_ms == real_sample.captured_ms);
+    assert(fixture.daily_distance_m == 1842 && fixture.distance_date == 20260912);
+  }
+  command("v"); for (int i=0;i<5;++i) display::tick(); has(report(), "demo=0");
+  command("r");
   // Resample across millis rollover, preserving the 1 Hz rule.
   now_ms = UINT32_MAX - 500; display::tick(); for (int i=0;i<5;++i) display::tick();
   speed = 6; before = prints;

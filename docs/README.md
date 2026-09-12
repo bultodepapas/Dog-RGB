@@ -66,6 +66,8 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Board profiles and Waveshare I0–I3](../Platformio/Dog-RGB/docs/boards.md) | Current software, physical acceptance pending | Seven build targets, candidate No Touch V2 profile, power/USB/LED/GPS diagnostics and I3 text LCD |
 | [Display I0 baseline](baselines/display-i0-2026-09-12.md) | Software evidence; physical/Wokwi runtime pending | Before/after builds, native GPIO tests, size deltas, CI matrix and open hardware gates |
 | [I3 text LCD guide](../Platformio/Dog-RGB/docs/display-i3.md) | Software implemented; physical acceptance pending | Driver pin, snapshot semantics, partial updates, USB controls and timing protocol |
+| [I4 consolidation guide](../Platformio/Dog-RGB/docs/display-i4.md) | In progress; full bench pending | LCD-only demo, serial capture and real-peripheral/portal acceptance sequence |
+| [Display I4 progress](baselines/display-i4-2026-09-12.md) | Software and partial physical evidence | Connected USB board, memory/reboots, LCD measurements, native configuration recovery and embedded browser checks |
 | [Display I3 baseline](baselines/display-i3-2026-09-12.md) | Software evidence; physical acceptance pending | Seven builds, native adapter/rendering checks, layout previews and resource deltas |
 | [Display I2 baseline](baselines/display-i2-2026-09-12.md) | Software evidence; physical acceptance pending | GPS reception/readout, normal LED policy with bench limits, six builds and 137 host tests |
 | [Display I1 baseline](baselines/display-i1-2026-09-12.md) | Software evidence; physical acceptance pending | LED commands, actual bus/limiter native tests, five builds, resource comparison and bench limits |

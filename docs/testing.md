@@ -70,7 +70,7 @@ The suite covers:
 - strict scene JSON allowlists, types and ID/key consistency, exact 4096/4097-byte boundary, nesting 6/7, export/import round-trip, dry-run and negative secret scanning;
 - Wokwi diagrams, custom GNSS chip assets, scenarios, and analysis contracts.
 
-Most modules use source-contract assertions. Phase 2 compiles `effect_registry`, `led_policy`, and `led_state` as native C++17 with warnings treated as errors. Phase 3 adds a harness for `led_color`, `palette_registry`, `led_layout`, and `led_compositor`; it proves a non-black crossfade midpoint and next-frame alert interruption. Phase 4 compiles the scene model/catalog/player/store plus the ArduinoJson codec natively, with fault injection at the record backend. The complete local suite baseline is 131/131. None of these layers replaces target execution or physical validation.
+Most modules use source-contract assertions. Phase 2 compiles `effect_registry`, `led_policy`, and `led_state` as native C++17 with warnings treated as errors. Phase 3 adds a harness for `led_color`, `palette_registry`, `led_layout`, and `led_compositor`; it proves a non-black crossfade midpoint and next-frame alert interruption. Phase 4 compiles the scene model/catalog/player/store plus the ArduinoJson codec natively, with fault injection at the record backend. The current Display/I4 local suite is 146/146, including the native LCD and actual configuration codec/save/load harnesses; see [I4 evidence](baselines/display-i4-2026-09-12.md). None of these layers replaces target execution or physical validation.
 
 ## Embedded AP portal checks
 
@@ -85,6 +85,8 @@ npx playwright test --project=iphone-13-pro-max-chromium
 ```
 
 `webui:check` regenerates expected tracked outputs in memory and proves that the manifest and flash arrays match `webui/src`. `webui:unit` contains four tests for canonical gzip metadata, CRLF/LF fingerprints, binary C++ array rendering, and complete manifest/array/decoded-byte equivalence. `npm run smoke` verifies source contracts, capability-driven UI, input/output hashes, gzip payloads, budgets, generated arrays, and the HTTP-serving contract.
+
+The root Playwright configuration excludes `tests/portal-e2e/`, which belongs to the separate `playwright.portal.config.ts` and its own fixture lifecycle. Embedded tests do not require that application environment.
 
 Both `webui:unit` and smoke are clean-checkout safe: they validate authoritative tracked arrays directly and do not require `.ap-portal-preview/` to exist. When preview files do exist, smoke additionally compares them byte-for-byte. The gzip unit test fixes timestamp and OS metadata, so the same sources generate identical compressed bytes on Windows and Unix.
 

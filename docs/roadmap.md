@@ -45,6 +45,8 @@ Detailed evidence remains in the [cloud reports](cloud/README.md). No website, h
 
 Classic XIAO remains active while a Waveshare ESP32-S3-LCD-1.69 No Touch variant is developed with one shared firmware core and separate board profiles. I0 profiles and stage-0 diagnostics, the I1 LED bench target, the I2 normal-core GPS/LED target and I3 text LCD are implemented in software; physical revision, boot, peripherals and display acceptance remain unconfirmed/pending. The [incremental Display plan](PLANS/2026-09-12_display-incremental-delivery.md) is the execution authority, with [I3 software evidence](baselines/display-i3-2026-09-12.md); hardware/visual research is supporting material.
 
+I4 preparation now includes native configuration save/reload checks and an explicit LCD-only demo on the connected bare board; full joint-load acceptance remains open. See [I4 progress](baselines/display-i4-2026-09-12.md).
+
 Order: **I0 baseline/profiles → I1 LEDs → I2 GPS → I3 simple text display → I4 consolidated collar → I5 LVGL view/simulator → I6 navigation/motion**. I7 battery telemetry, RTC, IMU and other extensions remain optional. A bank-tested base and a portable validated collar are distinct deliveries. This sequence does not postpone Classic improvements or depend on cloud milestones.
 
 ### Shared physical evidence

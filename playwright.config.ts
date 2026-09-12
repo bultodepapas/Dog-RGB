@@ -8,6 +8,9 @@ const previewBaseURL = `http://127.0.0.1:${previewPort}`;
 
 export default defineConfig({
   testDir: './tests',
+  // The separate web application has its own config and fixture lifecycle.
+  // Embedded AP checks must not import those environment-dependent suites.
+  testIgnore: ['**/portal-e2e/**'],
   timeout: 30_000,
   fullyParallel: false,
   reporter: [['list'], ['html', { open: 'never' }]],

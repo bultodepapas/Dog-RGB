@@ -1,6 +1,6 @@
 # RGB Dog Display: desarrollo incremental
 
-Estado: **I0–I3 implementados en software; validación física y escenarios Wokwi pendientes**.
+Estado: **I0–I3 implementados; I4 en desarrollo. Arranque/memoria y LCD con datos de demostración ensayados en placa; validación conjunta y Wokwi pendientes**.
 Fecha: 2026-09-12.
 
 Actualización I3: página de texto, adaptador de lectura, actualización parcial y controles de banco implementados; evidencia en la [baseline I3](../baselines/display-i3-2026-09-12.md) y procedimiento en la [guía LCD](../../Platformio/Dog-RGB/docs/display-i3.md). No se cierra aceptación física por compilar o generar una vista previa host.
@@ -146,6 +146,8 @@ El parser ya aplica vencimiento RMC de 3.000 ms y UART de 5.000 ms; calidad GGA 
 
 ## I4 — Consolidación del collar básico
 
+**Avance actual:** prueba nativa del codec y guardado/recarga A/B real con diez cambios y procesos nuevos para Classic/Display, incluida escritura interrumpida; suite del portal embebido aislada de las pruebas de la aplicación web. El propietario autorizó utilizar la placa USB sin GPS ni tiras: diagnóstico LCD con fixtures explícitos mediante `f`, etiqueta DEMO y sin inyectar datos al dominio/persistencia. Hay evidencia física parcial de arranque/memoria y LCD; no reemplaza la prueba conjunta de 30 minutos. Véanse [guía I4](../../Platformio/Dog-RGB/docs/display-i4.md) y [baseline I4](../baselines/display-i4-2026-09-12.md).
+
 **Resultado:** base utilizable que merece convertirse en referencia para la evolución visual.
 
 Tareas: comprobar comportamiento existente del portal con los tres periféricos, cambios de modo/configuración, persistencia y reinicios. El portal se conserva durante el port; aquí se prueba expresamente bajo carga conjunta. Hacer una sesión de banco de al menos treinta minutos y una prueba exterior breve documentada. Recuperar fallos encontrados antes de ampliar UI.
@@ -266,7 +268,7 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | I1 | Diagnóstico implementado y comprobado en software; pruebas de ambas tiras y modo normal en placa pendientes |
 | I2 | Diagnóstico GPS con política LED normal verificado en software; recepción/fix, convivencia y pérdida/recuperación físicas pendientes |
 | I3 | Pantalla de texto y diagnóstico implementados en software; orientación, colores, convivencia y tiempos en placa pendientes |
-| I4 | Pendiente; consolidación y primera entrega funcional objetivo |
+| I4 | En desarrollo: pruebas software y banco LCD sin periféricos; aceptación conjunta con GPS/LEDs/HTTP/persistencia pendiente |
 | I5–I6 | Planificados para después de la base funcional |
 | I7 | Opcional, sin priorización de implementación |
 

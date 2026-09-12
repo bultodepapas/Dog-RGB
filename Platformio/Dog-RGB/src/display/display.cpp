@@ -5,6 +5,9 @@
 #include <string.h>
 #include "board/board_profile.h"
 #include "display/text_view.h"
+#if DOG_RGB_BRINGUP_STAGE == 3
+#include "bringup/display_demo.h"
+#endif
 
 #if DOG_RGB_DISPLAY_ENABLED != 1
 #error "Display sources must be excluded from display-free targets"
@@ -20,6 +23,10 @@ Arduino_ST7789 panel(&bus, board::kLcdReset, 0, true, board::kLcdWidth,
                     board::kLcdHeight, 0, board::kLcdRowOffset, 0, 0);
 bool attempted = false, ready = false, enabled = true, backlight = false;
 bool test_pattern = false, redraw = false;
+bool demo = false;
+#if DOG_RGB_BRINGUP_STAGE == 3
+uint32_t demo_started_ms = 0;
+#endif
 uint32_t last_sample_ms = 0, sample_ms = 0, init_us = 0, max_tick_us = 0;
 uint32_t max_service_us = 0;
 uint32_t draw_ticks = 0, rows_drawn = 0;
@@ -28,6 +35,15 @@ constexpr uint32_t kBuckets[] = {1000, 5000, 10000, 20000, 50000};
 uint32_t histogram[6] = {};
 TextView shown, pending;
 uint8_t dirty = 0;
+
+DisplaySnapshot sample_now() {
+  DisplaySnapshot sample = capture_snapshot();
+#if DOG_RGB_BRINGUP_STAGE == 3
+  if (demo) sample = bringup::display_demo(sample,
+      time_utils::elapsed_ms(sample.captured_ms, demo_started_ms));
+#endif
+  return sample;
+}
 
 void light(bool on) {
   backlight = ready && enabled && on;
@@ -42,7 +58,7 @@ void text(int y, const char *value, uint8_t size, uint16_t color) {
 void frame() {
   panel.fillScreen(kBackground);
   panel.setTextWrap(false);
-  text(22, "RGB DOG", 2, kWhite);
+  text(22, demo ? "RGB DOG DEMO" : "RGB DOG", 2, kWhite);
   panel.drawFastHLine(24, 48, 192, kMuted);
   text(57, "GPS", 1, kMuted);
   text(137, "km/h", 1, kMuted);
@@ -89,7 +105,11 @@ void commands() {
   for (unsigned n = 0; n < 8 && Serial.available() > 0; ++n) {
     switch (Serial.read()) {
       case 't': test_pattern = true; redraw = true; break;
-      case 'v': test_pattern = false; redraw = true; break;
+      case 'v': demo = false; test_pattern = false; redraw = true; break;
+      case 'f':
+        demo = true; demo_started_ms = millis();
+        test_pattern = false; redraw = true;
+        break;
       case 'b': light(!backlight); break;
       case 'd':
         enabled = !enabled;
@@ -115,7 +135,7 @@ bool begin() {
   ready = panel.begin(board::kLcdSpiHz);
   if (ready) {
     frame();
-    const DisplaySnapshot sample = capture_snapshot();
+    const DisplaySnapshot sample = sample_now();
     sample_ms = last_sample_ms = sample.captured_ms;
     pending = format_view(sample);
     for (uint8_t i = 0; i < kRowCount; ++i) row(i);
@@ -145,7 +165,7 @@ void tick() {
       dirty = 0;
     } else {
       frame();
-      const DisplaySnapshot sample = capture_snapshot();
+      const DisplaySnapshot sample = sample_now();
       sample_ms = last_sample_ms = sample.captured_ms;
       pending = format_view(sample);
       dirty = (1U << kRowCount) - 1U;
@@ -154,7 +174,7 @@ void tick() {
     drew = true;
   } else if (!test_pattern) {
     if (dirty == 0 && time_utils::elapsed_at_least(now, last_sample_ms, kSampleMs)) {
-      const DisplaySnapshot sample = capture_snapshot();
+      const DisplaySnapshot sample = sample_now();
       sample_ms = last_sample_ms = sample.captured_ms;
       pending = format_view(sample);
       for (uint8_t i = 0; i < kRowCount; ++i) {
@@ -180,9 +200,9 @@ void tick() {
 void report(Print &sink) {
   char line[320];
   const int n = snprintf(line, sizeof(line),
-      "[LCD] ready=%d enabled=%d light=%d test=%d sample_ms=%lu pending=%u "
+      "[LCD] ready=%d enabled=%d light=%d test=%d demo=%d sample_ms=%lu pending=%u "
       "init_us=%lu draw_ticks=%lu rows=%lu draw_max_us=%lu p95_upper_us=%lu tick_max_us=%lu\n",
-      ready, enabled, backlight, test_pattern, static_cast<unsigned long>(sample_ms), dirty,
+      ready, enabled, backlight, test_pattern, demo, static_cast<unsigned long>(sample_ms), dirty,
       static_cast<unsigned long>(init_us), static_cast<unsigned long>(draw_ticks),
       static_cast<unsigned long>(rows_drawn), static_cast<unsigned long>(max_tick_us),
       static_cast<unsigned long>(p95_upper_us()), static_cast<unsigned long>(max_service_us));
