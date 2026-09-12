@@ -123,3 +123,22 @@ the current source at CMake configuration; changed boundaries fail explicitly.
 Portal draft/NFC tests: `npm run webui:unit`; browser checks use the generated
 page and existing API fixtures. [API contract](../../docs/display-identity-api.md)
 and [VIS-2 evidence](../../docs/baselines/display-vis2-2026-09-12.md).
+
+## Integrated identity (VIS-3)
+
+`render.py` now runs eleven CTest contracts. The service test links the real
+identity store and copy adapter to the real LCD service/port, with test-only
+Preferences/Arduino/SPI. A separate process checks boot with a saved identity.
+This covers dynamic three/four-page navigation, no-op QR caching, edits in the
+dark, deletion, wake-only input and stable memory across repeated cycles.
+
+After the native build, export eleven actual port frames and independently
+check their QR payloads (five codes, six absent):
+
+```powershell
+tools/display-simulator/build/qr-venv/Scripts/python.exe tools/display-simulator/render_port.py
+```
+
+Output is `output/port/`; all contacts are synthetic. This does not establish
+physical QR readability, NVS power-cut behavior or SPI performance. See the
+[VIS-3 guide](../../Platformio/Dog-RGB/docs/display-vis3.md).

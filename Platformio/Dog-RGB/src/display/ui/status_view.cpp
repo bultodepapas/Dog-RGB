@@ -36,7 +36,7 @@ bool StatusView::begin(const StatusText &text, bool demo, lv_obj_t *parent) {
   lv_obj_set_style_bg_color(screen_, lv_color_hex(0), 0);
   lv_obj_set_style_bg_opa(screen_, LV_OPA_COVER, 0);
   title_ = label(screen_, 24, 20, 164, &lv_font_montserrat_12, 0xB8B8B8);
-  label(screen_, 192, 20, 24, &lv_font_montserrat_12, 0xB8B8B8, "3/3");
+  page_indicator_ = label(screen_, 192, 20, 24, &lv_font_montserrat_12, 0xB8B8B8, "3/3");
   label(screen_, 24, 41, 192, &lv_font_montserrat_20, 0xFFFFFF, "Estado");
   label(screen_, 24, 76, 192, &lv_font_montserrat_12, 0xB8B8B8, "GPS");
   gps_status_ = label(screen_, 24, 96, 192, &lv_font_montserrat_14, 0xFFFFFF);
@@ -51,6 +51,9 @@ bool StatusView::begin(const StatusText &text, bool demo, lv_obj_t *parent) {
   led_notice_ = label(screen_, 24, 240, 192, &lv_font_montserrat_12, 0xB8B8B8);
   update(text, demo);
   return true;
+}
+void StatusView::set_page_indicator(const char *text) {
+  if (page_indicator_) set(page_indicator_, text);
 }
 void StatusView::update(const StatusText &text, bool demo) {
   if (!screen_) return;

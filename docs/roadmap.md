@@ -55,7 +55,7 @@ per service call after reduced page redraw and staged margin restoration.
 [Baseline I6a](baselines/display-i6-2026-09-12.md) records the exact image and
 limits; full optical/radio and GNSS/LED/HTTP joint acceptance remain open. I6c adds an opt-in bench timeout, disabled on boot; see the [guide](../Platformio/Dog-RGB/docs/display-i6c.md).
 
-Next visual increment: [VIS-3 four-page integration and physical scanning](PLANS/2026-09-12_display-visual-identity.md). VIS-1a/1b QR/layouts/fonts and [VIS-2 identity storage/editor](baselines/display-vis2-2026-09-12.md) are implemented and verified in software. Motion follows static acceptance; this priority does not close V2/V3.
+[VIS-3 integration](baselines/display-vis3-2026-09-12.md) now connects the saved identity to conditional three/four-page navigation. Physical contact configuration, QR/BOOT/reboot acceptance remain open. Next software increment is VIS-4 visual consistency, followed by measured motion; this does not close V2/V3.
 
 [28 GitHub/MCP investigations](display-github-research-2026-09-12.md) refine that
 step into VIS-1a (bounded QR, explicit margin, independent decoder) and VIS-1b

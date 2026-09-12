@@ -1,6 +1,6 @@
 # RGB Dog Display: identidad, QR y evolución visual
 
-**Estado: VIS-1a/1b y VIS-2 implementados y verificados en software; sigue VIS-3 (cuarta página y aceptación física). Sin nueva carga a placa.**
+**Estado: VIS-1a/1b, VIS-2 y la integración VIS-3 implementados; aceptación física VIS-3 en curso.**
 Fecha: 2026-09-12. Base: I6d, con lectura y ciclo físico de tres páginas confirmados.
 Prioridad solicitada: diseño visual, nombre del perro y placa digital de contacto;
 QR de WhatsApp incorporado a la primera familia de prototipos.
@@ -280,7 +280,7 @@ estimaciones de calendario ni autorización para cerrar pruebas sin hardware.
 | **VIS-1a, implementado en host** | Contrato/formatter puro, encoder acotado, `ContactQr` y fixtures | QR y quiet zone comprobados; payload exacto leído por ZXing; errores, estabilidad y memoria host documentados | S–M |
 | **VIS-1b, implementado en host** | `identity.h`, `ui/identity_view.cpp`, fuentes y fixtures | 13 capturas A/B; UTF-8/glifos/límites, QR independiente, memoria con las tres vistas I6d; contacto local separado | S–M |
 | **VIS-2, implementado en software** | `display/identity_store.*`, API local, editor `/config` y capability | Store/handlers reales con transportes de prueba; NFC, conflictos, errores/reinicio; Classic sin gráficos | M |
-| **VIS-3, siguiente** | Adaptador desde store e integración en `lvgl_port`, cuatro páginas y arranque condicionado | Firmware experimental USB con identidad real configurada; BOOT/wake y QR físico aceptados | M |
+| **VIS-3, integrado; aceptación física abierta** | Adaptador desde store e integración en `lvgl_port`, cuatro páginas y arranque condicionado | Firmware experimental USB con identidad real configurada; BOOT/wake y QR físico aceptados | M |
 | **VIS-4** | Tokens/componentes mínimos y pulido de Actividad/Wi-Fi/Estado | Capturas coherentes; información conservada; recursos comparados | S–M |
 | **VIS-5 / I6b** | Captura temporal y una transición localizada | Instantes 0/40/80/120/160/200 ms; nueva pulsación/timeout; medición USB; alternativa instantánea | M |
 | **VIS-6, opcional** | Una utilidad elegida: atajo de identidad, sprite, ayuda explícita o tendencia | Contrato y fixtures propios; no implementar todas juntas | S–M |
@@ -364,6 +364,7 @@ Una tendencia posterior usa muestras temporales reales y huecos explícitos
 | Foto/sprite/tema personal | Huella mínima, ningún bitmap grande | VIS-6, con presupuesto |
 | Mensaje perdido / retener identidad al apagar | Sin activación automática ni cambio del despertar | Contrato posterior explícito |
 
-El siguiente cambio concreto es **VIS-3: integrar IdentityView con la identidad
-persistida y el ciclo de cuatro páginas**, conservando BOOT/despertar. La carga
-y el escaneo físico cierran esa aceptación; efectos permanecen VIS-5.
+La integración VIS-3 ya consume identidad persistida y conserva BOOT/despertar.
+Falta configurar el contacto en la placa y aceptar QR óptico, navegación y
+reinicio. [Evidencia VIS-3](../baselines/display-vis3-2026-09-12.md). Después,
+VIS-4 pule las vistas del propietario; efectos permanecen VIS-5.

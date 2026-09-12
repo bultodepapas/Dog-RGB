@@ -81,3 +81,11 @@ pero un reinicio puede elegir el nuevo registro completo. Nunca se comunica
 Restaurar la configuración LED/GPS no borra identidad; «Borrar placa» guarda
 un registro vacío válido. Recuperación por corrupción puede volver al banco
 anterior, incluido su contacto: no es un borrado seguro de datos.
+
+## Integración VIS-3
+
+El port ya consume una copia del store en el loop principal. Arranque y ciclo
+se adaptan a identidad configurada; una edición no cambia página ni despierta
+LCD. Borrar la Placa visible retira el contacto y selecciona Actividad. Véase
+[contrato de navegación](../Platformio/Dog-RGB/docs/display-vis3.md). El GET de
+capability describe soporte de firmware, no aceptación óptica ni conexión GPS.

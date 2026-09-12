@@ -27,6 +27,11 @@ bool IdentityView::begin(lv_obj_t *parent) {
   lv_obj_set_style_bg_color(screen_, lv_color_black(), 0);
   lv_obj_set_style_bg_opa(screen_, LV_OPA_COVER, 0);
   title_ = label(screen_, 0, &lv_font_montserrat_12, 0xb8b8b8);
+  lv_obj_set_width(title_, 164);
+  lv_obj_set_style_text_align(title_, LV_TEXT_ALIGN_LEFT, 0);
+  auto *indicator = label(screen_, 0, &lv_font_montserrat_12, 0xb8b8b8);
+  lv_obj_set_x(indicator, 168); lv_obj_set_width(indicator, 24);
+  lv_label_set_text(indicator, "1/4");
   name_label_ = label(screen_, 20, &dog_name_28, 0xffffff);
   phone_label_ = label(screen_, 206, &dog_phone_18, 0xffffff);
   hint_ = label(screen_, 229, &lv_font_montserrat_12, 0xb8b8b8);

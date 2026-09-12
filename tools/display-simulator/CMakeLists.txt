@@ -100,6 +100,14 @@ endif()
 add_test(NAME display_contact_qr_contract COMMAND display_contact_qr_test "${CMAKE_CURRENT_BINARY_DIR}/qr-test-output")
 add_test(NAME display_static_contract COMMAND display_simulator "${CMAKE_CURRENT_BINARY_DIR}/test-output")
 add_executable(display_port_test test_port.cpp
+  "${FIRMWARE}/src/display/identity_store.cpp"
+  "${FIRMWARE}/src/display/identity_snapshot.cpp"
+  "${FIRMWARE}/src/display/identity.cpp"
+  "${FIRMWARE}/src/display/contact.cpp"
+  "${FIRMWARE}/src/display/ui/contact_qr.cpp"
+  "${FIRMWARE}/src/display/ui/identity_view.cpp"
+  "${IDENTITY_FONT_DIR}/dog_name_28.c"
+  "${IDENTITY_FONT_DIR}/dog_phone_18.c"
   "${FIRMWARE}/src/display/display.cpp"
   "${FIRMWARE}/src/display/lvgl_port.cpp"
   "${FIRMWARE}/src/display/ui/walk_view.cpp"
@@ -120,6 +128,7 @@ elseif(MSVC)
 endif()
 add_test(NAME display_port_contract COMMAND display_port_test)
 add_test(NAME display_port_failure COMMAND display_port_test fail)
+add_test(NAME display_port_identity_boot COMMAND display_port_test identity)
 add_executable(display_connection_adapter_test test_connection_adapter.cpp
   "${FIRMWARE}/src/display/connection_snapshot.cpp")
 target_include_directories(display_connection_adapter_test PRIVATE test-support "${FIRMWARE}/include")

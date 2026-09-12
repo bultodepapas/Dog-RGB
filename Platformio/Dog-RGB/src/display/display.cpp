@@ -77,7 +77,7 @@ void click() {
     enabled = true;
     choose_page(lvgl_port::page()); // First click wakes only, including diagnostic pause.
   } else {
-    choose_page(lvgl_port::next_page(lvgl_port::page()));
+    choose_page(lvgl_port::next_page(lvgl_port::page(), lvgl_port::identity_available()));
   }
 }
 #endif
@@ -154,6 +154,7 @@ void commands() {
       case 'a': choose_page(lvgl_port::Page::Activity); break;
       case 'c': choose_page(lvgl_port::Page::Connection); break;
       case 'e': choose_page(lvgl_port::Page::Status); break;
+      case 'p': choose_page(lvgl_port::Page::Identity); break;
       case 'n': click(); break; // Same event as a debounced BOOT release.
       case 'i': if (lvgl_ready) inactivity.configure(30000, millis()); break;
       case 'o': inactivity.configure(0, millis()); break; // Disable, without waking.
@@ -198,7 +199,7 @@ bool begin() {
     sample_ms = last_sample_ms = sample.captured_ms;
     pending = format_view(sample);
 #if DOG_RGB_DISPLAY_LVGL == 1
-    lvgl_ready = lvgl_port::begin(panel, pending, demo, format_connection(capture_connection()), capture_led_status());
+    lvgl_ready = lvgl_port::begin(panel, pending, demo, format_connection(capture_connection()), capture_led_status(), capture_identity());
     use_lvgl = lvgl_ready;
     pinMode(board::kUiButtonPin, INPUT_PULLUP);
     button.begin(digitalRead(board::kUiButtonPin) == LOW, millis());
@@ -220,6 +221,15 @@ void tick() {
 #if DOG_RGB_DISPLAY_LVGL == 1
   // Expire before processing input: release at the deadline wakes, never advances.
   if (inactivity.poll(millis()) && backlight) light(false);
+  if (lvgl_ready) {
+    const auto previous_page = lvgl_port::page();
+    lvgl_port::set_identity(capture_identity());
+    if (lvgl_port::page() != previous_page) {
+      // Clearing a displayed contact removes it immediately, including while dark.
+      // Update LVGL without the explicit-interaction redraw path that relights LCD.
+      lvgl_port::update(pending, demo, format_connection(capture_connection()), capture_led_status());
+    }
+  }
   if (button.update(digitalRead(board::kUiButtonPin) == LOW, millis())) click();
 #endif
 #if DOG_RGB_BRINGUP_STAGE == 3
@@ -306,7 +316,7 @@ void report(Print &sink) {
   const char *page = "text";
   uint32_t clicks = 0;
   uint32_t idle_ms = 0, idle = 0, timeouts = 0;
-  uint32_t flushes = 0, pixels = 0, flush_max_us = 0, lv_free = 0, lv_largest = 0;
+  uint32_t flushes = 0, pixels = 0, flush_max_us = 0, lv_free = 0, lv_largest = 0, qr_generations = 0;
 #if DOG_RGB_DISPLAY_LVGL == 1
   if (use_lvgl) ui = "lvgl";
   if (use_lvgl) page = lvgl_port::page_name(lvgl_port::page());
@@ -317,13 +327,14 @@ void report(Print &sink) {
     const auto stats = lvgl_port::stats();
     flushes = stats.flushes; pixels = stats.pixels; flush_max_us = stats.flush_max_us;
     lv_free = stats.free_bytes; lv_largest = stats.largest_free;
+    qr_generations = stats.qr_generations;
   }
 #endif
   const int n = snprintf(line, sizeof(line),
       "[LCD] ready=%d enabled=%d light=%d test=%d demo=%d sample_ms=%lu pending=%u "
       "init_us=%lu draw_ticks=%lu rows=%lu draw_max_us=%lu p95_upper_us=%lu tick_max_us=%lu "
       "ui=%s flushes=%lu pixels=%lu flush_max_us=%lu lv_free=%lu lv_largest=%lu page=%s clicks=%lu "
-      "idle_ms=%lu idle=%lu timeouts=%lu\n",
+      "idle_ms=%lu idle=%lu timeouts=%lu qr_generations=%lu\n",
       ready, enabled, backlight, test_pattern, demo, static_cast<unsigned long>(sample_ms), dirty,
       static_cast<unsigned long>(init_us), static_cast<unsigned long>(draw_ticks),
       static_cast<unsigned long>(rows_drawn), static_cast<unsigned long>(max_tick_us),
@@ -332,7 +343,7 @@ void report(Print &sink) {
       static_cast<unsigned long>(flush_max_us), static_cast<unsigned long>(lv_free),
       static_cast<unsigned long>(lv_largest), page, static_cast<unsigned long>(clicks),
       static_cast<unsigned long>(idle_ms), static_cast<unsigned long>(idle),
-      static_cast<unsigned long>(timeouts));
+      static_cast<unsigned long>(timeouts), static_cast<unsigned long>(qr_generations));
   if (n > 0 && static_cast<size_t>(n) < sizeof(line))
     sink.write(reinterpret_cast<const uint8_t *>(line), static_cast<size_t>(n));
 }

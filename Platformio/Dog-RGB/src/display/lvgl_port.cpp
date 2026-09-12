@@ -3,7 +3,9 @@
 #include "display/walk_view.h"
 #include "display/connection_view.h"
 #include "display/status_view.h"
+#include "display/identity_view.h"
 #include <Arduino_GFX_Library.h>
+#include <string.h>
 
 namespace display::lvgl_port {
 namespace {
@@ -16,6 +18,10 @@ static_assert(sizeof(pixels) == 9600, "RGB565 partial buffer required");
 WalkView walk;
 ConnectionView connection_view;
 StatusView status_view;
+IdentityView identity_view;
+bool has_identity = false;
+IdentitySnapshot copied_identity;
+bool identity_copied = false;
 Page selected = Page::Activity;
 Page visible = Page::Activity;
 bool margins_dirty = false;
@@ -24,7 +30,8 @@ uint32_t previous_ms = 0, handler_ms = 0;
 Stats measured;
 
 lv_obj_t *screen(Page page) {
-  return page == Page::Activity ? walk.screen() : page == Page::Connection ? connection_view.screen() : status_view.screen();
+  return page == Page::Activity ? walk.screen() : page == Page::Connection ? connection_view.screen() :
+      page == Page::Status ? status_view.screen() : identity_view.screen();
 }
 
 void flush(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colors) {
@@ -41,7 +48,8 @@ void flush(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *colors) {
 }
 }
 
-bool begin(Arduino_ST7789 &target, const TextView &view, bool demo, const ConnectionText &connection, const LedStatusSnapshot &led) {
+bool begin(Arduino_ST7789 &target, const TextView &view, bool demo, const ConnectionText &connection,
+           const LedStatusSnapshot &led, const IdentitySnapshot &identity) {
   if (display) return true;
   panel = &target;
   lv_init();
@@ -60,7 +68,12 @@ bool begin(Arduino_ST7789 &target, const TextView &view, bool demo, const Connec
   lv_obj_set_style_bg_color(root, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
   if (!walk.begin(view, demo, connection.summary, root) || !connection_view.begin(connection, demo, root) ||
-      !status_view.begin(format_status(view.gps_state, led), demo, root)) return false;
+      !status_view.begin(format_status(view.gps_state, led), demo, root) || !identity_view.begin(root)) return false;
+  set_identity(identity);
+  selected = has_identity ? Page::Identity : Page::Activity;
+  visible = selected;
+  if (has_identity) lv_obj_add_flag(walk.screen(), LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_add_flag(identity_view.screen(), LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_flag(connection_view.screen(), LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_flag(status_view.screen(), LV_OBJ_FLAG_HIDDEN);
   lv_disp_load_scr(root); // First frame initializes the entire panel before backlight.
@@ -69,7 +82,24 @@ bool begin(Arduino_ST7789 &target, const TextView &view, bool demo, const Connec
   return true;
 }
 
-void select_page(Page value) { selected = value; }
+void set_identity(const IdentitySnapshot &identity) {
+  if (identity_copied && identity.kind == copied_identity.kind &&
+      !memcmp(identity.name, copied_identity.name, sizeof(identity.name)) &&
+      !memcmp(identity.phone, copied_identity.phone, sizeof(identity.phone))) return;
+  copied_identity = identity; identity_copied = true;
+  identity_view.update(identity.name, identity.phone, identity.kind);
+  const auto &contact = identity_view.contact();
+  const bool available = identity_view.name().result == NameResult::Ready && contact.phone[0] &&
+      (contact.result == ContactResult::Ready || contact.result == ContactResult::Disabled);
+  if (available == has_identity) return;
+  has_identity = available;
+  walk.set_page_indicator(has_identity ? "2/4" : "1/3");
+  connection_view.set_page_indicator(has_identity ? "3/4" : "2/3");
+  status_view.set_page_indicator(has_identity ? "4/4" : "3/3");
+  if (!has_identity && selected == Page::Identity) selected = Page::Activity;
+}
+bool identity_available() { return has_identity; }
+void select_page(Page value) { selected = value == Page::Identity && !has_identity ? Page::Activity : value; }
 Page page() { return selected; }
 void external_draw() { margins_dirty = true; }
 bool restore_margins() {
@@ -85,7 +115,7 @@ bool restore_margins() {
 void update(const TextView &view, bool demo, const ConnectionText &connection, const LedStatusSnapshot &led) {
   if (selected == Page::Activity) walk.update(view, demo, connection.summary);
   else if (selected == Page::Connection) connection_view.update(connection, demo);
-  else status_view.update(format_status(view.gps_state, led), demo);
+  else if (selected == Page::Status) status_view.update(format_status(view.gps_state, led), demo);
   if (visible != selected) {
     lv_obj_add_flag(screen(visible), LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(screen(selected), LV_OBJ_FLAG_HIDDEN);
@@ -114,6 +144,7 @@ Stats stats() {
   Stats result = measured;
   result.free_bytes = memory.free_size;
   result.largest_free = memory.free_biggest_size;
+  result.qr_generations = identity_view.qr_generations();
   return result;
 }
 } // namespace display::lvgl_port
