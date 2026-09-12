@@ -1,10 +1,10 @@
 # Implementation and historical plans
 
-The 2026-08-13 web-platform plan is the active execution contract for the optional cloud workstream. The 2026-09-12 Display incremental plan governs the owner-agreed parallel board integration, with implementation pending. These workstreams have separate scope; neither makes the other a prerequisite. Other files are supporting research or design history as labelled below. Executable contracts, migrations, and tests remain authoritative for behavior that already exists.
+The 2026-08-13 web-platform plan is the active execution contract for the optional cloud workstream. The 2026-09-12 Display incremental plan governs the owner-agreed parallel board integration; I0 software is implemented with physical acceptance pending. These workstreams have separate scope; neither makes the other a prerequisite. Other files are supporting research or design history as labelled below. Executable contracts, migrations, and tests remain authoritative for behavior that already exists.
 
 | Plan | Status in the current repository |
 | --- | --- |
-| [Display incremental delivery — 2026-09-12](2026-09-12_display-incremental-delivery.md) | **Active planning contract; implementation pending**, Spanish. I0 baseline/profiles, LEDs, GPS, text display, consolidation, then LVGL and motion; Classic continues in parallel |
+| [Display incremental delivery — 2026-09-12](2026-09-12_display-incremental-delivery.md) | **Active execution contract; I0 software implemented**, Spanish. Physical acceptance and Wokwi runtime pending; LEDs, GPS, text display, consolidation, then LVGL and motion; Classic continues in parallel |
 | [Waveshare Display board research — 2026-09-12](2026-09-12_waveshare-display-variant.md) | Supporting hardware evidence and target architecture; physical SKU/revision unconfirmed; follow the incremental contract |
 | [Display AI workflow — 2026-09-12](2026-09-12_display-ai-workflow.md) | Supporting visual workflow from I5; shared LVGL UI, minimum simulator and three static captures before navigation/animation |
 | [LED effects with FastLED — 2026-01-20](2026-01-20_led-effects-fastled.md) | Historical alternative; active firmware uses Adafruit NeoPixel and custom effects |

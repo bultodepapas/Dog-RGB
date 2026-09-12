@@ -229,8 +229,17 @@ jobs:
           retention-days: 7
 
   firmware:
-    name: Firmware (PlatformIO)
+    name: Firmware (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - seeed_xiao_esp32s3
+          - wokwi
+          - waveshare_lcd169
+          - waveshare_lcd169_bringup
+          - waveshare_lcd169_ledcheck
     steps:
       - uses: actions/checkout@v4
 
@@ -244,7 +253,7 @@ jobs:
           path: |
             ~/.platformio
             ~/.cache/pip
-          key: pio-6.1.19-${{ runner.os }}-${{ hashFiles('Platformio/Dog-RGB/platformio.ini') }}
+          key: pio-6.1.19-${{ runner.os }}-${{ matrix.environment }}-${{ hashFiles('Platformio/Dog-RGB/platformio.ini', 'Platformio/Dog-RGB/boards/*.json') }}
           restore-keys: pio-6.1.19-${{ runner.os }}-
 
       # Keep the CLI reproducible too; the platform, framework and libraries
@@ -262,11 +271,11 @@ jobs:
             pio --version
           } | tee artifacts/ci-firmware-baseline/environment.txt
 
-      - name: Build seeed_xiao_esp32s3
+      - name: Build selected firmware target
         working-directory: Platformio/Dog-RGB
         run: |
           set -o pipefail
-          pio run -e seeed_xiao_esp32s3 2>&1 | tee artifacts/ci-firmware-baseline/build.txt
+          pio run -e ${{ matrix.environment }} 2>&1 | tee artifacts/ci-firmware-baseline/build.txt
 
       - name: Record resolved packages
         working-directory: Platformio/Dog-RGB
@@ -274,16 +283,16 @@ jobs:
           set -o pipefail
           {
             echo
-            pio pkg list -e seeed_xiao_esp32s3
+            pio pkg list -e ${{ matrix.environment }}
           } | tee -a artifacts/ci-firmware-baseline/environment.txt
 
       - name: Capture RAM and flash usage
         working-directory: Platformio/Dog-RGB
         run: |
           set -o pipefail
-          pio run -e seeed_xiao_esp32s3 -t size 2>&1 | tee artifacts/ci-firmware-baseline/size.txt
+          pio run -e ${{ matrix.environment }} -t size 2>&1 | tee artifacts/ci-firmware-baseline/size.txt
           {
-            echo "## Firmware size baseline"
+            echo "## Firmware size baseline: ${{ matrix.environment }}"
             echo
             echo '```text'
             cat artifacts/ci-firmware-baseline/size.txt
@@ -294,10 +303,10 @@ jobs:
         working-directory: Platformio/Dog-RGB
         run: |
           set -o pipefail
-          find .pio/build/seeed_xiao_esp32s3 -maxdepth 1 -type f \
+          find .pio/build/${{ matrix.environment }} -maxdepth 1 -type f \
             \( -name '*.bin' -o -name '*.elf' -o -name '*.map' \) \
             -printf '%f %s bytes\n' | sort | tee artifacts/ci-firmware-baseline/files.txt
-          find .pio/build/seeed_xiao_esp32s3 -maxdepth 1 -type f \
+          find .pio/build/${{ matrix.environment }} -maxdepth 1 -type f \
             \( -name '*.bin' -o -name '*.elf' -o -name '*.map' \) \
             -print0 | sort -z | xargs -0 -r sha256sum \
             > artifacts/ci-firmware-baseline/sha256sums.txt
@@ -306,11 +315,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-baseline-seeed-xiao-esp32s3-${{ github.sha }}
+          name: firmware-baseline-${{ matrix.environment }}-${{ github.sha }}
           path: |
             Platformio/Dog-RGB/artifacts/ci-firmware-baseline/
-            Platformio/Dog-RGB/.pio/build/seeed_xiao_esp32s3/*.bin
-            Platformio/Dog-RGB/.pio/build/seeed_xiao_esp32s3/firmware.elf
-            Platformio/Dog-RGB/.pio/build/seeed_xiao_esp32s3/firmware.map
+            Platformio/Dog-RGB/.pio/build/${{ matrix.environment }}/*.bin
+            Platformio/Dog-RGB/.pio/build/${{ matrix.environment }}/firmware.elf
+            Platformio/Dog-RGB/.pio/build/${{ matrix.environment }}/firmware.map
           if-no-files-found: warn
           retention-days: 14

@@ -1,9 +1,9 @@
 # RGB Dog Display: desarrollo incremental
 
-Estado: **Dirección y orden acordados con el propietario; implementación pendiente**.
+Estado: **I0 implementado en software; validación física y escenarios Wokwi pendientes**.
 Fecha: 2026-09-12.
 
-Revisión de preparación: contrastado con firmware, pruebas y CI en `dc6789b1c66921ca3b29a1f78410a879aa699ccd`, más los cambios documentales locales. **Listo para iniciar I0 en software; aceptación física pendiente.** Ningún incremento se considera ejecutado por esta revisión.
+Revisión de preparación: contrastado con firmware, pruebas y CI en `dc6789b1c66921ca3b29a1f78410a879aa699ccd`, más los cambios documentales locales. Implementación I0 iniciada posteriormente desde `3fa9e7bff27b0cc6e10c78eea0a68d966c7294b8`: perfiles, cuatro targets, heartbeat opcional y diagnóstico etapa 0. Evidencia y límites en la [baseline I0](../baselines/display-i0-2026-09-12.md); procedimiento en [boards.md](../../Platformio/Dog-RGB/docs/boards.md). No se declara I0 físico cerrado ni I1 iniciado.
 
 Este documento gobierna la secuencia de trabajo de la variante Display. Ante diferencias de prioridad con el [plan de investigación Waveshare](2026-09-12_waveshare-display-variant.md) o el [flujo visual con IA](2026-09-12_display-ai-workflow.md), prevalece este orden. Esos documentos conservan valor como referencias técnicas; no convierten sus propuestas avanzadas en requisitos del primer incremento.
 
@@ -50,8 +50,8 @@ Este plan decide **orden, contratos, tareas y aceptación**. El plan Waveshare c
 | --- | --- | --- |
 | `seeed_xiao_esp32s3` existente | Producto Classic | Pines/defaults actuales, sin LCD/LVGL ni código de diagnóstico Display |
 | `wokwi` existente | Regresión simulada Classic | Conservar `extends = env:seeed_xiao_esp32s3`, UART y limitación de transporte actuales |
-| `waveshare_lcd169` propuesto en I0 | Producto Display, núcleo compartido | Mismo core/ArduinoJson/NeoPixel; LCD desde I3, LVGL desde I5; sin patrones/fixtures de banco |
-| `waveshare_lcd169_bringup` propuesto en I0 | Diagnóstico de la misma placa | Comparte perfil y módulos; sin publicar como firmware de uso normal |
+| `waveshare_lcd169` implementado en I0 | Producto Display experimental, núcleo compartido | Mismo core/ArduinoJson/NeoPixel; LCD desde I3, LVGL desde I5; sin patrones/fixtures de banco |
+| `waveshare_lcd169_bringup` implementado en I0 | Diagnóstico de la misma placa | Etapa 0 disponible; etapas posteriores aún rechazadas; sin publicar como firmware de uso normal |
 
 Mantener un único `main.cpp` y una única implementación de GPS, LED bus/policy, escenas, portal y persistencia. El diagnóstico añade rutinas pequeñas, excluidas del producto mediante compilación. Un selector **solo del target bringup**, `DOG_RGB_BRINGUP_STAGE`, comienza en 0: I0 consola/alimentación; I1 patrones del bus; I2 núcleo real con GPS/LEDs; I3 añade pruebas LCD. Valores desconocidos deben fallar al compilar. En I0/I1 la ruta de diagnóstico termina antes del arranque normal; en I2/I3 se reutilizan `setup/loop` normales con overrides de banco en RAM. No emplear `DEBUG_AP_ONLY_MINIMAL` como sustituto: omite GPS/LEDs. Documentar el valor usado en cada binario y recompilar al cambiarlo.
 
@@ -171,7 +171,7 @@ Batería calibrada, RTC, IMU, buzzer, más vistas, ahorro avanzado y refinamient
 
 ## Mapa de cambios y verificación
 
-Las rutas nuevas de esta tabla son propuestas; se crean en su incremento, no en esta revisión.
+Las rutas I0 ya se incorporaron; las de I1–I6 siguen propuestas y se crean en su incremento. La tabla conserva la división de trabajo, no sustituye la baseline de ejecución.
 
 | Cambio | Archivos o área | Verificación que permite cerrarlo |
 | --- | --- | --- |
@@ -197,7 +197,7 @@ python -m unittest discover -s test -p "test_*.py" -v
 
 Usar CLI 6.1.19 y requisitos de [testing](../testing.md) para paridad con CI; registrar cualquier diferencia del equipo local. El paso `pkg install` importa: `test_led_phase4.py` busca ArduinoJson bajo `.pio/libdeps/seeed_xiao_esp32s3`. `test_wokwi_assets.py` lee literales de `pins.h`; adaptar sus comprobaciones al perfil extraído y comprobar valores, no suprimirlas. `test_track_retention.py` comprueba particiones. No renombrar Classic para simplificar una plantilla.
 
-Comandos **futuros**, válidos solo después de crear los entornos en I0:
+Los entornos I0 ya existen; comandos desde `Platformio/Dog-RGB`:
 
 ```powershell
 pio run -e waveshare_lcd169
@@ -246,9 +246,9 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 
 | Incremento | Estado al revisar estos planes |
 | --- | --- |
-| I0 | Pendiente; aún no se ejecuta baseline en esta revisión |
+| I0 | Software implementado y comprobado; CI configurada, ejecución remota no comprobada; I0 físico y escenarios Wokwi abiertos |
 | I1–I4 | Pendientes; primera entrega funcional objetivo |
 | I5–I6 | Planificados para después de la base funcional |
 | I7 | Opcional, sin priorización de implementación |
 
-Próximo trabajo concreto: ejecutar I0 y preparar la adaptación mínima del bus LED para I1. El orden aceptado no implica que ya exista firmware Waveshare ni validación física. Esta revisión modifica documentación únicamente.
+Próximo trabajo concreto: identificar PCB/revisión, ejecutar arranque I0 de banco y recuperar la ejecución de escenarios Wokwi (CLI/token no disponibles localmente). Después, I1: dos tiras a brillo reducido usando el bus actual. Los targets Waveshare son experimentales; la LCD, patrones I1 y validación física todavía no están implementados/completados.

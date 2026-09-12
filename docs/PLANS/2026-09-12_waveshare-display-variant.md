@@ -1,6 +1,8 @@
 # RGB Dog: variante con Waveshare ESP32-S3-LCD-1.69
 
-Fecha: 2026-09-12. Estado: **Proposed / investigación y plan; firmware no implementado**.
+Fecha: 2026-09-12. Estado: **Investigación y arquitectura objetivo; I0 de software implementado, LCD y aceptación física pendientes**.
+
+Actualización de ejecución: existen los perfiles y targets Classic/Display/bringup con diagnóstico etapa 0; véanse [baseline I0](../baselines/display-i0-2026-09-12.md) y [guía de placas](../../Platformio/Dog-RGB/docs/boards.md). Las funciones de pantalla, sensores y etapas siguientes descritas aquí siguen siendo propuestas.
 
 Revisión de coherencia 2026-09-12: contratos de targets, diagnóstico, datos y pruebas contrastados con código/CI en el plan incremental. Este documento aporta evidencia y opciones; no define un segundo backlog.
 
@@ -257,6 +259,6 @@ Desde I6, objetivo base de 20 FPS estables durante movimiento; explorar 30 FPS p
 
 Medir frame times p50/p95/máximo, tiempo SPI, área actualizada, latencia botón→frame, heap mínimo y continuidad GNSS. Repetir con Wi-Fi y ambas tiras activas. Capturas sirven para composición; usar una secuencia temporal o vídeo y medición en dispositivo para juzgar fluidez. Criterio de elección de herramienta: producir la misma vista, exportarla, compilarla y capturar sus estados; elegir la que mantenga mejor el ciclo reproducible con menos trabajo manual.
 
-Se revisaron fuentes oficiales, el esquema V2 y puntos de integración del repositorio. Se creó este plan y se enlazó en índices. No se agregó target, driver, UI, cableado o firmware validado; no se compilaron binarios por tratarse de cambios documentales.
+Registro de la investigación inicial, anterior a I0: se revisaron fuentes oficiales, el esquema V2 y puntos de integración del repositorio; se creó este plan y se enlazó en índices. Esa investigación solo modificó documentos. La implementación y compilaciones I0 posteriores se registran por separado en la baseline enlazada al inicio; todavía no incluyen driver LCD, UI o validación física.
 
-Pendientes físicos decisivos: SKU/revisión real, polaridad del cable de batería, demo correcto de encendido, corriente de carga, dimensiones/masa y consumo. Ninguno se deduce con certeza de la captura de compra. Próximo incremento: I0, baseline Classic y perfil mínimo de placa; después I1, LEDs. El simulador visual corresponde a I5.
+Pendientes físicos decisivos: SKU/revisión real, polaridad del cable de batería, demo correcto de encendido, corriente de carga, dimensiones/masa y consumo. Ninguno se deduce con certeza de la captura de compra. Tras la implementación I0 de software, corresponde validar arranque de la placa candidata y luego I1, LEDs. El simulador visual corresponde a I5.

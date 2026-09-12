@@ -2,6 +2,11 @@
 
 **Active PlatformIO project** for the Seeed Studio XIAO ESP32-S3 collar. Repository-wide onboarding and hardware cautions are in the [root README](../../README.md).
 
+An experimental Waveshare LCD 1.69 No Touch V2 profile and I0 diagnostic target
+are also implemented in software. Physical revision/boot validation and LCD
+functionality remain pending. See [board targets and bring-up](docs/boards.md);
+Classic remains the default target and shares the same application core.
+
 ## Implemented subsystems
 
 - RMC/GGA GNSS parsing with runtime quality gates, distance, active time, daily metrics, trusted date rollover, and diagnostics.

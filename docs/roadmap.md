@@ -43,7 +43,7 @@ Detailed evidence remains in the [cloud reports](cloud/README.md). No website, h
 
 ### Parallel board variant — owner-agreed direction, 2026-09-12
 
-Classic XIAO remains active while a Waveshare ESP32-S3-LCD-1.69 No Touch variant is developed with one shared firmware core and separate board profiles. The physical Waveshare revision remains unconfirmed; no Display firmware is claimed implemented. The [incremental Display plan](PLANS/2026-09-12_display-incremental-delivery.md) is the execution authority, and its hardware/visual research is supporting material.
+Classic XIAO remains active while a Waveshare ESP32-S3-LCD-1.69 No Touch variant is developed with one shared firmware core and separate board profiles. I0 profiles, build targets and stage-0 diagnostics are implemented in software; the physical revision, boot validation and LCD UI remain unconfirmed/pending. The [incremental Display plan](PLANS/2026-09-12_display-incremental-delivery.md) is the execution authority, with [I0 software evidence](baselines/display-i0-2026-09-12.md); hardware/visual research is supporting material.
 
 Order: **I0 baseline/profiles → I1 LEDs → I2 GPS → I3 simple text display → I4 consolidated collar → I5 LVGL view/simulator → I6 navigation/motion**. I7 battery telemetry, RTC, IMU and other extensions remain optional. A bank-tested base and a portable validated collar are distinct deliveries. This sequence does not postpone Classic improvements or depend on cloud milestones.
 

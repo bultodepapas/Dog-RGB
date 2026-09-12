@@ -62,6 +62,15 @@ There is no realtime/cellular path: the website can show only the last successfu
 
 ## Firmware modules
 
+Board integration update, 2026-09-12: compile-time profiles now select Classic
+XIAO or experimental Waveshare LCD 1.69 No Touch V2 pins through `include/pins.h`.
+`board::begin()` handles early power/backlight and the optional heartbeat. The
+separate stage-0 diagnostic target shares `main.cpp` but excludes the normal
+application modules. The Waveshare product target reuses the existing core;
+no LCD driver/UI or physical Waveshare acceptance is claimed. See
+[board targets](../Platformio/Dog-RGB/docs/boards.md) and the
+[I0 evidence](baselines/display-i0-2026-09-12.md).
+
 | Module | Primary files | Responsibility |
 | --- | --- | --- |
 | Orchestrator | `src/main.cpp` | Boot order, bounded cooperative loop, heartbeat, periodic diagnostics, serial log queue |

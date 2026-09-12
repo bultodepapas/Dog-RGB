@@ -1,5 +1,5 @@
 /*
-  Dog-RGB GPS-first firmware (ESP32-S3 / XIAO ESP32-S3).
+  Dog-RGB GPS-first firmware (shared ESP32-S3 core).
 
   Purpose:
   - Read GNSS (RMC) and compute distance/avg/max speed.
@@ -9,6 +9,7 @@
 
   Supported hardware:
   - MCU: Seeed Studio XIAO ESP32-S3
+  - Candidate: Waveshare LCD 1.69 No Touch V2 (I0 software only)
   - GNSS: EBYTE E108-GN02 (UART 9600)
   - LEDs: SK6812 RGBW (single-wire)
 
@@ -25,9 +26,9 @@
   - ESP32 Arduino core (WiFi, WebServer, ESPmDNS)
 
   Build/flash (PlatformIO):
-  - pio run -e esp32s3
-  - pio run -e esp32s3 -t upload
-  - pio device monitor -e esp32s3
+  - pio run -e seeed_xiao_esp32s3
+  - pio run -e seeed_xiao_esp32s3 -t upload
+  - pio device monitor -e seeed_xiao_esp32s3
 
   Power/safety notes:
   - SK6812 requires 5V and good decoupling; avoid brownouts.
@@ -41,6 +42,8 @@
 #include <math.h>
 
 #include "ble/summary_ble.h"
+#include "board/board_io.h"
+#include "bringup/bringup.h"
 #include "config/runtime_config.h"
 #include "config.h"
 #include "geofence/home.h"
@@ -659,13 +662,15 @@ static void emit_periodic_logs(unsigned long now_ms) {
 }
 
 void setup() {
+  board::begin();
 #if defined(DOG_RGB_WOKWI_SIM)
   Serial.begin(CONSOLE_BAUD, SERIAL_8N1, PIN_WOKWI_SERIAL_RX, PIN_WOKWI_SERIAL_TX);
 #else
   Serial.begin(CONSOLE_BAUD);
 #endif
-  pinMode(PIN_STATUS_LED, OUTPUT);
-  digitalWrite(PIN_STATUS_LED, LOW);
+#if defined(DOG_RGB_BRINGUP_STAGE)
+  bringup::begin();
+#else
 
   storage::begin();
   config::load();
@@ -735,9 +740,13 @@ void setup() {
   Serial.println(PIN_GPS_TX);
   Serial.println("GPS status: waiting for NMEA data...");
   wokwi_control::begin();
+#endif
 }
 
 void loop() {
+#if defined(DOG_RGB_BRINGUP_STAGE)
+  bringup::tick(millis());
+#else
   const unsigned long loop_start_us = micros();
   unsigned long log_elapsed_us = 0;
   unsigned long log_drain_elapsed_us = 0;
@@ -747,7 +756,7 @@ void loop() {
     if (now_ms - last_heartbeat_ms >= HEARTBEAT_MS) {
       last_heartbeat_ms = now_ms;
       led_state = !led_state;
-      digitalWrite(PIN_STATUS_LED, led_state ? HIGH : LOW);
+      board::write_status(led_state);
     }
     if (now_ms - last_log_ms >= LOG_MS) {
       last_log_ms = now_ms;
@@ -796,7 +805,7 @@ void loop() {
   if (now_ms - last_heartbeat_ms >= HEARTBEAT_MS) {
     last_heartbeat_ms = now_ms;
     led_state = !led_state;
-    digitalWrite(PIN_STATUS_LED, led_state ? HIGH : LOW);
+    board::write_status(led_state);
   }
 
   if (now_ms - last_log_ms >= LOG_MS) {
@@ -850,4 +859,5 @@ void loop() {
   if (log_drain_elapsed_us > log_drain_max_us) {
     log_drain_max_us = log_drain_elapsed_us;
   }
+#endif
 }

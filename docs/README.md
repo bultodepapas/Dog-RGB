@@ -63,6 +63,8 @@ The firmware and tests are the final source of truth. A document must never turn
 | Document | Status | Notes |
 | --- | --- | --- |
 | [Firmware project README](../Platformio/Dog-RGB/README.md) | Current | Developer quick reference inside the PlatformIO project |
+| [Board profiles and Waveshare I0](../Platformio/Dog-RGB/docs/boards.md) | Current software, physical acceptance pending | Four build targets, candidate No Touch V2 pin/memory profile and minimal power/USB diagnostic; LCD not implemented |
+| [Display I0 baseline](baselines/display-i0-2026-09-12.md) | Software evidence; physical/Wokwi runtime pending | Before/after builds, native GPIO tests, size deltas, CI matrix and open hardware gates |
 | [Configuration parameters](config_params.md) | Current | Compile-time constants versus persisted runtime fields |
 | [GNSS and metrics](gps_analysis.md) | Current | Parser, trust gates, accounting, date rollover, and limitations |
 | [LED UI](led_ui_spec.md) | Current | Status pixels, priorities, modes, and Day Mode interaction |
@@ -89,8 +91,8 @@ The firmware and tests are the final source of truth. A document must never turn
 
 | Document | Status | Notes |
 | --- | --- | --- |
-| [Waveshare display variant research and integration plan](PLANS/2026-09-12_waveshare-display-variant.md) | Proposed, Spanish | Parallel Classic/Display targets, verified V2 schematic reference, electrical bring-up and Codex/LVGL UI workflow; not implemented |
-| [Display incremental delivery](PLANS/2026-09-12_display-incremental-delivery.md) | Owner-agreed sequence; implementation pending, Spanish | Execution authority: LEDs, GPS, basic display, consolidation, then gradual AI/LVGL UI work |
+| [Waveshare display variant research and integration plan](PLANS/2026-09-12_waveshare-display-variant.md) | I0 software implemented; later architecture proposed, Spanish | V2 schematic reference, physical bring-up still pending and future Codex/LVGL UI workflow |
+| [Display incremental delivery](PLANS/2026-09-12_display-incremental-delivery.md) | Active contract; I0 software implemented, Spanish | Execution authority: physical I0, LEDs, GPS, basic display, consolidation, then gradual AI/LVGL UI work |
 | [Display AI design workflow](PLANS/2026-09-12_display-ai-workflow.md) | Proposed from I5, Spanish | Reference → shared LVGL components → minimum simulator → three static captures → corrections → board validation; navigation/motion follows in I6 |
 | [Display libraries and repository research](display-library-research.md) | Research and proposed selection, Spanish | Driver comparison, native animations, fonts, reviewed source examples and bounded evaluation per increment; no hardware benchmark performed |
 | [Companion app MVP](app_mvp_spec.md) | Proposed | BLE reader concept; blocked while BLE remains disabled by default |
