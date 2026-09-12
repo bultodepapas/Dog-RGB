@@ -51,7 +51,7 @@
 - [ ] V3: close I4 joint acceptance and compare final I6a with text/backlight-off/UI-paused windows; no claim of joint performance from USB-only results.
 - [ ] I6b proposed: one optional measured transition after V1/V3, retaining instant change if it adds no value.
 - [x] I6c software: opt-in 30 s backlight timer in stage 3, disabled on boot, deadline/rollover/dark-redraw tests. See [guide](../Platformio/Dog-RGB/docs/display-i6c.md).
-- [x] I6c USB/owner subset: three expirations and thirteen expected reported states; owner confirmed automatic darkness and physical wake/navigation. See [evidence](baselines/display-i6c-2026-09-12.md).
+- [x] I6c USB/owner subset: three expirations and thirteen expected reported states; owner confirmed automatic darkness and physical wake. See [evidence](baselines/display-i6c-2026-09-12.md).
 - [ ] I6c final acceptance: V3 continuity and measured power if claiming savings; automatic product policy/configuration remains deferred.
 - [ ] I6d proposed: State page only with useful, valid domain data; extend snapshots without inventing hardware health.
 - [ ] I6e proposed: typed movement/still/unknown observation contract before contextual estimated pause; GPS gaps are not rest.
