@@ -14,8 +14,8 @@ unchanged. A separate reviewer records the corrected decision in
 | --- | --- |
 | Prior review baseline (required ancestor) | `d58be9a0f4d9e9a31f5a302040b5575e27b1cfd0` |
 | Source identity | nine static path/size/SHA-256 pins in `verify_review_candidate.py` |
-| `storage_model.py` bytes | `100,829` |
-| `storage_model.py` SHA-256 | `c4401942eabec830917998b8c3257b27fc8c740a7e12604288b95b37c07cffbb` |
+| `storage_model.py` bytes | `101,136` |
+| `storage_model.py` SHA-256 | `0106a89c140d26439839a2c7ad80950d72b707049d52fe4c35476656050c85b7` |
 | Canonical evidence schema | `dog-rgb-cloud-phase0b/1` |
 | Canonical evidence bytes | `9,197` (UTF-8/LF, one trailing newline) |
 | Canonical evidence SHA-256 | `98978d48429f446c9ac82ad91cbba46936d5aed788d9a836a1338c4490831e9c` |

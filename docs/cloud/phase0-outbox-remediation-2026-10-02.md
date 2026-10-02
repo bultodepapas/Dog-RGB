@@ -13,6 +13,7 @@
 | R6/R8: loss operations omit journal cut injection | Forward cuts through first, coalesced and deferred loss plus loss ACK. Force journal rollover in tests and assert that a cut actually occurs. | Nine loss/journal combinations, four loss-ACK boundaries, three full-storage emergency boundaries |
 | R2/R7 follow-up: marker corruption hides a confirmed record | Recover complete CRC/semantic-valid bodies even if the commit marker is partial or erased. Marked invalid metadata/header remains read-only; valid-header corrupt payload retains its ordinal in quarantine. | All 64 single-bit marker changes plus whole-marker erasure for slots, journal and loss; invalid-body cases |
 | R10: aggregate overflow reaches packing after erase | Preflight encoded counters, reason/receipt generation, identity and envelope before destructive operations. Overflow leaves flash unchanged. | Pending/deferred `UINT64_MAX` tests and invalid envelope on an ACKed full ring |
+| Preflight follow-up: Python booleans accepted as integer identities | Validate exact integer identity/envelope fields before lookup, slot write or reclaim. | Invalid booleans/float/digest on both blank and ACKed full images leave bytes unchanged |
 | Evidence depends on platform newline translation | Write UTF-8 + LF + one terminal newline directly to binary stdout; hash exact bytes. | Windows-style text-wrapper test; reject CRLF, missing newline, changed schema or bytes |
 
 One flash outbox belongs to one device UUID. New seals are serialized and increase `(boot_sequence, chunk_sequence)` lexicographically. Chunk sequence may reset at a strictly newer boot; neither component wraps. Delayed historical imports cannot be interleaved with newer native records: legacy boot-zero import must precede native boots or use a separately specified migration. Future firmware must durably allocate boot identity before generating telemetry.
@@ -40,7 +41,7 @@ python tools/cloud_phase0/verify_review_candidate.py
 - Compatibility review suite: **3/3**, included in the host matrix through `test_integrity.py`; no expected-failure suppression.
 - Focused verifier suite: **10/10**, separate from the host matrix.
 - Canonical evidence: **9,197 bytes**, SHA-256 `98978d48429f446c9ac82ad91cbba46936d5aed788d9a836a1338c4490831e9c`.
-- Storage source: **100,829 bytes**, SHA-256 `c4401942eabec830917998b8c3257b27fc8c740a7e12604288b95b37c07cffbb`.
+- Storage source: **101,136 bytes**, SHA-256 `0106a89c140d26439839a2c7ad80950d72b707049d52fe4c35476656050c85b7`.
 - All nine source pins are explicit in `verify_review_candidate.py`; both committed and worktree bytes must match. Origin ancestry records provenance, not content equality to the rejected baseline. Dirty or `--allow-dirty` runs are ineligible.
 
 The marker-recovery change alters workload accounting; the regenerated 10,000-cycle raw-ring figures supersede the August feasibility table. LittleFS figures, 664-slot raw capacity, scan geometry and total 216 raw cuts are unchanged. Host figures remain provisional.

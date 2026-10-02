@@ -335,15 +335,23 @@ class RemediatedStorageTests(unittest.TestCase):
         self.assertEqual(fresh.flash_bytes, before)
 
     def test_invalid_slot_envelope_does_not_reclaim_before_validation(self):
-        model = RawRingModel(data_blocks=1)
-        for sequence in (0, 1):
-            self.assertTrue(model.seal(sequence, b"a" * 32))
-        for slot in model.prepare_upload():
-            self.assertTrue(model.acknowledge_exact(slot.receipt()))
-        before = model.flash_bytes
-        with self.assertRaises(ValueError):
-            model.seal(2, b"bad digest")
-        self.assertEqual(model.flash_bytes, before)
+        for full in (False, True):
+            model = RawRingModel(data_blocks=1)
+            if full:
+                for sequence in (0, 1):
+                    self.assertTrue(model.seal(sequence, b"a" * 32))
+                for slot in model.prepare_upload():
+                    self.assertTrue(model.acknowledge_exact(slot.receipt()))
+            before = model.flash_bytes
+            invalid = (
+                {"digest": b"bad digest"}, {"sequence": True},
+                {"boot_sequence": True}, {"sequence": 2.0},
+                {"first_point_sequence": True}, {"point_count": True},
+            )
+            for overrides in invalid:
+                with self.subTest(full=full, invalid=overrides), self.assertRaises(ValueError):
+                    model.seal(**({"sequence": 2, "digest": b"a" * 32} | overrides))
+                self.assertEqual(model.flash_bytes, before)
 
     def test_counter_and_reason_overflow_fail_before_any_flash_mutation(self):
         for deferred in (False, True):

@@ -506,6 +506,11 @@ class RawRingModel:
         point_count: int,
         digest: bytes,
     ) -> bytes:
+        if any(type(value) is not int for value in (
+            outbox_sequence, identity.boot_sequence, identity.chunk_sequence,
+            first_point_sequence, point_count,
+        )):
+            raise ValueError("slot sequence/count fields must be exact integers")
         if not 0 <= outbox_sequence <= UINT64_MAX:
             raise ValueError("outbox sequence out of uint64 range")
         if identity.device_id.int == 0:
@@ -1233,6 +1238,7 @@ class RawRingModel:
         if self.sequence_state_unknown or self.loss_state_unknown:
             raise RuntimeError("flash metadata/loss state is unknown; model is read-only")
         identity = ChunkIdentity(device_id, boot_sequence, sequence)
+        _encode_identity(identity)
         existing = self._find_identity(identity)
         if existing is not None:
             if existing.digest != digest:

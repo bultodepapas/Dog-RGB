@@ -57,16 +57,16 @@ CANDIDATE_SOURCE_MANIFEST: dict[str, dict[str, object]] = {
         "sha256": "47f3a25eeb74494ed78754963ef3c84f4ebb2a6a87799fd02002fd596168c9aa",
     },
     "tools/cloud_phase0/storage_model.py": {
-        "bytes": 100_829,
-        "sha256": "c4401942eabec830917998b8c3257b27fc8c740a7e12604288b95b37c07cffbb",
+        "bytes": 101_136,
+        "sha256": "0106a89c140d26439839a2c7ad80950d72b707049d52fe4c35476656050c85b7",
     },
     "tools/cloud_phase0/test_phase0.py": {
         "bytes": 53_425,
         "sha256": "77fb9bef715ce34fa2beb77bb4971de0f637613aa905c1d752fb52d3bd5ed472",
     },
     "tools/cloud_phase0/test_integrity.py": {
-        "bytes": 21_380,
-        "sha256": "6f7a0ad660469cc0fd1e0ac2ea9df589ac6a6bf3b96a00e537b5d8819175fb58",
+        "bytes": 21_850,
+        "sha256": "f162452367048b4ffd6d08c64bc838962c86f11f9a840fe1149e8d5419fcc14e",
     },
     "tools/cloud_phase0/review_integrity_test.py": {
         "bytes": 272,
