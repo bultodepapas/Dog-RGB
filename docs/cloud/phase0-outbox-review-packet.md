@@ -1,6 +1,6 @@
 # Phase 0 host outbox independent-review packet
 
-**Status:** corrected candidate prepared for independent re-review; **not an acceptance ledger**.
+**Status:** review procedure; **not an acceptance ledger**. The [independent remediation ledger](phase0-outbox-remediation-review-2026-10-02.md) accepts candidate `fb6dbef` on 2026-10-02.
 
 This packet reduces P0-R1 to a reproducible review. It was prepared by the
 candidate workstream and cannot accept its own implementation. The original

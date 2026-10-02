@@ -1,6 +1,8 @@
 # Host outbox integrity remediation — 2026-10-02
 
-**Status:** implemented; independent re-review pending. Host model only.
+**Status:** [accepted by independent AI review](phase0-outbox-remediation-review-2026-10-02.md), 2026-10-02. Host model only.
+
+**Reviewed commit:** `fb6dbef1bc9443f7045563ac770ca4a36de95686`; [clean readiness JSON](phase0-outbox-remediation-readiness-2026-10-02.json), SHA-256 `10820702b766bb349d5ebb01a0fcd8fa60544e09b3e7422039876fddb47bca98`.
 
 **Baseline:** `d58be9a0f4d9e9a31f5a302040b5575e27b1cfd0`. The [initial rejection](phase0-outbox-independent-review.md) and its raw readiness JSON are immutable historical evidence.
 
@@ -13,16 +15,18 @@
 | R6/R8: loss operations omit journal cut injection | Forward cuts through first, coalesced and deferred loss plus loss ACK. Force journal rollover in tests and assert that a cut actually occurs. | Nine loss/journal combinations, four loss-ACK boundaries, three full-storage emergency boundaries |
 | R2/R7 follow-up: marker corruption hides a confirmed record | Recover complete CRC/semantic-valid bodies even if the commit marker is partial or erased. Marked invalid metadata/header remains read-only; valid-header corrupt payload retains its ordinal in quarantine. | All 64 single-bit marker changes plus whole-marker erasure for slots, journal and loss; invalid-body cases |
 | R10: aggregate overflow reaches packing after erase | Preflight encoded counters, reason/receipt generation, identity and envelope before destructive operations. Overflow leaves flash unchanged. | Pending/deferred `UINT64_MAX` tests and invalid envelope on an ACKed full ring |
-| Preflight follow-up: Python booleans accepted as integer identities | Validate exact integer identity/envelope fields before lookup, slot write or reclaim. | Invalid booleans/float/digest on both blank and ACKed full images leave bytes unchanged |
+| Preflight follow-up: Python booleans accepted as integer identities | Validate exact integer identity before lookup and new-slot envelope fields before write/reclaim. | Invalid booleans/float/digest on both blank and ACKed full images leave bytes unchanged |
 | Evidence depends on platform newline translation | Write UTF-8 + LF + one terminal newline directly to binary stdout; hash exact bytes. | Windows-style text-wrapper test; reject CRLF, missing newline, changed schema or bytes |
 
 One flash outbox belongs to one device UUID. New seals are serialized and increase `(boot_sequence, chunk_sequence)` lexicographically. Chunk sequence may reset at a strictly newer boot; neither component wraps. Delayed historical imports cannot be interleaved with newer native records: legacy boot-zero import must precede native boots or use a separately specified migration. Future firmware must durably allocate boot identity before generating telemetry.
+
+Resident exact ID/digest retries return the stored result and ignore new-slot-only envelope arguments (`first_point_sequence`, `point_count`). They do not encode, allocate or modify flash. New identities must pass the complete envelope preflight.
 
 A full-ring omission consumes both its global ordinal and logical identity in the same emergency commit. Its latest exact retry returns `False` (still omitted) without allocating or incrementing counters again. After loss ACK/tombstone or coalescing replaces that retry token, the high-water rejects the old identity. Emergency transitions retain the watermark across pending, acknowledged, deferred, promoted and empty states; recovery merges journal, emergency and validated slot-header watermarks.
 
 Journal v3 uses the former 36-byte reserved tail for UUID16 + boot32 + chunk32 + zero12. Emergency v2 uses the same tail inside its 120-byte deferred region; deferred presence is determined only by its 84-byte payload. Both watermarks are CRC-covered. Geometry stays 336 sectors, 332 data sectors, 664 slots. Old journal v2/emergency v1 committed records are refused as writable; no automatic migration or format is provided by this host prototype.
 
-A marked invalid record can hide erased history, so fallback sacrifices availability and preserves the image for explicit recovery. Partial erase with a surviving marker is conservatively read-only. A complete CRC/semantic-valid body, however, recovers as the new state even if the commit marker is partial or entirely erased: the writer finishes the body before starting the marker. This also covers the body-before-marker crash boundary. Slot recovery without a marker requires both valid header and payload; a partial body with erased commit/ACK markers remains incomplete. A partial ACK marker still means unacknowledged, never invented acceptance.
+A marked invalid metadata record or unreadable slot header can hide erased history, so fallback sacrifices availability and preserves the image for explicit recovery. Partial erase with a surviving marker is conservatively read-only. A complete CRC/semantic-valid body, however, recovers as the new state even if the commit marker is partial or entirely erased: the writer finishes the body before starting the marker. This also covers the body-before-marker crash boundary. Slot recovery without a marker requires both valid header and payload; a partial body with erased commit/ACK markers remains incomplete. A partial ACK marker still means unacknowledged, never invented acceptance.
 
 The fault model covers modeled interrupted writes/erases and detectable corruption, including each commit-marker bit and whole-marker erasure with an intact body. Erasure of every publication indicator combined with invalid body bytes is indistinguishable from an incomplete append; undetectable CRC collisions and arbitrary simultaneous media destruction are not proved safe. Physical power-loss/retention/error behavior still requires target tests. The changed partial-commit tests assert the new valid state only after the exact ACK/body precedes the marker; no unauthorized reclaim is permitted.
 
@@ -60,4 +64,4 @@ The marker-recovery change alters workload accounting; the regenerated 10,000-cy
 
 The [review packet](phase0-outbox-review-packet.md) requires a separate reviewer to decide all 12 invariants on a clean committed candidate.
 
-No portal, firmware, partition table, Track v3 codec, fixture or legacy converter changes are included. M2B remains blocked pending independent host acceptance; M2C requires real ESP32-S3 flash, power-cut, timing and wear evidence.
+No portal, firmware, partition table, Track v3 codec, fixture or legacy converter changes are included. M2A host acceptance permits the planned M2B work; M2C still requires real ESP32-S3 flash, power-cut, timing and wear evidence.

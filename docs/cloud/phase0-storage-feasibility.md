@@ -1,8 +1,8 @@
 # Phase 0B — Track v3 and outbox storage feasibility
 
-**Status:** corrected host candidate passes 67/67; independent re-review and physical ESP32-S3 gate open
+**Status:** corrected host candidate accepted by independent AI review (67/67); physical ESP32-S3 gate open
 
-**Decision:** retain the raw partition ring as design direction; do not implement/ship it until both the host acceptance matrix and the physical gate in this document pass
+**Decision:** retain the raw partition ring. Independent host acceptance permits the planned M2B firmware work; deployment remains blocked on the physical gate in this document.
 
 **Evidence date:** 2026-08-18
 
@@ -10,7 +10,7 @@
 
 **Non-scope:** cloud transport, Supabase schema, product analytics, and firmware integration
 
-> **Current candidate (2026-10-02):** the [remediation report](phase0-outbox-remediation-2026-10-02.md) supersedes the metadata-format, identity and fallback behavior described in the historical snapshots below. Journal v3 and emergency v2 persist logical identity without changing geometry. The host matrix is now 67/67; the original three review failures are permanent passing regressions. Evidence uses canonical UTF-8/LF. Independent re-review remains required; physical results remain unproved.
+> **Current candidate (2026-10-02):** the [remediation report](phase0-outbox-remediation-2026-10-02.md) supersedes the metadata-format, identity and fallback behavior described in the historical snapshots below. Journal v3 and emergency v2 persist logical identity without changing geometry. The host matrix is now 67/67; the original three review failures are permanent passing regressions. Evidence uses canonical UTF-8/LF. [Independent AI acceptance](phase0-outbox-remediation-review-2026-10-02.md) covers the host candidate; physical results remain unproved.
 >
 > **Historical rejection (2026-10-02):** the [initial ledger](phase0-outbox-independent-review.md) rejected the 51-test candidate for identity reuse/stale ACK, corrupt committed-loss fallback, cut/counter gaps and native-newline evidence. Its commit, hashes and raw readiness JSON remain unchanged. The following August correction notices and numerical tables describe that older candidate; the remediation report identifies the regenerated current evidence.
 

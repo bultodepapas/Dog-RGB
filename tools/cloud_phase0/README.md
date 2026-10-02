@@ -56,3 +56,7 @@ python tools/cloud_phase0/review_integrity_test.py -v
 The [remediation report](../../docs/cloud/phase0-outbox-remediation-2026-10-02.md)
 defines the new single-device identity contract, versioned metadata layout,
 read-only recovery policy, and validation. Physical ESP32 acceptance remains open.
+
+The [independent AI ledger](../../docs/cloud/phase0-outbox-remediation-review-2026-10-02.md)
+accepts the host candidate at `fb6dbef`; its clean readiness JSON is archived
+alongside it. Hardware tests remain mandatory.

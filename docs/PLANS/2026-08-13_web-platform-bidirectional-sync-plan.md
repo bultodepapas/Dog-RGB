@@ -184,7 +184,7 @@ This snapshot reconciles the plan with Git history and current code. The histori
   - Evidence: [`contracts/device-v1`](../../contracts/device-v1/README.md); recorded result 48/48.
   - Source of truth: `contracts/device-v1/schemas`; `tools/sync_edge_contract_schemas.mjs` copies the eight Edge-consumed schemas. `packages/contracts` currently exposes only shared constants and is not the schema authority.
 - [x] ✅ Corrected byte-image host outbox candidate and its seven historical destructive regressions exist.
-  - Evidence: [storage feasibility](../cloud/phase0-storage-feasibility.md) and [independent-review packet](../cloud/phase0-outbox-review-packet.md); candidate result 51/51.
+  - Evidence: [storage feasibility](../cloud/phase0-storage-feasibility.md) and [independent-review packet](../cloud/phase0-outbox-review-packet.md); historical candidate result 51/51; corrected candidate 67/67 with [independent host acceptance](../cloud/phase0-outbox-remediation-review-2026-10-02.md).
   - Boundary: implementation-author tests are not independent acceptance.
 - [x] ✅ Local Supabase migration stack exists with explicit schemas/grants/RLS, ownership, claims, credentials, sync receipts, raw telemetry, configuration LWW, limits, deletion jobs, retention, tombstone replay, the measured History ordering index, serialized web configuration mutation semantics, accepted capability persistence, bounded pre-ACK queue snapshots, serialized sync/revoke semantics, and live-Auth guards on retained user RPC results.
   - Evidence: 16 migrations and 21 database pgTAP files, introduced across commits `4698f24` through the reviewed local M1.16 baseline; M1.16 required no schema change.
@@ -202,12 +202,12 @@ This snapshot reconciles the plan with Git history and current code. The histori
 - [x] ✅ GitHub CI run [`32911228533`](https://github.com/bultodepapas/Dog-RGB/actions/runs/32911228533) at `0494fb29de8c1962b63ea65fe099dee5e69cb649` passed all six required jobs.
   - Evidence: CI includes a dedicated `apps/portal` Next.js production build in addition to the embedded AP portal, cloud foundation, and firmware jobs.
 
+- [x] ✅ Independent acceptance of the corrected host outbox candidate (2026-10-02).
+  - Owner: Luna (independent AI review); Codex (implementation/reproduction).
+  - Evidence: [accepted remediation ledger](../cloud/phase0-outbox-remediation-review-2026-10-02.md), all 12 invariants; clean candidate `fb6dbef1bc9443f7045563ac770ca4a36de95686`, 67/67 host and 10/10 verifier tests. Host acceptance is not physical or human signoff.
+
 ### 5.2 Incomplete or unproven
 
-- [ ] Independent acceptance of the corrected host outbox candidate.
-  - Owner: Luna (independent AI review); Codex (reproduction and integration).
-  - Target date/window: reviewed 2026-10-02; candidate rejected, correction/re-review pending.
-  - Evidence: [M2.1 review ledger](../cloud/phase0-outbox-independent-review.md); acceptance remains open despite 51/51 frozen tests passing.
 - [ ] Target ESP32-S3 outbox/power-cut/timing/wear/energy proof.
   - Owner: ____________________
   - Hardware/harness: ____________________
@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
 | M1 | Simulator-driven local web vertical slice | **In progress — M1.17 next** | firmware Internet integration |
-| M2 | Offline firmware data foundation and physical outbox proof | Host remediation **en curso — 2026-10-02**; 67/67 passing, independent re-review pending before M2B | physical cloud slice |
+| M2 | Offline firmware data foundation and physical outbox proof | M2A host **accepted — 2026-10-02**; M2B firmware and M2C physical proof pending | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
 | M5 | Production opt-in, privacy, and operations | Pending | production use |
@@ -557,23 +557,21 @@ M1D is deliberately sequential. M1.13 first establishes one reliable owner journ
 
 #### M2A — Independent host acceptance
 
-- [ ] M2.1 A reviewer other than the storage-model author runs the clean-tree verifier and reviews all 12 invariants in the [review packet](../cloud/phase0-outbox-review-packet.md).
-  - Status: **Review completed — rejected, 2026-10-02 (America/Bogota).** Claimed as «en curso» before work by Codex/Luna; the acceptance checkbox remains open. M1.17 and Display remain separate workstreams.
-  - Owner: Codex (clean-worktree reproduction and integration); Luna (independent candidate review, maximum reasoning effort).
-  - Target date/window: review completed 2026-10-02; correction and independent re-review pending.
-  - Historical review artifacts committed in `d58be9a0f4d9e9a31f5a302040b5575e27b1cfd0`; the seven candidate sources were unchanged for that review.
-  - Reviewer: Luna, separate review agent; did not implement the frozen candidate.
-  - Reviewed commit: `978be4a09712768f55695be05ae6c4ff4093bb79`, reproduced in a new clean detached worktree with Python 3.12.15/macOS arm64.
-  - Commands/results: `python tools/cloud_phase0/review_readiness_test.py -v` passed 4/4; `python tools/cloud_phase0/verify_review_candidate.py` passed the frozen 51/51 and source hashes but exited 1 (`review_eligible: false`) because LF evidence differs from the frozen CRLF digest; `python tools/cloud_phase0/review_integrity_test.py -v` reproduces 4 failures across 3 new tests, separate from the frozen matrix.
-  - Decision/result: `rejected`. Logical identities can be reused after reclaim, enabling a stale-ACK consequence; corrupt committed first-loss fallback can hide loss and reuse an ordinal. The ledger records all 12 invariant decisions, seven historical regression inspections, and cut/counter/reproducibility gaps. ADR-0007 is reopened; no candidate fix, firmware acceptance, or physical proof is claimed. M2B remains blocked.
-  - Ledger: [independent review](../cloud/phase0-outbox-independent-review.md); [raw readiness JSON](../cloud/phase0-outbox-review-readiness-2026-10-02.json).
-- [ ] M2.2 All seven destructive regressions remain permanent tests; any high-integrity finding is closed or ADR-0007 is reopened.
-  - Status: **En curso — Codex, 2026-10-02 (America/Bogota).** Remediate the rejected host candidate: durable logical identity, corrupt committed-loss fallback, loss/journal cut coverage, counter preflight and canonical evidence serialization. Luna handles isolated tooling work and independent review. Starting tree `d58be9a` is clean; no firmware, portal or physical acceptance scope.
+- [x] M2.1 A reviewer other than the storage-model author runs the clean-tree verifier and reviews all 12 invariants in the [review packet](../cloud/phase0-outbox-review-packet.md).
+  - Status: **Accepted — 2026-10-02 (America/Bogota).** Luna (`remediation_independent_review`, maximum reasoning) independently inspected the corrected model and accepted all 12 invariants. AI review only; no human or hardware signoff.
+  - Reviewed implementation: `fb6dbef1bc9443f7045563ac770ca4a36de95686`. Codex implemented/integrated; separate Luna agents handled tooling and read-only design advice. The decision author did not edit candidate code.
+  - Evidence: [accepted ledger](../cloud/phase0-outbox-remediation-review-2026-10-02.md); [raw clean-tree readiness JSON](../cloud/phase0-outbox-remediation-readiness-2026-10-02.json), SHA-256 `10820702b766bb349d5ebb01a0fcd8fa60544e09b3e7422039876fddb47bca98`.
+  - Results: 67/67 host tests; 10/10 verifier tests; nine committed/worktree source pins and canonical evidence match; `review_eligible: true`. No unresolved high-integrity finding in the stated host fault model.
+  - Historical rejection: the [initial review](../cloud/phase0-outbox-independent-review.md) of `978be4a09712768f55695be05ae6c4ff4093bb79` rejected identity/stale-ACK and corrupt-loss fallback despite 51/51 passing; its [raw readiness JSON](../cloud/phase0-outbox-review-readiness-2026-10-02.json) remains unchanged. Those review artifacts were committed in `d58be9a0f4d9e9a31f5a302040b5575e27b1cfd0`.
+
+- [x] M2.2 All seven destructive regressions remain permanent tests; any high-integrity finding is closed or ADR-0007 is reopened.
+  - Status: **Completed — Codex, 2026-10-02 (America/Bogota).** Claimed «en curso» before editing; implemented in `fb6dbef`. Luna tooling/design/review assignments were isolated. Starting tree `d58be9a` was clean; no firmware, portal, or concurrent-work changes included.
   - Implementation/evidence: [remediation report](../cloud/phase0-outbox-remediation-2026-10-02.md); journal v3/emergency v2 preserve a single-device identity watermark without reducing 664-slot capacity. Corrupt marked metadata is read-only; complete validated bodies survive torn/erased commit markers. Loss and loss-ACK cuts reach journal boundaries; counter overflow fails before erase.
   - Validation: 67/67 host tests, including the original seven destructive cases plus all three rejected-review reproductions and thirteen new boundary/cut tests; 3/3 compatibility review tests; 10/10 verifier tests. Canonical UTF-8/LF evidence regenerated at 9,197 bytes, SHA-256 `98978d48429f446c9ac82ad91cbba46936d5aed788d9a836a1338c4490831e9c`. Nine explicit source pins replace equality to the obsolete candidate origin.
-  - Remaining: commit the scoped candidate, reproduce the clean-tree gate, and obtain a new independent 12-invariant decision. Historical rejection/readiness artifacts remain unchanged. M2B remains blocked until that decision; M2C physical evidence is separate.
+  - Final validation: clean committed candidate independently accepted. The follow-up marker-corruption finding was reproduced, fixed, and retained across all 64 marker bits plus whole-marker erasure. Source/benchmark hashes were regenerated after that correction.
+  - Remaining: M2B implementation and M2C physical ESP32-S3 proof; explicit single-device/ordered-identity and bounded fault-model constraints are documented. M1.17 and Display remain independent workstreams.
 
-M2B cannot begin until M2.1–M2.2 pass. M1 is independent and may continue.
+M2.1–M2.2 now pass for the host model. M2B may proceed under its existing scope; M2C physical acceptance remains mandatory before deployment. M1 is independent and may continue.
 
 #### M2B — Firmware implementation with cloud disabled
 
