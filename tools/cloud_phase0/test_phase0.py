@@ -467,8 +467,8 @@ class RawIdentityAndAckTests(unittest.TestCase):
 
 class RawPowerCutAndJournalTests(unittest.TestCase):
     def test_slot_commit_cut_matrix_mounts_only_committed_crc_valid_slots(self):
-        rejected = ("during_data", "during_slot_commit")
-        recovered = ("after_slot_commit", "during_metadata", "during_journal_record", "during_journal_commit")
+        rejected = ("during_data",)
+        recovered = ("during_slot_commit", "after_slot_commit", "during_metadata", "during_journal_record", "during_journal_commit")
         for stage in rejected + recovered:
             with self.subTest(stage=stage):
                 model = RawRingModel(data_blocks=2)
@@ -492,6 +492,14 @@ class RawPowerCutAndJournalTests(unittest.TestCase):
                 slot = model.prepare_upload([0])[0]
                 self.assertFalse(model.acknowledge_exact(slot.receipt(), cut_at=stage))
                 fresh = model.restart()
+                if stage == "during_journal_commit":
+                    # The CRC-valid journal body and started commit recover
+                    # the new prefix; the exact slot ACK already preceded it.
+                    self.assertTrue(fresh.slots[0].acknowledged)
+                    self.assertEqual(fresh.reclaim_through, 0)
+                    self.assertEqual(fresh.reclaim_acknowledged(), 1)
+                    self.assertEqual(fresh.restart().slots, {})
+                    continue
                 self.assertEqual(fresh.reclaim_acknowledged(), 0)
                 if stage == "during_ack_marker":
                     self.assertFalse(fresh.slots[0].acknowledged)
@@ -525,10 +533,11 @@ class RawPowerCutAndJournalTests(unittest.TestCase):
                 fresh = model.restart()
                 self.assertTrue(fresh.contains(sequence, digest(sequence)))
                 self.assertGreaterEqual(fresh.next_outbox_sequence, sequence + 1)
-                self.assertEqual(fresh.journal_generation, prior_generation)
+                expected_generation = prior_generation + (stage == "during_journal_commit")
+                self.assertEqual(fresh.journal_generation, expected_generation)
                 self.assertTrue(fresh._append_journal())
                 self.assertTrue(
-                    fresh.journal_generation == (prior_generation + 1) & ((1 << 64) - 1)
+                    fresh.journal_generation == (expected_generation + 1) & ((1 << 64) - 1)
                 )
 
     def test_reclaim_cut_matrix_uses_durable_intent_and_preserves_tail(self):
@@ -600,8 +609,8 @@ class RawPowerCutAndJournalTests(unittest.TestCase):
 
         fresh = model.restart()
         before = fresh.flash_bytes
-        self.assertFalse(fresh.metadata_degraded)
-        self.assertFalse(fresh.sequence_state_unknown)
+        self.assertTrue(fresh.metadata_degraded)
+        self.assertTrue(fresh.sequence_state_unknown)
         self.assertIsNone(fresh.erase_intent_block)
         self.assertEqual(fresh.reclaim_acknowledged(), 0)
         self.assertEqual(fresh.flash_bytes, before)
@@ -640,20 +649,18 @@ class RawPowerCutAndJournalTests(unittest.TestCase):
         fresh = model.restart()
         before = fresh.flash_bytes
         self.assertIsNone(fresh.erase_intent_block)
-        self.assertFalse(fresh.sequence_state_unknown)
+        self.assertTrue(fresh.sequence_state_unknown)
         self.assertEqual(fresh.next_outbox_sequence, 3)
         self.assertEqual(set(fresh.quarantined_slots), {2})
-        self.assertEqual(fresh.missing_outbox_sequences, {2})
         self.assertEqual(fresh.reclaim_acknowledged(), 0)
         self.assertEqual(fresh.flash_bytes, before)
 
-        self.assertTrue(fresh.persist_missing_as_loss())
-        loss = fresh.prepare_loss_upload()
-        self.assertIsNotNone(loss)
-        self.assertTrue(fresh.acknowledge_loss(**loss_ack_kwargs(loss)))
-        self.assertEqual(fresh.reclaim_through, 2)
-        self.assertEqual(fresh.emergency.state, "empty")
-        self.assertEqual(fresh.reclaim_acknowledged(), 1)
+        # A corrupt committed journal can hide an erased identity high-water.
+        # Quarantine remains readable, but automated repair must not overwrite
+        # evidence based on a guessed prior generation.
+        with self.assertRaisesRegex(RuntimeError, "read-only"):
+            fresh.persist_missing_as_loss()
+        self.assertEqual(fresh.flash_bytes, before)
 
 
 class RawEmergencyAndCorruptionTests(unittest.TestCase):
@@ -674,7 +681,8 @@ class RawEmergencyAndCorruptionTests(unittest.TestCase):
                 ))
                 fresh = model.restart()
                 self.assertFalse(fresh.loss_state_unknown)
-                self.assertEqual(fresh.emergency.state, "empty")
+                self.assertEqual(fresh.emergency.state,
+                                 "pending" if stage == "during_emergency_commit" else "empty")
                 self.assertTrue(fresh.record_loss(
                     missing_outbox_sequence=0,
                     dropped_points=5,
@@ -883,8 +891,10 @@ class RawEmergencyAndCorruptionTests(unittest.TestCase):
         fresh = model.restart()
         self.assertEqual(fresh.next_outbox_sequence, 1)
         self.assertEqual(fresh.reclaim_through, -1)
-        self.assertTrue(fresh.seal(0, digest(99)))
-        self.assertIn(1, fresh.slots)
+        before = fresh.flash_bytes
+        with self.assertRaisesRegex(RuntimeError, "read-only"):
+            fresh.seal(0, digest(99))
+        self.assertEqual(fresh.flash_bytes, before)
 
     def test_recovery_of_maximum_loss_interval_is_bounded(self):
         model = RawRingModel(data_blocks=1)
@@ -931,7 +941,8 @@ class RawEmergencyAndCorruptionTests(unittest.TestCase):
                     cut_at=stage,
                 ))
                 recovered = attempt.restart()
-                self.assertEqual(recovered.emergency.state, "acknowledged")
+                self.assertEqual(recovered.emergency.state,
+                                 "empty" if stage == "during_emergency_commit" else "acknowledged")
                 self.assertTrue(recovered.acknowledge_loss(
                     **loss_ack_kwargs(loss),
                 ))
@@ -998,13 +1009,15 @@ class RawFailClosedRecoveryTests(unittest.TestCase):
         )
         fresh = model.restart()
         self.assertLess(fresh.reclaim_through, 2)
-        # The conservative prior journal still proves q0..q1 reclaimable.  It
-        # must not erase q2 until its durable ACK marker is folded into a new
-        # contiguous-prefix journal record.
-        self.assertEqual(fresh.reclaim_acknowledged(), 2)
+        # Preserve all recoverable bytes: the corrupt committed generation may
+        # carry history that slot scanning cannot reconstruct after reclaim.
+        before = fresh.flash_bytes
+        self.assertTrue(fresh.sequence_state_unknown)
+        self.assertEqual(fresh.reclaim_acknowledged(), 0)
         self.assertIn(2, fresh.slots)
-        self.assertTrue(fresh._persist_ack_prefix())
-        self.assertEqual(fresh.reclaim_through, 2)
+        with self.assertRaisesRegex(RuntimeError, "read-only"):
+            fresh.acknowledge_exact(fresh.slots[2].receipt())
+        self.assertEqual(fresh.flash_bytes, before)
 
     def test_all_metadata_records_corrupt_fail_closed_without_sequence_reuse(self):
         model = RawRingModel(data_blocks=1)

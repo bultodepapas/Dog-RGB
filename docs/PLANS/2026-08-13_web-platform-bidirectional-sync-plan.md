@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
 | M1 | Simulator-driven local web vertical slice | **In progress — M1.17 next** | firmware Internet integration |
-| M2 | Offline firmware data foundation and physical outbox proof | Host candidate **rejected — 2026-10-02**; correction/re-review required before M2B | physical cloud slice |
+| M2 | Offline firmware data foundation and physical outbox proof | Host remediation **en curso — 2026-10-02**; 67/67 passing, independent re-review pending before M2B | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
 | M5 | Production opt-in, privacy, and operations | Pending | production use |
@@ -561,14 +561,17 @@ M1D is deliberately sequential. M1.13 first establishes one reliable owner journ
   - Status: **Review completed — rejected, 2026-10-02 (America/Bogota).** Claimed as «en curso» before work by Codex/Luna; the acceptance checkbox remains open. M1.17 and Display remain separate workstreams.
   - Owner: Codex (clean-worktree reproduction and integration); Luna (independent candidate review, maximum reasoning effort).
   - Target date/window: review completed 2026-10-02; correction and independent re-review pending.
-  - Implementation commit/PR: local review artifacts in this change, not committed; the seven frozen candidate sources are unchanged.
+  - Historical review artifacts committed in `d58be9a0f4d9e9a31f5a302040b5575e27b1cfd0`; the seven candidate sources were unchanged for that review.
   - Reviewer: Luna, separate review agent; did not implement the frozen candidate.
   - Reviewed commit: `978be4a09712768f55695be05ae6c4ff4093bb79`, reproduced in a new clean detached worktree with Python 3.12.15/macOS arm64.
   - Commands/results: `python tools/cloud_phase0/review_readiness_test.py -v` passed 4/4; `python tools/cloud_phase0/verify_review_candidate.py` passed the frozen 51/51 and source hashes but exited 1 (`review_eligible: false`) because LF evidence differs from the frozen CRLF digest; `python tools/cloud_phase0/review_integrity_test.py -v` reproduces 4 failures across 3 new tests, separate from the frozen matrix.
   - Decision/result: `rejected`. Logical identities can be reused after reclaim, enabling a stale-ACK consequence; corrupt committed first-loss fallback can hide loss and reuse an ordinal. The ledger records all 12 invariant decisions, seven historical regression inspections, and cut/counter/reproducibility gaps. ADR-0007 is reopened; no candidate fix, firmware acceptance, or physical proof is claimed. M2B remains blocked.
   - Ledger: [independent review](../cloud/phase0-outbox-independent-review.md); [raw readiness JSON](../cloud/phase0-outbox-review-readiness-2026-10-02.json).
 - [ ] M2.2 All seven destructive regressions remain permanent tests; any high-integrity finding is closed or ADR-0007 is reopened.
-  - 2026-10-02: original seven regressions preserved and passing; new integrity regressions retained in `tools/cloud_phase0/review_integrity_test.py`. ADR-0007 reopened. Resolve the ledger findings, include the regressions in a deliberately rebaselined candidate, define platform-independent canonical evidence bytes, and obtain independent acceptance before M2B.
+  - Status: **En curso — Codex, 2026-10-02 (America/Bogota).** Remediate the rejected host candidate: durable logical identity, corrupt committed-loss fallback, loss/journal cut coverage, counter preflight and canonical evidence serialization. Luna handles isolated tooling work and independent review. Starting tree `d58be9a` is clean; no firmware, portal or physical acceptance scope.
+  - Implementation/evidence: [remediation report](../cloud/phase0-outbox-remediation-2026-10-02.md); journal v3/emergency v2 preserve a single-device identity watermark without reducing 664-slot capacity. Corrupt marked metadata is read-only; complete validated bodies survive torn/erased commit markers. Loss and loss-ACK cuts reach journal boundaries; counter overflow fails before erase.
+  - Validation: 67/67 host tests, including the original seven destructive cases plus all three rejected-review reproductions and thirteen new boundary/cut tests; 3/3 compatibility review tests; 10/10 verifier tests. Canonical UTF-8/LF evidence regenerated at 9,197 bytes, SHA-256 `98978d48429f446c9ac82ad91cbba46936d5aed788d9a836a1338c4490831e9c`. Nine explicit source pins replace equality to the obsolete candidate origin.
+  - Remaining: commit the scoped candidate, reproduce the clean-tree gate, and obtain a new independent 12-invariant decision. Historical rejection/readiness artifacts remain unchanged. M2B remains blocked until that decision; M2C physical evidence is separate.
 
 M2B cannot begin until M2.1–M2.2 pass. M1 is independent and may continue.
 

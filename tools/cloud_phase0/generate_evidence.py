@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 
 from reference_fixtures import fixture_manifest
 from storage_model import comparison_evidence
@@ -55,17 +56,38 @@ def render_markdown(evidence: dict[str, object]) -> str:
     )
 
 
+def canonical_json_bytes(evidence: dict[str, object]) -> bytes:
+    """Serialize JSON as deterministic UTF-8 with literal LF line endings."""
+    document = json.dumps(
+        evidence,
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+    )
+    return document.encode("utf-8") + b"\n"
+
+
+def canonical_markdown_bytes(evidence: dict[str, object]) -> bytes:
+    """Serialize Markdown as UTF-8 with literal LF line endings."""
+    return render_markdown(evidence).encode("utf-8") + b"\n"
+
+
+def write_stdout(output: bytes, stdout: object | None = None) -> None:
+    """Write canonical bytes without the host text stream's newline conversion."""
+    stream = sys.stdout if stdout is None else stdout
+    stream.buffer.write(output)  # type: ignore[attr-defined]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--format", choices=("json", "markdown"), default="json")
     args = parser.parse_args()
     evidence = build_evidence()
     if args.format == "markdown":
-        print(render_markdown(evidence))
+        write_stdout(canonical_markdown_bytes(evidence))
     else:
-        print(json.dumps(evidence, indent=2, sort_keys=True))
+        write_stdout(canonical_json_bytes(evidence))
 
 
 if __name__ == "__main__":
     main()
-

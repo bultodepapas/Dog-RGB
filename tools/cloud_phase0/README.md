@@ -21,9 +21,10 @@ python -m unittest discover -s tools/cloud_phase0 -p "test_*.py" -v
 python tools/cloud_phase0/generate_evidence.py
 ```
 
-The second command prints canonical JSON to stdout. Use `--format markdown` for
-a compact table. Results use fixed seeds and contain no wall-clock timestamps,
-so two runs on the same source must be byte-for-byte identical.
+The second command writes canonical UTF-8 JSON with LF and one trailing newline
+to binary stdout, independent of the host's text newline convention. Use
+`--format markdown` for a compact table. Fixed seeds and no timestamps make
+repeated runs byte-identical. Python 3.12 is sufficient; no dependencies needed.
 
 ## Independent P0-R1 review
 
@@ -35,31 +36,23 @@ python tools/cloud_phase0/review_readiness_test.py -v
 python tools/cloud_phase0/verify_review_candidate.py
 ```
 
-The first command is a focused `4/4` verifier test and is deliberately named so
-it does not alter the frozen `test_*.py` host-matrix count of `51/51`. The second
-command binds the full commit, seven source artifacts, seven historical
-regressions, storage artifact, 51-test result, and canonical 9,505-byte evidence
-digest into JSON. It can report only readiness; it always leaves the decision as
-`awaiting_independent_review`. See the
-[independent-review packet](../../docs/cloud/phase0-outbox-review-packet.md) for
-the manual invariant matrix and final ledger requirements.
+The focused verifier suite passes `10/10`; the host matrix passes `67/67`.
+The verifier compares nine explicit source pins with both committed HEAD blobs
+and worktree bytes, checks ancestry to the previous review baseline, runs the
+host matrix, and regenerates canonical evidence. A clean tree is required;
+`--allow-dirty` is always ineligible. The tool only reports readiness and cannot
+accept its own candidate. See the [review packet](../../docs/cloud/phase0-outbox-review-packet.md).
 
-The checked-in decision and interpretation are in
-[`docs/cloud/phase0-storage-feasibility.md`](../../docs/cloud/phase0-storage-feasibility.md).
-
-### Rejected candidate — 2026-10-02
-
-The [independent AI review](../../docs/cloud/phase0-outbox-independent-review.md)
-rejected the frozen candidate despite its 51/51 result. The separate regression
-suite preserves identity reuse, stale-ACK reuse, and corrupt first-loss fallback:
+The [2026-10-02 rejected review](../../docs/cloud/phase0-outbox-independent-review.md)
+and its raw evidence remain historical records. Its three failure reproductions
+now run in `test_integrity.py` as part of normal discovery, alongside thirteen new
+boundary/cut regressions. The compatibility command still runs those original
+three tests:
 
 ```sh
 python tools/cloud_phase0/review_integrity_test.py -v
 ```
 
-Current result: **3 tests, 4 failing assertions** (identity reuse has two subcases).
-These failures remain visible; there is no expected-failure suppression. The
-filename deliberately stays outside the frozen `test_*.py` matrix. Correct and
-rebaseline the candidate before a new independent review; do not update hashes
-or counts merely to clear the gate. The raw Mac readiness result also fails
-because the frozen canonical digest uses CRLF while the generator emits LF.
+The [remediation report](../../docs/cloud/phase0-outbox-remediation-2026-10-02.md)
+defines the new single-device identity contract, versioned metadata layout,
+read-only recovery policy, and validation. Physical ESP32 acceptance remains open.

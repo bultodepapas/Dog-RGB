@@ -1,6 +1,6 @@
 # Phase 0B — Track v3 and outbox storage feasibility
 
-**Status:** host candidate rejected by independent AI review on 2026-10-02 despite 51/51 passing; remediation and physical ESP32-S3 gate open
+**Status:** corrected host candidate passes 67/67; independent re-review and physical ESP32-S3 gate open
 
 **Decision:** retain the raw partition ring as design direction; do not implement/ship it until both the host acceptance matrix and the physical gate in this document pass
 
@@ -10,7 +10,9 @@
 
 **Non-scope:** cloud transport, Supabase schema, product analytics, and firmware integration
 
-> **Review update (2026-10-02):** the [independent ledger](phase0-outbox-independent-review.md) supersedes the pending-review status below. New deterministic regressions reproduce identity reuse after ACK/reclaim, a stale ACK applied to the reused identity, and rollback to an empty loss record after cut plus committed-record corruption. The readiness verifier additionally hashes platform-native LF/CRLF bytes differently. The original seven source artifacts remain frozen; their 51/51 result is insufficient for acceptance. Run `python tools/cloud_phase0/review_integrity_test.py -v` for the separate three-test review suite; all three currently fail. [ADR-0007](../adr/0007-durable-telemetry-outbox-and-storage.md) is reopened; firmware integration remains blocked.
+> **Current candidate (2026-10-02):** the [remediation report](phase0-outbox-remediation-2026-10-02.md) supersedes the metadata-format, identity and fallback behavior described in the historical snapshots below. Journal v3 and emergency v2 persist logical identity without changing geometry. The host matrix is now 67/67; the original three review failures are permanent passing regressions. Evidence uses canonical UTF-8/LF. Independent re-review remains required; physical results remain unproved.
+>
+> **Historical rejection (2026-10-02):** the [initial ledger](phase0-outbox-independent-review.md) rejected the 51-test candidate for identity reuse/stale ACK, corrupt committed-loss fallback, cut/counter gaps and native-newline evidence. Its commit, hashes and raw readiness JSON remain unchanged. The following August correction notices and numerical tables describe that older candidate; the remediation report identifies the regenerated current evidence.
 
 > **Correction notice (2026-08-13):** the original RAM-only model accepted an
 > unsafe numeric ACK watermark and its results remain invalid historical
@@ -36,7 +38,7 @@
 > metrics remain **provisional, not accepted evidence** until independent
 > acceptance; the physical gate remains open alongside Section 12.
 
-The remediated `storage_model.py` artifact is 93,767 bytes with SHA-256
+The historical August `storage_model.py` artifact was 93,767 bytes with SHA-256
 `9d7f0c059399708b4a3162d231a18d00c8378e85c4837f30b5ccd1369574b3d8`.
 
 ## 1. Decision in one page

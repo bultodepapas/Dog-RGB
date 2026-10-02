@@ -6,9 +6,10 @@
 | --- | --- |
 | [Phase 0 execution report](phase0-execution-report.md) | delivered 0A/0B/0C work, validation snapshot, explicit open/closed gate register, and owner-authorized local Phase 1 boundary |
 | [Field matrix](phase0-field-matrix.md) | every current runtime-config field and telemetry/status group: units, range, privacy, source, and accepted sync/exclusion policy |
-| [Storage feasibility](phase0-storage-feasibility.md) | fixed Track v3 codec, provisional 664-slot raw geometry, remediated 51/51 host matrix awaiting independent acceptance, LittleFS comparison, and open physical gate |
-| [Outbox independent-review packet](phase0-outbox-review-packet.md) | clean-room P0-R1 verifier, seven historical regressions, 12 manual invariants, severity rules, and final accepted/rejected ledger contract; not itself an acceptance |
-| [Outbox independent review — 2026-10-02](phase0-outbox-independent-review.md) | rejected AI review of the frozen host candidate; identity reuse/stale ACK, corrupt-loss fallback, evidence gaps, separate failing regressions and raw clean-worktree readiness JSON; no firmware acceptance |
+| [Storage feasibility](phase0-storage-feasibility.md) | fixed Track v3 codec, provisional 664-slot raw geometry, remediated 67/67 host matrix awaiting independent acceptance, LittleFS comparison, and open physical gate |
+| [Outbox independent-review packet](phase0-outbox-review-packet.md) | clean-room P0-R1 verifier, thirteen mandatory regressions, 12 manual invariants, severity rules, and final accepted/rejected ledger contract; not itself an acceptance |
+| [Outbox independent review — 2026-10-02](phase0-outbox-independent-review.md) | rejected AI review of the frozen host candidate; identity reuse/stale ACK, corrupt-loss fallback, evidence gaps, historical failing regressions and raw clean-worktree readiness JSON; no firmware acceptance |
+| [Outbox remediation — 2026-10-02](phase0-outbox-remediation-2026-10-02.md) | durable identity, conservative corrupt-record recovery, loss cut matrix, preflight counters, and canonical evidence; host scope only |
 | [PostgreSQL capacity](phase0-capacity-benchmark.md) | one-million-point local sizing/query evidence and initial index/partition decision |
 | [Phase 1 migrated capacity](phase1-capacity-benchmark.md) | one-million-point evidence on the migrated/RLS-protected schema and retention consequences |
 | [M1.9 History query/index](m19-history-query-plan.md) | authenticated PostgREST pagination plans, measured narrow index, write/size cost, and rollback proof |
