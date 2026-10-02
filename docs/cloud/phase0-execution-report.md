@@ -4,6 +4,8 @@
 
 This report is the audit/handoff view of work executed against Phase 0A–0C in the [accepted implementation plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md). Accepted ADRs describe design direction; they do not claim field-ready firmware or a deployed cloud service.
 
+**Independent-review update — 2026-10-02:** P0-R1/M2.1 concluded with a [rejected host candidate](phase0-outbox-independent-review.md). The frozen 51/51 matrix passes, but separate regressions demonstrate identity reuse/stale ACK and corrupt committed-loss fallback; the Mac readiness run also exposes LF/CRLF-dependent evidence hashing. [ADR-0007](../adr/0007-durable-telemetry-outbox-and-storage.md) is reopened. Earlier pending-review statements below are the 2026-08-18 snapshot; acceptance now requires correction, deliberate rebaseline and independent re-review. The candidate and firmware were not changed by this review.
+
 ## Outcome
 
 Phase 0 now has a current project contract, six accepted cloud ADRs, a complete current-field inventory, a frozen device-v1 protocol, a fixed Track v3 codec, local database-capacity evidence, and security/privacy/retention/credential plans. The complete protocol suite passes **48/48**.

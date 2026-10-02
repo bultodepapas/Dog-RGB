@@ -1,6 +1,6 @@
 # Phase 0B — Track v3 and outbox storage feasibility
 
-**Status:** host recovery/reclaim remediation passes 51/51 and awaits independent acceptance; physical ESP32-S3 gate open
+**Status:** host candidate rejected by independent AI review on 2026-10-02 despite 51/51 passing; remediation and physical ESP32-S3 gate open
 
 **Decision:** retain the raw partition ring as design direction; do not implement/ship it until both the host acceptance matrix and the physical gate in this document pass
 
@@ -9,6 +9,8 @@
 **Scope:** Track v3 encoding, retention, outbox candidates, failure simulation, reference fixtures, and Track v2 migration
 
 **Non-scope:** cloud transport, Supabase schema, product analytics, and firmware integration
+
+> **Review update (2026-10-02):** the [independent ledger](phase0-outbox-independent-review.md) supersedes the pending-review status below. New deterministic regressions reproduce identity reuse after ACK/reclaim, a stale ACK applied to the reused identity, and rollback to an empty loss record after cut plus committed-record corruption. The readiness verifier additionally hashes platform-native LF/CRLF bytes differently. The original seven source artifacts remain frozen; their 51/51 result is insufficient for acceptance. Run `python tools/cloud_phase0/review_integrity_test.py -v` for the separate three-test review suite; all three currently fail. [ADR-0007](../adr/0007-durable-telemetry-outbox-and-storage.md) is reopened; firmware integration remains blocked.
 
 > **Correction notice (2026-08-13):** the original RAM-only model accepted an
 > unsafe numeric ACK watermark and its results remain invalid historical

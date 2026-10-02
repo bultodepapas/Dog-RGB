@@ -1,10 +1,10 @@
 # ADR-0007: Durable telemetry outbox on a raw flash ring
 
-**Status:** Accepted as design direction; remediated host evidence awaiting independent acceptance
+**Status:** Reopened for host integrity remediation on 2026-10-02; raw-ring design direction retained, candidate rejected
 
 **Date:** 2026-08-13
 
-**Implementation evidence:** Review/open. The corrected 664-slot byte-addressed candidate has regressions for all seven reproduced fallback/loss/corruption failures and passes 51/51 with regenerated deterministic metrics. Independent acceptance is still required. Physical ESP32 flash/power-cut evidence remains a separate mandatory gate.
+**Implementation evidence:** The [independent AI review](../cloud/phase0-outbox-independent-review.md) rejected candidate `978be4a09712768f55695be05ae6c4ff4093bb79`. The frozen 51/51 suite passes, but new regressions reproduce logical-identity reuse after reclaim, its stale-ACK consequence, and loss/ordinal rollback after a committed emergency record is corrupted before its journal cross-reference exists. The raw readiness verifier also fails on LF/CRLF evidence serialization. Candidate sources remain unchanged; M2B stays blocked. Physical ESP32 flash/power-cut evidence remains a separate mandatory gate.
 
 **Scope:** Cloud telemetry staging, retry/ACK/reclaim semantics, pressure behavior, and legacy route preservation.
 
@@ -86,7 +86,7 @@ The checked [storage feasibility report](../cloud/phase0-storage-feasibility.md)
 - The corrected candidate models NOR 1→0 programming, whole-sector erase, fresh-image mounts, globally monotonic outbox ordinals, exact per-slot ACK evidence, contiguous-prefix reclaim, A/B metadata journals, and two independently erasable emergency sectors. Its provisional geometry is 664 chunks/63,744 points, or 15.624 days at the four-hours-moving/five-second plus twenty-hours-stationary/sixty-second profile.
 - The remediated suite binds reclaim intent to the exact sector slot ordinals, irreversibly consumes it before refill, derives the next ordinal from retained loss tombstones and quarantined corrupt headers, fails read-only on unreadable committed headers, processes loss intervals without range-sized allocation/iteration, durably coalesces a second pending loss while the first ACK transitions, automatically finalizes acknowledged sparse loss when the contiguous prefix closes, and distinguishes ACKed corrupt payloads from unsynchronized loss. Those seven regressions and the deterministic 10,000-cycle workload pass 51/51.
 
-The host recovery/reclaim gate is therefore **review/open**, not accepted. The raw ring remains the accepted design direction because its fixed format makes the required invariants inspectable and its capacity difference from the idealized LittleFS model is small; that decision does not authorize firmware implementation. Candidate amplification, salvage, cut, recovery-scan, and wear figures remain provisional until an independent review accepts the complete host matrix.
+The host recovery/reclaim gate is **rejected / remediation required** after the 2026-10-02 review. The raw ring remains the design direction because its fixed format makes the required invariants inspectable and its capacity difference from the idealized LittleFS model is small; that direction does not authorize firmware implementation. Candidate amplification, salvage, cut, recovery-scan, and wear figures remain provisional. Correct the reviewed defects, close the cut/counter evidence gaps, deliberately rebaseline the candidate and canonical evidence, then obtain a new independent review.
 
 No host model proves physical safety. Flash-driver timing, brownout behavior, cache behavior, actual LittleFS write amplification, metadata wear, and interaction with GNSS/LED work require target measurements. The LittleFS comparison remains an idealized model, not a measured library trace.
 

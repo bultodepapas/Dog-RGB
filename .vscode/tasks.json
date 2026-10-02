@@ -1,0 +1,52 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Dog RGB: build XIAO firmware",
+            "type": "shell",
+            "command": "pio",
+            "args": ["run", "-d", "Platformio/Dog-RGB", "-e", "seeed_xiao_esp32s3"],
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Dog RGB: build Waveshare display firmware",
+            "type": "shell",
+            "command": "pio",
+            "args": ["run", "-d", "Platformio/Dog-RGB", "-e", "waveshare_lcd169"],
+            "group": "build",
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Dog RGB: preview local portal",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "webui:serve"],
+            "problemMatcher": []
+        },
+        {
+            "label": "Dog RGB: test local portal",
+            "type": "shell",
+            "command": "npm",
+            "args": ["run", "webui:test"],
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Dog RGB: test firmware on host",
+            "type": "shell",
+            "command": "python3",
+            "args": ["-m", "unittest", "discover", "-s", "test", "-p", "test_*.py", "-v"],
+            "options": { "cwd": "${workspaceFolder}/Platformio/Dog-RGB" },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Dog RGB: render display simulator",
+            "type": "shell",
+            "command": "python3",
+            "args": ["tools/display-simulator/render.py"],
+            "problemMatcher": ["$gcc"]
+        }
+    ]
+}

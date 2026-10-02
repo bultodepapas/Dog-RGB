@@ -205,9 +205,9 @@ This snapshot reconciles the plan with Git history and current code. The histori
 ### 5.2 Incomplete or unproven
 
 - [ ] Independent acceptance of the corrected host outbox candidate.
-  - Owner: ____________________
-  - Target date/window: ____________________
-  - Evidence: `docs/cloud/phase0-outbox-independent-review.md`
+  - Owner: Luna (independent AI review); Codex (reproduction and integration).
+  - Target date/window: reviewed 2026-10-02; candidate rejected, correction/re-review pending.
+  - Evidence: [M2.1 review ledger](../cloud/phase0-outbox-independent-review.md); acceptance remains open despite 51/51 frozen tests passing.
 - [ ] Target ESP32-S3 outbox/power-cut/timing/wear/energy proof.
   - Owner: ____________________
   - Hardware/harness: ____________________
@@ -269,7 +269,7 @@ Only one milestone is the primary critical path at a time. Clearly independent w
 | --- | --- | --- | --- |
 | M0 | Reproduce and close the local baseline | Complete ✅ | all new product code |
 | M1 | Simulator-driven local web vertical slice | **In progress — M1.17 next** | firmware Internet integration |
-| M2 | Offline firmware data foundation and physical outbox proof | Pending; host review may run during M1 | physical cloud slice |
+| M2 | Offline firmware data foundation and physical outbox proof | Host candidate **rejected — 2026-10-02**; correction/re-review required before M2B | physical cloud slice |
 | M3 | Hosted-development deployment and one-collar vertical slice | Pending | analytics/product expansion |
 | M4 | Truthful summaries, route UI, and map decision | Pending | product beta |
 | M5 | Production opt-in, privacy, and operations | Pending | production use |
@@ -558,11 +558,17 @@ M1D is deliberately sequential. M1.13 first establishes one reliable owner journ
 #### M2A — Independent host acceptance
 
 - [ ] M2.1 A reviewer other than the storage-model author runs the clean-tree verifier and reviews all 12 invariants in the [review packet](../cloud/phase0-outbox-review-packet.md).
-  - Reviewer: ____________________
-  - Reviewed commit: ____________________
-  - Commands/results: ____________________
-  - Ledger: `docs/cloud/phase0-outbox-independent-review.md`
+  - Status: **Review completed — rejected, 2026-10-02 (America/Bogota).** Claimed as «en curso» before work by Codex/Luna; the acceptance checkbox remains open. M1.17 and Display remain separate workstreams.
+  - Owner: Codex (clean-worktree reproduction and integration); Luna (independent candidate review, maximum reasoning effort).
+  - Target date/window: review completed 2026-10-02; correction and independent re-review pending.
+  - Implementation commit/PR: local review artifacts in this change, not committed; the seven frozen candidate sources are unchanged.
+  - Reviewer: Luna, separate review agent; did not implement the frozen candidate.
+  - Reviewed commit: `978be4a09712768f55695be05ae6c4ff4093bb79`, reproduced in a new clean detached worktree with Python 3.12.15/macOS arm64.
+  - Commands/results: `python tools/cloud_phase0/review_readiness_test.py -v` passed 4/4; `python tools/cloud_phase0/verify_review_candidate.py` passed the frozen 51/51 and source hashes but exited 1 (`review_eligible: false`) because LF evidence differs from the frozen CRLF digest; `python tools/cloud_phase0/review_integrity_test.py -v` reproduces 4 failures across 3 new tests, separate from the frozen matrix.
+  - Decision/result: `rejected`. Logical identities can be reused after reclaim, enabling a stale-ACK consequence; corrupt committed first-loss fallback can hide loss and reuse an ordinal. The ledger records all 12 invariant decisions, seven historical regression inspections, and cut/counter/reproducibility gaps. ADR-0007 is reopened; no candidate fix, firmware acceptance, or physical proof is claimed. M2B remains blocked.
+  - Ledger: [independent review](../cloud/phase0-outbox-independent-review.md); [raw readiness JSON](../cloud/phase0-outbox-review-readiness-2026-10-02.json).
 - [ ] M2.2 All seven destructive regressions remain permanent tests; any high-integrity finding is closed or ADR-0007 is reopened.
+  - 2026-10-02: original seven regressions preserved and passing; new integrity regressions retained in `tools/cloud_phase0/review_integrity_test.py`. ADR-0007 reopened. Resolve the ledger findings, include the regressions in a deliberately rebaselined candidate, define platform-independent canonical evidence bytes, and obtain independent acceptance before M2B.
 
 M2B cannot begin until M2.1–M2.2 pass. M1 is independent and may continue.
 

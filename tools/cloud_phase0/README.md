@@ -46,3 +46,20 @@ the manual invariant matrix and final ledger requirements.
 
 The checked-in decision and interpretation are in
 [`docs/cloud/phase0-storage-feasibility.md`](../../docs/cloud/phase0-storage-feasibility.md).
+
+### Rejected candidate — 2026-10-02
+
+The [independent AI review](../../docs/cloud/phase0-outbox-independent-review.md)
+rejected the frozen candidate despite its 51/51 result. The separate regression
+suite preserves identity reuse, stale-ACK reuse, and corrupt first-loss fallback:
+
+```sh
+python tools/cloud_phase0/review_integrity_test.py -v
+```
+
+Current result: **3 tests, 4 failing assertions** (identity reuse has two subcases).
+These failures remain visible; there is no expected-failure suppression. The
+filename deliberately stays outside the frozen `test_*.py` matrix. Correct and
+rebaseline the candidate before a new independent review; do not update hashes
+or counts merely to clear the gate. The raw Mac readiness result also fails
+because the frozen canonical digest uses CRLF while the generator emits LF.
