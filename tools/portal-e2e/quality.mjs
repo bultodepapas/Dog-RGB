@@ -4,17 +4,24 @@ import { createRequire } from "node:module";
 import { cpus, platform, arch } from "node:os";
 import { gzipSync } from "node:zlib";
 import { join } from "node:path";
+import { expect } from "@playwright/test";
 import { authorizationPassword, setQualitySelectionMembership } from "./authorization-fixtures.mjs";
+
+import { inspectKeyboardAccess } from "./keyboard.mjs";
 
 const require = createRequire(import.meta.url);
 const axeSource = await readFile(require.resolve("axe-core/axe.min.js"), "utf8");
 
-async function login(page, fixture) {
-  await page.goto("/login");
+async function login(page, fixture, returnPath = null) {
+  await page.goto(returnPath ?? "/login");
+  if (returnPath) {
+    await page.waitForURL(url => url.pathname === "/login");
+    assert.equal(new URL(page.url()).searchParams.get("next"), returnPath, "private destination survives the login redirect");
+  }
   await page.getByLabel("Correo").fill(fixture.accounts.ownerA.email);
   await page.getByLabel("Contraseña").fill(authorizationPassword(fixture.cycle));
   await page.getByRole("button", { name: "INICIAR SESIÓN" }).click();
-  await page.waitForURL(`**/app/${fixture.dogA.id}/today`);
+  await page.waitForURL(`**${returnPath ?? `/app/${fixture.dogA.id}/today`}`);
 }
 
 function routes(fixture) {
@@ -32,15 +39,19 @@ export async function runPortalQuality({ browser, fixture, portalUrl, outputDire
   const context = await browser.newContext({ baseURL: portalUrl, serviceWorkers: "block", reducedMotion: "reduce" });
   const page = await context.newPage();
   const report = { schemaVersion: 1, browser: browser.version(), platform: `${platform()}-${arch()}`,
-    cpu: cpus()[0]?.model ?? "unknown", a11y: [], performance: [], manualReview: "pending" };
+    cpu: cpus()[0]?.model ?? "unknown", a11y: [], keyboard: [], performance: [],
+    performanceExecuted: performance, authorizedDeepLink: false, humanReview: "pending" };
   let selectionMembership = false;
   try {
     // Public and empty auth states are independent of fixture credentials.
     for (const [name, path] of [["home", "/"], ["login", "/login"], ["signup", "/signup"], ["recovery", "/forgot-password"], ["privacy", "/privacy"]]) {
       await page.goto(path);
       await inspectAccessibility(page, name, report);
+      await inspectKeyboardAccess(page, name, report);
     }
-    await login(page, fixture);
+    await login(page, fixture, `/app/${fixture.dogA.id}/recordings/${fixture.dogA.recordingId}`);
+    await expect(page.getByRole("rowheader", { name: "0", exact: true })).toBeVisible();
+    report.authorizedDeepLink = true;
     const storage = await context.storageState(); // memory only; never an artifact
     setQualitySelectionMembership(fixture, true);
     selectionMembership = true;
@@ -51,13 +62,20 @@ export async function runPortalQuality({ browser, fixture, portalUrl, outputDire
         await page.getByText("No pudimos confirmar la eliminación con la sesión disponible.", { exact: false }).waitFor();
       }
       await inspectAccessibility(page, name, report);
+      await inspectKeyboardAccess(page, name, report);
     }
     await page.goto(`/app/${fixture.dogA.id}/collars`);
-    await page.getByRole("button", { name: "REVISAR REVOCACIÓN" }).click();
-    assert.equal(await page.locator(".collar-confirmation h3").evaluate(node => node === document.activeElement), true, "confirmation heading receives focus");
+    await page.getByRole("button", { name: "REVISAR REVOCACIÓN" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".collar-confirmation h3"), "confirmation heading receives focus").toBeFocused();
     await inspectAccessibility(page, "revoke-confirmation", report);
+    await page.locator(".collar-confirmation h3").focus();
+    await page.keyboard.press("Tab");
+    assert.equal(await page.locator(".collar-revoke-form input[type=checkbox]").evaluate(node => node === document.activeElement), true, "confirmation leads to consent");
+    await page.keyboard.press("Space");
+    assert.equal(await page.locator(".collar-revoke-form input[type=checkbox]").isChecked(), true, "Space checks consent");
     await page.keyboard.press("Escape");
-    assert.equal(await page.getByRole("button", { name: "REVISAR REVOCACIÓN" }).evaluate(node => node === document.activeElement), true, "cancel returns focus");
+    await expect(page.getByRole("button", { name: "REVISAR REVOCACIÓN" }), "cancel returns focus").toBeFocused();
 
     if (performance) {
       for (const profile of ["desktop", "mobile"]) {

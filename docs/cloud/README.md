@@ -1,6 +1,6 @@
 # Optional cloud documentation
 
-**Status — 2026-10-03:** development resumed; the local foundation and two-cycle core browser matrix pass. The [implementation record](local-web-v1-implementation-2026-10-03.md) separates current receipt/quality acceptance from the earlier handoff and its historical failures. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) owns next tasks and release gates; this directory is an evidence index. No hosted production website or firmware cloud sync is claimed.
+**Status — 2026-10-03:** local web implementation and automated acceptance pass, including the foundation, twice-clean core matrix and expanded interaction/receipt/export/summary gates. Named human accessibility acceptance remains pending. The [implementation record](local-web-v1-implementation-2026-10-03.md) separates current evidence from historical failures. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) owns next tasks and release gates; this directory is an evidence index. No hosted production website or firmware cloud sync is claimed.
 
 | Document | Purpose |
 | --- | --- |

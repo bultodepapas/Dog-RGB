@@ -2,13 +2,13 @@
 
 **Owner:** Codex implementation/review; repository owner retains deployment and operational decisions.
 
-**Scope:** optional Next.js portal, local Supabase and synthetic device simulator. Initial work started from `8d93abb`; the previous handoff was based on `b038139`. Receipt changes were subsequently committed as `6444fda`; this resumption starts from clean `bda635f`. This record supplements, and does not rewrite, the dated M1.13–M1.16 and firmware evidence. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) remains the only backlog.
+**Scope:** optional Next.js portal, local Supabase and synthetic device simulator. Initial work started from `8d93abb`; the previous handoff was based on `b038139`. Receipt changes were subsequently committed as `6444fda`; the Windows resumption started from `bda635f` and was committed as `b1ba45b`. The latest acceptance increment is based on `b1ba45b`. This record supplements, and does not rewrite, the dated M1.13–M1.16 and firmware evidence. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) remains the only backlog.
 
-**Acceptance — 2026-10-03:** work resumed at the owner's request. The resumption results below supersede the stop-point status only for their explicitly tested scope. Local integration acceptance remains incomplete. No external project, production schedule or physical device was activated.
+**Acceptance — 2026-10-03:** local implementation and automated acceptance are complete. The results below supersede the stop-point status only for their explicitly tested scope. M1.17 human accessibility acceptance remains pending. No external project, production schedule or physical device was activated.
 
 ## Resumption validation — Windows
 
-Owner: Codex, with Luna/max harness review and implementation. Implementation: working-tree changes based on `bda635f`; no new commit. Environment: Windows x64, Node **24.18.0** via `npm exec --yes --package=node@24.18.0 --`, npm **11.6.2**, Next.js **16.3.8**, Supabase CLI **2.113.0**, Playwright **1.62.1**; disposable local `Dog-RGB-1` and synthetic data only.
+Owner: Codex, with Luna/max harness review and implementation. Implementation: `b1ba45b` records the first resumption below; subsequent interaction changes remain in the working tree. Environment: Windows x64, Node **24.18.0** via `npm exec --yes --package=node@24.18.0 --`, npm **11.6.2**, Next.js **16.3.8**, Supabase CLI **2.113.0**, Playwright **1.62.1**; disposable local `Dog-RGB-1` and synthetic data only.
 
 | Command after the Node wrapper | Result |
 | --- | --- |
@@ -16,14 +16,40 @@ Owner: Codex, with Luna/max harness review and implementation. Implementation: w
 | `node tools/portal-e2e/run.mjs --clean --core-only` | PASS, **571 s** including production build and cleanup: two clean cycles each of owner (20 checkpoints), authorization, ten fault scenarios and eight privacy/cache checkpoints |
 | `npm run phase1:local -- --clean` | PASS: fresh migrations/types/pgTAP/advisors, summary/configuration/revocation concurrency, **retention/deletion fence now executed in composition**, 49 gateway boundary scenarios, browser pairing, 41 simulator scenarios, isolated restore/tombstone replay and five-batch deletion |
 | `node tools/portal-e2e/run.mjs --clean --quality-only` with `PORTAL_E2E_PORT=3107` | PASS, **568 s**, including rebuild/cleanup: 60 axe/layout checks plus four completed-receipt viewports, **220 performance navigations**, **11 WebKit checks**, five dog-lifecycle and eleven account-lifecycle checkpoints, final server/Edge/database log privacy |
+| `node tools/portal-e2e/run.mjs --clean --interaction-only` with `PORTAL_E2E_PORT=3107` | PASS, **175 s**, including rebuild/cleanup: 60 axe/layout checks plus four completed-receipt viewports, **28 keyboard traversals across 14 routes at 320/1280 px**, authorized deep-link return, **seven product states, six summary-replay checkpoints, four export-recovery checkpoints**, 11 WebKit checks, five dog-lifecycle and **13 account-lifecycle checkpoints**; privacy/cache/runtime-log gates pass. Performance was not repeated |
 
 Quality environment: Chromium **151.0.7922.34**, WebKit **26.5**, AMD Ryzen 9 5900X. Maximum per-group median LCP **724 ms**, TTFB **156.3 ms**; maximum sample CLS **0.007394**, initial JS gzip **147,721 bytes**. All original budgets pass. The first quality launch stopped at preflight because another project owned port 3000; no process was stopped. Focused gates now accept a validated loopback port and configure the exact portal origin; owner email gates retain port 3000.
 
 Receipt proof: fresh password preparation sets the HttpOnly/Strict request cookie; finalization commits and its response is deliberately lost; the first receipt response is also lost, leaving an honest unknown state. The recovery page returns the exact original receipt. Losing the acknowledgement response preserves browser cookies; reloading repeats the receipt, then a successful acknowledgement clears recovery/Auth cookies. Cross-subject receipt reads and mismatched request IDs are denied; the old signed session cannot finalize after Auth deletion. Durable counts show zero owned dog/Auth rows. The completed receipt passes accessibility/layout checks at 320/428/768/1280 px. No application, Edge, migration or dependency change was needed for this increment; the obsolete harness was corrected. An independent Luna/max review found no actionable harness/privacy issue.
 
-Remaining local acceptance: genuinely expired signed-JWT receipt denial, explicit malformed/incomplete receipt delivery through the browser (parser tests and lost-body recovery are separate evidence), and named manual keyboard/focus/reduced-motion assertions. No expiry behavior is inferred from a tampered token. Remote CI, hosted preview and physical acceptance remain separate.
+Receipt acceptance now also covers a genuinely expired signed JWT: a control signed by the same disposable Auth key returns the exact receipt (200); changing only `exp` to the past returns 401 without a receipt. The helper verifies the source signature/project/container/issuer and keeps keys/tokens in memory. Five browser responses—truncated JSON, missing hash, pending status, invalid date and extra field—leave completion unconfirmed, send no acknowledgement and preserve the recovery cookie. Keyboard retry and error focus pass; subsequent valid recovery, reload and acknowledgement still complete. Sanitized artifacts are under `output/playwright/interaction`; earlier performance evidence remains under `output/playwright/quality`.
+
+Additional local evidence: an anonymous recording deep link returns through login to visible recording points. Seven product-state assertions cover claim expiry, stale Today/configuration, rejected unsupported brightness, a real RPC timeout with same-value retry, and viewer read-only controls. The summary fixture ingests three points, repeats the exact request without duplication (**3 → 3**), computes a visible summary, ingests three late points (**6** total), observes pending state and a changed computed metric after the next bounded batch; its temporary dog is removed. JSON/GeoJSON signed-session controls return private downloads; a failed transport is followed by a complete browser download, and both routes reject genuinely expired sessions with 401 and no attachment. The same unusable refresh token is used in valid/expired controls. Reports contain fixed stages/counts/flags only and are wired into the existing CI artifact list.
+
+Remaining local acceptance: named human keyboard/focus/reduced-motion assertions. Remote CI, hosted preview and physical acceptance remain separate. No further local product feature is left open in M1E/M4 core/M5A.
 
 The historical `today-projection` / `brightness-submit` failure did not reproduce in either clean owner cycle; no product fix or root-cause claim. Failed owner runs now retain bounded phase/category/numeric React-code/HTTP-status diagnostics without raw messages, stacks, URLs or bodies. Focused gates preserve artifacts for suites they do not execute and clear their own quality directory before a new run.
+
+### Interaction validation
+
+The first interaction-focused run stopped after **174 s** at `cancel returns focus`, after all 60 axe/layout checks and 28 keyboard traversals passed. The component schedules focus with `requestAnimationFrame`; the harness read focus immediately. Open/cancel and receipt-error focus assertions now use bounded Playwright focus polling; the clean rerun passed. No product behavior was changed for this correction. Independent Luna/max review found no additional logic/privacy defect; initial entry through the recovery link remains a pointer check, while error retries use actual Tab/Enter.
+
+The first expanded product-state run stopped after **129 s** at its stale fixture: moving only `last_sync_at` violated the existing diagnostic snapshot constraint. The fixture now shifts/restores synchronization, diagnostic and oldest-outbox timestamps together. The database constraint was preserved.
+
+The next run stopped after **133 s**: an expired-session fixture did not establish the expected brightness retry state. That case now reuses M1.15's scoped lock-session helper: a collar row lock causes the real RPC to reach its existing statement deadline while reads/session stay valid, then rollback releases the lock before the same-value retry. The final 175 s clean run passes both corrected fixtures and all downstream gates. Signed-session expiry remains covered separately at both export routes and receipt recovery.
+
+### Human accessibility acceptance still required
+
+M1.17 explicitly requires named manual assertions. Automated browser input and Codex/DevTools visual inspection do not close that boundary. Human reviewer/date: **not recorded**.
+
+| Assertion | Human acceptance |
+| --- | --- |
+| Tab/Shift+Tab reach entry/recovery, selection and private controls in reading order; skip link reaches main; focus remains visible at narrow width | Pending |
+| Revoke Enter/Space/Escape and receipt error/retry/completion announce meaningful status and retain/return focus | Pending |
+| At 200% browser zoom, critical controls/content remain readable and reachable; layout at 320/428/768/1280 px does not lose controls | Pending |
+| With reduced motion enabled, navigation/state changes remain understandable without motion-dependent information | Pending |
+
+Codex inspected login and receipt-recovery error at 320 px in DevTools using actual Tab/Enter: readable controls, visible focus and retry-to-status focus were observed. Screenshots were ephemeral, not retained artifacts. This is agent review, not a named human sign-off.
 
 The historical results and handoff below remain a record of the earlier Darwin run, not current failures inferred from source presence.
 
@@ -47,7 +73,7 @@ The historical results and handoff below remain a record of the earlier Darwin r
 - Re-enrollment preserves pending old-outbox identities; the old credential remains invalid. Exact already accepted chunks can replay under the replacement credential; retention/deletion fences still prevent resurrection. Physical credential persistence and outbox recovery remain M3C.
 - Summaries process at most **four dirty days per manual transaction** under a caller-enforced **10 s** timeout. A day can require several recording batches. [Worker instructions](../../tools/cloud_analytics/README.md) define resumption and finite batch exhaustion; [analytics rules](../../packages/analytics/README.md) define units and exclusions.
 - Account deletion requires a verified password AMR no older than **five minutes**, plus a live Auth identity. Its confirmation covers all owned dogs, including other members' access. Viewer/editor memberships detach; unresolved creator references do not transfer automatically.
-- Receipt recovery has **local lost-response/reload/acknowledgement evidence above**: finalization prepares a fresh reauthenticated session and an HttpOnly request-ID cookie before the destructive call; `/account/deletion-receipt` retries the exact minimal completed receipt. Authorization uses an unexpired signed JWT bound to the requester; the request ID alone grants no access. The Edge verifier uses JWKS, requiring asymmetric signing-key JWTs for this post-deletion read; legacy flat HS256 tokens are unsupported. Expired signed-JWT and malformed-browser-response cases remain open. No new RPC/migration was added for this extension.
+- Receipt recovery has **local lost-response/reload/acknowledgement, expired-JWT and malformed-response evidence above**: finalization prepares a fresh reauthenticated session and an HttpOnly request-ID cookie before the destructive call; `/account/deletion-receipt` retries the exact minimal completed receipt. Authorization uses an unexpired signed JWT bound to the requester; the request ID alone grants no access. The Edge verifier uses JWKS, requiring asymmetric signing-key JWTs for this post-deletion read; legacy flat HS256 tokens are unsupported. No new RPC/migration was added for this extension.
 - Deletion inventory acquires the telemetry retention fence for every collar, including already-revoked collars, before taking a fresh count snapshot. Fresh requests and restore replay share this boundary. The two-session regression passed separately and now within `phase1:local`: retention deleted one point while uncommitted; deletion waited, captured zero remaining points, and completed in one batch with zero residual rows.
 - The existing deletion fixture drill is not a general queue-drain command. Browser harnesses explicitly run the bounded worker for their own synthetic jobs. Hosted retention/deletion/summary schedules remain a release gate.
 
@@ -65,7 +91,7 @@ node tools/portal-e2e/run.mjs --clean
 
 The earlier run used Node **24.18.0**, npm **11.6.2**, Next.js **16.3.8**, Supabase CLI **2.113.0**, Playwright **1.62.1**, Darwin arm64. The table below is historical; current Windows results are above. Install Chromium and WebKit. The harness excludes optional Studio, image proxy, logs, pooler, Realtime and Storage containers; database, Auth, REST, Edge and Mailpit remain exercised.
 
-| Check | Current result |
+| Check | Historical result |
 | --- | --- |
 | Source contracts, lint, types, unit tests, secret scan | Pre-receipt-extension composed run PASS; **242 distinct tests**: contracts 48, portal 146, analytics 12, simulator 23, tooling 13. Contracts execute twice. After receipt changes, portal lint/types and **147/147 portal unit tests** PASS; the complete composed check has not been repeated |
 | Clean local foundation | PASS: **27 pgTAP files / 699 assertions**, generated types, lint/advisors without errors, real summary/configuration/revoke races, **49 gateway boundary scenarios**, browser pairing, **41 simulator scenarios**, dual restore/tombstone replay and concurrent dog deletion in **5 batches**. SQL lint reports five unused local variables; no error-level finding |
@@ -89,7 +115,7 @@ Retained browser artifacts contain fixed checkpoints, numeric counts and aggrega
 
 ## Remaining release boundaries
 
-1. Finish local acceptance above and record every failed gate before closure; do not replace measured results by checkboxes.
+1. Complete the named human M1.17 accessibility assertions above. Local implementation/automated gates pass; this does not replace human acceptance.
 2. M3A: isolated hosted preview with synthetic simulator data; actual origin/redirect/email setup, grants/RLS/Edge parity, preview performance and rollback.
 3. M5B: named operator, intended users/collars, measured limits/cost ceiling, privacy/contact details, finite retention and backup lag, bounded schedules, alerts and demonstrated restore/deletion replay. The current restore drill replays dog tombstones only; post-backup account/Auth deletion replay still needs implementation and proof before restored traffic.
 4. M2B/C + M3B/C: physical firmware capture/outbox/TLS/credential persistence and power/network/resource acceptance. This branch remains independent of finishing the portal.

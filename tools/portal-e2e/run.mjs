@@ -12,6 +12,9 @@ import { chromium, webkit } from "@playwright/test";
 import { runAccountLifecycle } from "./account-lifecycle.mjs";
 import { runDogLifecycle } from "./dog-lifecycle.mjs";
 import { runPortalQuality, runWebkitSmoke } from "./quality.mjs";
+import { runProductStates } from "./product-states.mjs";
+import { runSummaryReplay } from "./summary-replay.mjs";
+import { runExportRecovery } from "./export-recovery.mjs";
 
 import { AUTHORIZATION_RPCS, prepareAuthorizationFixture } from "./authorization-fixtures.mjs";
 import { clearMailbox } from "./mailpit.mjs";
@@ -36,22 +39,24 @@ const ownerArtifactDirectory = join(workspace, "output", "playwright", "m113");
 const authorizationArtifactDirectory = join(workspace, "output", "playwright", "m114");
 const faultArtifactDirectory = join(workspace, "output", "playwright", "m115");
 const privacyArtifactDirectory = join(workspace, "output", "playwright", "m116");
-const qualityArtifactDirectory = join(workspace, "output", "playwright", "quality");
 const expectedNode = "24.18.0";
 const expectedPlaywright = "1.62.1";
 const m116Only = process.argv.includes("--m116-only");
 const qualityOnly = process.argv.includes("--quality-only");
+const interactionOnly = process.argv.includes("--interaction-only");
+const qualityFocused = qualityOnly || interactionOnly;
+const qualityArtifactDirectory = join(workspace, "output", "playwright", interactionOnly ? "interaction" : "quality");
 const coreOnly = process.argv.includes("--core-only");
-if ([m116Only, qualityOnly, coreOnly].filter(Boolean).length > 1) throw new Error("Choose only one focused portal gate.");
+if ([m116Only, qualityOnly, interactionOnly, coreOnly].filter(Boolean).length > 1) throw new Error("Choose only one focused portal gate.");
 const portalPort = Number(process.env.PORTAL_E2E_PORT ?? "3000");
 if (!Number.isInteger(portalPort) || portalPort < 1024 || portalPort > 65535 ||
-    (portalPort !== 3000 && !qualityOnly && !m116Only)) {
+    (portalPort !== 3000 && !qualityFocused && !m116Only)) {
   throw new Error("Use a port from 1024 to 65535 for focused quality/privacy gates; owner email flows require port 3000.");
 }
 const portalUrl = `http://127.0.0.1:${portalPort}`;
 // Focused gates must not erase evidence from suites they do not execute.
 const artifactDirectories = [
-  ...(!m116Only && !qualityOnly ? [ownerArtifactDirectory, authorizationArtifactDirectory, faultArtifactDirectory] : []),
+  ...(!m116Only && !qualityFocused ? [ownerArtifactDirectory, authorizationArtifactDirectory, faultArtifactDirectory] : []),
   privacyArtifactDirectory,
   ...(!m116Only && !coreOnly ? [qualityArtifactDirectory] : []),
 ];
@@ -473,8 +478,8 @@ try {
     env: portalEnvironment(environment),
   });
 
-  for (const cycle of qualityOnly ? [2] : [1, 2]) {
-    if (!m116Only && !qualityOnly) {
+  for (const cycle of qualityFocused ? [2] : [1, 2]) {
+    if (!m116Only && !qualityFocused) {
     console.log(`M1.13: clean owner journey ${cycle}/2...`);
     run("supabase", ["db", "reset"]);
     await verifyServices(environment);
@@ -610,7 +615,7 @@ try {
     if (faultRunError) throw faultRunError;
     }
 
-    console.log(qualityOnly ? "Portal quality: one clean privacy/lifecycle fixture..."
+    console.log(qualityFocused ? "Portal quality: one clean privacy/lifecycle fixture..."
       : `M1.16: clean privacy/cache gate ${cycle}/2...`);
     run("supabase", ["db", "reset"]);
     await verifyServices(environment);
@@ -627,6 +632,13 @@ try {
     portal = await startPortal(environment);
     try {
       try {
+        // Product states use the fixture's applied brightness. M1.16 then
+        // intentionally changes the desired value without a device report.
+        if (cycle === 2 && !m116Only && !coreOnly) {
+          await runProductStates({ browserType: chromium, fixture: privacyFixture.manifest, portalUrl,
+            apiUrl: environment.API_URL, publishableKey: environment.PUBLISHABLE_KEY,
+            outputDirectory: qualityArtifactDirectory });
+        }
         await runM116PrivacyCacheGate({
           artifactDirectory: privacyArtifactDirectory,
           browserType: chromium,
@@ -642,17 +654,22 @@ try {
         if (cycle === 2 && !m116Only && !coreOnly) {
           const qualityBrowser = await chromium.launch();
           try {
-            await runPortalQuality({ browser: qualityBrowser, fixture: privacyFixture.manifest, portalUrl,
-              outputDirectory: join(workspace, "output", "playwright", "quality") });
+            await runPortalQuality({ browser: qualityBrowser, fixture: privacyFixture.manifest, portalUrl, performance: !interactionOnly,
+              outputDirectory: qualityArtifactDirectory });
           } finally { await qualityBrowser.close(); }
+          for (const check of [runSummaryReplay, runExportRecovery]) {
+            await check({ browserType: chromium, fixture: privacyFixture.manifest, portalUrl,
+              apiUrl: environment.API_URL, publishableKey: environment.PUBLISHABLE_KEY,
+              outputDirectory: qualityArtifactDirectory });
+          }
           await runWebkitSmoke({ browserType: webkit, fixture: privacyFixture.manifest, portalUrl,
-            outputDirectory: join(workspace, "output", "playwright", "quality") });
+            outputDirectory: qualityArtifactDirectory });
           await runDogLifecycle({ browserType: chromium, fixture: privacyFixture.manifest, portalUrl,
             apiUrl: environment.API_URL, publishableKey: environment.PUBLISHABLE_KEY,
-            outputDirectory: join(workspace, "output", "playwright", "quality") });
+            outputDirectory: qualityArtifactDirectory });
           await runAccountLifecycle({ browserType: chromium, fixture: privacyFixture.manifest, portalUrl,
             apiUrl: environment.API_URL, publishableKey: environment.PUBLISHABLE_KEY,
-            outputDirectory: join(workspace, "output", "playwright", "quality") });
+            outputDirectory: qualityArtifactDirectory });
           assertPrivateRuntimeLogs(`${portal.portalLogs()}\n${localServiceLogs(privacyStartedAt)}`,
             privacyFixture.manifest, privacyFixture.artifactContainsPrivateMaterial, containsInfrastructureSecret);
           console.log("Portal lifecycle server/Edge/database log privacy passed.");
@@ -669,6 +686,7 @@ try {
       });
     }
     if (!existsSync(privacyArtifactPath)) {
+      if (privacyRunError) throw privacyRunError;
       throw new Error("M1.16 privacy/cache gate produced no sanitized cycle artifact.");
     }
     const privacyArtifact = await readFile(privacyArtifactPath);
@@ -686,7 +704,9 @@ try {
     if (privacyRunError) throw privacyRunError;
   }
   completed = true;
-  console.log(qualityOnly
+  console.log(interactionOnly
+    ? "Portal keyboard/accessibility, receipt faults, lifecycle and privacy gates passed; performance was not repeated."
+    : qualityOnly
     ? "Portal quality, mobile WebKit, dog/account lifecycle and privacy gates passed from one clean reset."
     : m116Only
     ? "M1.16: privacy/cache gate passed from two clean resets."

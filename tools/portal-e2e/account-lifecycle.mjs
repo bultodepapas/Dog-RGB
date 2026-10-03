@@ -3,9 +3,11 @@ import { createHash, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { expect } from "@playwright/test";
 
 import { authorizationPassword } from "./authorization-fixtures.mjs";
 import { inspectAccessibility } from "./quality.mjs";
+import { createLocalExpiredSessionPair } from "./expired-session.mjs";
 
 export const M56C_CHECKPOINTS = Object.freeze([
   "password-confirmed-account-request",
@@ -16,6 +18,8 @@ export const M56C_CHECKPOINTS = Object.freeze([
   "finalization-reauthentication-prepares-cookie",
   "lost-finalize-response-recovers-receipt",
   "wrong-requester-cannot-read-receipt",
+  "expired-signed-session-cannot-read-receipt",
+  "malformed-receipts-remain-unconfirmed",
   "receipt-recovery-survives-reload",
   "receipt-acknowledgement-clears-session",
   "deleted-account-rejects-old-session",
@@ -144,6 +148,9 @@ function artifactFor(phase, checkpoints, counts, failureStage = null) {
       recoveryCookiesCleared: counts.recoveryCookiesCleared,
       authCookiesCleared: counts.authCookiesCleared,
       wrongRequesterRejected: counts.wrongRequesterRejected,
+      malformedReceiptsRejected: counts.malformedReceiptsRejected,
+      expiredSessionRejected: counts.expiredSessionRejected,
+      signedReceiptControl: counts.signedReceiptControl,
       receiptA11yViewports: counts.receiptA11yViewports,
       receiptA11yViolations: counts.receiptA11yViolations,
       receiptA11yLayoutOverflows: counts.receiptA11yLayoutOverflows,
@@ -180,6 +187,9 @@ export async function runAccountLifecycle({
     recoveryCookiesCleared: 0,
     authCookiesCleared: 0,
     wrongRequesterRejected: 0,
+    malformedReceiptsRejected: 0,
+    expiredSessionRejected: 0,
+    signedReceiptControl: 0,
     receiptA11yViewports: 0,
     receiptA11yViolations: 0,
     receiptA11yLayoutOverflows: 0,
@@ -384,6 +394,8 @@ export async function runAccountLifecycle({
     let committedReceipt = null;
     let droppedInitialReceipt = false;
     let droppedFirstAcknowledge = false;
+    let receiptOverride = null;
+    let acknowledgeRequests = 0;
     let resolveFinalizeForwarded;
     let resolveInitialReceiptForwarded;
     let resolveFirstAcknowledgeForwarded;
@@ -392,6 +404,14 @@ export async function runAccountLifecycle({
     const firstAcknowledgeForwarded = new Promise(resolve => { resolveFirstAcknowledgeForwarded = resolve; });
     await page.route("**/account/finalize", async (route) => {
       const action = actionForRequest(route.request());
+      if (action === "acknowledge") acknowledgeRequests += 1;
+      if (action === "receipt" && receiptOverride !== null) {
+        const body = receiptOverride;
+        receiptOverride = null;
+        await route.fulfill({ status: 200, contentType: "application/json", body,
+          headers: { "cache-control": "private, no-store" } });
+        return;
+      }
       const dropResponse = async (key, receiptKey, resolver) => {
         try {
           const forwarded = await forwardRouteRequest(route);
@@ -486,12 +506,61 @@ export async function runAccountLifecycle({
     assert.equal(cookieBeforeRecoveryPage?.value, requestId, "rejected request id cleared the valid recovery cookie");
     checkpoint("wrong-requester-cannot-read-receipt");
 
+    stage("expired-signed-session");
+    const sessionPair = await createLocalExpiredSessionPair({ apiUrl, accessToken: recoveryToken });
+    const receiptWithToken = accessToken => requestJson(`${apiUrl}/functions/v1/user-v1-account-deletion`, {
+      method: "POST", publishableKey, accessToken,
+      body: { action: "receipt", request_id: requestId },
+    });
+    const validControl = await receiptWithToken(sessionPair.validAccessToken);
+    assert.equal(validControl.status, 200, "validly signed control session cannot read the receipt");
+    assert.deepEqual(validControl.payload, committedReceipt, "signed control must return the committed receipt");
+    counts.signedReceiptControl = 1;
+    const expiredReceipt = await receiptWithToken(sessionPair.expiredAccessToken);
+    assert.equal(expiredReceipt.status, 401, "genuinely expired signed session read the receipt");
+    assert.equal(Object.hasOwn(expiredReceipt.payload ?? {}, "receipt_sha256"), false, "expired session received a receipt");
+    counts.expiredSessionRejected = 1;
+    checkpoint("expired-signed-session-cannot-read-receipt");
+
+    stage("malformed-receipts-remain-unconfirmed");
+    const malformedReceipts = [
+      '{"schema_version":',
+      JSON.stringify({ ...committedReceipt, receipt_sha256: undefined }),
+      JSON.stringify({ ...committedReceipt, status: "pending" }),
+      JSON.stringify({ ...committedReceipt, completed_at: "not-a-date" }),
+      JSON.stringify({ ...committedReceipt, unexpected_field: true }),
+    ];
+    for (const [index, body] of malformedReceipts.entries()) {
+      receiptOverride = body;
+      const rejectedResponse = page.waitForResponse(response => new URL(response.url()).pathname === "/account/finalize" &&
+        actionForRequest(response.request()) === "receipt");
+      if (index === 0) await page.getByRole("link", { name: "Recuperar comprobante" }).click();
+      else {
+        await page.keyboard.press("Tab");
+        assert.equal(await page.getByRole("button", { name: "Volver a consultar" }).evaluate(node => node === document.activeElement), true,
+          "recovery error must lead to its retry button with Tab");
+        await page.keyboard.press("Enter");
+      }
+      await rejectedResponse;
+      await page.getByText("No pudimos confirmar la eliminación con la sesión disponible.", { exact: false }).waitFor();
+      await expect(page.locator("[aria-live=polite]"), "failed receipt must receive keyboard focus").toBeFocused();
+      assert.equal(await page.locator("code").count(), 0, "malformed receipt was displayed");
+      assert.equal(await page.getByText("La eliminación quedó confirmada.", { exact: true }).count(), 0,
+        "malformed receipt was labelled complete");
+      assert.equal(acknowledgeRequests, 0, "malformed receipt was acknowledged");
+      assert.equal((await context.cookies()).some(cookie => cookie.name === RECOVERY_COOKIE), true,
+        "malformed receipt erased the recovery path");
+      counts.malformedReceiptsRejected += 1;
+    }
+    checkpoint("malformed-receipts-remain-unconfirmed");
+
     stage("receipt-recovery-page");
     const recoveryResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/account/finalize" &&
       actionForRequest(response.request()) === "receipt", { timeout: 20_000 });
     const firstAcknowledgeRequest = page.waitForRequest((request) => new URL(request.url()).pathname === "/account/finalize" &&
       actionForRequest(request) === "acknowledge", { timeout: 20_000 });
-    await page.getByRole("link", { name: "Recuperar comprobante" }).click();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Enter");
     const recoveredResponse = await recoveryResponse;
     assert.equal(recoveredResponse.status(), 200, "recovery page could not retrieve the completed receipt");
     await page.getByText("La eliminación quedó confirmada.", { exact: true }).waitFor();

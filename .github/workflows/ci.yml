@@ -94,6 +94,9 @@ jobs:
             output/playwright/quality/webkit.json
             output/playwright/quality/account-lifecycle.json
             output/playwright/quality/dog-lifecycle.json
+            output/playwright/quality/product-states.json
+            output/playwright/quality/summary-replay.json
+            output/playwright/quality/export-recovery.json
           if-no-files-found: warn
           retention-days: 14
 

@@ -460,7 +460,7 @@ function raceRequest({ deviceId, capabilityHash, requestId }) {
   };
 }
 
-function spawnPsqlSession(container) {
+export function spawnPsqlSession(container) {
   const child = spawn(process.platform === "win32" ? "docker.exe" : "docker", [
     "exec", "-i", container,
     "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1",
@@ -495,7 +495,7 @@ function spawnPsqlSession(container) {
   };
 }
 
-async function waitForOutput(session, marker, timeoutMs = 10_000) {
+export async function waitForOutput(session, marker, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (session.output().includes(marker)) return;
@@ -507,7 +507,7 @@ async function waitForOutput(session, marker, timeoutMs = 10_000) {
   throw new Error("M1.15 lock-holder checkpoint timed out.");
 }
 
-async function closePsqlSession(session) {
+export async function closePsqlSession(session) {
   if (session.child.exitCode !== null) return;
   if (!session.inputEnded) {
     try {
