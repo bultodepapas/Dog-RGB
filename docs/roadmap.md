@@ -1,6 +1,6 @@
 # Dog-RGB Roadmap
 
-**Status:** General priorities as of 2026-08-24; Display subset reconciled on 2026-09-12 through I6a confirmation and I6c experimental preparation and I6d State. Future phases are optional; they do not redefine the local-first DIY baseline.
+**Status:** Cloud implementation reconciled 2026-10-02; general priorities as of 2026-08-24; Display subset reconciled on 2026-09-12 through I6a confirmation and I6c experimental preparation and I6d State. Future phases are optional; they do not redefine the local-first DIY baseline.
 
 ## Baseline delivered
 
@@ -10,34 +10,34 @@
 - CRC-protected transactional persistence, an independent scene A/B bank, and dedicated two-hour route storage.
 - Pinned production/Wokwi builds, host contracts, portal smoke, Playwright/a11y coverage, and visual baselines.
 
-## Optional cloud workstream — local foundation implemented, product slice pending
+## Optional cloud workstream — local product slice implemented, firmware foundation open
 
 The [web-platform master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) is the active execution contract. Cloud stays optional and off by default: the collar, AP portal, local history, and exports remain usable without an account or Internet connection.
 
 Implemented local foundation:
 
 - device-v1 schemas/fixtures and HLC vectors pass 48/48;
-- the corrected host storage candidate passes its 51/51 author suite, with independent and physical acceptance still open;
-- 11 additive Supabase migrations, 12 pgTAP suites, explicit grants/RLS, and four Edge gateways recreate locally;
+- the corrected host storage candidate passes 67/67 and has independent AI acceptance at `fb6dbef`; physical acceptance remains open;
+- M1.16 records 16 additive migrations, explicit grants/RLS, and four local Edge gateways;
 - the deterministic simulator covers claim, replay-safe upload, revoke, and desired/reported configuration;
 - local capacity, deletion, retention, restore, and tombstone drills are retained as engineering evidence;
-- the Next.js workspace exists, but it is still a shell rather than the owner product.
+- the local owner portal implements Auth, onboarding, Today, History/detail, brightness, collar diagnostics and revoke; M1.13–M1.16 journey/authorization/fault/privacy evidence is retained; M1.17 accessibility and M1.18 performance remain open.
 
 Current implementation order:
 
 | Order | Milestone | Current boundary |
 | --- | --- | --- |
-| M0 | Reproduce and close the local baseline | Next.js production-build CI, generated `api` database-type drift check, and status-document reconciliation; all must pass on one reviewed commit |
-| M1 | Simulator-driven local web slice | Auth, one dog, one simulated collar, claim/upload/history, brightness desired/reported, revoke, denial and browser tests; no map provider or firmware cloud code |
-| M2 | Offline firmware data foundation | Track v3, time/config foundations, selected raw outbox, independent host review, and physical power-cut evidence with cloud disabled |
+| M0 | Local baseline — complete | Reviewed baseline and CI evidence in the master plan |
+| M1 | Simulator-driven local web slice | M1.1–M1.16 complete; M1.17 accessibility and M1.18 performance next; no map provider or firmware cloud code |
+| M2 | Offline firmware data foundation | M2A host accepted; isolated M2.4a codec, then M2.3 identity and M2.4 observations; time/config/outbox integration and M2C physical evidence remain open |
 | M3 | Hosted development plus one collar | hosted parity, verified TLS, `/cloud`, real replay/config fault proof; no production launch |
 | M4 | Truthful analytics and route product | replace the current queue-delete summary placeholder before any Cron schedule, then complete provider decision and map UI |
 | M5 | Production opt-in and operations | explicit owner decision, privacy/export/delete/retention/restore/domain/SMTP/cost gates |
 | M6 | Later capabilities | only with measured need and a new ADR |
 
-Map credentials do not block M0–M3. The host outbox review and physical proof block the M2 exit, not unrelated portal work. Existing deletion/retention/restore prototypes are preserved but must not expand into production custody work before the end-to-end product slice exists.
+Map credentials do not block M0–M3. M2A host review is accepted; M2B firmware implementation and M2C physical proof remain open. Existing deletion/retention/restore prototypes are preserved but must not expand into production custody work before the end-to-end product slice exists.
 
-Detailed evidence remains in the [cloud reports](cloud/README.md). No website, hosted project, firmware cloud client, physical outbox proof, final map provider, scheduled summary worker, or production operation is currently claimed.
+Detailed evidence remains in the [cloud reports](cloud/README.md). No deployed website, hosted project, firmware cloud client, physical outbox proof, final map provider, scheduled summary worker, or production operation is currently claimed.
 
 ## Milestone 1 — Physical MVP evidence (highest priority)
 

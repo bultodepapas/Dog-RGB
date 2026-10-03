@@ -8,6 +8,11 @@
 
 **Current milestone:** M1D — Local end-to-end gate; M1.1–M1.16 are complete and M1.17 is next.
 
+**Parallel offline firmware work — 2026-10-02:** M2A is independently accepted.
+M2.4a implements only the native Track v3 codec, without runtime emission;
+M2.3 durable identity allocation precedes the remaining M2.4 observation path.
+This independent increment does not close M1.17 or M2C physical acceptance.
+
 **Next executable task:** complete only M1.17: freeze the exact owner/editor/viewer, empty/error/pending/applied/stale/detail/revoke state matrix; test keyboard/focus/status semantics, 200% zoom, reduced motion, 44 px targets, and exact 320/428/768/1280 CSS-pixel containment; run automated WCAG 2 A/AA checks plus named manual assertions. Reuse the production local M1.13–M1.16 fixture/runner boundaries; do not absorb M1.18 performance, visual redesign, hosted deployment, firmware work, or a generic design system.
 
 **Current blocker:** no external blocker. Before M1.17 implementation, freeze the exact page/state/viewport/input-method matrix, distinguish automated axe coverage from manual keyboard/focus/zoom/reduced-motion/target/overflow proof, and identify any unavailable fixture state before changing product code. Do not redesign the portal, add a component library, treat an automated score as manual acceptance, or absorb performance/hosted/firmware scope. Verification must continue to use the checksum-verified isolated Node `24.18.0` runtime required by M0.1.
@@ -579,6 +584,9 @@ M2.1–M2.2 now pass for the host model. M2B may proceed under its existing scop
   - Allocate the native-v3 boot sequence through CRC/generation-protected A/B storage, increment and read back before emitting any v3 record, and reserve zero for legacy data.
   - Never reuse a sequence after an ambiguous/corrupt allocation. Define fail-closed recovery and integer-exhaustion behavior.
 - [ ] M2.4 Implement the frozen Track v3 codec and observation path.
+  - M2.4a codec-only increment: **implemented and validated — 2026-10-02 (America/Bogota)**; owner Codex, Luna/max implementation and independent review. Implementation commit/PR: current worktree, based on `0230227`.
+  - Scope: bounded native C++ point/chunk codec and Python interoperability tests; no observation emission before M2.3 allocates durable identities. M2.4 remains open for observation scheduling, explicit gaps, and v2 preservation in the integrated path.
+  - Evidence: [native codec report](../cloud/m24a-track-v3-codec-evidence.md); `python3 -m unittest discover -s Platformio/Dog-RGB/test -p 'test_track_v3_native.py' -v` passes 7/7, also under ASan/UBSan; 576 size/quality combinations, four canonical fixtures and eleven alias cases. Full firmware host suite 154/154; Classic/Display builds pass. Python source pins, v2 storage and runtime capture remain unchanged.
   - Moving cadence nominally 5 seconds; trusted stationary heartbeat nominally 60 seconds.
   - Invalid/no-fix intervals become explicit gaps, never fake coordinates.
   - Preserve v2 read/export until acknowledged migration or explicit reset.

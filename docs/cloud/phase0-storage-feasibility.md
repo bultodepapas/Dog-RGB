@@ -164,7 +164,8 @@ contains:
 | `coredump` | `0x10000` | ESP coredump |
 
 The new outbox must not use the small default NVS partition and must not erase
-`tracknvs` during upgrade. Phase 0 changes no partition table and no firmware.
+`tracknvs` during upgrade. The Phase 0B prototype changed neither partition
+table nor firmware; M2.4a adds an isolated codec without storage integration.
 
 ## 4. Frozen Track v3 encoding
 
@@ -420,8 +421,8 @@ The fill test wrote all 664 slots without ACK, durably represented the 665th
 distinct chunk as a loss record, ACKed the oldest half, erased only wholly
 reclaimable sectors, and refilled 332 slots. That scheduled test preserved its
 prior unacknowledged set. The seven later adversarial fallback/loss/corruption
-probes are now part of the passing 51/51 suite; this remains provisional workload
-output pending independent review, not a physical safety proof.
+probes belonged to the historical 51/51 suite. The current 67/67 model has
+independent AI acceptance; modeled workload output is not a physical safety proof.
 
 Production pressure policy remains:
 
@@ -628,9 +629,8 @@ Required future firmware behavior:
 
 ## 12. Mandatory physical ESP32-S3 gate
 
-Host recovery/reclaim acceptance is **review/open**. Even after that host gate
-passes, the raw decision remains unshippable until this exact-target test is
-recorded.
+Host recovery/reclaim has independent AI acceptance at `fb6dbef`. The raw
+outbox remains unshippable until this exact-target physical test is recorded.
 
 ### 12.1 Harness
 
@@ -712,23 +712,20 @@ claim that custom storage is superior to LittleFS.
 
 ## 14. Phase handoff
 
-Phase 0B codec artifacts are ready for frozen-protocol compatibility review,
-and a corrected host storage candidate exists whose seven reproduced adversarial
-failures now pass as regressions, but independent acceptance is still open. They
-do not close Phase 0 or authorize Phase 1 schema
-or firmware implementation while the host, physical, and map gates remain open:
+The frozen Python codec and corrected host storage model have independent AI
+acceptance, documented by the [2026-10-02 ledger](phase0-outbox-remediation-review-2026-10-02.md).
+M2B offline firmware implementation may proceed. Physical outbox and provider
+gates still prevent Phase 0 exit; execution order follows the master plan.
 
-1. Freeze the 16-byte point and 92-byte header in shared golden vectors before
-   copying the codec into C++/TypeScript.
+1. Keep the 16-byte point and 92-byte header matched by the
+   [native C++ interoperability gate](m24a-track-v3-codec-evidence.md).
 2. Cloud ingestion must use the stable device/boot/chunk and point identities,
    reject identity/content mismatch, and preserve legacy time/metric nulls.
 3. Database/UI vocabulary must distinguish observed stationary, movement
    evidence, low quality, gap/unknown, and legacy V2.
 4. Firmware integration must dual-read V2 and must not format either storage
    region automatically after a version mismatch.
-5. The raw-outbox design direction is accepted by ADR-0007, while host
-   implementation acceptance awaits independent review and HIL evidence is open. Section
-   12 remains a mandatory review trigger and release gate after the host matrix
-   passes; failure reopens the storage choice.
+5. The raw-outbox host model is accepted under ADR-0007. Section 12 remains
+   the mandatory physical release gate; failure reopens the storage choice.
 6. Phase 0B does not authorize networking code, account credentials, or any
    claim that cloud synchronization is implemented.

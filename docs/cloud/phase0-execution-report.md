@@ -1,23 +1,22 @@
 # Optional cloud Phase 0 execution report
 
-**Status:** In progress as of 2026-08-18. Phase 0 has **not exited**. Under explicit owner direction, the local-only Phase 1 cloud foundation is proceeding in parallel; this exception does not waive any Phase 0 evidence gate and does not authorize Phase 2 firmware/cloud integration. No firmware cloud client is implemented.
+**Status:** Reconciled 2026-10-02. Phase 0 has **not exited**. M2A host review is accepted; M2B offline firmware implementation may proceed under the master plan. Local M1.1–M1.16 is implemented. Physical outbox and provider evidence remain open; no firmware cloud client or hosted deployment is claimed.
 
 This report is the audit/handoff view of work executed against Phase 0A–0C in the [accepted implementation plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md). Accepted ADRs describe design direction; they do not claim field-ready firmware or a deployed cloud service.
 
-**Independent-review update — 2026-10-02:** P0-R1/M2.1 concluded with a [rejected host candidate](phase0-outbox-independent-review.md). The frozen 51/51 matrix passes, but separate regressions demonstrate identity reuse/stale ACK and corrupt committed-loss fallback; the Mac readiness run also exposes LF/CRLF-dependent evidence hashing. [ADR-0007](../adr/0007-durable-telemetry-outbox-and-storage.md) is reopened. Earlier pending-review statements below are the 2026-08-18 snapshot; acceptance now requires correction, deliberate rebaseline and independent re-review. The candidate and firmware were not changed by this review.
+**Independent-review update — 2026-10-02:** the [initial rejection](phase0-outbox-independent-review.md) was resolved by the [remediation](phase0-outbox-remediation-2026-10-02.md) and [independent AI acceptance](phase0-outbox-remediation-review-2026-10-02.md) at `fb6dbef`. The accepted run records 67/67 host tests, 10/10 verifier tests and nine matching source pins. [ADR-0007](../adr/0007-durable-telemetry-outbox-and-storage.md) is host-accepted, with physical acceptance open. Historical snapshots below retain their original counts and hashes.
 
 ## Outcome
 
-Phase 0 now has a current project contract, six accepted cloud ADRs, a complete current-field inventory, a frozen device-v1 protocol, a fixed Track v3 codec, local database-capacity evidence, and security/privacy/retention/credential plans. The complete protocol suite passes **48/48**.
+Phase 0 now has a current project contract, six accepted cloud ADRs, a complete current-field inventory, a frozen device-v1 protocol, a frozen Track v3 wire format/Python reference codec, local database-capacity evidence, and security/privacy/retention/credential plans. The complete protocol suite passes **48/48**.
 
-Phase 0 remains open for three evidence items:
+Phase 0 remains open for two evidence items:
 
-1. the corrected byte-addressed host candidate has fixed seven reproduced adversarial fallback/loss/corruption cases, but must still pass independent acceptance review;
-2. the chosen outbox must pass physical ESP32-S3 power-cut/timing/wear/energy acceptance;
-3. the identical provider bake-off and unapproved-origin tests require temporary restricted MapTiler and Stadia credentials/domain properties, followed by two independent human scores.
+1. physical ESP32-S3 outbox power-cut/timing/wear/energy acceptance;
+2. the identical provider bake-off, unapproved-origin tests and independent scorecards using restricted temporary credentials.
 
-The latter two are external hardware/credential blockers. The first is an
-in-repository correctness gate; current candidate metrics are provisional.
+M2A host acceptance closes the in-repository review gate. Physical evidence blocks
+M2 exit; provider evidence belongs to M4 and does not block M1–M3.
 
 ## Delivered work
 
@@ -39,9 +38,9 @@ in-repository correctness gate; current candidate metrics are provisional.
 - Added a fixed Track v3 point/chunk codec, legacy-v2 converter, deterministic fixtures, capacity arithmetic, candidate raw-ring/LittleFS models, and focused tests under [`tools/cloud_phase0`](../../tools/cloud_phase0/).
 - Preserved the exact six-value time-quality mapping, point flags/invariants, stable device/boot/chunk/point identities, exact post-commit ACK identity, explicit holes/loss markers, and truthful legacy limitations in the [storage feasibility report](phase0-storage-feasibility.md).
 - The corrected candidate's provisional geometry is 664 sealed chunks/63,744 points and approximately 15.624 days for the proposed adaptive profile; the modeled LittleFS candidate is approximately 1.2% larger.
-- The raw-ring design direction remains accepted because the data format is fixed and its recovery semantics can be made explicit. It is not approved for firmware/field use.
+- The raw-ring design direction remains accepted because the data format is fixed and its recovery semantics can be made explicit. M2B implementation is authorized; target/field acceptance requires M2C evidence.
 
-#### Remediated host storage evidence awaiting independent review
+#### Historical 2026-08-18 storage snapshot — superseded by the accepted review
 
 The superseded RAM-only suite completed 20/20, but review proved it unsafe: a
 direct reproduction sealed chunks `0..2`, accepted
@@ -67,19 +66,20 @@ chunk closes the contiguous prefix instead of requiring a duplicate server ACK.
 The regenerated
 664-slot/10,000-cycle metrics remain provisional until independent acceptance.
 
-P0-R1 is now packaged for clean-room reproduction without self-acceptance. The
+At that snapshot, P0-R1 was packaged for clean-room reproduction without self-acceptance. The
 [review packet](phase0-outbox-review-packet.md) defines 12 manual invariants,
 seven mandatory historical probes, severity/decision rules, and the final ledger
 contract. `verify_review_candidate.py` binds the exact source/commit, runs the
 51-test matrix, regenerates the 9,505-byte canonical evidence, and reports only
 `awaiting_independent_review`; author-mode output is deliberately not
-review-eligible. No independent decision has been recorded.
+review-eligible. No independent decision had been recorded at that snapshot; the
+2026-10-02 accepted ledger supersedes this status.
 
 The historical adversarial reproduction against the superseded model was run from `tools/cloud_phase0` with three calls to `seal(sequence, digest)`, followed by `acknowledge_through(999)` and `reclaim_acknowledged()`. It returned `ack=True`, `durable_ack=999`, `reclaimed=3`, and an empty remaining-unacknowledged set. This directly contradicts the frozen protocol rule that holes or unverified identities cannot be skipped/reclaimed; these method/state names are not the corrected candidate's API.
 
-Until the corrected candidate passes independent acceptance review:
+The historical restrictions before independent acceptance were:
 
-- treat superseded-model figures as invalid and corrected-candidate metrics as provisional;
+- treat superseded-model figures as invalid and corrected-candidate metrics as provisional; the accepted host evidence now supersedes the latter status;
 - do not use either a green test count or generated metrics to declare Phase 0B complete;
 - keep all seven adversarial cases as permanent byte-image regressions;
 - keep the physical ESP32-S3 gate mandatory regardless of the corrected host result.
@@ -93,7 +93,7 @@ Until the corrected candidate passes independent acceptance review:
 - Prepared the credentialed map runner without claiming provider acceptance: environment-only MapTiler input, child-process isolation, recursive redaction, origin/path-only request evidence, fail-closed manifest persistence, symmetric 24-cell provider matrix, ten diagnostics, two explicit rejected-origin probes, and a two-reviewer [scorecard template](../../tools/map_bakeoff/review-scorecard-template.md). Temporary provider access, captured credentialed artifacts, completed reviews, revocation, and ADR-0009 remain open.
 - Wrote the [threat model](threat-model.md), [privacy/data flow](privacy-data-flow.md), [retention policy](retention-policy.md), and [credential checklist](credential-checklist.md).
 
-## Validation snapshot
+## Historical validation snapshot (2026-08-13/18)
 
 Baseline checks were run from the repository root on 2026-08-13. The corrected
 host-storage row, source hash, and deterministic evidence were rerun on
@@ -124,12 +124,12 @@ The checked map manifest is durable technical evidence rather than a performance
 | Current project contract, opt-in/offline invariant, and field ownership | Closed for Phase 0 documentation | Reopen on any new firmware field, remote Home/power proposal, or cloud boundary change. |
 | Device-v1 protocol, HLC/config, ACK/hole, and revoke contract | Closed; regression gate remains | Keep protocol 48/48 and codec compatibility green on every change. |
 | PostgreSQL capacity direction | Closed as local sizing input only | Repeat representative authenticated/RLS queries and current plan/cost checks during implementation; this is not a Phase 0 external blocker. |
-| Host outbox recovery/reclaim evidence | **Review / open; packet ready** | The seven reproduced failures are fixed and covered; an independent reviewer must run the clean-tree verifier, inspect all 12 packet invariants, and commit the separate accepted/rejected ledger. |
+| Host outbox recovery/reclaim evidence | **Closed for the host model — 2026-10-02** | [Independent AI ledger](phase0-outbox-remediation-review-2026-10-02.md), all 12 invariants accepted at `fb6dbef`, 67/67 host and 10/10 verifier tests. Physical and documented multi-fault limits remain. |
 | Physical ESP32-S3 outbox acceptance | **Open external hardware gate** | Production codec/API, at least 10,000 seal/ACK/reclaim cycles, randomized reset/power removal at every boundary, full/corrupt/failure cases, legacy preservation, and measured timing/wear/heap/watchdog/energy. |
 | Map renderer | Closed | MapLibre/provider-neutral adapter accepted; keep accessibility/non-map fallback requirements. |
 | Basemap provider | **Open external credential gate; runner ready** | Supply a temporary origin-restricted MapTiler key and Stadia test property/domain auth; run the prepared full identical matrix and unapproved-origin tests; retain sanitized manifests/screenshots; complete two independent scorecards, verify revocation, and amend ADR-0009. |
 | Security/privacy/retention/credentials design | Closed for documentation | Implementation/adversarial/deletion/restore/operations tests remain future phase gates; no production credentials are authorized now. |
-| Phase 0 overall | **Not passed** | Independently accept the host candidate, close both open physical/map gates, then perform an explicit exit review. |
+| Phase 0 overall | **Not passed** | Close the physical/map gates, then perform an explicit exit review. |
 
 ## Handoff and prohibited inference
 
@@ -138,7 +138,8 @@ requirements, and exit checklist are now maintained in
 [Phase 0 of the accepted plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#phase-0--contract-evidence-and-decision-lock-exit-still-open).
 Passing host schemas or models does not authorize production deployment, device
 credential provisioning, or a firmware cloud client. The implemented Phase 1
-local database, Edge Functions, portal scaffold, shared packages, and simulator
+local database, Edge Functions, owner portal, shared packages, and simulator
 are parallel foundation work, not substitute Phase 0 evidence. The repository's
-shipped collar behavior remains local-only, and Phase 2 remains unauthorized
-until the explicit Phase 0 exit review passes.
+shipped collar behavior remains local-only. The master plan authorizes offline
+M2B implementation after M2A acceptance; M2C physical proof remains required
+before the M2 exit.

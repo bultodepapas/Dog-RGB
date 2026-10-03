@@ -72,6 +72,7 @@ I0 physical acceptance remains open before LED bench work. Classic fixes continu
 
 ### Existing shared firmware queue
 
+- [ ] Continue M2B with persistent identity/boot allocation (M2.3), then connect the isolated [Track v3 codec](cloud/m24a-track-v3-codec-evidence.md) to the M2.4 observation path; native emission remains disabled until identities are durable. M2A host acceptance is closed; M2C physical proof remains open.
 - [ ] Add native PlatformIO/Unity tests for extracted pure C++ logic; keep Python contracts as complementary regression tests.
 - [ ] Define physical-device loop-latency, UART-overflow, heap, and radio-retry acceptance thresholds.
 - [ ] Exercise slow/aborted route exports against a real phone while recording GNSS overflow and loop diagnostics.

@@ -1,6 +1,6 @@
 # Dog-RGB Architecture
 
-**Status:** Current local architecture plus the partially implemented optional-cloud target, reconciled 2026-08-24. The local Supabase database, Edge gateways, contracts, and simulator exist; the product website, firmware sync client, physical proof, and hosted deployment do not.
+**Status:** Current local architecture plus the partially implemented optional-cloud target, reconciled 2026-10-02. The local database, Edge gateways, contracts, simulator and M1.1–M1.16 owner portal exist; firmware sync, physical outbox proof and hosted deployment remain open.
 
 Dog-RGB is a local-first embedded system. The ESP32-S3 owns GNSS acquisition, metrics, route/session persistence, LED rendering, Wi-Fi policy, the HTTP portal, and an optional BLE summary. No backend is required for normal operation. The accepted web platform is an opt-in extension: it may delay synchronization when unavailable, but may never become a boot, tracking, LED, AP recovery, configuration, or local-export dependency.
 
@@ -31,7 +31,7 @@ flowchart LR
     EDGE[Supabase Edge gateways\nimplemented locally]
     DB[(Supabase PostgreSQL\nimplemented locally)]
     AUTH[Supabase Auth\nlocal stack configured]
-    WEB[Next.js web app\nscaffold only]
+    WEB[Next.js owner portal\nlocal M1.1–M1.16]
     USER[Owner/editor/viewer browser]
     MAP[Basemap provider\nM4 decision]
 
@@ -40,7 +40,7 @@ flowchart LR
     COLLAR -. firmware HTTPS client pending .-> EDGE
     EDGE -. narrow service-only transactions .-> DB
     AUTH -. user session .-> USER
-    USER -. membership-scoped RLS .-> DB
+    WEB -. user JWT / membership-scoped RLS .-> DB
     WEB -. application assets/SSR .-> USER
     USER -. style/tiles only; route overlay stays in browser .-> MAP
 ```
@@ -54,9 +54,9 @@ There is no realtime/cellular path: the website can show only the last successfu
 - [`docs`](.) contains current references plus dated design history.
 - [`contracts/device-v1`](../contracts/device-v1/) is the protocol/schema authority. Its complete 48/48 suite passes, and eight Edge-consumed schemas are checked copies under `supabase/functions/_shared/contracts`.
 - [`supabase`](../supabase/) contains the implemented local migration stack, pgTAP suite, Auth configuration, and four Edge gateways. This is reproducible development infrastructure, not a hosted or production deployment.
-- [`apps/portal`](../apps/portal/) is the Vercel/Next.js workspace. It currently contains only the visual shell and placeholder home page; Auth and product routes start in M1.
+- [`apps/portal`](../apps/portal/) is the Vercel/Next.js workspace. It implements local Auth/onboarding, Today, History/detail, brightness desired/reported state, collar diagnostics and revoke. M1.17 accessibility and M1.18 performance remain open.
 - [`packages`](../packages/) and [`tools/device-simulator`](../tools/device-simulator/) contain shared constants/analytics and the deterministic claim/sync/config simulator.
-- [`tools/cloud_phase0`](../tools/cloud_phase0/) contains the non-production v3/storage candidate; independent host acceptance and target-hardware evidence remain open. [`tools/map_bakeoff`](../tools/map_bakeoff/) is the synthetic Colombia harness; the credentialed provider decision remains an M4 gate and does not block portal/firmware foundation work.
+- [`tools/cloud_phase0`](../tools/cloud_phase0/) contains the v3/storage host model accepted by independent AI review at `fb6dbef` (67/67); target-hardware evidence remains open. [`tools/map_bakeoff`](../tools/map_bakeoff/) is the synthetic Colombia harness; the credentialed provider decision remains an M4 gate and does not block portal/firmware foundation work.
 - [`software`](../software/) is only a placeholder for optional future companion/cloud work.
 - [`hardware`](../hardware/) is a hardware-area entry point; the authoritative pin/default values are currently in firmware headers.
 
@@ -245,6 +245,11 @@ See [ADR-0005](adr/0005-device-cloud-gateway-and-stable-hostname.md), [ADR-0006]
 
 Current route v2 is a ten-byte coordinate/minute record with a two-hour local window; it cannot support per-point speed/quality, stationary coverage, exact seconds, stable replay identity, or explicit gaps. It remains readable/exportable and can only enter cloud history as visibly limited legacy evidence.
 
+The isolated [native Track v3 codec](../Platformio/Dog-RGB/include/track/track_v3.h)
+implements bounded point/chunk serialization for M2.4a. It has no runtime caller;
+device identity allocation, observation cadence and raw outbox integration remain
+M2B work. See the [codec evidence](cloud/m24a-track-v3-codec-evidence.md).
+
 The accepted target adds a fixed v3 observation/chunk format and a durable raw-partition outbox on the currently unused `0x150000` data partition:
 
 ```mermaid
@@ -266,7 +271,7 @@ flowchart LR
 
 A sealed chunk is immutable and retained until a durable post-commit ACK. Identical replay returns one logical result; the same ID with another hash is rejected. Full storage never overwrites unacknowledged observations: it reduces optional sampling/stops ordinary capture and records an explicit loss interval. Gaps remain gaps in maps and analytics.
 
-The raw ring remains an accepted design direction with provisional deterministic model output, including simulated write/metadata/reclaim cuts. The corrected 664-slot byte-addressed candidate is **not yet accepted**: its seven reproduced adversarial fallback/loss/corruption failures now pass as regressions, but independent recovery/reclaim review is still open. Even after that gate closes, randomized ESP32 power removal, timing, wear distribution, and energy must be measured before firmware acceptance. See [ADR-0007](adr/0007-durable-telemetry-outbox-and-storage.md) and the [feasibility report](cloud/phase0-storage-feasibility.md).
+The raw-ring host model has [independent AI acceptance](cloud/phase0-outbox-remediation-review-2026-10-02.md) at `fb6dbef`: 67/67 tests, durable identity high-water, strict ACK binding and conservative recovery of corrupt metadata. The 664-slot geometry remains a host estimate. Randomized ESP32 power removal, timing, wear distribution and energy must be measured before firmware acceptance. See [ADR-0007](adr/0007-durable-telemetry-outbox-and-storage.md) and the [feasibility report](cloud/phase0-storage-feasibility.md).
 
 ### Cloud data model
 

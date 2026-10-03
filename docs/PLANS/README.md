@@ -20,6 +20,6 @@ The 2026-08-13 web-platform plan is the active execution contract for the option
 | [Welcome opposite directions — 2026-02-03](2026-02-03_welcome-opposite-directions.md) | Historical LED implementation plan |
 | [Route portal — 2026-02-04](2026-02-04_plano-ruta-portal.md) | Implemented in evolved form with bounded JSON/CSV/GeoJSON streaming |
 | [Cloud portal master plan — 2026-08-01](2026-08-01_cloud-portal-master-plan.md) | Superseded design history |
-| [Cloud web platform and bidirectional sync — 2026-08-13](2026-08-13_web-platform-bidirectional-sync-plan.md) | **Active implementation contract**; local database/Edge/simulator foundation implemented, M0 baseline closure in progress, product portal/firmware client/hosted deployment pending |
+| [Cloud web platform and bidirectional sync — 2026-08-13](2026-08-13_web-platform-bidirectional-sync-plan.md) | **Active implementation contract**; M0 and local owner portal M1.1–M1.16 complete; M2A host outbox accepted; M1.17 accessibility, M2B firmware foundation and hosted deployment remain open |
 
 When a plan is completed, keep the dated file as a snapshot and document the resulting behavior in a current reference page.
