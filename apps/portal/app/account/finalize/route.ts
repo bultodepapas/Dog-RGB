@@ -148,8 +148,7 @@ export async function POST(request: Request): Promise<Response> {
         body: { action: "finalize", request_id: body.request_id },
       });
       if (result.error) return json({ status: "error", message: FAILURE_MESSAGE }, 409);
-      const receipt = accountDeletionReceipt(result.data);
-      if (receipt.requestId !== body.request_id) return json({ status: "error", message: FAILURE_MESSAGE }, 409);
+      const receipt = accountDeletionReceipt(result.data, body.request_id);
       return json(receiptJson(receipt), 200);
     }
 
@@ -166,8 +165,7 @@ export async function POST(request: Request): Promise<Response> {
         body: { action: "receipt", request_id: recoveryRequestId },
       });
       if (result.error) return json({ status: "error", message: RECOVERY_MESSAGE }, 409);
-      const receipt = accountDeletionReceipt(result.data);
-      if (receipt.requestId !== recoveryRequestId) return json({ status: "error", message: RECOVERY_MESSAGE }, 409);
+      const receipt = accountDeletionReceipt(result.data, recoveryRequestId);
       return json(receiptJson(receipt), 200);
     }
 

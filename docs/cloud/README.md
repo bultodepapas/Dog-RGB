@@ -1,6 +1,6 @@
 # Optional cloud documentation
 
-**Status — 2026-10-03:** core local web v1 implemented; final integration acceptance is tracked separately. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) owns current status, next tasks and release gates; this directory indexes evidence, not a second backlog. No hosted production website or firmware cloud sync is claimed.
+**Status — 2026-10-03:** implementation stopped at the owner's request; core local web v1 exists, with final integration acceptance incomplete. The [handoff record](local-web-v1-implementation-2026-10-03.md) separates passed checks, current browser failures and unverified account-receipt recovery. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) owns next tasks and release gates; this directory is an evidence index. No hosted production website or firmware cloud sync is claimed.
 
 | Document | Purpose |
 | --- | --- |

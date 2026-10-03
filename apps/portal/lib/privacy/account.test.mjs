@@ -15,7 +15,7 @@ test("account receipt accepts only a completed minimal receipt for one request",
     schema_version: "account-deletion-receipt-v1", request_id: id, status: "completed",
     completed_at: "2026-10-03T18:00:00.000Z", receipt_sha256: hash,
   };
-  assert.deepEqual(accountDeletionReceipt(receipt), {
+  assert.deepEqual(accountDeletionReceipt(receipt, id), {
     requestId: id, completedAt: receipt.completed_at, receipt: hash,
   });
   for (const patch of [
@@ -24,7 +24,7 @@ test("account receipt accepts only a completed minimal receipt for one request",
     { completed_at: "invalid" },
     { dog_ids: [id] },
     { profile: { email: "person@example.invalid" } },
-  ]) assert.throws(() => accountDeletionReceipt({ ...receipt, ...patch }));
+  ]) assert.throws(() => accountDeletionReceipt({ ...receipt, ...patch }, id));
 });
 test("account preview validates the destructive scope and strips unexpected fields", () => {
   const preview = { schema_version: "account-deletion-preview-v1", request_id: id, scope_sha256: hash, confirmation_version: "account-delete-v1", confirmation_phrase: ACCOUNT_CONFIRMATION,

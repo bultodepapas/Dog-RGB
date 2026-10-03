@@ -26,9 +26,7 @@ async function postFinalization(body: Record<string, string>): Promise<{ respons
 }
 
 function parsedReceipt(payload: unknown, expectedRequestId: string) {
-  const receipt = accountDeletionReceipt(payload);
-  if (receipt.requestId !== expectedRequestId) throw new Error("account_receipt_unavailable");
-  return receipt;
+  return accountDeletionReceipt(payload, expectedRequestId);
 }
 
 function acknowledgeReceipt(requestId: string, receipt: string): void {

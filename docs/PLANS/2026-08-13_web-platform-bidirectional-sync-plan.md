@@ -1,8 +1,8 @@
 # Dog RGB web platform — master execution plan
 
-**Status / review:** local web v1 implementation in progress on **2026-10-03 (America/Bogota)**, based on `8d93abb`. M0 and M1.1–M1.16 retain their historical local acceptance; changed surfaces are being revalidated. No hosted deployment or physical cloud-sync acceptance.
+**Status / review:** implementation stopped at the owner's request on **2026-10-03 (America/Bogota)**. Work began at `8d93abb`; handoff HEAD is `b038139` plus uncommitted receipt-validation/documentation changes. Local web v1 is implemented but its final integration acceptance is incomplete. M0 and M1.1–M1.16 retain their historical evidence; it does not certify changed surfaces. No hosted deployment or physical cloud-sync acceptance.
 
-**Current task:** integrate and validate M1.19–M1.23, M4A/core M4C and M5A, then run M1.17–M1.18 and the M1.22 release matrix on the resulting product. The implementation now includes returning entry, recovery/resend, dog-name correction, same-dog re-enrollment, real summary computation, date filtering and data-lifecycle screens. A route or migration alone does not close its acceptance task.
+**Resume point:** diagnose the intermittent owner-journey failure; review and validate the saved account-receipt recovery flow; then rebuild and run the final core/quality matrix. Entry/recovery, dog-name correction, re-enrollment, summaries, date filtering, exports and deletion screens exist. Do not restart these features or mark the portal complete from source presence. Exact passed/failed scopes and handoff details are in the [current evidence record](../cloud/local-web-v1-implementation-2026-10-03.md).
 
 **Next external boundary:** M3A hosted preview with synthetic data, after local release gates pass. M2 firmware/physical work proceeds independently. No completion percentage or production-readiness claim.
 
@@ -131,6 +131,8 @@ Any implementation that violates an invariant is rejected even if its happy-path
 | M2A | [Independent AI host acceptance](../cloud/phase0-outbox-remediation-review-2026-10-02.md), candidate `fb6dbef`, 67/67 | Host fault model only; not human or ESP32 acceptance |
 | M2B increments | [Codec](../cloud/m24a-track-v3-codec-evidence.md) `d244221`, [identity](../cloud/m23a-device-identity-evidence.md) `f148bec`, [assembler](../cloud/m24b-chunk-assembly-evidence.md) `971fdb3` | Isolated C++ components; no runtime observation/outbox/cloud integration |
 
+**Acceptance at this stop:** clean foundation passed **699 SQL assertions**, gateway/simulator/restore/deletion checks; capacity passed at **1,000,000 points**. The earlier production build passed **56 automated accessibility/layout checks, 200 performance navigations, 10 mobile WebKit checks**, and dog/account lifecycles. These precede receipt-recovery changes. Latest portal lint/types and **147 unit tests** pass; final browser matrix does not. Open milestone boxes below mean acceptance is incomplete, not that all corresponding code is absent.
+
 ### 5.2 Findings at the pre-implementation review (`971fdb3`)
 
 | Priority / finding | Source checked | Required closure |
@@ -191,6 +193,12 @@ flowchart TD
 
 Default web queue: **M1E → M4A/core M4C + M5A → M1.17/M1.18 → M1.22 → M3A**. Run relevant regression gates with every delivery; repeat a11y/performance on new surfaces before declaring local completion. M2 may continue independently; hosted physical work requires both branches. Do not postpone analytics/export/UI work until hardware or buy services to close local tests.
 
+At resumption, execute these remaining local steps in order:
+
+1. **M1.22:** reproduce and diagnose owner `today-projection` / `brightness-submit` failures using browser errors and failing requests. Validate the isolated-dog M1.15 fixture and revised Edge readiness; do not infer a product fix from longer waits.
+2. **M5.6c:** review prepare → finalize → receipt → acknowledge and `/account/deletion-receipt`; adapt the existing account harness. Prove recovery after Auth deletion commits but its response is lost, reload, subject/request binding, incomplete/expired denial and cookie cleanup. Retain live Auth/password reauthentication for destructive writes; the narrow receipt read requires a valid signed JWT. No new deletion service.
+3. **M1.17/M1.18/M1.22:** rerun source checks/build, the two-cycle `--core-only` matrix and `--quality-only` on that build, sequentially; include the recovery page and final log/privacy checks. Perform and record the remaining human accessibility review. Reconcile milestone closure against evidence before M3A.
+
 ## 8. Executable milestones
 
 ### M0 — Local baseline: complete
@@ -213,7 +221,7 @@ M1.19 is one bounded change: do not bundle account deletion, analytics, firmware
 #### M1D — Accessibility, performance and release regression
 
 - [ ] **M1.17** Freeze page/state/input matrix after M1E. Cover home, Auth/recovery, selection/onboarding, Today, History, paginated detail, brightness and collars, including owner/editor/viewer, empty/error/loading, stale/rejected/pending/applied and revoke confirmation. Test keyboard navigation/focus return, labels/status, landmarks/tables, visible focus, 200% zoom, reduced motion, **44 px** targets and no lost controls/page overflow at **320/428/768/1280 CSS px**. Zero automated A/AA findings plus named manual assertions; automation is not manual acceptance. Use risk-based coverage, not the full page × role × state × viewport product: test each meaningful state once, run core journeys at 320/1280 and layout containment at 428/768; reuse M1.14 role denials. Add M5A and optional-map surfaces when delivered.
-- [ ] **M1.18** Measure production build: login, Today, History, detail, configuration and collars; add selection/privacy/export when present. Freeze Chromium version/hardware, desktop 1280×800 unthrottled and mobile 428×844 with 4× CPU slowdown, 1.6 Mbps down/750 kbps up and 150 ms latency. Five cold + five warm samples per route/profile; report median/p95, JS gzip, requests/bytes, TTFB, LCP, CLS and long tasks. Initial project gates: **≤180 KiB gzip initial route JS**, **median LCP ≤2.5 s**, **median TTFB ≤800 ms** for each cold/warm group, **CLS ≤0.1 in every sample**; no eager map bundle. These are targets fixed by this review, not measured results. Record failures/remediation; change a budget only with an explicit rationale. Sample p95 is diagnostic, not a field SLO. Repeat against hosted preview and after material page changes.
+- [ ] **M1.18** Measure production build: login, Today, History, detail, configuration and collars; add selection/privacy/export when present. Freeze Chromium version/hardware, desktop 1280×800 unthrottled and mobile 428×844 with 4× CPU slowdown, 1.6 Mbps down/750 kbps up and 150 ms latency. Five cold + five warm samples per route/profile; report median/p95, JS gzip, requests/bytes, TTFB, LCP, CLS and long tasks. Initial project gates: **≤180 KiB gzip initial route JS**, **median LCP ≤2.5 s**, **median TTFB ≤800 ms** for each cold/warm group, **CLS ≤0.1 in every sample**; no eager map bundle. These fixed targets passed on the earlier build recorded in section 5.1; receipt-recovery changes still require a new measurement. Record failures/remediation; change a budget only with an explicit rationale. Sample p95 is diagnostic, not a field SLO. Repeat against hosted preview and after material page changes.
 - [ ] **M1.22** Extend the existing owner journey for return/recovery/re-enrollment/summaries/export/delete; wire `tools/portal-e2e/run.mjs` into repository CI for relevant portal/schema/contract/runner changes and releases, with a disposable local stack and sanitized reports. Measure duration; avoid the full reset matrix for unrelated documentation/hardware-only edits. Keep authorization/fault/privacy gates. Add a focused WebKit mobile smoke for entry, History/detail, brightness and revoke; Chromium remains the full deterministic matrix. Record browser/platform and any unsupported path. No duplicate orchestration framework, new device farm or claim of unexecuted browser coverage.
 
 **Exit:** complete first-use and returning-user workflows, accepted a11y/performance, no cross-owner disclosure, exact simulator replay/config truth, and a current clean release run. M1.13 success alone no longer defines M1 completion.
@@ -399,6 +407,7 @@ Use:
 /auth/confirm
 /onboarding
 /account
+/account/deletion-receipt
 /privacy
 /app/[dogId]/data
 /app/[dogId]/data/export
@@ -410,7 +419,7 @@ Use:
 /app/[dogId]/configuration
 ```
 
-`/onboarding` is the authorized zero/one/multiple-membership entry. `/account` remains reachable while a deletion is pending. Downloads require fresh owner authorization and never use public storage. Sharing/admin routes remain deferred.
+`/account/deletion-receipt` is the saved recovery surface, still awaiting integration acceptance; `POST /account/finalize` handles prepare/finalize/receipt/acknowledge and is not a navigation route. `/onboarding` is the authorized zero/one/multiple-membership entry. `/account` remains reachable while a deletion is pending. Downloads require fresh owner authorization and never use public storage. Sharing/admin routes remain deferred.
 
 ### 9.4 Visual and accessibility boundary
 

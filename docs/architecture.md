@@ -1,6 +1,6 @@
 # Dog-RGB Architecture
 
-**Status:** Reconciled 2026-10-03. The local database, Edge gateways, contracts, simulator and optional web v1 implementation exist; integration acceptance is in progress. Firmware sync, physical outbox proof and hosted deployment remain open. See the [current implementation and evidence](cloud/local-web-v1-implementation-2026-10-03.md).
+**Status:** Reconciled 2026-10-03. The local database, Edge gateways, contracts, simulator and optional web v1 implementation exist; work is stopped at the owner's request with integration acceptance incomplete. Firmware sync, physical outbox proof and hosted deployment remain open. See the [current implementation and handoff evidence](cloud/local-web-v1-implementation-2026-10-03.md).
 
 Dog-RGB is a local-first embedded system. The ESP32-S3 owns GNSS acquisition, metrics, route/session persistence, LED rendering, Wi-Fi policy, the HTTP portal, and an optional BLE summary. No backend is required for normal operation. The accepted web platform is an opt-in extension: it may delay synchronization when unavailable, but may never become a boot, tracking, LED, AP recovery, configuration, or local-export dependency.
 

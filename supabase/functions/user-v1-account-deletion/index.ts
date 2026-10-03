@@ -85,7 +85,8 @@ function completedReceipt(value: unknown, requestId: string): Record<string, unk
   if (!isRecord(value) || value.schema_version !== "account-deletion-v1" || value.status !== "completed" ||
       value.request_id !== requestId || typeof value.completed_at !== "string" ||
       !Number.isFinite(Date.parse(value.completed_at)) || typeof value.receipt_sha256 !== "string" ||
-      !/^[A-Za-z0-9_-]{43}$/u.test(value.receipt_sha256)) {
+      !/^[A-Za-z0-9_-]{43}$/u.test(value.receipt_sha256) || !Array.isArray(value.dog_jobs) ||
+      value.dog_jobs.some(job => !isRecord(job) || job.status !== "completed")) {
     throw new HttpProblem(409, "account_deletion_receipt_unavailable", "Receipt unavailable", "No completed receipt is available for this request.");
   }
   return {

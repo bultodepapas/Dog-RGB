@@ -2,9 +2,9 @@
 
 **Owner:** Codex implementation/review; repository owner retains deployment and operational decisions.
 
-**Scope:** optional Next.js portal, local Supabase and synthetic device simulator. Based on `8d93abb`; implementation is in the working tree. This record supplements, and does not rewrite, the dated M1.13–M1.16 and firmware evidence. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) remains the only backlog.
+**Scope:** optional Next.js portal, local Supabase and synthetic device simulator. Work started from `8d93abb`; HEAD at this handoff is `b038139`, with additional uncommitted receipt-validation and documentation changes. This record supplements, and does not rewrite, the dated M1.13–M1.16 and firmware evidence. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) remains the only backlog.
 
-**Acceptance:** integration checks in progress. Source implementation is not hosted, physical or manual-accessibility acceptance. No external project, production schedule or physical device was activated.
+**Acceptance — 2026-10-03:** implementation and test execution stopped at the owner's request; local integration acceptance remains incomplete. Passed checks below apply to their stated scope/build, not automatically to the current tree. No external project, production schedule or physical device was activated.
 
 ## Delivered behavior
 
@@ -26,7 +26,8 @@
 - Re-enrollment preserves pending old-outbox identities; the old credential remains invalid. Exact already accepted chunks can replay under the replacement credential; retention/deletion fences still prevent resurrection. Physical credential persistence and outbox recovery remain M3C.
 - Summaries process at most **four dirty days per manual transaction** under a caller-enforced **10 s** timeout. A day can require several recording batches. [Worker instructions](../../tools/cloud_analytics/README.md) define resumption and finite batch exhaustion; [analytics rules](../../packages/analytics/README.md) define units and exclusions.
 - Account deletion requires a verified password AMR no older than **five minutes**, plus a live Auth identity. Its confirmation covers all owned dogs, including other members' access. Viewer/editor memberships detach; unresolved creator references do not transfer automatically.
-- Deletion inventory acquires the telemetry retention fence for every collar, including already-revoked collars, before taking a fresh count snapshot. Fresh requests and restore replay share this boundary. The two-session regression passed: retention deleted one point while uncommitted; deletion waited, captured zero remaining points, and completed in one batch with zero residual rows. This regression is now invoked by `phase1:local`.
+- Receipt recovery is **implemented but integration-unverified**: finalization prepares a fresh reauthenticated session and an HttpOnly request-ID cookie before the destructive call; `/account/deletion-receipt` retries the exact minimal completed receipt, followed by client acknowledgement/cookie cleanup. The intended authorization uses an unexpired signed JWT bound to the requester; the request ID alone grants no access. The Edge verifier uses JWKS, requiring asymmetric signing-key JWTs for this post-deletion read; legacy flat HS256 tokens are unsupported. Actual lost-response recovery, reload, acknowledgement and expiry behavior still require acceptance. No new RPC/migration was added for this extension.
+- Deletion inventory acquires the telemetry retention fence for every collar, including already-revoked collars, before taking a fresh count snapshot. Fresh requests and restore replay share this boundary. The two-session regression passed separately: retention deleted one point while uncommitted; deletion waited, captured zero remaining points, and completed in one batch with zero residual rows. Its invocation was then added to `phase1:local`; that extended composition has not been rerun.
 - The existing deletion fixture drill is not a general queue-drain command. Browser harnesses explicitly run the bounded worker for their own synthetic jobs. Hosted retention/deletion/summary schedules remain a release gate.
 
 ## Reproduction and evidence
@@ -45,16 +46,25 @@ The runtime is Node **24.18.0**, npm **11.6.2**, Next.js **16.3.8**, Supabase CL
 
 | Check | Current result |
 | --- | --- |
-| Source contracts, lint, types, unit tests, secret scan | PASS; **242 distinct tests**: contracts 48, portal 146, analytics 12, simulator 23, tooling 13. Contracts execute twice in the composed command |
+| Source contracts, lint, types, unit tests, secret scan | Pre-receipt-extension composed run PASS; **242 distinct tests**: contracts 48, portal 146, analytics 12, simulator 23, tooling 13. Contracts execute twice. After receipt changes, portal lint/types and **147/147 portal unit tests** PASS; the complete composed check has not been repeated |
 | Clean local foundation | PASS: **27 pgTAP files / 699 assertions**, generated types, lint/advisors without errors, real summary/configuration/revoke races, **49 gateway boundary scenarios**, browser pairing, **41 simulator scenarios**, dual restore/tombstone replay and concurrent dog deletion in **5 batches**. SQL lint reports five unused local variables; no error-level finding |
-| Owner/authorization/fault/privacy matrix | Focused owner journey PASS: **20 checkpoints**, including recovery/resend, real recomputation, downloads and re-enrollment; final twice-clean combined matrix pending |
+| Owner/authorization/fault/privacy matrix | Prior focused owner journey PASS: **20 checkpoints**. Final twice-clean matrix **not passed**: latest core run failed at `today-projection`; later focused run failed at `brightness-submit` after 13 checkpoints. Generic private-area error; root cause not established. An earlier owner + authorization cycle passed, then Edge readiness failed. M1.15 fixture/readiness adjustments await execution |
 | Migrated capacity, 1,000,000 points | PASS: exact detail pages **3.951 / 1.805 ms**, both use the primary key without Sort/spill/unrelated telemetry scans; non-member reads **0 points**. Local measurements, not hosted SLOs |
-| Production build | PASS, Next.js 16.3.8 |
+| Production build | PASS, Next.js 16.3.8, **before receipt-recovery changes**; rebuild pending |
 | Automated accessibility/performance/WebKit | PASS on the pre-receipt-recovery build: **56** axe/layout/44 px/CSS-zoom checks, **200** navigations, **10** WebKit mobile checks. Max per-group median LCP **684 ms**, TTFB **262 ms**, max CLS **0**, max initial JS gzip **147,031 bytes**. Chromium **151.0.7922.34**, WebKit **26.5**, Apple M1. Recheck the added receipt-recovery surface before final closure |
-| Dog/account browser lifecycle | PASS: dog **5 checkpoints**, account **7 checkpoints**, zero residual dog rows/Auth identities and old-session denial; runtime-log privacy PASS. Lost-final-response receipt recovery is being added and needs its own acceptance |
+| Dog/account browser lifecycle | Pre-receipt-extension PASS: dog **5 checkpoints**, account **7 checkpoints**, zero residual dog rows/Auth identities and old-session denial; runtime-log privacy PASS. Current account harness still uses the previous finalization protocol; this result does not accept the new prepare/finalize/receipt/acknowledge flow |
 | Hosted/physical/manual acceptance | Not claimed |
 
 Retained browser artifacts contain fixed checkpoints, numeric counts and aggregate metrics only. Auth cookies, tokens, claim codes, passwords, exported routes, HTML, traces and screenshots are not CI artifacts. Test secrets are ephemeral and the runner cleans Mailpit and its temporary files.
+
+## Handoff at the stop point
+
+- Receipt changes are in `apps/portal/app/account/finalize/route.ts`, `app/components/account-deletion-panel.tsx`, `app/components/account-deletion-receipt-recovery.tsx`, `app/account/deletion-receipt/page.tsx`, `lib/privacy/account.ts`, `lib/privacy/account.test.mjs` (all under `apps/portal`), and `supabase/functions/user-v1-account-deletion/index.ts`. Preserve the saved implementation; it is not release-accepted. No Edge/Deno check ran because Deno was unavailable in the shell.
+- `tools/portal-e2e/account-lifecycle.mjs` still sends the old body and assumes one finalization response. Its endpoint guards/status expectations must be reconciled with the new dispatcher before results can be interpreted. Lost response after committed Auth deletion, reload recovery, wrong requester/request, incomplete receipt, expired JWT and cookie cleanup remain untested.
+- The latest sanitized owner result is `output/playwright/m113/cycle-1.json` (`brightness-submit`). Capture browser `pageerror`/console and correlate the failing request before changing timeouts; server output did not identify the cause. The temporary diagnostic was prepared but **not executed** before stopping.
+- Quality/lifecycle results under `output/playwright/quality/` describe the earlier build. Add the recovery route to applicable accessibility/privacy/browser coverage, rebuild, then rerun the core two-cycle matrix and focused quality suite sequentially. Human keyboard/focus/reduced-motion review remains separate.
+- The M1.15 race fixture now gives each active collar its own dog to respect the one-active-collar constraint; this correction has only a syntax check. Edge readiness now allows a 10 s probe within 90 s; its integration outcome is unverified.
+- No project test or Next server was left running at handoff. The disposable local Supabase/Lima stack remains available with synthetic fixtures; the temporary Edge `.env` was removed. No deployment or additional commit was performed for this stop request.
 
 ## Remaining release boundaries
 
