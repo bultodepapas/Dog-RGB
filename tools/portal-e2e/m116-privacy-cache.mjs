@@ -326,6 +326,7 @@ export async function runM116PrivacyCacheGate({
     await page.goto("/login");
     await inspectCurrentPage("anonymous login HTML");
     await inspectRsc("/login");
+    await inspectRsc("/account/deletion-receipt");
     await page.goto(`/app/${fixture.dogB.id}/today`);
     assert.equal(page.url().startsWith(`${portalUrl}/login`), true, "anonymous protected route did not redirect to login");
     await inspectCurrentPage("anonymous protected redirect HTML");
@@ -344,6 +345,7 @@ export async function runM116PrivacyCacheGate({
     await inspectCurrentPage("owner Today HTML");
     await inspectRsc(`/app/${fixture.dogA.id}/today`);
     await inspectRsc("/account");
+    await inspectRsc("/account/deletion-receipt");
     await inspectRsc(`/app/${fixture.dogA.id}/data`);
     await page.getByRole("link", { name: "Historial" }).click();
     await page.waitForURL(new RegExp(`/app/${fixture.dogA.id}/history$`, "u"));

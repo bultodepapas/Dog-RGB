@@ -24,6 +24,7 @@ function routes(fixture) {
     ["detail", `${base}/recordings/${fixture.dogA.recordingId}`],
     ["configuration", `${base}/configuration`], ["collars", `${base}/collars`],
     ["data", `${base}/data`], ["account", "/account"],
+    ["deletion-receipt", "/account/deletion-receipt"],
   ];
 }
 
@@ -46,6 +47,9 @@ export async function runPortalQuality({ browser, fixture, portalUrl, outputDire
     const privateRoutes = [["selection", "/onboarding"], ...routes(fixture)];
     for (const [name, path] of privateRoutes) {
       await page.goto(path);
+      if (name === "deletion-receipt") {
+        await page.getByText("No pudimos confirmar la eliminación con la sesión disponible.", { exact: false }).waitFor();
+      }
       await inspectAccessibility(page, name, report);
     }
     await page.goto(`/app/${fixture.dogA.id}/collars`);
@@ -122,7 +126,7 @@ export async function runPortalQuality({ browser, fixture, portalUrl, outputDire
   return report;
 }
 
-async function inspectAccessibility(page, name, report) {
+export async function inspectAccessibility(page, name, report) {
   for (const width of [320, 428, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(() => document.fonts.ready);
@@ -163,6 +167,9 @@ export async function runWebkitSmoke({ browserType, fixture, portalUrl, outputDi
     report.checks.push("returning-login");
     for (const [name, path] of routes(fixture)) {
       await page.goto(path);
+      if (name === "deletion-receipt") {
+        await page.getByText("No pudimos confirmar la eliminación con la sesión disponible.", { exact: false }).waitFor();
+      }
       assert.equal(await page.locator("h1").count(), 1, `WebKit ${name} missing heading`);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `WebKit ${name} overflows`);
       report.checks.push(name);

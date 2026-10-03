@@ -20,6 +20,6 @@ The 2026-08-13 web-platform plan is the active execution contract for the option
 | [Welcome opposite directions — 2026-02-03](2026-02-03_welcome-opposite-directions.md) | Historical LED implementation plan |
 | [Route portal — 2026-02-04](2026-02-04_plano-ruta-portal.md) | Implemented in evolved form with bounded JSON/CSV/GeoJSON streaming |
 | [Cloud portal master plan — 2026-08-01](2026-08-01_cloud-portal-master-plan.md) | Superseded design history |
-| [Cloud web platform and bidirectional sync — 2026-08-13](2026-08-13_web-platform-bidirectional-sync-plan.md) | **Single active web/cloud plan**, reconciled 2026-10-02; next M1.19 returning-owner navigation. Separate local web completion, hosted preview, physical integration and private release; tiled maps optional. Completed evidence and remaining tasks live in the plan |
+| [Cloud web platform and bidirectional sync — 2026-08-13](2026-08-13_web-platform-bidirectional-sync-plan.md) | **Single active web/cloud plan**, resumed 2026-10-03; local release validation and account-receipt recovery. Separate local web completion, hosted preview, physical integration and private release; tiled maps optional. Completed evidence and remaining tasks live in the plan |
 
 When a plan is completed, keep the dated file as a snapshot and document the resulting behavior in a current reference page.

@@ -66,9 +66,25 @@ test("owner journey reaches exact collar convergence and protected logout", asyn
   let confirmationMaterial: readonly string[] = [];
   let browserErrors = 0;
   let externalRequests = 0;
-  page.on("pageerror", () => { browserErrors += 1; });
+  let failedRequests = 0;
+  const runtimeFailures: { phase: string; kind: "pageerror" | "console"; reactCode: number | null }[] = [];
+  const failedResponses: { phase: string; status: number; action: boolean }[] = [];
+  const recordBrowserError = (kind: "pageerror" | "console", message: string) => {
+    browserErrors += 1;
+    // Retain only fixed categories/numeric React codes. Messages, stacks, URLs,
+    // request bodies and headers may contain private fixture material.
+    const match = message.match(/Minified React error #(\d{1,4})\b/u);
+    if (runtimeFailures.length < 16) runtimeFailures.push({ phase, kind, reactCode: match ? Number(match[1]) : null });
+  };
+  page.on("pageerror", error => recordBrowserError("pageerror", error.message));
   page.on("console", (message) => {
-    if (message.type() === "error") browserErrors += 1;
+    if (message.type() === "error") recordBrowserError("console", message.text());
+  });
+  page.on("requestfailed", () => { failedRequests += 1; });
+  page.on("response", response => {
+    if (response.status() >= 500 && failedResponses.length < 16) {
+      failedResponses.push({ phase, status: response.status(), action: response.request().method() === "POST" });
+    }
   });
   page.on("request", (request) => {
     const origin = new URL(request.url()).origin;
@@ -462,6 +478,7 @@ test("owner journey reaches exact collar convergence and protected logout", asyn
       status: "failed",
       failedPhase: phase,
       completedCheckpoints: checkpoints,
+      diagnostics: { browserErrors, externalRequests, failedRequests, runtimeFailures, failedResponses },
     }, null, 2)}\n`, "utf8");
     throw new Error(`M1.13 owner journey failed during ${phase}.`);
   } finally {

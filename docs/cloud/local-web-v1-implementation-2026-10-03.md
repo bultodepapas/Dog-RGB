@@ -2,9 +2,30 @@
 
 **Owner:** Codex implementation/review; repository owner retains deployment and operational decisions.
 
-**Scope:** optional Next.js portal, local Supabase and synthetic device simulator. Work started from `8d93abb`; HEAD at this handoff is `b038139`, with additional uncommitted receipt-validation and documentation changes. This record supplements, and does not rewrite, the dated M1.13–M1.16 and firmware evidence. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) remains the only backlog.
+**Scope:** optional Next.js portal, local Supabase and synthetic device simulator. Initial work started from `8d93abb`; the previous handoff was based on `b038139`. Receipt changes were subsequently committed as `6444fda`; this resumption starts from clean `bda635f`. This record supplements, and does not rewrite, the dated M1.13–M1.16 and firmware evidence. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) remains the only backlog.
 
-**Acceptance — 2026-10-03:** implementation and test execution stopped at the owner's request; local integration acceptance remains incomplete. Passed checks below apply to their stated scope/build, not automatically to the current tree. No external project, production schedule or physical device was activated.
+**Acceptance — 2026-10-03:** work resumed at the owner's request. The resumption results below supersede the stop-point status only for their explicitly tested scope. Local integration acceptance remains incomplete. No external project, production schedule or physical device was activated.
+
+## Resumption validation — Windows
+
+Owner: Codex, with Luna/max harness review and implementation. Implementation: working-tree changes based on `bda635f`; no new commit. Environment: Windows x64, Node **24.18.0** via `npm exec --yes --package=node@24.18.0 --`, npm **11.6.2**, Next.js **16.3.8**, Supabase CLI **2.113.0**, Playwright **1.62.1**; disposable local `Dog-RGB-1` and synthetic data only.
+
+| Command after the Node wrapper | Result |
+| --- | --- |
+| `npm run phase1:check` | PASS: assets/contracts, lint, types, **243 distinct unit tests**, secret scan |
+| `node tools/portal-e2e/run.mjs --clean --core-only` | PASS, **571 s** including production build and cleanup: two clean cycles each of owner (20 checkpoints), authorization, ten fault scenarios and eight privacy/cache checkpoints |
+| `npm run phase1:local -- --clean` | PASS: fresh migrations/types/pgTAP/advisors, summary/configuration/revocation concurrency, **retention/deletion fence now executed in composition**, 49 gateway boundary scenarios, browser pairing, 41 simulator scenarios, isolated restore/tombstone replay and five-batch deletion |
+| `node tools/portal-e2e/run.mjs --clean --quality-only` with `PORTAL_E2E_PORT=3107` | PASS, **568 s**, including rebuild/cleanup: 60 axe/layout checks plus four completed-receipt viewports, **220 performance navigations**, **11 WebKit checks**, five dog-lifecycle and eleven account-lifecycle checkpoints, final server/Edge/database log privacy |
+
+Quality environment: Chromium **151.0.7922.34**, WebKit **26.5**, AMD Ryzen 9 5900X. Maximum per-group median LCP **724 ms**, TTFB **156.3 ms**; maximum sample CLS **0.007394**, initial JS gzip **147,721 bytes**. All original budgets pass. The first quality launch stopped at preflight because another project owned port 3000; no process was stopped. Focused gates now accept a validated loopback port and configure the exact portal origin; owner email gates retain port 3000.
+
+Receipt proof: fresh password preparation sets the HttpOnly/Strict request cookie; finalization commits and its response is deliberately lost; the first receipt response is also lost, leaving an honest unknown state. The recovery page returns the exact original receipt. Losing the acknowledgement response preserves browser cookies; reloading repeats the receipt, then a successful acknowledgement clears recovery/Auth cookies. Cross-subject receipt reads and mismatched request IDs are denied; the old signed session cannot finalize after Auth deletion. Durable counts show zero owned dog/Auth rows. The completed receipt passes accessibility/layout checks at 320/428/768/1280 px. No application, Edge, migration or dependency change was needed for this increment; the obsolete harness was corrected. An independent Luna/max review found no actionable harness/privacy issue.
+
+Remaining local acceptance: genuinely expired signed-JWT receipt denial, explicit malformed/incomplete receipt delivery through the browser (parser tests and lost-body recovery are separate evidence), and named manual keyboard/focus/reduced-motion assertions. No expiry behavior is inferred from a tampered token. Remote CI, hosted preview and physical acceptance remain separate.
+
+The historical `today-projection` / `brightness-submit` failure did not reproduce in either clean owner cycle; no product fix or root-cause claim. Failed owner runs now retain bounded phase/category/numeric React-code/HTTP-status diagnostics without raw messages, stacks, URLs or bodies. Focused gates preserve artifacts for suites they do not execute and clear their own quality directory before a new run.
+
+The historical results and handoff below remain a record of the earlier Darwin run, not current failures inferred from source presence.
 
 ## Delivered behavior
 
@@ -26,11 +47,11 @@
 - Re-enrollment preserves pending old-outbox identities; the old credential remains invalid. Exact already accepted chunks can replay under the replacement credential; retention/deletion fences still prevent resurrection. Physical credential persistence and outbox recovery remain M3C.
 - Summaries process at most **four dirty days per manual transaction** under a caller-enforced **10 s** timeout. A day can require several recording batches. [Worker instructions](../../tools/cloud_analytics/README.md) define resumption and finite batch exhaustion; [analytics rules](../../packages/analytics/README.md) define units and exclusions.
 - Account deletion requires a verified password AMR no older than **five minutes**, plus a live Auth identity. Its confirmation covers all owned dogs, including other members' access. Viewer/editor memberships detach; unresolved creator references do not transfer automatically.
-- Receipt recovery is **implemented but integration-unverified**: finalization prepares a fresh reauthenticated session and an HttpOnly request-ID cookie before the destructive call; `/account/deletion-receipt` retries the exact minimal completed receipt, followed by client acknowledgement/cookie cleanup. The intended authorization uses an unexpired signed JWT bound to the requester; the request ID alone grants no access. The Edge verifier uses JWKS, requiring asymmetric signing-key JWTs for this post-deletion read; legacy flat HS256 tokens are unsupported. Actual lost-response recovery, reload, acknowledgement and expiry behavior still require acceptance. No new RPC/migration was added for this extension.
-- Deletion inventory acquires the telemetry retention fence for every collar, including already-revoked collars, before taking a fresh count snapshot. Fresh requests and restore replay share this boundary. The two-session regression passed separately: retention deleted one point while uncommitted; deletion waited, captured zero remaining points, and completed in one batch with zero residual rows. Its invocation was then added to `phase1:local`; that extended composition has not been rerun.
+- Receipt recovery has **local lost-response/reload/acknowledgement evidence above**: finalization prepares a fresh reauthenticated session and an HttpOnly request-ID cookie before the destructive call; `/account/deletion-receipt` retries the exact minimal completed receipt. Authorization uses an unexpired signed JWT bound to the requester; the request ID alone grants no access. The Edge verifier uses JWKS, requiring asymmetric signing-key JWTs for this post-deletion read; legacy flat HS256 tokens are unsupported. Expired signed-JWT and malformed-browser-response cases remain open. No new RPC/migration was added for this extension.
+- Deletion inventory acquires the telemetry retention fence for every collar, including already-revoked collars, before taking a fresh count snapshot. Fresh requests and restore replay share this boundary. The two-session regression passed separately and now within `phase1:local`: retention deleted one point while uncommitted; deletion waited, captured zero remaining points, and completed in one batch with zero residual rows.
 - The existing deletion fixture drill is not a general queue-drain command. Browser harnesses explicitly run the bounded worker for their own synthetic jobs. Hosted retention/deletion/summary schedules remain a release gate.
 
-## Reproduction and evidence
+## Reproduction and historical stop-point evidence
 
 Run the reset suites sequentially against the disposable local project only:
 
@@ -42,7 +63,7 @@ npm run phase1:capacity -- --clean
 node tools/portal-e2e/run.mjs --clean
 ```
 
-The runtime is Node **24.18.0**, npm **11.6.2**, Next.js **16.3.8**, Supabase CLI **2.113.0**, Playwright **1.62.1**, Darwin arm64. Install Chromium and WebKit. The harness excludes optional Studio, image proxy, logs, pooler, Realtime and Storage containers; database, Auth, REST, Edge and Mailpit remain exercised.
+The earlier run used Node **24.18.0**, npm **11.6.2**, Next.js **16.3.8**, Supabase CLI **2.113.0**, Playwright **1.62.1**, Darwin arm64. The table below is historical; current Windows results are above. Install Chromium and WebKit. The harness excludes optional Studio, image proxy, logs, pooler, Realtime and Storage containers; database, Auth, REST, Edge and Mailpit remain exercised.
 
 | Check | Current result |
 | --- | --- |
@@ -57,7 +78,7 @@ The runtime is Node **24.18.0**, npm **11.6.2**, Next.js **16.3.8**, Supabase CL
 
 Retained browser artifacts contain fixed checkpoints, numeric counts and aggregate metrics only. Auth cookies, tokens, claim codes, passwords, exported routes, HTML, traces and screenshots are not CI artifacts. Test secrets are ephemeral and the runner cleans Mailpit and its temporary files.
 
-## Handoff at the stop point
+## Historical handoff at the stop point
 
 - Receipt changes are in `apps/portal/app/account/finalize/route.ts`, `app/components/account-deletion-panel.tsx`, `app/components/account-deletion-receipt-recovery.tsx`, `app/account/deletion-receipt/page.tsx`, `lib/privacy/account.ts`, `lib/privacy/account.test.mjs` (all under `apps/portal`), and `supabase/functions/user-v1-account-deletion/index.ts`. Preserve the saved implementation; it is not release-accepted. No Edge/Deno check ran because Deno was unavailable in the shell.
 - `tools/portal-e2e/account-lifecycle.mjs` still sends the old body and assumes one finalization response. Its endpoint guards/status expectations must be reconciled with the new dispatcher before results can be interpreted. Lost response after committed Auth deletion, reload recovery, wrong requester/request, incomplete receipt, expired JWT and cookie cleanup remain untested.

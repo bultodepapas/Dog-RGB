@@ -36,13 +36,25 @@ const ownerArtifactDirectory = join(workspace, "output", "playwright", "m113");
 const authorizationArtifactDirectory = join(workspace, "output", "playwright", "m114");
 const faultArtifactDirectory = join(workspace, "output", "playwright", "m115");
 const privacyArtifactDirectory = join(workspace, "output", "playwright", "m116");
+const qualityArtifactDirectory = join(workspace, "output", "playwright", "quality");
 const expectedNode = "24.18.0";
 const expectedPlaywright = "1.62.1";
-const portalUrl = "http://127.0.0.1:3000";
 const m116Only = process.argv.includes("--m116-only");
 const qualityOnly = process.argv.includes("--quality-only");
 const coreOnly = process.argv.includes("--core-only");
 if ([m116Only, qualityOnly, coreOnly].filter(Boolean).length > 1) throw new Error("Choose only one focused portal gate.");
+const portalPort = Number(process.env.PORTAL_E2E_PORT ?? "3000");
+if (!Number.isInteger(portalPort) || portalPort < 1024 || portalPort > 65535 ||
+    (portalPort !== 3000 && !qualityOnly && !m116Only)) {
+  throw new Error("Use a port from 1024 to 65535 for focused quality/privacy gates; owner email flows require port 3000.");
+}
+const portalUrl = `http://127.0.0.1:${portalPort}`;
+// Focused gates must not erase evidence from suites they do not execute.
+const artifactDirectories = [
+  ...(!m116Only && !qualityOnly ? [ownerArtifactDirectory, authorizationArtifactDirectory, faultArtifactDirectory] : []),
+  privacyArtifactDirectory,
+  ...(!m116Only && !coreOnly ? [qualityArtifactDirectory] : []),
+];
 const runStartedAt = Date.now();
 const M115_EXPECTED_COUNTS = Object.freeze({
   receipts: 6,
@@ -222,7 +234,7 @@ async function portIsFree() {
   server.unref();
   return new Promise((resolveFree) => {
     server.once("error", () => resolveFree(false));
-    server.listen(3000, "127.0.0.1", () => {
+    server.listen(portalPort, "127.0.0.1", () => {
       server.close(() => resolveFree(true));
     });
   });
@@ -297,15 +309,16 @@ function portalEnvironment(environment) {
     NEXT_PUBLIC_SUPABASE_URL: environment.API_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: environment.PUBLISHABLE_KEY,
     NEXT_TELEMETRY_DISABLED: "1",
+    PORTAL_SITE_ORIGIN: portalUrl,
   };
 }
 
 async function startPortal(environment) {
   if (!await portIsFree()) {
-    throw new Error("Portal E2E requires exclusive ownership of 127.0.0.1:3000.");
+    throw new Error(`Portal E2E requires exclusive ownership of 127.0.0.1:${portalPort}.`);
   }
   const child = spawn(process.execPath, [
-    nextCli, "start", "--hostname", "127.0.0.1", "--port", "3000",
+    nextCli, "start", "--hostname", "127.0.0.1", "--port", String(portalPort),
   ], {
     cwd: portalDirectory,
     env: portalEnvironment(environment),
@@ -422,14 +435,9 @@ async function preflight() {
     throw new Error("Portal E2E requires the pinned Playwright Chromium installation.");
   }
   if (!await portIsFree()) {
-    throw new Error("Portal E2E requires exclusive ownership of 127.0.0.1:3000.");
+    throw new Error(`Portal E2E requires exclusive ownership of 127.0.0.1:${portalPort}.`);
   }
-  for (const artifactDirectory of [
-    ownerArtifactDirectory,
-    authorizationArtifactDirectory,
-    faultArtifactDirectory,
-    privacyArtifactDirectory,
-  ]) {
+  for (const artifactDirectory of artifactDirectories) {
     const resolvedArtifacts = resolve(artifactDirectory);
     if (!resolvedArtifacts.startsWith(`${workspace}\\`) && !resolvedArtifacts.startsWith(`${workspace}/`)) {
       throw new Error("Portal E2E artifact boundary is invalid.");
@@ -438,12 +446,7 @@ async function preflight() {
 }
 
 await preflight();
-for (const artifactDirectory of [
-  ownerArtifactDirectory,
-  authorizationArtifactDirectory,
-  faultArtifactDirectory,
-  privacyArtifactDirectory,
-]) {
+for (const artifactDirectory of artifactDirectories) {
   await rm(artifactDirectory, { recursive: true, force: true });
   await mkdir(artifactDirectory, { recursive: true });
 }

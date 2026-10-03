@@ -150,6 +150,10 @@ The E2E runner builds/starts the production portal and uses synthetic fixtures, 
 
 For a non-reset source/build check use `npm run phase1:check` and `npm run portal:build`. Run the opt-in summary worker with `node tools/cloud_analytics/run.mjs`; it consumes bounded batches and does not install a schedule. Acceptance results and remaining limits belong in the current cloud evidence, separately from historical review runs.
 
+Focused portal gates clear only their own artifact directories: `--quality-only` preserves M1.13–M1.15 reports and clears the quality reports before execution. Owner-journey failures retain bounded phase/category/React-code/HTTP-status diagnostics, never raw console messages, stacks, URLs, credentials or response bodies. The quality matrix includes the account-receipt recovery page; account lifecycle tests exercise the current prepare/finalize/receipt/acknowledge protocol.
+
+If another project owns port 3000, focused `--quality-only` / `--m116-only` accept `PORTAL_E2E_PORT` (1024–65535) and pass that exact loopback origin to the portal. Example in PowerShell: set `$env:PORTAL_E2E_PORT = '3107'`, run the focused command, then `Remove-Item Env:PORTAL_E2E_PORT`. Full/owner gates require port 3000 because the local Auth email redirect allowlist and Mailpit checks intentionally pin it.
+
 ## Visual regression
 
 On Linux/macOS, use the package script:
