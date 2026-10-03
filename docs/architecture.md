@@ -247,8 +247,15 @@ Current route v2 is a ten-byte coordinate/minute record with a two-hour local wi
 
 The isolated [native Track v3 codec](../Platformio/Dog-RGB/include/track/track_v3.h)
 implements bounded point/chunk serialization for M2.4a. It has no runtime caller;
-device identity allocation, observation cadence and raw outbox integration remain
+device identity activation, observation cadence and raw outbox integration remain
 M2B work. See the [codec evidence](cloud/m24a-track-v3-codec-evidence.md).
+
+The [M2.3a identity service](cloud/m23a-device-identity-evidence.md) provides
+explicit UUID provisioning and durable boot allocation through two NVS records.
+An incomplete/corrupt pair blocks v3 identity allocation; it never falls back to
+an older boot. Point/chunk counters are volatile under a uniquely reserved boot.
+The service has no startup/GNSS caller; enrollment, credential lifecycle and
+observation integration remain separate M2B work.
 
 The accepted target adds a fixed v3 observation/chunk format and a durable raw-partition outbox on the currently unused `0x150000` data partition:
 

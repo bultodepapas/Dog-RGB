@@ -235,6 +235,16 @@ callbacks in the host harness use Python `hashlib`; target builds compile the
 SDK mbedTLS adapter. This is codec evidence, not physical storage acceptance.
 See [M2.4a evidence and environment](cloud/m24a-track-v3-codec-evidence.md).
 
+Durable identity/boot allocation and the NVS adapter:
+
+```sh
+python3 -m unittest discover -s Platformio/Dog-RGB/test -p 'test_device_identity*.py' -v
+```
+
+These native tests inject byte-image write/read faults and exercise the actual
+SDK adapter against a fake NVS API. They require no board or credentials and run
+in the existing firmware host suite. See [M2.3a scope and recovery rules](cloud/m23a-device-identity-evidence.md).
+
 The superseded RAM-only suite passed 20/20, but that historical green result is invalid recovery/reclaim evidence: it accepted `acknowledge_through(999)` after only chunks `0..2` existed and then reclaimed all three. It also recovered from retained Python objects instead of constructing a fresh runtime from persisted flash bytes.
 
 The byte-addressed model reconstructs from NOR bytes, retains durable logical

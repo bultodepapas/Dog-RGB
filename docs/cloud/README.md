@@ -12,6 +12,7 @@
 | [Outbox remediation — 2026-10-02](phase0-outbox-remediation-2026-10-02.md) | durable identity, conservative corrupt-record recovery, loss cut matrix, preflight counters, and canonical evidence; host scope only |
 | [Outbox remediation review — 2026-10-02](phase0-outbox-remediation-review-2026-10-02.md) | independent AI acceptance of all 12 host invariants on `fb6dbef`; clean 67/67 readiness proof and explicit physical/fault-model limits |
 | [M2.4a native Track v3 codec](m24a-track-v3-codec-evidence.md) | bounded C++ serialization, Python interoperability, malformed-input rejection, and the remaining identity/observation integration boundary |
+| [M2.3a device identity and sequences](m23a-device-identity-evidence.md) | UUID/boot A/B storage, fail-closed recovery, volatile per-boot sequence ranges and explicit NVS adapter; credential/observation integration remains open |
 | [PostgreSQL capacity](phase0-capacity-benchmark.md) | one-million-point local sizing/query evidence and initial index/partition decision |
 | [Phase 1 migrated capacity](phase1-capacity-benchmark.md) | one-million-point evidence on the migrated/RLS-protected schema and retention consequences |
 | [M1.9 History query/index](m19-history-query-plan.md) | authenticated PostgREST pagination plans, measured narrow index, write/size cost, and rollback proof |

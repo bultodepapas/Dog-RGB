@@ -1,7 +1,8 @@
 # M2.4a — Native Track v3 codec
 
-**Date:** 2026-10-02 (America/Bogota). **Scope:** codec-only increment of M2.4,
-based on `0230227`. Implementation and verification in the current worktree.
+**Date:** 2026-10-02 (America/Bogota). **Scope:** codec-only increment of M2.4.
+Implemented in `d244221`, based on `0230227`; validation below records the
+original implementation worktree.
 M2.4 remains open for observations.
 
 ## Implementation boundary
@@ -80,7 +81,7 @@ headers. No compiler path is embedded in source or CI.
 
 Both target builds compile the codec and SDK adapter. No runtime caller means
 these linked image sizes do not measure active codec stack, timing or energy.
-The current dirty-tree readiness invocation correctly reports ineligible; it is
+The original dirty-tree readiness invocation correctly reported ineligible; it is
 not a replacement for the archived clean M2A review.
 
 Independent AI review: Luna (`gpt-6-luna`, max; `/root/next_task_review`) inspected
