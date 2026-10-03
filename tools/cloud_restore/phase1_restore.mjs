@@ -124,6 +124,9 @@ function requestDeletion(container, database, requestId) {
     begin;
     set local role authenticated;
     set local "request.jwt.claim.sub" = '${OWNER_ID}';
+    -- This isolated SQL fixture models the password session required by the
+    -- user RPC; the browser/deletion drills exercise actual Auth issuance.
+    set local "request.jwt.claims" = '${JSON.stringify({ sub: OWNER_ID, amr: [{ method: "password", timestamp: Math.floor(Date.now() / 1000) }] })}';
     select api.request_dog_deletion_v1(
       '${DOG_ID}', '${requestId}', 'dog-delete-v1'
     )::text;

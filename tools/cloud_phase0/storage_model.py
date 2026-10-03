@@ -12,7 +12,7 @@ model.  It is not presented as a trace of the ESP-IDF LittleFS port.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import hashlib
 import math
 import random
@@ -42,7 +42,7 @@ RAW_SLOTS_PER_BLOCK = ERASE_BLOCK_BYTES // RAW_SLOT_BYTES
 RAW_CAPACITY_CHUNKS = RAW_DATA_BLOCKS * RAW_SLOTS_PER_BLOCK
 RAW_METADATA_RECORD_BYTES = 128
 RAW_METADATA_RECORDS_PER_BLOCK = ERASE_BLOCK_BYTES // RAW_METADATA_RECORD_BYTES
-RAW_JOURNAL_VERSION = 2
+RAW_JOURNAL_VERSION = 3
 RAW_EMERGENCY_RECORD_BYTES = 256
 RAW_SLOT_HEADER_BYTES = 128
 
@@ -71,6 +71,7 @@ _SLOT_PREFIX = struct.Struct("<4sBBHQ16sIIIHH32sII24s")  # 112 bytes
 _JOURNAL_PREFIX = struct.Struct("<4sBBHQQQIIQQ60sI")  # 120 bytes
 _EMERGENCY_PREFIX = struct.Struct("<4sBBHQ16s16sQQQQQI152sI")  # 248 bytes
 _JOURNAL_RESERVED = struct.Struct("<QQ8s36s")
+_JOURNAL_IDENTITY = struct.Struct("<16sII12s")
 _DEFERRED_LOSS = struct.Struct("<16sQQQQI32s36s")
 # The erase-intent consumed marker lives outside the journal CRC by design.  It
 # starts erased and is programmed only after the target sector has been fully
@@ -204,6 +205,37 @@ class ChunkIdentity:
     chunk_sequence: int
 
 
+def _encode_identity(identity: ChunkIdentity | None) -> bytes:
+    if identity is None:
+        return b"\x00" * 36
+    if identity.device_id.int == 0 or any(
+        type(value) is not int or not 0 <= value <= 0xFFFFFFFF
+        for value in (identity.boot_sequence, identity.chunk_sequence)
+    ):
+        raise ValueError("invalid logical identity watermark")
+    return _JOURNAL_IDENTITY.pack(identity.device_id.bytes, identity.boot_sequence,
+                                  identity.chunk_sequence, b"\x00" * 12)
+
+
+def _decode_identity(raw: bytes) -> ChunkIdentity | None:
+    if raw == b"\x00" * 36:
+        return None
+    device, boot, chunk, padding = _JOURNAL_IDENTITY.unpack(raw)
+    if padding != b"\x00" * 12 or device == b"\x00" * 16:
+        raise ValueError("invalid logical identity watermark")
+    return ChunkIdentity(uuid.UUID(bytes=device), boot, chunk)
+
+
+def _newest_identity(left: ChunkIdentity | None, right: ChunkIdentity | None) -> ChunkIdentity | None:
+    if left is None:
+        return right
+    if right is None:
+        return left
+    if left.device_id != right.device_id:
+        raise RuntimeError("outbox contains multiple device identities")
+    return max((left, right), key=lambda value: (value.boot_sequence, value.chunk_sequence))
+
+
 @dataclass(frozen=True)
 class AckReceipt:
     device_id: uuid.UUID
@@ -254,6 +286,7 @@ class JournalRecord:
     dropped_points_total: int
     sector: int
     record_index: int
+    identity_high_water: ChunkIdentity | None
 
 
 @dataclass(frozen=True)
@@ -271,6 +304,7 @@ class EmergencyRecord:
     sector: int
     last_event_fingerprint: bytes = b"\x00" * 32
     deferred_loss: "DeferredLoss | None" = None
+    identity_high_water: ChunkIdentity | None = None
 
     @property
     def record_sha256(self) -> bytes:
@@ -450,6 +484,7 @@ class RawRingModel:
         self.sequence_state_unknown = other.sequence_state_unknown
         self.loss_state_unknown = other.loss_state_unknown
         self.outbox_exhausted = other.outbox_exhausted
+        self.identity_high_water = other.identity_high_water
         # Network-response provenance is intentionally volatile across reboot.
         self.sent_outbox_sequences = set()
         self.sent_loss_id = None
@@ -471,6 +506,11 @@ class RawRingModel:
         point_count: int,
         digest: bytes,
     ) -> bytes:
+        if any(type(value) is not int for value in (
+            outbox_sequence, identity.boot_sequence, identity.chunk_sequence,
+            first_point_sequence, point_count,
+        )):
+            raise ValueError("slot sequence/count fields must be exact integers")
         if not 0 <= outbox_sequence <= UINT64_MAX:
             raise ValueError("outbox sequence out of uint64 range")
         if identity.device_id.int == 0:
@@ -514,8 +554,9 @@ class RawRingModel:
             return "erased", None
         ack_marker = raw[112:120]
         commit_marker = raw[120:128]
-        if commit_marker != COMMIT_MARKER:
-            return "incomplete", None
+        # Recover a complete CRC-valid body even if its commit marker tore or
+        # was erased by corruption. Body-before-marker ordering permits the
+        # new valid state; marker damage must not hide a consumed identity.
         try:
             values = _SLOT_PREFIX.unpack(raw[:112])
             (
@@ -544,10 +585,13 @@ class RawRingModel:
             if identity.device_id.int == 0 or first_point_sequence + point_count - 1 > 0xFFFFFFFF:
                 raise ValueError("slot semantic bounds")
         except (ValueError, struct.error):
-            return "corrupt", None
+            unmarked = commit_marker == ERASED_MARKER and ack_marker == ERASED_MARKER
+            return ("incomplete" if unmarked else "corrupt"), None
         acknowledged = ack_marker == COMMIT_MARKER
         payload = raw[RAW_SLOT_HEADER_BYTES : RAW_SLOT_HEADER_BYTES + payload_length]
         payload_valid = zlib.crc32(payload) & 0xFFFFFFFF == payload_crc
+        if commit_marker == ERASED_MARKER and ack_marker == ERASED_MARKER and not payload_valid:
+            return "incomplete", None
         slot = RawSlot(
             slot_index, outbox_sequence, identity, first_point_sequence,
             point_count, digest, acknowledged,
@@ -568,8 +612,9 @@ class RawRingModel:
         if len(intent_sequences) > RAW_SLOTS_PER_BLOCK:
             raise AssertionError("erase intent exceeds one data sector")
         intent_sequences.extend([UINT64_MAX] * (RAW_SLOTS_PER_BLOCK - len(intent_sequences)))
+        identity_bytes = _encode_identity(self.identity_high_water)
         reserved = _JOURNAL_RESERVED.pack(
-            intent_sequences[0], intent_sequences[1], ERASED_MARKER, b"\x00" * 36
+            intent_sequences[0], intent_sequences[1], ERASED_MARKER, identity_bytes
         )
         erase_intent = 0 if self.erase_intent_block is None else self.erase_intent_block + 1
         zero = _JOURNAL_PREFIX.pack(
@@ -587,8 +632,8 @@ class RawRingModel:
     def _decode_journal(self, sector: int, record_index: int) -> JournalRecord | None:
         offset = sector * ERASE_BLOCK_BYTES + record_index * RAW_METADATA_RECORD_BYTES
         raw = self.flash.read(offset, RAW_METADATA_RECORD_BYTES)
-        if raw[120:128] != COMMIT_MARKER:
-            return None
+        # A fully validated body is durable evidence even before/without the
+        # final marker. Invalid unmarked bodies remain interrupted appends.
         try:
             (
                 magic, version, flags, record_bytes, generation, next_outbox,
@@ -611,7 +656,9 @@ class RawRingModel:
             ) = _JOURNAL_RESERVED.unpack(reserved)
         except struct.error:
             return None
-        if intent_reserved != b"\x00" * 36:
+        try:
+            identity = _decode_identity(intent_reserved)
+        except (ValueError, struct.error):
             return None
         normalized_reserved = _JOURNAL_RESERVED.pack(
             intent_first, intent_second, ERASED_MARKER, intent_reserved
@@ -643,7 +690,7 @@ class RawRingModel:
             generation, next_outbox, reclaim, write_cursor,
             None if erase_intent == 0 else erase_intent - 1,
             intent_sequences, intent_consumed, emergency_gen,
-            dropped_points_total, sector, record_index,
+            dropped_points_total, sector, record_index, identity,
         )
 
     def _journal_records(self) -> list[JournalRecord]:
@@ -670,11 +717,30 @@ class RawRingModel:
         return selected
 
     def _encode_emergency(self, record: EmergencyRecord) -> bytes:
+        # Encode/preflight before erasing the inactive copy. Counters never
+        # wrap or saturate silently; overflow leaves both copies untouched.
+        values = (
+            record.generation, record.first_missing_outbox_sequence,
+            record.last_missing_outbox_sequence, record.dropped_chunks,
+            record.dropped_points, record.total_dropped_points,
+        )
+        if any(type(value) is not int or not 0 <= value <= UINT64_MAX for value in values):
+            raise OverflowError("loss counter/generation exceeds uint64")
+        if type(record.reason_mask) is not int or not 0 <= record.reason_mask <= 0xFFFFFFFF:
+            raise OverflowError("loss reason/receipt generation exceeds uint32")
+        if record.deferred_loss is not None:
+            deferred = record.deferred_loss
+            if any(type(value) is not int or not 0 <= value <= UINT64_MAX for value in (
+                deferred.first_missing_outbox_sequence, deferred.last_missing_outbox_sequence,
+                deferred.dropped_chunks, deferred.dropped_points,
+            )) or not 0 <= deferred.reason_mask <= 0xFFFFFFFF:
+                raise OverflowError("deferred loss counters exceed their encoded widths")
         state_code = {"empty": 0, "pending": 1, "acknowledged": 2}[record.state]
         if len(record.last_event_fingerprint) != 32:
             raise ValueError("loss-event fingerprint must be 32 bytes")
+        identity_bytes = _encode_identity(record.identity_high_water)
         if record.deferred_loss is None:
-            deferred = b"\x00" * 120
+            deferred = b"\x00" * 84 + identity_bytes
         else:
             pending = record.deferred_loss
             if len(pending.last_event_fingerprint) != 32:
@@ -687,11 +753,11 @@ class RawRingModel:
                 pending.dropped_points,
                 pending.reason_mask,
                 pending.last_event_fingerprint,
-                b"\x00" * 36,
+                identity_bytes,
             )
         reserved = record.last_event_fingerprint + deferred
         zero = _EMERGENCY_PREFIX.pack(
-            b"DREL", 1, state_code, RAW_EMERGENCY_RECORD_BYTES, record.generation,
+            b"DREL", 2, state_code, RAW_EMERGENCY_RECORD_BYTES, record.generation,
             record.loss_id.bytes, record.last_event_id.bytes,
             record.first_missing_outbox_sequence,
             record.last_missing_outbox_sequence, record.dropped_chunks,
@@ -700,7 +766,7 @@ class RawRingModel:
         )
         crc = zlib.crc32(zero) & 0xFFFFFFFF
         return _EMERGENCY_PREFIX.pack(
-            b"DREL", 1, state_code, RAW_EMERGENCY_RECORD_BYTES, record.generation,
+            b"DREL", 2, state_code, RAW_EMERGENCY_RECORD_BYTES, record.generation,
             record.loss_id.bytes, record.last_event_id.bytes,
             record.first_missing_outbox_sequence,
             record.last_missing_outbox_sequence, record.dropped_chunks,
@@ -711,8 +777,7 @@ class RawRingModel:
     def _decode_emergency(self, sector: int) -> EmergencyRecord | None:
         offset = sector * ERASE_BLOCK_BYTES
         raw = self.flash.read(offset, RAW_EMERGENCY_RECORD_BYTES)
-        if raw[248:256] != COMMIT_MARKER:
-            return None
+        # Same body-before-marker recovery rule as slots and journals.
         try:
             (
                 magic, version, state_code, record_bytes, generation, loss_id_bytes,
@@ -722,7 +787,7 @@ class RawRingModel:
         except struct.error:
             return None
         if (
-            magic != b"DREL" or version != 1 or state_code not in (0, 1, 2)
+            magic != b"DREL" or version != 2 or state_code not in (0, 1, 2)
             or record_bytes != RAW_EMERGENCY_RECORD_BYTES
         ):
             return None
@@ -734,8 +799,12 @@ class RawRingModel:
         if zlib.crc32(zero) & 0xFFFFFFFF != crc:
             return None
         deferred_raw = reserved[32:]
+        try:
+            identity = _decode_identity(deferred_raw[84:])
+        except (ValueError, struct.error):
+            return None
         deferred_loss: DeferredLoss | None = None
-        if deferred_raw != b"\x00" * 120:
+        if deferred_raw[:84] != b"\x00" * 84:
             try:
                 (
                     deferred_event_id, deferred_first, deferred_last,
@@ -746,7 +815,6 @@ class RawRingModel:
                 return None
             if (
                 state_code != 2
-                or deferred_reserved != b"\x00" * 36
                 or uuid.UUID(bytes=deferred_event_id).int == 0
                 or deferred_first > deferred_last
                 or deferred_chunks == 0
@@ -786,7 +854,7 @@ class RawRingModel:
             generation, state, uuid.UUID(bytes=loss_id_bytes),
             uuid.UUID(bytes=last_event_id_bytes), first, last,
             dropped_chunks, dropped_points, total_dropped_points,
-            reason_mask, sector, reserved[:32], deferred_loss,
+            reason_mask, sector, reserved[:32], deferred_loss, identity,
         )
 
     def _select_emergency(self) -> EmergencyRecord | None:
@@ -831,8 +899,23 @@ class RawRingModel:
             else journal.erase_intent_sequences
         )
         self.dropped_points_total = 0 if journal is None else journal.dropped_points_total
+        self.identity_high_water = None if journal is None else journal.identity_high_water
+        # Unlike an interrupted, uncommitted append, a corrupt committed record
+        # can hide a reclaim/identity high-water. Salvage reads, never guess a
+        # writable fallback. This also handles unknown journal format versions.
+        corrupt_committed_journal = any(
+            self.flash.read(sector * ERASE_BLOCK_BYTES + index * RAW_METADATA_RECORD_BYTES + 120, 8)
+            != ERASED_MARKER and self._decode_journal(sector, index) is None
+            for sector in range(RAW_SUPERBLOCKS)
+            for index in range(RAW_METADATA_RECORDS_PER_BLOCK)
+        )
 
         emergency = self._select_emergency()
+        corrupt_committed_emergency = any(
+            self.flash.read(sector * ERASE_BLOCK_BYTES + 248, 8) != ERASED_MARKER
+            and self._decode_emergency(sector) is None
+            for sector in range(RAW_SUPERBLOCKS, self.data_start_sector)
+        )
         emergency_bytes_present = any(
             self.flash.read(sector * ERASE_BLOCK_BYTES, ERASE_BLOCK_BYTES)
             != b"\xff" * ERASE_BLOCK_BYTES
@@ -841,6 +924,7 @@ class RawRingModel:
         self.emergency = emergency
         self.emergency_generation = -1 if emergency is None else emergency.generation
         if emergency is not None:
+            self.identity_high_water = _newest_identity(self.identity_high_water, emergency.identity_high_water)
             self.dropped_points_total = max(
                 self.dropped_points_total, emergency.total_dropped_points
             )
@@ -875,6 +959,7 @@ class RawRingModel:
                     raise RuntimeError("logical chunk identity appears in multiple committed slots")
                 observed_sequences[slot.outbox_sequence] = slot
                 identities[slot.identity] = slot
+                self.identity_high_water = _newest_identity(self.identity_high_water, slot.identity)
                 if state == "corrupt":
                     self.quarantined_slots[slot.outbox_sequence] = slot
                 else:
@@ -897,7 +982,9 @@ class RawRingModel:
         self.outbox_exhausted = next_candidate >= UINT64_MAX
         self.next_outbox_sequence = min(next_candidate, UINT64_MAX)
 
-        self.metadata_degraded = journal is None and journal_bytes_present
+        self.metadata_degraded = corrupt_committed_journal or (
+            journal is None and (journal_bytes_present or emergency_bytes_present or bool(observed_sequences))
+        )
         # If every metadata record is unreadable, slot scanning can salvage
         # upload content but cannot prove historical ACK, loss, or reclaim
         # state.  Keep the image read-only until an explicit repair workflow.
@@ -905,7 +992,7 @@ class RawRingModel:
             self.metadata_degraded
             or self.unknown_corrupt_slot_indexes
         )
-        self.loss_state_unknown = emergency is None and emergency_bytes_present
+        self.loss_state_unknown = corrupt_committed_emergency or (emergency is None and emergency_bytes_present)
         if journal is not None:
             selected_emergency_generation = -1 if emergency is None else emergency.generation
             if (
@@ -1039,6 +1126,10 @@ class RawRingModel:
         return True
 
     def _write_emergency(self, record: EmergencyRecord, *, cut_at: str | None = None) -> bool:
+        record = replace(record, identity_high_water=_newest_identity(
+            self.identity_high_water, record.identity_high_water,
+        ))
+        encoded = self._encode_emergency(record)
         active_sector = None if self.emergency is None else self.emergency.sector
         target_sector = RAW_SUPERBLOCKS if active_sector is None else (
             RAW_SUPERBLOCKS + (1 - (active_sector - RAW_SUPERBLOCKS))
@@ -1049,7 +1140,6 @@ class RawRingModel:
                 self._power_cut("emergency")
                 return False
             self._erase(target_sector)
-        encoded = self._encode_emergency(record)
         offset = target_sector * ERASE_BLOCK_BYTES
         if cut_at == "during_emergency_record":
             self._program(offset, encoded[:248], cut_after=124)
@@ -1148,6 +1238,7 @@ class RawRingModel:
         if self.sequence_state_unknown or self.loss_state_unknown:
             raise RuntimeError("flash metadata/loss state is unknown; model is read-only")
         identity = ChunkIdentity(device_id, boot_sequence, sequence)
+        _encode_identity(identity)
         existing = self._find_identity(identity)
         if existing is not None:
             if existing.digest != digest:
@@ -1159,25 +1250,42 @@ class RawRingModel:
         if self.outbox_exhausted:
             raise OverflowError("outbox sequence space is exhausted")
 
+        # Validate the complete envelope before reclaim can mutate flash.
+        first = sequence * MAX_POINTS_PER_CHUNK if first_point_sequence is None else first_point_sequence
+        outbox_sequence = self.next_outbox_sequence
+        encoded = self._encode_slot(
+            outbox_sequence=outbox_sequence, identity=identity,
+            first_point_sequence=first, point_count=point_count, digest=digest,
+        )
+
         full_event_id = uuid.uuid5(
             uuid.NAMESPACE_OID,
             f"dog-rgb-full:{device_id}:{boot_sequence}:{sequence}:{digest.hex()}",
         )
-        if (
-            self.emergency is not None
-            and self.emergency.state == "pending"
-            and self.emergency.last_event_id == full_event_id
-        ):
+        latest_loss = None
+        if self.emergency is not None:
+            if self.emergency.state == "pending":
+                latest_loss = self.emergency
+            elif self.emergency.deferred_loss is not None:
+                latest_loss = self.emergency.deferred_loss
+        if latest_loss is not None and latest_loss.last_event_id == full_event_id:
             fingerprint = _loss_event_fingerprint(
                 full_event_id,
-                self.emergency.last_missing_outbox_sequence,
+                latest_loss.last_missing_outbox_sequence,
                 point_count,
                 1,
             )
-            if self.emergency.last_event_fingerprint == fingerprint:
+            if latest_loss.last_event_fingerprint == fingerprint:
                 self.counters.idempotent_seals += 1
                 return False
             raise ValueError("full-storage loss retry changed immutable content")
+
+        high = self.identity_high_water
+        if high is not None:
+            if identity.device_id != high.device_id:
+                raise ValueError("outbox is bound to one device identity")
+            if (identity.boot_sequence, identity.chunk_sequence) <= (high.boot_sequence, high.chunk_sequence):
+                raise ValueError("historical logical chunk identity cannot be reused")
 
         index = self._find_erased_slot()
         if index is None:
@@ -1190,18 +1298,11 @@ class RawRingModel:
                 reason_mask=1,
                 event_id=full_event_id,
                 missing_outbox_sequence=self.next_outbox_sequence,
+                _seal_identity=identity,
+                cut_at=cut_at,
             )
             return False
 
-        first = sequence * MAX_POINTS_PER_CHUNK if first_point_sequence is None else first_point_sequence
-        outbox_sequence = self.next_outbox_sequence
-        encoded = self._encode_slot(
-            outbox_sequence=outbox_sequence,
-            identity=identity,
-            first_point_sequence=first,
-            point_count=point_count,
-            digest=digest,
-        )
         offset = self._slot_offset(index)
         body_length = len(encoded)
         if cut_at == "during_data":
@@ -1213,14 +1314,20 @@ class RawRingModel:
         if cut_at == "during_slot_commit":
             self._program(offset + 120, COMMIT_MARKER, cut_after=4)
             self._power_cut("slot_commit")
-            self.counters.rolled_back_incomplete_chunks += 1
-            return False
+            recovered = self.contains(sequence, digest, device_id=device_id, boot_sequence=boot_sequence)
+            if recovered:
+                self.counters.successful_new_seals += 1
+                self.counters.recovered_orphan_chunks += 1
+            else:
+                self.counters.rolled_back_incomplete_chunks += 1
+            return recovered
         self._program(offset + 120, COMMIT_MARKER)
         state, slot = self._decode_slot(index)
         if state != "valid" or slot is None or slot.digest != digest:
             raise RuntimeError("slot readback failed")
         self.counters.successful_new_seals += 1
         self.next_outbox_sequence = outbox_sequence + 1
+        self.identity_high_water = identity
         if cut_at == "after_data" or cut_at == "after_slot_commit":
             self._power_cut("after_slot_commit")
             self.counters.recovered_orphan_chunks += 1
@@ -1476,11 +1583,27 @@ class RawRingModel:
         reason_mask: int,
         event_id: uuid.UUID | None = None,
         cut_at: str | None = None,
+        _seal_identity: ChunkIdentity | None = None,
     ) -> bool:
         if self.sequence_state_unknown or self.loss_state_unknown:
             raise RuntimeError("flash metadata/loss state is unknown; model is read-only")
         if dropped_points <= 0 or reason_mask <= 0:
             raise ValueError("loss counters/reason must be positive")
+        if type(dropped_points) is not int or dropped_points > UINT64_MAX:
+            raise OverflowError("dropped points exceeds uint64")
+        if type(reason_mask) is not int or reason_mask > 0xFFFFFFFF:
+            raise OverflowError("loss reason exceeds uint32")
+        if event_id is not None and event_id.int == 0:
+            raise ValueError("nil loss event UUID")
+        if _seal_identity is not None:
+            _encode_identity(_seal_identity)
+            high = self.identity_high_water
+            if high is not None and (
+                _seal_identity.device_id != high.device_id or
+                (_seal_identity.boot_sequence, _seal_identity.chunk_sequence) <=
+                (high.boot_sequence, high.chunk_sequence)
+            ):
+                raise ValueError("historical logical chunk identity cannot be reused")
         current = self.emergency if self.emergency and self.emergency.state == "pending" else None
         if self.emergency is not None and self.emergency.state == "acknowledged":
             acknowledged = self.emergency
@@ -1534,13 +1657,14 @@ class RawRingModel:
                 acknowledged.last_event_fingerprint,
                 deferred,
             )
+            updated = replace(updated, identity_high_water=_seal_identity)
             if not self._write_emergency(updated, cut_at=cut_at):
                 return False
             self.next_outbox_sequence = missing + 1
             self.dropped_points_total = updated.total_dropped_points
             if cut_at == "after_emergency_commit":
                 return True
-            return self._append_journal(stage="seal_metadata")
+            return self._append_journal(cut_at=cut_at, stage="seal_metadata")
         missing = missing_outbox_sequence
         if not 0 <= missing < UINT64_MAX:
             raise OverflowError("missing outbox sequence is outside the usable uint64 range")
@@ -1583,6 +1707,7 @@ class RawRingModel:
             -1,
             fingerprint,
         )
+        record = replace(record, identity_high_water=_seal_identity)
         if not self._write_emergency(record, cut_at=cut_at):
             return False
         # A committed emergency record itself proves this ordinal was consumed;
@@ -1591,7 +1716,7 @@ class RawRingModel:
         self.dropped_points_total = record.total_dropped_points
         if cut_at == "after_emergency_commit":
             return True
-        return self._append_journal(stage="seal_metadata")
+        return self._append_journal(cut_at=cut_at, stage="seal_metadata")
 
     def prepare_loss_upload(self) -> EmergencyRecord | None:
         if self.emergency is None or self.emergency.state != "pending":
@@ -1675,7 +1800,7 @@ class RawRingModel:
             if cut_at == "after_emergency_commit":
                 return False
         if not self._persist_ack_prefix(
-            cut_at="during_metadata" if cut_at == "during_ack_metadata" else None
+            cut_at="during_metadata" if cut_at == "during_ack_metadata" else cut_at
         ):
             return False
         # A sparse coalesced loss envelope may contain still-live chunks.  The

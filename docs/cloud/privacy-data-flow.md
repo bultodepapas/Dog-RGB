@@ -1,6 +1,6 @@
 # Cloud privacy and data-flow inventory
 
-**Status:** Phase 0 proposal, 2026-08-13. No cloud collection currently exists.
+**Status:** accepted data-flow design, maturity reconciled 2026-10-02. Local backend and simulator-backed owner portal exist. No physical collar cloud collection or hosted deployment is claimed; export/delete/consent product implementation is under local integration validation; hosted operational enforcement remains M5B of the [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md).
 
 This document describes the accepted opt-in design so implementation can be tested against a concrete privacy boundary. It is not a published privacy notice or legal conclusion; jurisdiction, operator identity, contact details, subprocessors, and launch terms must be completed before inviting external users.
 
@@ -55,7 +55,7 @@ The basemap provider does not receive route GeoJSON from Dog-RGB. It can infer t
 | local-only secrets/settings | station/AP password, local PIN, Home coordinate, power calibration | collar local stores | local connectivity, recovery, safety/geofence | Never upload in first release; never include in logs/exports to cloud |
 | device authentication | plaintext device credential; server HMAC digest, pepper version; claim-code digest | collar/private server schema | authenticate, pair, revoke | Secret; plaintext persists only on collar and crosses verified TLS transiently in claim/auth; never DB/log/browser/read API |
 | operational/replay evidence | request/chunk/mutation IDs, body hash, ACK, error code, IP/rate metadata | gateway/database/provider | idempotency, abuse response, support | Minimize/redact; no coordinates/bodies; bounded retention |
-| user-created export/delete state | export job, deletion request/status/receipt | authenticated database workflow | privacy rights and operational evidence | Contains references but deletion receipt has no location payload |
+| user-created export/delete state | synchronous private download; durable deletion request/status/receipt | authenticated database workflow | data portability and deletion evidence | Downloads are not stored as server artifacts; deletion evidence contains references but no location payload |
 | basemap request metadata | IP, user agent/referrer, style/tile coordinates/viewport, map key/account | user's browser/map provider | render contextual map | External processor policy; no route GeoJSON or Home sent |
 
 ## Processing path and controls
@@ -91,7 +91,7 @@ Before issuing a claim code, show:
 - data classes to be uploaded and the high sensitivity of location history;
 - sync occurs automatically on known Wi-Fi after pairing;
 - first-release local-only fields;
-- retention defaults, map-provider disclosure, and account deletion/export links;
+- retention defaults and account deletion/export links; disclose the selected map provider only when optional tiles are enabled;
 - last-synchronized rather than live-tracking behavior;
 - an explicit confirm action and recoverable cancellation.
 
@@ -103,17 +103,15 @@ A pause stops new uploads but keeps the account/credential unless the UI clearly
 
 ### Access/export/delete
 
-- Export account/dog/collar metadata, recordings, raw points (within retention), summaries/provenance, configuration revisions/outcomes, and membership in a documented machine-readable format.
-- Permit owner deletion of a recording, dog, collar association, or account at the appropriate scope, with strong confirmation and reauthentication for destructive account/dog deletion.
+- Current export is owner-only per-dog JSON and per-recording GeoJSON: dog/collar metadata, recordings, retained points, quality/gaps, summaries/provenance and configuration revisions/outcomes. `/account` links to those dog exports; it does not export Auth/profile/membership data. Account-level portability and asynchronous large exports are deferred. [Exact v1 limits](local-web-v1-implementation-2026-10-03.md#bounded-contracts) fail the entire request rather than truncate it.
+- Core v1 provides owner dog/account deletion with strong confirmation and reauthentication, plus collar revocation that preserves history. Recording-only deletion is deferred; do not advertise it as implemented.
 - Remove active data within 24 hours, show job state/failure/retry, retain only a coordinate-free deletion receipt, and disclose encrypted backup expiry.
 - Restores must replay deletion tombstones/jobs before exposing restored data.
 
 **Local Phase 1 implementation note — 2026-08-17:** the database now has an
 owner-authorized dog-deletion request, immediately revoked ingress/RLS access, a
 bounded retryable worker, and coordinate-free tombstone/receipt evidence. This
-is a tested backend primitive, not a user-facing privacy workflow: export,
-strong confirmation/reauthentication, account deletion, scheduling and hosted
-restore replay are still required.
+was the original backend primitive. The 2026-10 local implementation adds owner exports, strong confirmation/password reauthentication, observable dog/account deletion and affirmative pairing consent. Account identity remains until all linked purges complete. Scheduling and hosted restore replay are separate release requirements.
 
 ## Accuracy and interpretation limits
 
@@ -139,7 +137,7 @@ Before adding a field, processor, or log:
 - data export/deletion and backup-restore deletion drill pass;
 - production provider/region/subprocessor/retention details are filled in;
 - network/log/bundle scans contain no prohibited field or route coordinate;
-- map privacy network capture passes and non-map fallback exists;
+- if optional tiles are enabled, provider privacy/network checks pass; the core SVG/table view remains available without them;
 - privacy/terms/contact copy receives operator/legal review appropriate to launch jurisdictions.
 
 ## References

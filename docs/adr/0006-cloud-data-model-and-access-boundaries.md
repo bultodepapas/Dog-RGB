@@ -124,7 +124,7 @@ Do not add a GiST spatial index until a measured query needs radius/containment 
 
 ## Implementation and acceptance gates
 
-This ADR is an accepted target, not an implemented database. Phase 1 must provide migrations and automated evidence for:
+**Maturity update — 2026-10-02:** local migrations, grants/RLS, gateway transactions and portal reads are implemented, with evidence in the [cloud index](../cloud/README.md). Derived summaries, complete user data lifecycle and hosted parity remain open. Retain these acceptance obligations for affected changes:
 
 1. anonymous, cross-user, viewer/editor/owner, deleted-member, and forged-ID access cases;
 2. identical and conflicting replay under concurrency;

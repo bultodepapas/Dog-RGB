@@ -82,7 +82,7 @@ try {
 
   console.log("Replacing this repository's disposable local Supabase stack (--clean)...");
   runQuiet("supabase", ["stop", "--no-backup"], { allowFailure: true });
-  runQuiet("supabase", ["start"]);
+  runQuiet("supabase", ["start", "--exclude", "studio,imgproxy,logflare,vector,supavisor,realtime,storage-api"]);
   console.log("Rebuilding and testing the database...");
   run("supabase", ["db", "reset"]);
   run("npm", ["run", "cloud:types:check"]);
@@ -92,6 +92,8 @@ try {
   run("npm", ["run", "phase1:check"]);
 
   const environment = localEnvironment();
+  run("node", ["tools/cloud_analytics/concurrency.mjs"], { env: environment });
+  run("node", ["tools/cloud_deletion/retention_fence.mjs"], { env: environment });
   run("node", ["tools/cloud_configuration/m111_rpc_concurrency.mjs"], { env: environment });
   run("node", ["tools/cloud_configuration/m111_rest_matrix.mjs"], { env: environment });
   run("node", ["tools/cloud_collars/m112_revoke_matrix.mjs"], { env: environment });

@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "C:/DEVELOPMENT/Dog-RGB-1/tools/display-simulator"
+    "cmake.sourceDirectory": "${workspaceFolder}/tools/display-simulator",
+    "cmake.configureOnOpen": false
 }

@@ -68,6 +68,9 @@ export async function issueClaimAction(
   _previousState: IssueClaimActionState,
   formData: FormData,
 ): Promise<IssueClaimActionState> {
+  if (formData.getAll("cloudConsent").length !== 1 || formData.get("cloudConsent") !== "cloud-v1") {
+    return { status: "error", message: "Confirma el uso de datos antes de vincular el collar." };
+  }
   const result = await issueClaimMutation(formData);
   return result.state;
 }

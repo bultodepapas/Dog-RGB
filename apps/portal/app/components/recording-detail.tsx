@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { SummaryDto } from "../../lib/data-access/summary-core";
+import { ComputedSummary } from "./computed-summary";
 
 import {
   dogAppPath,
@@ -289,7 +291,7 @@ function PointTable({ page }: Readonly<{
   );
 }
 
-export function RecordingDetail({ page }: Readonly<{ page: RecordingPageDto }>) {
+export function RecordingDetail({ page, summary }: Readonly<{ page: RecordingPageDto; summary: SummaryDto }>) {
   const canonicalPath = recordingAppPath(page.dog.id, page.recording.id);
   return (
     <DogPrivateShell activeSection="history" dog={page.dog}>
@@ -316,6 +318,17 @@ export function RecordingDetail({ page }: Readonly<{ page: RecordingPageDto }>) 
         </header>
 
         <RecordingFacts page={page} />
+        {page.dog.role === "owner" ? (
+          <p>
+            <a
+              className="button-link"
+              href={`/app/${page.dog.id}/recordings/${page.recording.id}/geojson`}
+            >
+              DESCARGAR GEOJSON DE ESTA GRABACIÓN
+            </a>
+          </p>
+        ) : null}
+        <section className="recording-section" aria-labelledby="summary-title"><h2 id="summary-title">Resumen de la grabación</h2><ComputedSummary summary={summary} timezone={page.recording.timezoneAtStart} /></section>
 
         {page.status === "invalid_after" ? (
           <Link className="button-link recording-recovery" href={canonicalPath} prefetch={false}>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { dogAppPath } from "../../../../lib/auth/protected-route";
-import { requireTodayPage } from "../../../../lib/auth/route-guard";
+import { requireComputedSummaryPage, requireTodayPage } from "../../../../lib/auth/route-guard";
 import { TodaySnapshot } from "../../../components/today-snapshot";
 
 export const metadata: Metadata = { title: "Hoy | Dog RGB" };
@@ -16,5 +16,6 @@ export default async function TodayPage(
 ) {
   const { dogId } = await props.params;
   const snapshot = await requireTodayPage(dogId, dogAppPath(dogId, "today"));
-  return <TodaySnapshot snapshot={snapshot} />;
+  const summary = await requireComputedSummaryPage(dogId, { localDate: snapshot.localDate }, dogAppPath(dogId, "today"));
+  return <TodaySnapshot snapshot={snapshot} summary={summary} />;
 }

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { historyRangeExpression, type HistoryRange } from "./history-range";
 import type { Database } from "../database.generated";
 import { createServerSupabaseClient } from "../supabase/server";
 import {
@@ -346,6 +347,7 @@ async function listHistoryRecordings(
   client: ServerSupabaseClient,
   dogId: string,
   cursor: HistoryCursor | null,
+  range: HistoryRange | null = null,
 ): Promise<HistoryRecordingRecord[]> {
   let query = client
     .from("recordings")
@@ -354,16 +356,21 @@ async function listHistoryRecordings(
     )
     .eq("collar.dog_id", dogId);
 
+  const predicates: string[] = [];
+  if (range) {
+    const dog = await findDog(client, dogId);
+    if (!dog) throw unavailable();
+    predicates.push(historyRangeExpression(range, dog.timezone));
+  }
   if (cursor?.bucket === "known") {
     // The raw PostgREST expression is assembled only from the strictly decoded,
     // normalized timestamp and canonical UUID; raw search input never reaches it.
-    query = query.or(
-      `started_at.lt.${cursor.startedAt},and(started_at.eq.${cursor.startedAt},id.lt.${cursor.id}),started_at.is.null`,
-    );
+    predicates.push(`or(started_at.lt.${cursor.startedAt},and(started_at.eq.${cursor.startedAt},id.lt.${cursor.id}),started_at.is.null)`);
   } else if (cursor?.bucket === "unknown") {
     query = query.is("started_at", null).lt("id", cursor.id);
   }
 
+  if (predicates.length) query = query.or(`and(${predicates.join(",")})`);
   const { data, error } = await query
     .order("started_at", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false })
@@ -473,6 +480,11 @@ const dogDataAccess = createDogDataAccess(dependencies);
 export const requireDogAccess = dogDataAccess.requireDogAccess;
 export const getDogSummary = dogDataAccess.getDogSummary;
 export const getTodaySnapshot = dogDataAccess.getTodaySnapshot;
-export const getHistoryPage = dogDataAccess.getHistoryPage;
+export function getHistoryPage(dogId: string, cursor: unknown, range: HistoryRange | null = null) {
+  if (!range) return dogDataAccess.getHistoryPage(dogId, cursor);
+  return createDogDataAccess({ ...dependencies,
+    listHistoryRecordings: (client, id, after) => listHistoryRecordings(client, id, after, range),
+  }).getHistoryPage(dogId, cursor);
+}
 export const getRecordingPage = dogDataAccess.getRecordingPage;
 export const listDogSummaries = dogDataAccess.listDogSummaries;

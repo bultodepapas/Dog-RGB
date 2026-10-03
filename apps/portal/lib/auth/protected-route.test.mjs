@@ -59,6 +59,11 @@ test("hostile, ambiguous, and future return paths fail to onboarding", () => {
 
 test("private cache scope covers protected segments only", () => {
   assert.equal(isPrivatePortalPath("/onboarding"), true);
+  assert.equal(isPrivatePortalPath("/account"), true);
+  assert.equal(isPrivatePortalPath("/account/finalize"), true);
+  assert.equal(resolveProtectedReturnPath("/account/finalize"), "/onboarding");
+  assert.equal(resolveProtectedReturnPath("/account"), "/account");
+  assert.equal(resolveProtectedReturnPath(`/app/${DOG_ID}/data`), `/app/${DOG_ID}/data`);
   assert.equal(isPrivatePortalPath(`/app/${DOG_ID}/today`), true);
   assert.equal(isPrivatePortalPath("/app/not-a-route"), true);
   assert.equal(isPrivatePortalPath("/"), false);
@@ -231,7 +236,7 @@ test("M1.4 private path contains no framework or React data cache", async () => 
   );
 });
 
-test("Today leaf uses one composite guard and a server-rendered bounded view", async () => {
+test("Today leaf delegates authorization and renders a bounded snapshot", async () => {
   const [page, guard, view] = await Promise.all([
     readFile(
       new URL("../../app/app/[dogId]/today/page.tsx", import.meta.url),
@@ -248,7 +253,7 @@ test("Today leaf uses one composite guard and a server-rendered bounded view", a
   assert.doesNotMatch(page, /requireDogPage|getDogSummary/u);
   assert.match(guard, /getTodaySnapshot\(dogId\)/u);
   assert.match(view, /<time dateTime=/u);
-  assert.match(view, /PROCESANDO O DATOS INSUFICIENTES/u);
+  assert.match(view, /<ComputedSummary summary=\{summary\}/u);
   assert.match(view, /HORA DE INICIO NO DISPONIBLE/u);
   assert.doesNotMatch(view, /"use client"|setInterval|Realtime|\.from\(|lat_e7|lon_e7|paseo/iu);
   assert.doesNotMatch(view, /role="status"|aria-live/u);
@@ -270,7 +275,7 @@ test("History leaf uses one composite guard and rejects ambiguous cursor input",
   assert.match(page, /await requireHistoryPage\(/u);
   assert.match(page, /searchParams\.cursor/u);
   assert.doesNotMatch(page, /requireDogPage|getDogSummary|Array\.isArray/u);
-  assert.match(guard, /getHistoryPage\(dogId, cursor\)/u);
+  assert.match(guard, /getHistoryPage\(dogId, cursor, range\)/u);
   assert.match(view, /HORA DE INICIO NO DISPONIBLE/u);
   assert.match(view, /VER MÁS GRABACIONES/u);
   assert.match(view, /ENLACE NO VÁLIDO/u);

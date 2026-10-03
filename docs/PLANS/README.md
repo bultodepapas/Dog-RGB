@@ -15,11 +15,11 @@ The 2026-08-13 web-platform plan is the active execution contract for the option
 | [Single-effect LED mode — 2026-02-03](2026-02-03_led-single-effect-mode.md) | Implemented as Simple mode |
 | [Portal statistics ideas — 2026-02-03](2026-02-03_portal-stats-ideas.md) | Mixed ideas; verify each item individually |
 | [Glacier-tech portal redesign — 2026-02-03](2026-02-03_portal-ui-redesign-glacier-tech.md) | Historical design direction; current embedded portal has since evolved |
-| [Supabase sync — 2026-02-03](2026-02-03_supabase-sync-plan.md) | Not implemented; optional cloud idea |
+| [Supabase sync — 2026-02-03](2026-02-03_supabase-sync-plan.md) | Superseded history; not the current backend or credential design |
 | [Web UI improvement — 2026-02-03](2026-02-03_web-ui-improvement-plan.md) | Partially/evolutionarily implemented; current portal/tests are authoritative |
 | [Welcome opposite directions — 2026-02-03](2026-02-03_welcome-opposite-directions.md) | Historical LED implementation plan |
 | [Route portal — 2026-02-04](2026-02-04_plano-ruta-portal.md) | Implemented in evolved form with bounded JSON/CSV/GeoJSON streaming |
 | [Cloud portal master plan — 2026-08-01](2026-08-01_cloud-portal-master-plan.md) | Superseded design history |
-| [Cloud web platform and bidirectional sync — 2026-08-13](2026-08-13_web-platform-bidirectional-sync-plan.md) | **Active implementation contract**; local database/Edge/simulator foundation implemented, M0 baseline closure in progress, product portal/firmware client/hosted deployment pending |
+| [Cloud web platform and bidirectional sync — 2026-08-13](2026-08-13_web-platform-bidirectional-sync-plan.md) | **Single active web/cloud plan**, reconciled 2026-10-02; next M1.19 returning-owner navigation. Separate local web completion, hosted preview, physical integration and private release; tiled maps optional. Completed evidence and remaining tasks live in the plan |
 
 When a plan is completed, keep the dated file as a snapshot and document the resulting behavior in a current reference page.

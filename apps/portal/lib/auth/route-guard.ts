@@ -1,4 +1,6 @@
 import "server-only";
+import { getComputedSummary } from "../data-access/summaries";
+import type { HistoryRange } from "../data-access/history-range";
 
 import { notFound, redirect } from "next/navigation";
 
@@ -74,8 +76,12 @@ export async function requireHistoryPage(
   dogId: string,
   cursor: unknown,
   returnTo: string,
+  range: HistoryRange | null | "invalid" = null,
 ): Promise<HistoryPageDto> {
-  return requireDogData(returnTo, () => getHistoryPage(dogId, cursor));
+  return requireDogData(returnTo, async () => {
+    if (range === "invalid") return { status: "invalid_cursor", dog: await getDogSummary(dogId, "read") } as const;
+    return getHistoryPage(dogId, cursor, range);
+  });
 }
 
 export async function requireRecordingPage(
@@ -111,4 +117,8 @@ async function requireDogData<Result>(
 
     throw error;
   }
+}
+
+export function requireComputedSummaryPage(dogId: string, scope: Readonly<{ localDate: string }> | Readonly<{ recordingId: string }>, returnTo: string) {
+  return requireDogData(returnTo, () => getComputedSummary(dogId, scope));
 }

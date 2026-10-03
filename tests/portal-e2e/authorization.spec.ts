@@ -14,6 +14,7 @@ import {
   authorizationRequestJson,
   authorizationSurfaceInventory,
   deleteAuthorizationViewer,
+  setAuthorizationViewerMembership,
 } from "../../tools/portal-e2e/authorization-fixtures.mjs";
 
 type Account = Readonly<{ id: string; email: string; role: string }>;
@@ -288,6 +289,8 @@ test("identity and object authorization remains bounded across portal and Data A
     const anonymousPage = await anonymous.newPage();
     for (const path of [
       "/onboarding",
+      "/account",
+      `/app/${fixture.dogA.id}/data`,
       `/app/${fixture.dogA.id}/today`,
       `/app/${fixture.dogA.id}/history`,
       `/app/${fixture.dogA.id}/configuration`,
@@ -308,6 +311,7 @@ test("identity and object authorization remains bounded across portal and Data A
       `/app/${fixture.dogA.id}/history`,
       `/app/${fixture.dogA.id}/configuration`,
       `/app/${fixture.dogA.id}/collars`,
+      `/app/${fixture.dogA.id}/data`,
       `/app/${fixture.dogA.id}/recordings/${fixture.dogA.recordingId}`,
       `/app/${fixture.dogB.id}/recordings/${fixture.dogA.recordingId}`,
       `/app/${fixture.dogB.id}/recordings/${fixture.missing.recordingId}`,
@@ -361,6 +365,21 @@ test("identity and object authorization remains bounded across portal and Data A
     await expect(viewerPage.getByRole("button", { name: "Generar código" })).toHaveCount(0);
     await expect(viewerPage.getByText(/Revocar acceso de/u)).toHaveCount(0);
     remember("editor-viewer-role-ui");
+
+    for (const restrictedPage of [ownerBPage, editorPage, viewerPage]) {
+      for (const path of [`/app/${fixture.dogA.id}/data/export`, `/app/${fixture.dogA.id}/recordings/${fixture.dogA.recordingId}/geojson`]) {
+        const response = await restrictedPage.request.get(path, { maxRedirects: 0 });
+        expect(response.status()).toBe(404);
+        expect(response.headers()["content-disposition"]).toBeUndefined();
+        expect(response.headers()["cache-control"]).toContain("no-store");
+      }
+    }
+    for (const restrictedPage of [editorPage, viewerPage]) {
+      await restrictedPage.goto(`/app/${fixture.dogA.id}/data`);
+      await expect(restrictedPage.getByRole("link", { name: "Descargar datos JSON" })).toHaveCount(0);
+      await expect(restrictedPage.getByRole("button", { name: "Eliminar perro y datos" })).toHaveCount(0);
+    }
+    remember("owner-only-private-download-denial");
 
     const tokens = {
       ownerA: await token(fixture.accounts.ownerA),
@@ -543,6 +562,7 @@ test("identity and object authorization remains bounded across portal and Data A
     for (const dogId of [fixture.dogA.id, fixture.missing.dogId]) {
       await ownerBPage.goto(`/app/${fixture.dogB.id}/collars`);
       await replaceHiddenValue(ownerBPage, "dogId", dogId);
+      await ownerBPage.locator("input[name=cloudConsent]").check();
       await ownerBPage.getByRole("button", { name: "Generar código" }).click();
       const result = ownerBPage.locator(".claim-form .form-message--error");
       await expect(result).toContainText("No pudimos generar el código. Inténtalo de nuevo.");
@@ -551,7 +571,7 @@ test("identity and object authorization remains bounded across portal and Data A
     for (const collarId of [fixture.dogA.collarId, fixture.missing.collarId]) {
       await ownerBPage.goto(`/app/${fixture.dogB.id}/collars`);
       await ownerBPage.getByRole("button", { name: "REVISAR REVOCACIÓN" }).click();
-      await ownerBPage.getByRole("checkbox").check();
+      await ownerBPage.locator(".collar-revoke-form input[type=checkbox]").check();
       await replaceHiddenValue(ownerBPage, "collarId", collarId);
       await ownerBPage.getByRole("button", { name: "REVOCAR ACCESO EN LA NUBE" }).click();
       const result = ownerBPage.locator(".collar-result--error");
@@ -689,8 +709,15 @@ test("identity and object authorization remains bounded across portal and Data A
     const staleContext = await newContext();
     const staleToday = await login(staleContext, fixture.accounts.viewer, fixture.dogA.id);
     const staleOnboarding = await staleContext.newPage();
-    await staleOnboarding.goto("/onboarding");
-    await expect(staleOnboarding.getByLabel("Nombre de tu perro")).toBeVisible();
+    setAuthorizationViewerMembership(fixture, false);
+    try {
+      expect((await staleToday.reload())?.status()).toBe(404);
+      await expect(staleToday.getByText(fixture.dogA.name)).toHaveCount(0);
+      await staleOnboarding.goto("/onboarding");
+      await expect(staleOnboarding.getByLabel("Nombre de tu perro")).toBeVisible();
+    } finally { setAuthorizationViewerMembership(fixture, true); }
+    await staleToday.goto(`/app/${fixture.dogA.id}/today`);
+    remember("lost-membership-entry-denial");
     const jwtClaims = JSON.parse(
       Buffer.from(tokens.viewer.split(".")[1], "base64url").toString("utf8"),
     ) as Record<string, unknown>;

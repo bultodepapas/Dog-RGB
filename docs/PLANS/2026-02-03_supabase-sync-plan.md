@@ -1,6 +1,6 @@
 # Plan — Sync automatico a Supabase cuando conecta Wi-Fi (STA)
 
-> **Document status:** Proposed historical plan (Spanish), not implemented. Cloud sync remains optional and must not become a requirement for local collar operation.
+> **Historical / superseded:** use the [active master execution plan](2026-08-13_web-platform-bidirectional-sync-plan.md). The status and credential/API proposals below describe February 2026, not current implementation. Local Auth, gateways and the owner portal now exist; physical cloud sync remains pending and optional.
 
 Este plan describe como subir estadisticas a Supabase al conectar a internet de casa y como capturar credenciales desde el portal AP. No implementa cambios.
 

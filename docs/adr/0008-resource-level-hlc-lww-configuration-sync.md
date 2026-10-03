@@ -142,7 +142,7 @@ An invalid or unsupported remote value never silently falls back to defaults and
 
 ## Implementation and acceptance gates
 
-This ADR specifies future behavior; current firmware and website do not implement it. Phase 0/1 contracts and Phase 2/4 code must test at minimum:
+**Maturity update — 2026-10-02:** local database/simulator and website brightness desired/reported paths are implemented ([evidence](../cloud/m111-brightness-configuration-evidence.md)). Firmware common mutation/commit and physical convergence remain open. Retain at minimum:
 
 1. AP-before-web, web-before-AP, simultaneous/equal physical time, multiple offline edits, delayed sync, duplicated/out-of-order responses, reboot at each persistence boundary;
 2. unknown, stale, future, backward, GNSS-trusted, bounded-SNTP, and server-anchor clock cases plus logical overflow boundaries;

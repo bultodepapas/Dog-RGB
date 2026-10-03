@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { SummaryDto } from "../../lib/data-access/summary-core";
+import type { HistoryRange } from "../../lib/data-access/history-range";
 
 import {
   dogAppPath,
@@ -42,8 +44,8 @@ function formatInteger(value: number): string {
 }
 
 export function HistoryLedger({
-  history,
-}: Readonly<{ history: HistoryPageDto }>) {
+  history, range = null, invalidRange = false, summaries = {},
+}: Readonly<{ history: HistoryPageDto; range?: HistoryRange | null; invalidRange?: boolean; summaries?: Readonly<Record<string, SummaryDto>> }>) {
   const firstPagePath = dogAppPath(history.dog.id, "history");
 
   if (history.status === "invalid_cursor") {
@@ -56,8 +58,7 @@ export function HistoryLedger({
               No pudimos abrir esta página del historial.
             </h1>
             <p>
-              El enlace de paginación está incompleto o ya no es compatible.
-              Vuelve al inicio del historial.
+              {invalidRange ? "Elige dos fechas válidas, ordenadas y con un máximo de 366 días." : "El enlace de paginación está incompleto o ya no es compatible. Vuelve al inicio del historial."}
             </p>
             <Link className="button-link history-recovery" href={firstPagePath}>
               VOLVER AL INICIO DEL HISTORIAL
@@ -83,6 +84,15 @@ export function HistoryLedger({
           </p>
         </header>
 
+        <form action={firstPagePath} method="get" className="data-form">
+          <label htmlFor="history-from">Desde ({dog.timezone})</label>
+          <input id="history-from" name="from" type="date" defaultValue={range?.from} required />
+          <label htmlFor="history-to">Hasta, inclusive</label>
+          <input id="history-to" name="to" type="date" defaultValue={range?.to} required />
+          <button type="submit">Filtrar fechas</button>
+          <Link href={firstPagePath}>Quitar filtro</Link>
+          <p>Máximo 366 días. Las grabaciones sin hora permanecen al final porque no podemos asignarles una fecha.</p>
+        </form>
         <section
           className="history-results"
           aria-labelledby="history-results-title"
@@ -123,6 +133,7 @@ export function HistoryLedger({
                       <dd>{formatInteger(recording.pointCount)}</dd>
                     </div>
                   </dl>
+                  <p>Resumen: {summaries[recording.id]?.status === "available" ? "calculado; ver métricas e intervalo en el detalle" : summaries[recording.id]?.status === "pending" ? "pendiente de cálculo" : "no disponible o desactualizado"}.</p>
                   <Link
                     aria-label={`Ver detalle de la grabación de ${recording.collarName}, ${
                       recording.startedAt
@@ -163,7 +174,7 @@ export function HistoryLedger({
           <nav className="history-pagination" aria-label="Paginación del historial">
             <Link
               className="button-link"
-              href={`${firstPagePath}?cursor=${encodeURIComponent(nextCursor)}`}
+              href={`${firstPagePath}?cursor=${encodeURIComponent(nextCursor)}${range ? `&from=${range.from}&to=${range.to}` : ""}`}
               prefetch={false}
             >
               VER MÁS GRABACIONES

@@ -540,6 +540,9 @@ export async function serviceRpc(
   if (message === "active_claim_exists") {
     throw new HttpProblem(409, "active_claim_exists", "Active claim already exists", "Use or expire the active claim before requesting another.");
   }
+  if (message === "active_collar_exists") {
+    throw new HttpProblem(409, "active_collar_exists", "Active collar already linked", "Revoke the active collar for this dog before pairing another.");
+  }
   if (message === "claim_not_available") {
     throw new HttpProblem(401, "claim_unavailable", "Claim unavailable", "The supplied claim is unavailable or expired.");
   }

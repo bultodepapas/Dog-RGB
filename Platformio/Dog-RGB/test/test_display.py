@@ -1,7 +1,7 @@
 """Execute I3 adapter/presentation/scheduler with a recording LCD transport."""
 import shutil
 import subprocess
-import tempfile
+from native_temp import native_temp_dir
 import unittest
 from pathlib import Path
 
@@ -202,7 +202,7 @@ class DisplayTests(unittest.TestCase):
     def test_adapter_rendering_cadence_controls_and_detected_failure(self):
         compiler = shutil.which("g++")
         self.assertIsNotNone(compiler)
-        with tempfile.TemporaryDirectory() as directory:
+        with native_temp_dir() as directory:
             folder = Path(directory)
             (folder / "Arduino.h").write_text(ARDUINO, encoding="utf-8")
             (folder / "Arduino_GFX_Library.h").write_text(GFX, encoding="utf-8")

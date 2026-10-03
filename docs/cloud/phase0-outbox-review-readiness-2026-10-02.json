@@ -1,0 +1,119 @@
+{
+  "acceptance_may_be_decided_by_this_tool": false,
+  "automated_checks_passed": false,
+  "candidate_origin_commit": "255136d6ca9b5bcc128af338c444476ebea64a26",
+  "candidate_sources": {
+    "tools/cloud_phase0/fixtures/reference_manifest.json": {
+      "bytes": 2358,
+      "sha256": "d28a3354389c251053ed2d840c4b01d8bd379592c692ff7411df18038769826e"
+    },
+    "tools/cloud_phase0/generate_evidence.py": {
+      "bytes": 2400,
+      "sha256": "6a852b677dc843c170a6799db3d4098c17f935658872c6febf1f005588061966"
+    },
+    "tools/cloud_phase0/legacy_v2.py": {
+      "bytes": 4131,
+      "sha256": "b6ca6dc6a2f4adcdc0904640736beb497c7e86086a9ef8423728a21c3158b5f9"
+    },
+    "tools/cloud_phase0/reference_fixtures.py": {
+      "bytes": 6131,
+      "sha256": "47f3a25eeb74494ed78754963ef3c84f4ebb2a6a87799fd02002fd596168c9aa"
+    },
+    "tools/cloud_phase0/storage_model.py": {
+      "bytes": 93767,
+      "sha256": "9d7f0c059399708b4a3162d231a18d00c8378e85c4837f30b5ccd1369574b3d8"
+    },
+    "tools/cloud_phase0/test_phase0.py": {
+      "bytes": 52505,
+      "sha256": "5322ab8ad21595dba2917dc9fc6d3d69bffe8a930e6c1874a4e44f849f98f40e"
+    },
+    "tools/cloud_phase0/track_v3.py": {
+      "bytes": 11273,
+      "sha256": "b205d374909552d15ad5add25d05aa00a185c4741907b883dd0486656329fbef"
+    }
+  },
+  "canonical_evidence": {
+    "bytes": 9199,
+    "command": [
+      "python",
+      "tools/cloud_phase0/generate_evidence.py"
+    ],
+    "expected_bytes": 9505,
+    "expected_sha256": "be28dcad59cb034a1a9aa28a8ee82d03b7bd343f8225f5a63a50efd8aed13475",
+    "matches": false,
+    "returncode": 0,
+    "schema": "dog-rgb-cloud-phase0b/1",
+    "sha256": "3e9f1b8eef28b4986641d41ec7a9dc277bc5d05598aa57e7fb9d3c9ff69bb1af"
+  },
+  "decision": "awaiting_independent_review",
+  "environment": {
+    "platform": "macOS-15.5-arm64-arm-64bit",
+    "python": "3.12.15"
+  },
+  "failures": [
+    "canonical evidence bytes do not match the frozen digest"
+  ],
+  "host_matrix": {
+    "command": [
+      "python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tools/cloud_phase0",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "expected_tests": 51,
+    "missing_required_regressions": [],
+    "passed": true,
+    "required_regressions": [
+      {
+        "id": "reclaim-intent-exact-slot-binding",
+        "test": "test_stale_reclaim_intent_cannot_erase_a_refilled_sector"
+      },
+      {
+        "id": "loss-tombstone-prevents-sequence-reuse",
+        "test": "test_empty_loss_tombstone_prevents_sequence_reuse_after_journal_fallback"
+      },
+      {
+        "id": "maximum-loss-interval-is-bounded",
+        "test": "test_recovery_of_maximum_loss_interval_is_bounded"
+      },
+      {
+        "id": "new-loss-survives-prior-ack-transition",
+        "test": "test_new_loss_is_durable_during_prior_loss_ack_transition"
+      },
+      {
+        "id": "acked-corrupt-payload-is-not-reported-as-new-loss",
+        "test": "test_acked_corrupt_payload_is_not_misclassified_as_unsynchronized_loss"
+      },
+      {
+        "id": "consumed-intent-cannot-erase-corrupt-refill",
+        "test": "test_consumed_stale_intent_cannot_erase_a_corrupt_refilled_slot"
+      },
+      {
+        "id": "sparse-loss-finalizes-after-live-chunk-ack",
+        "test": "test_acknowledged_sparse_loss_cannot_bridge_a_live_unacked_chunk"
+      }
+    ],
+    "returncode": 0,
+    "tests_run": 51
+  },
+  "repository": {
+    "candidate_unchanged_from_origin": true,
+    "dirty_entry_count": 0,
+    "origin_is_ancestor": true,
+    "worktree_clean": true
+  },
+  "required_human_action": "An independent reviewer must inspect every invariant and commit docs/cloud/phase0-outbox-independent-review.md with accepted or rejected.",
+  "review_eligible": false,
+  "reviewed_commit": "978be4a09712768f55695be05ae6c4ff4093bb79",
+  "schema": "dog-rgb-cloud-phase0b-review-readiness/1",
+  "storage_artifact": {
+    "expected_bytes": 93767,
+    "expected_sha256": "9d7f0c059399708b4a3162d231a18d00c8378e85c4837f30b5ccd1369574b3d8",
+    "matches": true
+  }
+}

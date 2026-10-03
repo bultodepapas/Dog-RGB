@@ -76,6 +76,7 @@ I0 physical acceptance remains open before LED bench work. Classic fixes continu
 
 ### Existing shared firmware queue
 
+- [ ] Continue M2B with enrollment/credential lifecycle and startup integration (remaining M2.3), observation cadence/gaps (M2.4) and a durable local outbox sink (M2.5). The isolated [chunk assembler](cloud/m24b-chunk-assembly-evidence.md) connects the implemented identity service and codec; runtime capture remains disabled until durable storage and integration exist. M2A host acceptance is closed; M2C physical proof remains open.
 - [ ] Add native PlatformIO/Unity tests for extracted pure C++ logic; keep Python contracts as complementary regression tests.
 - [ ] Define physical-device loop-latency, UART-overflow, heap, and radio-retry acceptance thresholds.
 - [ ] Exercise slow/aborted route exports against a real phone while recording GNSS overflow and loop diagnostics.

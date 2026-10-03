@@ -179,6 +179,7 @@ test("Today uses one fresh authorized client and returns one deeply frozen minim
     },
     dailySummary: { coverageRatio: 0.875, unknownSeconds: 10800 },
     latestRecording: {
+      id: RECORDING_ID,
       startedAt: "2026-08-25T03:00:00.000Z",
       timeQuality: "trusted",
       state: "closed",

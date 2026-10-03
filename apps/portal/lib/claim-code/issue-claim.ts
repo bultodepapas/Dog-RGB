@@ -15,7 +15,7 @@ export const ISSUE_CLAIM_RATE_ERROR =
 export type IssueClaimActionState =
   | Readonly<{ status: "idle"; message: "" }>
   | Readonly<{ status: "error"; message: string }>
-  | Readonly<{ status: "success"; message: ""; code: string }>;
+  | Readonly<{ status: "success"; message: ""; code: string; expiresAt: string }>;
 
 export const INITIAL_ISSUE_CLAIM_ACTION_STATE: IssueClaimActionState = {
   status: "idle",
@@ -170,7 +170,8 @@ export function issueClaimMutationHandler(
         return failure();
       }
 
-      return { ok: true, state: { status: "success", message: "", code } };
+      const expiresAt = (invocation.data as { claim: { expires_at: string } }).claim.expires_at;
+      return { ok: true, state: { status: "success", message: "", code, expiresAt } };
     } catch {
       return failure();
     }

@@ -1,31 +1,32 @@
 # Phase 0 host outbox independent-review packet
 
-**Status:** ready for an independent reviewer; **not an acceptance ledger**.
+**Status:** review procedure; **not an acceptance ledger**. The [independent remediation ledger](phase0-outbox-remediation-review-2026-10-02.md) accepts candidate `fb6dbef` on 2026-10-02.
 
 This packet reduces P0-R1 to a reproducible review. It was prepared by the
-candidate workstream and cannot accept its own implementation. The required
-final file, `phase0-outbox-independent-review.md`, must remain absent until a
-reviewer other than the implementation author completes every item and records
-an explicit `accepted` or `rejected` decision.
+candidate workstream and cannot accept its own implementation. The original
+`phase0-outbox-independent-review.md` is a historical rejection and must remain
+unchanged. A separate reviewer records the corrected decision in
+`phase0-outbox-remediation-review-2026-10-02.md` after completing every invariant.
 
 ## 1. Candidate identity
 
 | Item | Frozen value |
 | --- | --- |
-| Hardened candidate origin commit | `255136d6ca9b5bcc128af338c444476ebea64a26` |
-| `storage_model.py` bytes | `93,767` |
-| `storage_model.py` SHA-256 | `9d7f0c059399708b4a3162d231a18d00c8378e85c4837f30b5ccd1369574b3d8` |
+| Prior review baseline (required ancestor) | `d58be9a0f4d9e9a31f5a302040b5575e27b1cfd0` |
+| Source identity | nine static path/size/SHA-256 pins in `verify_review_candidate.py` |
+| `storage_model.py` bytes | `101,136` |
+| `storage_model.py` SHA-256 | `0106a89c140d26439839a2c7ad80950d72b707049d52fe4c35476656050c85b7` |
 | Canonical evidence schema | `dog-rgb-cloud-phase0b/1` |
-| Canonical evidence bytes | `9,505` |
-| Canonical evidence SHA-256 | `be28dcad59cb034a1a9aa28a8ee82d03b7bd343f8225f5a63a50efd8aed13475` |
-| Frozen host matrix | exactly `51/51` tests |
+| Canonical evidence bytes | `9,197` (UTF-8/LF, one trailing newline) |
+| Canonical evidence SHA-256 | `98978d48429f446c9ac82ad91cbba46936d5aed788d9a836a1338c4490831e9c` |
+| Frozen host matrix | exactly `67/67` tests |
 | Decision before independent review | `awaiting_independent_review` |
 
-The reviewer may use a later repository commit only when the readiness verifier
-proves that the seven candidate source artifacts are unchanged from the origin
-commit. Any candidate-source difference is a new candidate and invalidates this
-packet until its hashes, regressions, and documentation are deliberately
-rebaselined.
+The verifier compares every source artifact against both committed HEAD and
+worktree bytes. Any source difference invalidates this candidate until explicitly
+rebaselined. The reviewed 40-character HEAD is recorded in the readiness JSON;
+the ancestor is provenance only, not a claim that corrected code equals old code.
+See the [remediation contract](phase0-outbox-remediation-2026-10-02.md).
 
 ## 2. Clean-room reproduction
 
@@ -40,22 +41,22 @@ python tools/cloud_phase0/verify_review_candidate.py
 
 Expected results:
 
-- the focused verifier suite passes `4/4`;
+- the focused verifier suite passes `10/10`;
 - the readiness JSON reports `automated_checks_passed: true`;
 - `review_eligible` is `true` only in a clean tree without `--allow-dirty`;
-- `candidate_unchanged_from_origin`, `storage_artifact.matches`,
+- `candidate_matches_manifest`, `storage_artifact.matches`,
   `host_matrix.passed`, and `canonical_evidence.matches` are all `true`;
-- all seven named historical regressions are present;
+- all thirteen named mandatory regressions are present;
 - the tool still reports `decision: awaiting_independent_review` and
   `acceptance_may_be_decided_by_this_tool: false`.
 
 `--allow-dirty` exists only so the implementation author can test changes to the
 verifier. Its output always has `review_eligible: false` and is not review
 evidence. The full command normally takes several minutes because it executes
-the 51-test byte-image matrix and regenerates the deterministic 10,000-cycle
+the 67-test byte-image matrix and regenerates the deterministic 10,000-cycle
 evidence rather than trusting copied report values.
 
-## 3. Seven mandatory historical regressions
+## 3. Thirteen mandatory regressions
 
 The reviewer must inspect the implementation path and the assertion, not only
 confirm that the method name exists.
@@ -69,6 +70,22 @@ confirm that the method name exists.
 | An ACKed corrupt payload is reclassified as unsynchronized loss | `test_acked_corrupt_payload_is_not_misclassified_as_unsynchronized_loss` |
 | A consumed fallback intent erases a corrupt refilled slot | `test_consumed_stale_intent_cannot_erase_a_corrupt_refilled_slot` |
 | A sparse acknowledged loss needs a duplicate server ACK after the live hole closes | `test_acknowledged_sparse_loss_cannot_bridge_a_live_unacked_chunk` |
+
+The rejected review adds three mandatory permanent regressions in
+`test_integrity.py`, included by normal test discovery:
+
+| Failure that must remain impossible | Permanent regression |
+| --- | --- |
+| Reclaimed logical identity is reused | `test_acknowledged_reclaimed_chunk_identity_cannot_be_reused` |
+| Old receipt acknowledges a new ordinal of a reused identity | `test_stale_receipt_cannot_ack_resealed_logical_identity` |
+| Corrupt committed first loss permits writable empty fallback | `test_corrupt_committed_first_loss_fails_closed_before_journal_commit` |
+
+The follow-up marker-corruption finding adds three further requirements:
+`test_commit_marker_damage_preserves_slot_identity`,
+`test_commit_marker_damage_preserves_loss_and_journal`, and
+`test_damaged_commit_marker_with_invalid_body_is_read_only`. They cover every
+single-bit marker change, whole-marker erasure, and marked-invalid bodies;
+inspect the body-before-marker recovery contract in the remediation report.
 
 Supporting corruption/identity tests must also convince the reviewer that a
 valid-header/corrupt-payload slot retains its global ordinal, an unreadable
@@ -114,12 +131,12 @@ through the plan, and perform a new independent review.
 ## 6. Required final ledger
 
 The independent reviewer creates
-`docs/cloud/phase0-outbox-independent-review.md` with:
+`docs/cloud/phase0-outbox-remediation-review-2026-10-02.md` with:
 
 1. reviewer name or stable identity and independence statement;
 2. UTC completion timestamp and exact 40-character reviewed commit;
 3. the complete readiness JSON results or its recorded source/evidence hashes;
-4. commands and `4/4`, `51/51`, artifact, and evidence outcomes;
+4. commands and `10/10`, `67/67`, artifact, and evidence outcomes;
 5. one explicit decision for each `OUTBOX-R1` through `OUTBOX-R12`;
 6. findings with severity and disposition;
 7. final lowercase decision exactly `accepted` or `rejected`;

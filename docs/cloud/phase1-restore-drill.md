@@ -1,8 +1,15 @@
 # Phase 1 isolated restore drill
 
 **Status:** Local logical restore and deletion-tombstone replay verified on
-2026-08-18. A managed restore into a separate hosted Supabase project remains
-required before persistent field use.
+2026-08-18. Actual hosted restore/deletion replay remains open.
+
+**Release-scope clarification — 2026-10-02:** the managed/PITR and off-site
+signing work below describes the original hardened recovery profile. Current
+private DIY release requirements are in [M5B](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#m5b--private-production-release):
+protected backups/deletion records and tested isolated replay are mandatory;
+a verified encrypted logical-backup fallback is acceptable. Paid cloning,
+KMS/HSM and a new off-site custody service are optional. Historical local
+results below are unchanged.
 
 ## Purpose and boundary
 
@@ -72,9 +79,10 @@ wraps the page in the canonical
 [signed tombstone artifact](phase1-tombstone-artifact.md), signs it with an
 ephemeral in-memory Ed25519 key, rejects a modified signed payload, verifies its
 complete cursor/digest chain against a separately trusted public key, and only
-then invokes SQL replay. Production must replace the ephemeral key with reviewed
-KMS/HSM-backed signing and durably store artifacts outside the database backup
-domain. The local drill proves the format, verification boundary, and recovery
+then invokes SQL replay. Adopting this hardened signed-custody profile in
+production requires a reviewed durable signer and artifacts outside the database
+backup domain; KMS/HSM is one option. Private DIY v1 may use the simpler tested
+backup/deletion-record path specified in M5B. The local drill proves the format, verification boundary, and recovery
 ordering—not production key or off-site custody.
 
 Coordinate-free evidence is written to the ignored
@@ -94,11 +102,12 @@ persisted or uploaded.
 
 ## Still open
 
-- restore a managed daily backup or PITR point into a distinct disposable
-  hosted project of the selected Postgres version;
+- prove the selected managed backup or encrypted logical-backup fallback in a
+  distinct isolated hosted project of the selected Postgres version;
 - run Edge/Auth services against that restored project, not only SQL probes;
-- implement authenticated, monitored, off-site tombstone export custody and
-  replay it during the managed hosted drill before enabling traffic;
+- protect deletion records outside the restored backup and verify their replay
+  before traffic; add authenticated signed off-site custody if adopting the
+  hardened profile;
 - verify any future Storage objects separately because database backups contain
   Storage metadata, not deleted object contents;
 - record measured RPO/RTO, provider backup window, project region, operator and

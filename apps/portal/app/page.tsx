@@ -1,4 +1,3 @@
-import { DEVICE_PROTOCOL } from "@dog-rgb/contracts";
 import Link from "next/link";
 
 import { getVerifiedIdentity } from "../lib/supabase/identity";
@@ -20,7 +19,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   return (
     <main className="home-page">
       <section className="home-hero" aria-labelledby="home-title">
-        <p className="eyebrow">DOG-RGB_ CLOUD FOUNDATION</p>
+        <p className="eyebrow">DOG-RGB_ · PORTAL PRIVADO</p>
         <h1 id="home-title">El collar sigue funcionando sin la nube.</h1>
         <p>
           La web es una extensión privada para sincronizar historial y unos pocos
@@ -57,18 +56,15 @@ export default async function Home({ searchParams }: HomePageProps) {
         </div>
         <dl>
           <div>
-            <dt>PROTOCOLO</dt>
-            <dd>{DEVICE_PROTOCOL}</dd>
-          </div>
-          <div>
             <dt>CUENTA</dt>
             <dd>{identity ? "VERIFICADA" : "SIN SESIÓN"}</dd>
           </div>
           <div>
             <dt>ESTADO</dt>
-            <dd>LOCAL / OPTIONAL</dd>
+            <dd>NUBE OPCIONAL</dd>
           </div>
         </dl>
+        <Link className="text-link" href="/privacy">Privacidad y tus datos</Link>
       </section>
     </main>
   );

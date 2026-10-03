@@ -1,5 +1,8 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+-- Model a recently password-authenticated signed JWT for destructive owner calls.
+select set_config('request.jwt.claims', jsonb_build_object('amr',
+  jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp()))))::text, true);
 
 select plan(24);
 

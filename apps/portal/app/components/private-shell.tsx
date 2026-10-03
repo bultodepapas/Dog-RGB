@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { section: "history", label: "Historial" },
   { section: "collars", label: "Collares" },
   { section: "configuration", label: "Configuración" },
+  { section: "data", label: "Datos" },
 ] as const satisfies readonly {
   section: DogAppSection;
   label: string;
@@ -77,6 +78,7 @@ export function DogPrivateShell({
               </li>
             ))}
           </ul>
+          <Link href="/account">Cuenta y borrados</Link>
           <p className="private-nav__meta">
             Zona horaria
             <strong>{dog.timezone}</strong>
@@ -88,7 +90,7 @@ export function DogPrivateShell({
       </div>
       <footer className="private-footer">
         <span>COLLAR LOCAL-FIRST</span>
-        <span>LA NUBE ES OPCIONAL</span>
+        <Link href="/privacy">Privacidad · nube opcional</Link>
       </footer>
     </div>
   );
@@ -114,7 +116,7 @@ export function OnboardingPrivateShell({
           <div className="private-context">
             <span className="eyebrow">ÁREA PRIVADA</span>
             <strong>Sesión verificada</strong>
-            <span>ENTORNO LOCAL</span>
+            <Link href="/account">Cuenta y datos</Link>
           </div>
           <form action={logoutAction}>
             <button className="quiet-button" type="submit">
@@ -128,7 +130,7 @@ export function OnboardingPrivateShell({
       </main>
       <footer className="private-footer">
         <span>COLLAR LOCAL-FIRST</span>
-        <span>PERFIL MÍNIMO PRIMERO</span>
+        <Link href="/privacy">Privacidad</Link>
       </footer>
     </div>
   );

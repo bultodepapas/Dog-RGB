@@ -22,7 +22,7 @@ The active implementation is local-first. The collar records activity, drives tw
 | BLE | A read-only 16-byte daily summary is implemented but **disabled by default** because SoftAP/BLE coexistence is unreliable on the shared ESP32-S3 antenna |
 | Verification | PlatformIO build, Python host tests, static portal checks, Playwright behavior/a11y tests, committed visual baselines, and eight Wokwi scenarios |
 
-Not implemented: cloud sync, user accounts, a native mobile app, IMU/heart-rate input, battery telemetry, and OTA updates.
+The optional Next.js portal and local Supabase backend implement account entry/recovery, simulator pairing and re-enrollment, computed summaries, Today/History/detail, brightness, private downloads and dog/account deletion. Local release validation and its limits are tracked separately; no hosted website or physical collar cloud sync is delivered. Follow the [active web plan](docs/PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md). Native mobile apps, IMU/heart-rate input, battery telemetry and OTA remain unimplemented.
 
 ## Hardware baseline
 

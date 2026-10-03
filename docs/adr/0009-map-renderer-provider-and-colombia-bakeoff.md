@@ -8,6 +8,8 @@
 
 **Scope:** Web route renderer, basemap abstraction, launch candidates, visual/privacy/cost evaluation, and later Google Maps portability.
 
+**Scope amendment — 2026-10-02:** the [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) makes tiled maps optional for core private DIY v1. The implemented segmented SVG and accessible point table provide the core route view. This ADR governs the first tiled renderer when enabled; its credential/provider gates block tiles, not local web completion, hosted simulator preview or physical sync. No provider winner is added by this amendment.
+
 ## Context
 
 Dog-RGB needs attractive route review with speed/quality context on desktop and mobile. The local portal already uses a dark, high-contrast visual identity. A basemap that overwhelms the route, omits Colombian park/trail/rural context, or looks generic would make the result feel disconnected from the product.
@@ -146,7 +148,7 @@ Therefore the renderer decision is closed, Stadia Dark remains a justified provi
 
 ## Review trigger and remaining gate
 
-Before Phase 0 exits, obtain a temporary origin-restricted MapTiler key and a temporary Stadia property/domain-auth setup. Run the full checked matrix for both providers, prove that each candidate rejects an unapproved origin, retain screenshots/network/timing/error manifests, score both providers independently using captured MapLibre request counts, recheck current terms/pricing, and amend this ADR with the final winner. The later Phase 6 product integration receives a separate selected-provider browser credential. Also rerun against sanitized representative field routes after explicit privacy approval; never use Home or a user's raw private route in public artifacts.
+Before enabling the optional M4 tiled-map branch, obtain a temporary origin-restricted MapTiler key and a temporary Stadia property/domain-auth setup. Run the full checked matrix for both providers, prove that each candidate rejects an unapproved origin, retain screenshots/network/timing/error manifests, score both providers independently using captured MapLibre request counts, recheck current terms/pricing, and amend this ADR with the final winner. The M4 product integration receives a separate selected-provider browser credential. Also rerun against sanitized representative field routes after explicit privacy approval; never use Home or a user's raw private route in public artifacts.
 
 ## References
 

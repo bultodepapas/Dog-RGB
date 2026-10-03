@@ -5,7 +5,7 @@ import {
   confirmationErrorRedirect,
   parseEmailOtpType,
   resolveConfirmationRedirect,
-  resolveLocalAuthOrigin,
+  resolveAuthOrigin,
 } from "../../../lib/auth/redirect";
 import { createServerSupabaseClient } from "../../../lib/supabase/server";
 
@@ -14,7 +14,17 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const tokenHash = request.nextUrl.searchParams.get("token_hash");
   const type = parseEmailOtpType(request.nextUrl.searchParams.get("type"));
-  const redirectOrigin = resolveLocalAuthOrigin(request.headers.get("host"));
+  const redirectOrigin = resolveAuthOrigin(
+    process.env.PORTAL_SITE_ORIGIN,
+    request.headers.get("host"),
+  );
+
+  if (!redirectOrigin) {
+    return new NextResponse("Authentication site origin is not configured.", {
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
 
   if (tokenHash && type) {
     const supabase = await createServerSupabaseClient();

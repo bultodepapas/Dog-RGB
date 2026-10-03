@@ -1,0 +1,248 @@
+{
+  "acceptance_may_be_decided_by_this_tool": false,
+  "automated_checks_passed": true,
+  "candidate_origin_commit": "d58be9a0f4d9e9a31f5a302040b5575e27b1cfd0",
+  "candidate_sources": {
+    "tools/cloud_phase0/fixtures/reference_manifest.json": {
+      "committed": {
+        "bytes": 2358,
+        "sha256": "d28a3354389c251053ed2d840c4b01d8bd379592c692ff7411df18038769826e"
+      },
+      "expected": {
+        "bytes": 2358,
+        "sha256": "d28a3354389c251053ed2d840c4b01d8bd379592c692ff7411df18038769826e"
+      },
+      "matches_manifest": true,
+      "working_tree": {
+        "bytes": 2358,
+        "sha256": "d28a3354389c251053ed2d840c4b01d8bd379592c692ff7411df18038769826e"
+      }
+    },
+    "tools/cloud_phase0/generate_evidence.py": {
+      "committed": {
+        "bytes": 3197,
+        "sha256": "6b6b9b4319cd859ec2884b6b8c68b1eb8f413da1982acce461418187a2851ff8"
+      },
+      "expected": {
+        "bytes": 3197,
+        "sha256": "6b6b9b4319cd859ec2884b6b8c68b1eb8f413da1982acce461418187a2851ff8"
+      },
+      "matches_manifest": true,
+      "working_tree": {
+        "bytes": 3197,
+        "sha256": "6b6b9b4319cd859ec2884b6b8c68b1eb8f413da1982acce461418187a2851ff8"
+      }
+    },
+    "tools/cloud_phase0/legacy_v2.py": {
+      "committed": {
+        "bytes": 4131,
+        "sha256": "b6ca6dc6a2f4adcdc0904640736beb497c7e86086a9ef8423728a21c3158b5f9"
+      },
+      "expected": {
+        "bytes": 4131,
+        "sha256": "b6ca6dc6a2f4adcdc0904640736beb497c7e86086a9ef8423728a21c3158b5f9"
+      },
+      "matches_manifest": true,
+      "working_tree": {
+        "bytes": 4131,
+        "sha256": "b6ca6dc6a2f4adcdc0904640736beb497c7e86086a9ef8423728a21c3158b5f9"
+      }
+    },
+    "tools/cloud_phase0/reference_fixtures.py": {
+      "committed": {
+        "bytes": 6131,
+        "sha256": "47f3a25eeb74494ed78754963ef3c84f4ebb2a6a87799fd02002fd596168c9aa"
+      },
+      "expected": {
+        "bytes": 6131,
+        "sha256": "47f3a25eeb74494ed78754963ef3c84f4ebb2a6a87799fd02002fd596168c9aa"
+      },
+      "matches_manifest": true,
+      "working_tree": {
+        "bytes": 6131,
+        "sha256": "47f3a25eeb74494ed78754963ef3c84f4ebb2a6a87799fd02002fd596168c9aa"
+      }
+    },
+    "tools/cloud_phase0/review_integrity_test.py": {
+      "committed": {
+        "bytes": 272,
+        "sha256": "baeea9dd09976d5ec16a365d03e205c85b91111d4da61406345b03cd8c5fa99c"
+      },
+      "expected": {
+        "bytes": 272,
+        "sha256": "baeea9dd09976d5ec16a365d03e205c85b91111d4da61406345b03cd8c5fa99c"
+      },
+      "matches_manifest": true,
+      "working_tree": {
+        "bytes": 272,
+        "sha256": "baeea9dd09976d5ec16a365d03e205c85b91111d4da61406345b03cd8c5fa99c"
+      }
+    },
+    "tools/cloud_phase0/storage_model.py": {
+      "committed": {
+        "bytes": 101136,
+        "sha256": "0106a89c140d26439839a2c7ad80950d72b707049d52fe4c35476656050c85b7"
+      },
+      "expected": {
+        "bytes": 101136,
+        "sha256": "0106a89c140d26439839a2c7ad80950d72b707049d52fe4c35476656050c85b7"
+      },
+      "matches_manifest": true,
+      "working_tree": {
+        "bytes": 101136,
+        "sha256": "0106a89c140d26439839a2c7ad80950d72b707049d52fe4c35476656050c85b7"
+      }
+    },
+    "tools/cloud_phase0/test_integrity.py": {
+      "committed": {
+        "bytes": 21850,
+        "sha256": "f162452367048b4ffd6d08c64bc838962c86f11f9a840fe1149e8d5419fcc14e"
+      },
+      "expected": {
+        "bytes": 21850,
+        "sha256": "f162452367048b4ffd6d08c64bc838962c86f11f9a840fe1149e8d5419fcc14e"
+      },
+      "matches_manifest": true,
+      "working_tree": {
+        "bytes": 21850,
+        "sha256": "f162452367048b4ffd6d08c64bc838962c86f11f9a840fe1149e8d5419fcc14e"
+      }
+    },
+    "tools/cloud_phase0/test_phase0.py": {
+      "committed": {
+        "bytes": 53425,
+        "sha256": "77fb9bef715ce34fa2beb77bb4971de0f637613aa905c1d752fb52d3bd5ed472"
+      },
+      "expected": {
+        "bytes": 53425,
+        "sha256": "77fb9bef715ce34fa2beb77bb4971de0f637613aa905c1d752fb52d3bd5ed472"
+      },
+      "matches_manifest": true,
+      "working_tree": {
+        "bytes": 53425,
+        "sha256": "77fb9bef715ce34fa2beb77bb4971de0f637613aa905c1d752fb52d3bd5ed472"
+      }
+    },
+    "tools/cloud_phase0/track_v3.py": {
+      "committed": {
+        "bytes": 11273,
+        "sha256": "b205d374909552d15ad5add25d05aa00a185c4741907b883dd0486656329fbef"
+      },
+      "expected": {
+        "bytes": 11273,
+        "sha256": "b205d374909552d15ad5add25d05aa00a185c4741907b883dd0486656329fbef"
+      },
+      "matches_manifest": true,
+      "working_tree": {
+        "bytes": 11273,
+        "sha256": "b205d374909552d15ad5add25d05aa00a185c4741907b883dd0486656329fbef"
+      }
+    }
+  },
+  "canonical_evidence": {
+    "bytes": 9197,
+    "command": [
+      "python",
+      "tools/cloud_phase0/generate_evidence.py"
+    ],
+    "expected_bytes": 9197,
+    "expected_sha256": "98978d48429f446c9ac82ad91cbba46936d5aed788d9a836a1338c4490831e9c",
+    "matches": true,
+    "returncode": 0,
+    "schema": "dog-rgb-cloud-phase0b/1",
+    "sha256": "98978d48429f446c9ac82ad91cbba46936d5aed788d9a836a1338c4490831e9c"
+  },
+  "decision": "awaiting_independent_review",
+  "environment": {
+    "platform": "macOS-15.5-arm64-arm-64bit",
+    "python": "3.12.15"
+  },
+  "failures": [],
+  "host_matrix": {
+    "command": [
+      "python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tools/cloud_phase0",
+      "-p",
+      "test_*.py",
+      "-v"
+    ],
+    "expected_tests": 67,
+    "missing_required_regressions": [],
+    "passed": true,
+    "required_regressions": [
+      {
+        "id": "reclaim-intent-exact-slot-binding",
+        "test": "test_stale_reclaim_intent_cannot_erase_a_refilled_sector"
+      },
+      {
+        "id": "loss-tombstone-prevents-sequence-reuse",
+        "test": "test_empty_loss_tombstone_prevents_sequence_reuse_after_journal_fallback"
+      },
+      {
+        "id": "maximum-loss-interval-is-bounded",
+        "test": "test_recovery_of_maximum_loss_interval_is_bounded"
+      },
+      {
+        "id": "new-loss-survives-prior-ack-transition",
+        "test": "test_new_loss_is_durable_during_prior_loss_ack_transition"
+      },
+      {
+        "id": "acked-corrupt-payload-is-not-reported-as-new-loss",
+        "test": "test_acked_corrupt_payload_is_not_misclassified_as_unsynchronized_loss"
+      },
+      {
+        "id": "consumed-intent-cannot-erase-corrupt-refill",
+        "test": "test_consumed_stale_intent_cannot_erase_a_corrupt_refilled_slot"
+      },
+      {
+        "id": "sparse-loss-finalizes-after-live-chunk-ack",
+        "test": "test_acknowledged_sparse_loss_cannot_bridge_a_live_unacked_chunk"
+      },
+      {
+        "id": "acked-reclaimed-identity-cannot-be-reused",
+        "test": "test_acknowledged_reclaimed_chunk_identity_cannot_be_reused"
+      },
+      {
+        "id": "stale-receipt-cannot-ack-resealed-identity",
+        "test": "test_stale_receipt_cannot_ack_resealed_logical_identity"
+      },
+      {
+        "id": "corrupt-first-loss-fails-closed",
+        "test": "test_corrupt_committed_first_loss_fails_closed_before_journal_commit"
+      },
+      {
+        "id": "commit-marker-damage-preserves-slot-identity",
+        "test": "test_commit_marker_damage_preserves_slot_identity"
+      },
+      {
+        "id": "commit-marker-damage-preserves-loss-and-journal",
+        "test": "test_commit_marker_damage_preserves_loss_and_journal"
+      },
+      {
+        "id": "damaged-commit-marker-invalid-body-is-read-only",
+        "test": "test_damaged_commit_marker_with_invalid_body_is_read_only"
+      }
+    ],
+    "returncode": 0,
+    "tests_run": 67
+  },
+  "repository": {
+    "candidate_matches_manifest": true,
+    "dirty_entry_count": 0,
+    "origin_is_ancestor": true,
+    "worktree_clean": true
+  },
+  "required_human_action": "An independent reviewer must inspect every invariant and commit docs/cloud/phase0-outbox-remediation-review-2026-10-02.md with accepted or rejected.",
+  "review_eligible": true,
+  "reviewed_commit": "fb6dbef1bc9443f7045563ac770ca4a36de95686",
+  "schema": "dog-rgb-cloud-phase0b-review-readiness/2",
+  "storage_artifact": {
+    "expected_bytes": 101136,
+    "expected_sha256": "0106a89c140d26439839a2c7ad80950d72b707049d52fe4c35476656050c85b7",
+    "matches": true
+  }
+}

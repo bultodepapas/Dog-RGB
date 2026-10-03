@@ -4,7 +4,7 @@ const UUID_SEGMENT =
   "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 
 const DOG_SECTION_PATTERN = new RegExp(
-  `^/app/${UUID_SEGMENT}/(?:today|history|collars|configuration)$`,
+  `^/app/${UUID_SEGMENT}/(?:today|history|collars|configuration|data)$`,
   "iu",
 );
 const RECORDING_PATTERN = new RegExp(
@@ -20,6 +20,7 @@ export const DOG_APP_SECTIONS = [
   "history",
   "collars",
   "configuration",
+  "data",
 ] as const;
 
 export type DogAppSection = (typeof DOG_APP_SECTIONS)[number];
@@ -37,6 +38,7 @@ export function resolveProtectedReturnPath(candidate: unknown): string {
 
   if (
     candidate === DEFAULT_PROTECTED_PATH ||
+    candidate === "/account" ||
     DOG_SECTION_PATTERN.test(candidate) ||
     RECORDING_PATTERN.test(candidate)
   ) {
@@ -47,7 +49,7 @@ export function resolveProtectedReturnPath(candidate: unknown): string {
 }
 
 export function isPrivatePortalPath(pathname: string): boolean {
-  return pathname === DEFAULT_PROTECTED_PATH || pathname.startsWith("/app/");
+  return pathname === DEFAULT_PROTECTED_PATH || pathname === "/account" || pathname.startsWith("/account/") || pathname.startsWith("/app/");
 }
 
 export function protectedLoginPath(candidate: unknown): string {

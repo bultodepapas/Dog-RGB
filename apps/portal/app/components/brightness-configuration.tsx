@@ -5,6 +5,7 @@ import {
 import { dogAppPath } from "../../lib/auth/protected-route";
 import { BrightnessForm } from "./brightness-form";
 import { DogPrivateShell } from "./private-shell";
+import { DogProfileForm } from "./dog-profile-form";
 
 const TRUTH_COPY = {
   unknown: {
@@ -71,6 +72,12 @@ export function BrightnessConfiguration({
             aplicado cuando el collar reporta la misma versión exacta.
           </p>
         </header>
+
+        <section className="configuration-section" aria-labelledby="dog-profile-title">
+          <h2 id="dog-profile-title">Perfil del perro</h2>
+          <p>Zona horaria: {dog.timezone}. Se conserva para interpretar el historial.</p>
+          {dog.role === "owner" ? <DogProfileForm dogId={dog.id} name={dog.name} /> : <p>Solo el propietario puede corregir el nombre.</p>}
+        </section>
 
         {!collar ? (
           <section className="configuration-section" aria-labelledby="collar-title">

@@ -134,6 +134,22 @@ npm run phase1:local -- --clean
 
 It recreates the local database, checks the committed `api` types, runs pgTAP, lint/advisors, contracts, Edge boundaries, simulator flows, and the retained local operations drills. Never expose this development stack beyond localhost.
 
+The maintained M1.13–M1.16 owner/authorization/fault/privacy gate is a **separate** command. Both commands reset the repository's disposable local database; preserve any wanted development data first. Never use a hosted or `--linked` database:
+
+```sh
+node tools/portal-e2e/run.mjs --clean
+# Twice-clean owner/authorization/fault/privacy matrix only:
+node tools/portal-e2e/run.mjs --clean --core-only
+# Focused privacy/cache rerun only:
+node tools/portal-e2e/run.mjs --clean --m116-only
+# One clean privacy + accessibility/performance + WebKit + deletion cycle:
+node tools/portal-e2e/run.mjs --clean --quality-only
+```
+
+The E2E runner builds/starts the production portal and uses synthetic fixtures, Mailpit and the simulator with sanitized artifacts. CI invokes it for relevant portal/schema/contract/runner changes and published releases. The full command also runs Chromium axe/layout/performance measurements and a WebKit mobile smoke; install both browsers with `npx playwright install chromium webkit` first (`--with-deps` on Linux). The focused `--core-only` command preserves the twice-clean owner/authorization/fault/privacy matrix without the quality/lifecycle extension. `--m116-only` runs only two privacy cycles. `--quality-only` runs those gates and one privacy cycle; it does not replace the twice-clean owner/authorization/fault matrix. Results belong under `output/playwright/quality`; automated findings do not substitute for the manual assertions in the [master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md). The AP/audit screenshot suites are not Next.js owner-portal evidence.
+
+For a non-reset source/build check use `npm run phase1:check` and `npm run portal:build`. Run the opt-in summary worker with `node tools/cloud_analytics/run.mjs`; it consumes bounded batches and does not install a schedule. Acceptance results and remaining limits belong in the current cloud evidence, separately from historical review runs.
+
 ## Visual regression
 
 On Linux/macOS, use the package script:
@@ -199,10 +215,10 @@ For interactive controls, GNSS profiles, GDB, VCD channels, and portal-network l
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pushes to `main` and pull requests:
+`.github/workflows/ci.yml` runs on pushes to `main`, pull requests and published releases:
 
 - **Host tests:** the complete Python firmware contract suite;
-- **Web portal:** the Next.js production build;
+- **Web portal:** the Next.js production build; relevant changes/releases also run the maintained clean owner/authorization/fault/privacy matrix, Chromium quality checks and WebKit smoke;
 - **Embedded AP portal:** stale-asset check, deterministic generator tests, clean-checkout static smoke, and Playwright behavior/a11y tests;
 - **Embedded AP visual:** screenshot comparison in the pinned Playwright container;
 - **Cloud foundation:** clean local Supabase reset, database/Edge/simulator/operations gates, committed `api` type drift, and the capacity fixture;
@@ -223,9 +239,47 @@ python -m unittest discover -s tools/cloud_phase0 -p "test_*.py" -v
 python tools/cloud_phase0/generate_evidence.py --format markdown
 ```
 
+Native firmware codec interoperability (Python standard library and C++ compiler):
+
+```sh
+python3 -m unittest discover -s Platformio/Dog-RGB/test -p 'test_track_v3_native.py' -v
+```
+
+The harness compiles the actual C++ codec and compares binary frames with the
+frozen Python implementation, including its four reference fixtures. SHA-256
+callbacks in the host harness use Python `hashlib`; target builds compile the
+SDK mbedTLS adapter. This is codec evidence, not physical storage acceptance.
+See [M2.4a evidence and environment](cloud/m24a-track-v3-codec-evidence.md).
+
+Durable identity/boot allocation and the NVS adapter:
+
+```sh
+python3 -m unittest discover -s Platformio/Dog-RGB/test -p 'test_device_identity*.py' -v
+```
+
+These native tests inject byte-image write/read faults and exercise the actual
+SDK adapter against a fake NVS API. They require no board or credentials and run
+in the existing firmware host suite. See [M2.3a scope and recovery rules](cloud/m23a-device-identity-evidence.md).
+
+The native identity/codec bridge is tested separately:
+
+```sh
+python3 -m unittest discover -s Platformio/Dog-RGB/test -p 'test_chunk_assembler_native.py' -v
+```
+
+This exercises bounded batching, temporal boundaries, reservation/encoding retries
+and local-sink backpressure using the real identity service and codec. See
+[M2.4b handoff contract and evidence](cloud/m24b-chunk-assembly-evidence.md).
+
 The superseded RAM-only suite passed 20/20, but that historical green result is invalid recovery/reclaim evidence: it accepted `acknowledge_through(999)` after only chunks `0..2` existed and then reclaimed all three. It also recovered from retained Python objects instead of constructing a fresh runtime from persisted flash bytes.
 
-A corrected byte-addressed candidate now reconstructs from a NOR image, carries globally monotonic outbox identities, requires exact manifest-bound per-slot ACK evidence, derives reclaim only across a contiguous proven prefix, journals metadata A/B, and reserves two independently erasable emergency sectors. Its provisional geometry is 664 chunks/63,744 points. The expanded 51/51 suite now covers destructive stale-intent fallback, irreversible intent consumption before refill, corrupt-refill quarantine and unreadable-header fail-closed behavior, sequence reuse after tombstone/journal fallback, bounded recovery of maximum loss intervals, durable loss capture and automatic sparse-loss finalization during ACK transitions, and ACKed-corrupt-payload classification. The host recovery/reclaim gate remains **review/open** until independent acceptance; keep every reproduction, rerun from fresh immutable images, and regenerate the [storage feasibility report](cloud/phase0-storage-feasibility.md) after storage changes.
+The byte-addressed model reconstructs from NOR bytes, retains durable logical
+identity, validates exact ACKs, and reclaims only a contiguous proven prefix.
+Journal v3 and emergency v2 preserve identity/loss state across modeled cuts.
+The 67/67 host suite and 10/10 verifier suite support the [independent AI
+acceptance](cloud/phase0-outbox-remediation-review-2026-10-02.md) at `fb6dbef`.
+Its 664 chunks/63,744 points remain modeled geometry. Preserve all regressions
+and source pins; storage changes require regenerated evidence and review.
 
 Passing this model does not close the hardware gate. Before the M2 firmware exit, execute at least 10,000 production-codec seal/ACK/reclaim cycles on the target ESP32-S3 with randomized physical reset/power removal at data/header/metadata/ACK/erase boundaries. Record mount/recovery latency, maximum GNSS/LED/cooperative-loop gap, watchdog margin, heap, programmed/erased bytes and sector distribution, current/energy by cadence, full-pressure/loss-marker behavior, and legacy preservation. The raw-ring ADR must be revisited if metadata wear concentration or timing is unsafe.
 
@@ -237,7 +291,7 @@ node --test contracts/device-v1/test-contracts.mjs
 
 This dependency-free suite must validate every schema/reference, positive/negative fixture, canonical hash, point/chunk/ACK identity, sequence hole/final rule, LWW/HLC vector, problem behavior, local-only exclusion, and compatibility tuple.
 
-Phase 0 requires a cross-implementation gate, not two independently green suites. The protocol tuple/hash/flags/time-quality/chunk bounds/legacy encoding must exactly match `tools/cloud_phase0/track_v3.py`; generated native payload bytes must validate under the JSON semantic tests and vice versa. Any future disagreement stops schema work. On 2026-08-13 the complete protocol suite passed 48/48. The contract tests cover the six-value time-quality mapping, exact chunk ACK identity, out-of-order holes, and dedicated revoke identity/exact-replay/disposition behavior; their wire-vector check matches the Python codec. This closes protocol reconciliation only. The corrected Python storage candidate passes 51/51 but still awaits independent host acceptance; it does not validate physical storage, the map provider, or any implementation gate.
+Phase 0 requires a cross-implementation gate, not two independently green suites. The protocol tuple/hash/flags/time-quality/chunk bounds/legacy encoding must exactly match `tools/cloud_phase0/track_v3.py`; generated native payload bytes must validate under the JSON semantic tests and vice versa. Any future disagreement stops schema work. On 2026-08-13 the complete protocol suite passed 48/48. The contract tests cover the six-value time-quality mapping, exact chunk ACK identity, out-of-order holes, and dedicated revoke identity/exact-replay/disposition behavior; their wire-vector check matches the Python codec. This closes protocol reconciliation only. The Python storage model passes 67/67 and has independent AI host acceptance; this does not validate physical storage, the map provider or the firmware integration.
 
 ### PostgreSQL capacity evidence
 

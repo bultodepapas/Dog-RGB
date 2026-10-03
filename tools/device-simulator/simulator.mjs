@@ -617,6 +617,26 @@ async function main() {
   raceClaim.credential_secret = raceSecret;
   raceClaim.device.device_id = raceDeviceId;
   const raceBearer = `Bearer drgb_v1_${raceCredentialId}.${raceSecret}`;
+  const pendingRaceOutbox = await readFixture("device-v1-sync-request.json");
+  pendingRaceOutbox.request_id = randomUUID();
+  pendingRaceOutbox.device.device_id = raceDeviceId;
+  pendingRaceOutbox.device.capability_hash = raceClaim.device.capability_hash;
+  pendingRaceOutbox.configuration = { mutations: [], reported: [] };
+  pendingRaceOutbox.upload.summaries = [];
+  const outboxNowMs = Date.now();
+  pendingRaceOutbox.clock = { utc_ms: outboxNowMs, quality: "sntp_synced", uncertainty_ms: 250 };
+  pendingRaceOutbox.upload.chunks.forEach((chunk) => {
+    chunk.points.forEach((point, index) => {
+      point[2] = Math.floor(outboxNowMs / 1000) + index * 5;
+    });
+    chunk.content_sha256 = pointHash(chunk.points);
+  });
+  const pendingPointIds = pendingRaceOutbox.upload.chunks.flatMap((chunk) =>
+    chunk.points.map((_, index) => ({
+      boot_sequence: chunk.boot_sequence,
+      point_sequence: chunk.first_point_sequence + index,
+    })),
+  ).sort((left, right) => left.boot_sequence - right.boot_sequence || left.point_sequence - right.point_sequence);
   const claimRevoke = await readFixture("device-v1-revoke-request.json");
   claimRevoke.request_id = randomUUID();
   claimRevoke.device_id = raceDeviceId;
@@ -665,7 +685,115 @@ async function main() {
   ).then(json);
   assert.deepEqual(racedCollar, [{ state: "revoked" }], "the claim/revoke race must settle revoked");
 
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+  const reclaimIssue = structuredClone(claimIssue);
+  reclaimIssue.request_id = randomUUID();
+  const reclaimIssued = await json(await post("/functions/v1/user-v1-issue-claim", reclaimIssue, {
+    apikey: publishableKey,
+    authorization: `Bearer ${login.access_token}`,
+  }));
+  const makeReclaim = () => {
+    const value = structuredClone(raceClaim);
+    value.request_id = randomUUID();
+    value.claim_code = reclaimIssued.claim.code;
+    value.credential_id = randomUUID();
+    value.credential_secret = randomBytes(32).toString("base64url");
+    return value;
+  };
+  const reclaimCandidates = [makeReclaim(), makeReclaim()];
+  const reclaimResponses = await Promise.all(reclaimCandidates.map((value) =>
+    post("/functions/v1/device-v1-claim", value),
+  ));
+  const winnerIndex = reclaimResponses.findIndex((response) => response.ok);
+  assert.notEqual(winnerIndex, -1, "one concurrent same-dog re-enrollment claim must succeed");
+  const loserIndex = 1 - winnerIndex;
+  const rePaired = await json(reclaimResponses[winnerIndex]);
+  await problem(reclaimResponses[loserIndex], 401, "claim_unavailable", reclaimCandidates[loserIndex].request_id);
+  assert.equal(rePaired.pairing.collar_id, racePaired.pairing.collar_id, "re-enrollment retains the stable collar ID");
+  assert.equal(rePaired.pairing.device_id, raceDeviceId, "re-enrollment retains the device UUID");
+  assert.notEqual(rePaired.pairing.credential_id, raceCredentialId, "re-enrollment requires a fresh credential ID");
+  assert.deepEqual(
+    await json(await post("/functions/v1/device-v1-claim", reclaimCandidates[winnerIndex])),
+    rePaired,
+    "an exact re-enrollment replay returns the winner despite the concurrent loser",
+  );
+
+  const reEnrollmentBearer = `Bearer drgb_v1_${reclaimCandidates[winnerIndex].credential_id}.${reclaimCandidates[winnerIndex].credential_secret}`;
+  const activeDogCollars = await fetch(
+    `${apiUrl}/rest/v1/collars?dog_id=eq.${claimIssue.dog_id}&state=eq.active&select=id,device_public_id`,
+    {
+      headers: {
+        apikey: publishableKey,
+        authorization: `Bearer ${login.access_token}`,
+        "accept-profile": "api",
+      },
+    },
+  ).then(json);
+  assert.deepEqual(
+    activeDogCollars,
+    [{ id: racePaired.pairing.collar_id, device_public_id: raceDeviceId }],
+    "the concurrent re-enrollment leaves exactly one active collar for the dog",
+  );
+
+  const oldOutboxAttempt = structuredClone(pendingRaceOutbox);
+  oldOutboxAttempt.request_id = randomUUID();
+  await problem(
+    await post("/functions/v1/device-v1-sync", oldOutboxAttempt, { authorization: raceBearer }),
+    403,
+    "device_revoked",
+    oldOutboxAttempt.request_id,
+  );
+  pendingRaceOutbox.request_id = randomUUID();
+  const recoveredOutbox = await json(await post(
+    "/functions/v1/device-v1-sync",
+    pendingRaceOutbox,
+    { authorization: reEnrollmentBearer },
+  ));
+  assert.deepEqual(
+    recoveredOutbox.telemetry.accepted_chunks.map((chunk) => `${chunk.boot_sequence}:${chunk.chunk_sequence}`),
+    pendingRaceOutbox.upload.chunks.map((chunk) => `${chunk.boot_sequence}:${chunk.chunk_sequence}`),
+    "the fresh credential can submit queued telemetry under its original boot/chunk identity",
+  );
+  const retainedReEnrollmentPoints = await fetch(
+    `${apiUrl}/rest/v1/telemetry_points?collar_id=eq.${racePaired.pairing.collar_id}&select=boot_sequence,point_sequence&order=boot_sequence.asc,point_sequence.asc`,
+    {
+      headers: {
+        apikey: publishableKey,
+        authorization: `Bearer ${login.access_token}`,
+        "accept-profile": "api",
+      },
+    },
+  ).then(json);
+  assert.deepEqual(retainedReEnrollmentPoints, pendingPointIds, "queued point IDs survive the credential change");
+
+  assert.deepEqual(
+    await json(await post("/functions/v1/device-v1-revoke", claimRevoke, { authorization: raceBearer })),
+    settledRaceRevoke,
+    "an exact revoke replay from the old credential cannot close a newer enrollment",
+  );
+  const oldTombstoneRevoke = structuredClone(claimRevoke);
+  oldTombstoneRevoke.request_id = randomUUID();
+  oldTombstoneRevoke.reason = "factory_reset";
+  const oldTombstone = await json(await post(
+    "/functions/v1/device-v1-revoke",
+    oldTombstoneRevoke,
+    { authorization: raceBearer },
+  ));
+  assert.equal(oldTombstone.disposition, "already_revoked", "a new stale revoke gets only its tombstone receipt");
+  const afterOldRevokes = await fetch(
+    `${apiUrl}/rest/v1/collars?id=eq.${racePaired.pairing.collar_id}&select=state`,
+    {
+      headers: {
+        apikey: publishableKey,
+        authorization: `Bearer ${login.access_token}`,
+        "accept-profile": "api",
+      },
+    },
+  ).then(json);
+  assert.deepEqual(afterOldRevokes, [{ state: "active" }], "neither stale revoke form affects the new credential");
+
+  // The losing re-enrollment attempt already committed one source failure.
+  // Three more remain below the five-failure threshold; the next must block.
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
     const invalidClaim = await readFixture("device-v1-claim-request.json");
     invalidClaim.request_id = randomUUID();
     invalidClaim.claim_code = randomBytes(10).toString("hex").toUpperCase()
@@ -720,6 +848,8 @@ async function main() {
       "revoke-sync-race", "revoked-credential", "per-collar-rate-limit",
       "retry-after", "exact-replay-after-rate-limit", "revoke",
       "concurrent-claim-revoke", "claim-replay-after-revoke",
+      "same-dog-concurrent-reenrollment", "old-credential-fenced", "pending-outbox-rebound",
+      "old-revoke-replay-and-tombstone-fenced",
       "failed-claim-accounting", "claim-source-cooldown", "claim-replay-during-cooldown",
     ],
     points: points.length,

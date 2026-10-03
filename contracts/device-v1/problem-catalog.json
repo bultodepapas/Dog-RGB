@@ -39,6 +39,15 @@
       "applies_to": ["claim"]
     },
     {
+      "code": "active_collar_exists",
+      "status": 409,
+      "title": "Active collar already linked",
+      "retry_class": "operator",
+      "device_action": "retain_and_repair_claim",
+      "retry_after_allowed": false,
+      "applies_to": ["claim"]
+    },
+    {
       "code": "device_credential_invalid",
       "status": 401,
       "title": "Device credential invalid",

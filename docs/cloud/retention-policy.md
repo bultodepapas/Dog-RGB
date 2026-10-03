@@ -1,10 +1,9 @@
 # Cloud retention and deletion policy
 
-**Status:** Phase 0 accepted default, updated 2026-08-18. The local Phase 1
+**Status:** accepted default, scope reconciled 2026-10-02. The local Phase 1
 cascade, explicit owner-requested dog deletion, bounded raw-telemetry retention,
 and local isolated tombstone replay primitives are tested. No retention schedule
-is activated; data export/user UI, account deletion, other policy classes,
-hosted load, off-site tombstone custody, and managed backup replay remain gates.
+is activated. Export/deletion UI and account orchestration are implemented locally; their integration evidence, other policy classes, hosted load and an actual hosted restore/deletion replay remain gates; managed backup and advanced off-site signing custody are implementation options, not mandatory service purchases.
 
 This operational policy implements [ADR-0010](../adr/0010-retention-and-truthful-activity-vocabulary.md). It is a launch input, not a claim that Supabase/Vercel currently contain or delete Dog-RGB data.
 
@@ -35,13 +34,13 @@ This operational policy implements [ADR-0010](../adr/0010-retention-and-truthful
 | Edge/Vercel application logs | event instant | 14-day target or shortest supported setting | provider expiry; sample/scan proves no request body, auth, coordinate, dog name |
 | account/profile/membership | creation/mutation | account/dog lifetime | account/dog deletion workflow; retain coordinate-free deletion receipt only |
 | deletion job/receipt | request/completion | 12 months | contains scope IDs/hash/status/times only; no location, profile payload, or secret |
-| export artifact | completed export | download once or maximum 24 hours | encrypted/private storage, signed short-lived URL, delete job/artifact after deadline |
+| export download | request snapshot | synchronous response only | private `no-store` attachment; no persisted server artifact/job or signed URL. If asynchronous exports are added later, define and verify their storage/expiry policy before enabling them |
 
 Use UTC database instants for retention comparison. Local calendar days are presentation/analytics semantics, not a reason to extend raw-point retention. Rows with invalid/unknown observation time are quarantined and use the earliest defensible ingest/recording time for deletion so malformed clocks cannot create immortal data.
 
 ## User-selectable behavior
 
-Initial UI may offer “delete now” at recording/dog/account scope. A later setting may shorten raw location retention (for example 30 or 90 days). It must not offer a longer/default-infinite period without a new privacy/cost decision and explicit consent. Shortening applies to existing eligible data in the next purge, with confirmation explaining loss of future recomputation.
+Core v1 offers dog/account deletion; recording-only deletion is deferred. A later setting may shorten raw location retention (for example 30 or 90 days). It must not offer a longer/default-infinite period without a new privacy/cost decision and explicit consent. Shortening applies to existing eligible data in the next purge, with confirmation explaining loss of future recomputation.
 
 Deleting a collar link and deleting history are separate choices. Revocation always stops future device access; it does not silently remove history. Deleting a dog/account cascades all active location, summary, configuration, membership, and association data in scope.
 
@@ -83,32 +82,30 @@ The local [raw-telemetry retention drill](phase1-retention-drill.md) separately
 proves inclusive cutoff boundaries, unknown/future-time fallback, leap-day
 calendar arithmetic, bounded point/chunk stages, rollback/retry, a per-collar
 anti-resurrection watermark, deletion-race serialization, and coordinate-free
-receipts. It deliberately does not activate automatic retention: export,
-strong-confirmation UI/account orchestration, reviewed hosted scheduling/load,
-the other policy classes, off-site tombstone custody, and isolated managed
-hosted restore remain gates.
+receipts. The [current local web implementation](local-web-v1-implementation-2026-10-03.md) adds bounded exports, strong-confirmation UI and account orchestration with separate integration evidence. Automatic retention, reviewed hosted scheduling/load, the other policy classes and hosted restore/deletion replay remain gates. A tested encrypted logical-backup path is acceptable.
 
 The [Phase 1 restore drill](phase1-restore-drill.md) separately proves that the
 complete synthetic local database can be restored twice with identical
 application hashes, Auth linkage, functions and effective RLS. It also exports a
 later deletion, authenticates it with the
 [signed Ed25519 artifact](phase1-tombstone-artifact.md), rejects tampering, and
-replays it into the older restore before access. Production key management,
-authenticated off-site custody, and managed hosted replay remain mandatory
-before activation.
+replays it into the older restore before access. This evidence covers dog tombstones; replay of a post-backup account/Auth deletion is not implemented or proven. M5.8 must prevent resurrection of those identities before any restored environment receives traffic. Before activation, protect the
+chosen backup/deletion records and prove replay in the actual restore path.
+KMS/HSM, a new signed off-site custody service and paid managed cloning remain
+optional under M5B; retaining the local signed artifact does not require them.
 
 At implementation, automated tests and a staging drill must cover:
 
 - exact `deadline - 1`, `deadline`, and `deadline + 1` boundaries;
 - leap dates, invalid/unknown/future observation time, batch retry, worker crash, duplicate job, and foreign-key failure;
-- record, dog, collar unlink, and account deletion across every table/object/cache;
+- dog/account deletion and collar unlink across every table/object/cache; add recording-only deletion coverage only if that deferred feature is introduced;
 - export contents before and absence after deletion;
 - revoked credential and request receipt expiration without enabling replay duplicates;
 - restore of a backup predating deletion followed by mandatory tombstone replay;
 - provider log settings and canary scan for credentials/coordinates;
 - load/query plan so purge cannot starve ingestion.
 
-The production dashboard alerts on overdue purge jobs, oldest expired row, failed deletion, export artifact past TTL, and backup/restore drill age. A quarterly review reconfirms provider settings, costs, tables/objects, and privacy copy.
+Production operations must alert on overdue purge jobs, oldest expired row, failed deletion and backup/restore drill age. Export v1 creates no retained artifact or artifact-TTL queue. A quarterly review reconfirms provider settings, costs, tables/objects, and privacy copy.
 
 ## References
 

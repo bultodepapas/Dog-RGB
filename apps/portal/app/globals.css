@@ -46,6 +46,7 @@ h1 {
   color: var(--green);
   font-size: clamp(2.2rem, 7vw, 5rem);
   line-height: .98;
+  overflow-wrap: anywhere;
 }
 
 p { max-width: 64ch; line-height: 1.6; }
@@ -925,3 +926,15 @@ button:disabled { cursor: wait; opacity: .62; }
       transform 120ms ease;
   }
 }
+
+/* Account/profile/data controls share the existing private surface. */
+.data-form, .dog-profile-form { display: grid; gap: .75rem; max-width: 42rem; }
+.data-form input, .dog-profile-form input { min-height: 44px; min-width: 0; padding: .7rem; font: inherit; color: inherit; background: var(--surface, #101a23); border: 1px solid currentColor; border-radius: .3rem; }
+.data-form button, .dog-profile-form button { min-height: 44px; }
+.private-content > section { margin-block: 2rem; }
+.onboarding-content li { overflow-wrap: anywhere; margin-block: 1rem; }
+.onboarding-content .button-link { min-height: 44px; display: inline-flex; align-items: center; }
+
+.onboarding-content p, .onboarding-content code { overflow-wrap: anywhere; }
+
+.private-footer a, .private-context a, .private-content a, .onboarding-content a, .auth-footer a, .form-aside a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }

@@ -267,7 +267,9 @@ from deletion_fixture;
 
 insert into private.dirty_summary_days (dog_id, local_date, timezone, reason)
 select dog_id, '2026-08-17', 'America/Bogota', 'deletion_fixture'
-from deletion_fixture;
+from deletion_fixture
+on conflict (dog_id, local_date, timezone) do update
+set reason = excluded.reason;
 
 insert into api.config_revisions (
   id, collar_id, resource_key, mutation_id, resource_schema,

@@ -6,8 +6,8 @@ import time
 
 
 @contextmanager
-def native_temp_dir():
-    directory = tempfile.TemporaryDirectory()
+def native_temp_dir(prefix=None):
+    directory = tempfile.TemporaryDirectory(prefix=prefix)
     try:
         yield directory.name
     finally:

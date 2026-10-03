@@ -2,7 +2,7 @@
 
 This is the canonical documentation index for Dog-RGB. English is the source language; Spanish pages are maintained as convenience translations for builders and users.
 
-Last full code-alignment review: **2026-08-13**. Display documentation reconciled through **I6a on 2026-09-12** against implementation and recorded evidence; development subsequently delivered I6c opt-in bench preparation and I6d State. This scoped update does not revalidate unrelated workstreams.
+Last full code-alignment review: **2026-08-13**. Display documentation reconciled through **I6a on 2026-09-12** against implementation and recorded evidence; development subsequently delivered I6c opt-in bench preparation and I6d State. The web/cloud plan and references were reconciled on **2026-10-02** against repository code and scoped local checks. These scoped updates do not revalidate unrelated workstreams.
 
 ## Document status
 
@@ -93,7 +93,8 @@ The firmware and tests are the final source of truth. A document must never turn
 
 | Document | Status | Notes |
 | --- | --- | --- |
-| [Web portal product spec](web_portal_spec.md) | Current | User-facing pages, states, accessibility, and offline constraints |
+| [Embedded AP portal product spec](web_portal_spec.md) | Current, collar-local | AP pages/states/accessibility; separate from the Next.js website |
+| [Next.js website execution plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) | Active; local implementation, release incomplete | Authoritative website status, missing user paths, dependencies and completion gates |
 | [Wi-Fi/AP behavior](wifi_portal_spec.md) | Current | AP/STA policy, scanning, captive portal, retries, and persistence |
 | [Wi-Fi state diagram](wifi_portal_state_diagram.md) | Current | Simplified state and policy flow |
 | [Portal preview tool](../tools/ap_portal_preview/README.md) | Current | Build and serve the same generated bundles represented by the firmware arrays |
@@ -120,7 +121,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Portal configuration presets](portal_config_presets.md) | Proposed | Whole-runtime profiles distinct from implemented visual scenes; no selector/config-preset persistence |
 | [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–5 implemented in software; physical-HIL acceptance remains separate, Spanish | Current-limiting, effect-registry, palette, segment, scene, and web-asset roadmap |
 | [App wireframe and data flow](flow_wireframe.md) | Proposed | Companion-app concept, separate from the implemented local portal |
-| [Cloud platform and bidirectional sync plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) | Accepted optional direction; Phase 0 and owner-authorized local Phase 1 in progress | Current detailed implementation plan; device-v1 passes 48/48, the corrected 664-slot host candidate remains review/open, and the physical-storage/credentialed-map gates remain open. Phase 1 local-cloud foundation work proceeds by explicit owner exception; Phase 2 remains unauthorized. |
+| [Cloud platform and bidirectional sync plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) | Active, partially implemented | Same master plan as the website entry above; web completion is independent of physical firmware and optional map credentials |
 | [Cloud portal master plan](PLANS/2026-08-01_cloud-portal-master-plan.md) | Superseded proposed snapshot | Older upload-oriented design retained for history |
 | [Software area](../software/README.md) | Proposed | Placeholder and boundaries for future companion/cloud software |
 

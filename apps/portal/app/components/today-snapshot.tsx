@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { ComputedSummary } from "./computed-summary";
+import type { SummaryDto } from "../../lib/data-access/summary-core";
 import type {
   TodayRecordingState,
   TodaySnapshotDto,
@@ -37,13 +40,6 @@ function formatTimestamp(value: string, timezone: string): string {
   }).format(new Date(value));
 }
 
-function formatCoverage(value: number): string {
-  return new Intl.NumberFormat("es-CO", {
-    style: "percent",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
-
 function formatInteger(value: number): string {
   return new Intl.NumberFormat("es-CO", {
     maximumFractionDigits: 0,
@@ -62,9 +58,9 @@ function ExactTime({
 }
 
 export function TodaySnapshot({
-  snapshot,
-}: Readonly<{ snapshot: TodaySnapshotDto }>) {
-  const { collar, dailySummary, dog, latestRecording } = snapshot;
+  snapshot, summary,
+}: Readonly<{ snapshot: TodaySnapshotDto; summary: SummaryDto }>) {
+  const { collar, dog, latestRecording } = snapshot;
 
   return (
     <DogPrivateShell activeSection="today" dog={dog}>
@@ -119,33 +115,15 @@ export function TodaySnapshot({
           <section className="today-section" aria-labelledby="coverage-title">
             <p className="eyebrow">FECHA LOCAL</p>
             <h2 id="coverage-title">Cobertura de hoy</h2>
-            {dailySummary ? (
-              <dl className="today-facts">
-                <div>
-                  <dt>Cobertura registrada</dt>
-                  <dd>{formatCoverage(dailySummary.coverageRatio)}</dd>
-                </div>
-                <div>
-                  <dt>Tiempo sin datos</dt>
-                  <dd>{formatInteger(dailySummary.unknownSeconds)} s</dd>
-                </div>
-              </dl>
-            ) : (
-              <div className="today-empty">
-                <strong>PROCESANDO O DATOS INSUFICIENTES</strong>
-                <p>
-                  Todavía no hay un resumen validado para la fecha local de hoy.
-                  El tiempo sin observaciones no se interpreta como inactividad.
-                </p>
-              </div>
-            )}
+            <ComputedSummary summary={summary} timezone={dog.timezone} />
+            <a className="button-link" href={`/app/${dog.id}/today`}>Actualizar estado</a>
           </section>
 
           <section className="today-section" aria-labelledby="recording-title">
             <p className="eyebrow">REGISTRO DEL COLLAR</p>
             <h2 id="recording-title">Grabación más reciente</h2>
             {latestRecording ? (
-              <dl className="today-facts">
+              <><Link className="button-link" href={`/app/${dog.id}/recordings/${latestRecording.id}`}>Ver última grabación</Link><dl className="today-facts">
                 <div>
                   <dt>Inicio</dt>
                   <dd>
@@ -174,13 +152,8 @@ export function TodaySnapshot({
                   <dt>Puntos registrados</dt>
                   <dd>{formatInteger(latestRecording.pointCount)}</dd>
                 </div>
-                {latestRecording.coverageRatio !== null ? (
-                  <div>
-                    <dt>Cobertura de la grabación</dt>
-                    <dd>{formatCoverage(latestRecording.coverageRatio)}</dd>
-                  </div>
-                ) : null}
-              </dl>
+
+              </dl></>
             ) : (
               <div className="today-empty">
                 <strong>SIN GRABACIÓN DISPONIBLE</strong>

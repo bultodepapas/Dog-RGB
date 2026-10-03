@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import {
   recordingAppPath,
 } from "../../../../../lib/auth/protected-route";
-import { requireRecordingPage } from "../../../../../lib/auth/route-guard";
+import { requireComputedSummaryPage, requireRecordingPage } from "../../../../../lib/auth/route-guard";
 import { RecordingDetail } from "../../../../components/recording-detail";
 
 export const metadata: Metadata = { title: "Grabación | Dog RGB" };
@@ -27,5 +27,6 @@ export default async function RecordingPage(
     searchParams.after,
     recordingAppPath(dogId, recordingId),
   );
-  return <RecordingDetail page={recording} />;
+  const summary = await requireComputedSummaryPage(dogId, { recordingId }, recordingAppPath(dogId, recordingId));
+  return <RecordingDetail page={recording} summary={summary} />;
 }

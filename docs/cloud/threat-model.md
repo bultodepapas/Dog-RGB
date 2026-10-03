@@ -1,6 +1,6 @@
 # Cloud threat model
 
-**Status:** Phase 0 design baseline, 2026-08-13. The cloud gateway, accounts, and web application described here are not implemented.
+**Status:** design baseline with maturity reconciled 2026-10-02. Local gateways, accounts, owner portal and authorization/fault/privacy evidence exist; physical sync and hosted controls remain open. See the [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) for implementation state. Threat rows below are continuing obligations, not claims that every control is absent or deployed.
 
 **Applies with:** [ADR-0005](../adr/0005-device-cloud-gateway-and-stable-hostname.md), [data model ADR](../adr/0006-cloud-data-model-and-access-boundaries.md), [sync ADR](../adr/0008-resource-level-hlc-lww-configuration-sync.md), and the [privacy data flow](privacy-data-flow.md).
 

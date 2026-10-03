@@ -1,6 +1,6 @@
 # Cloud credentials and external-service checklist
 
-**Status:** Phase 0 inventory, 2026-08-13. No production credential is required or authorized for documentation/protocol work. Temporary MapTiler and Stadia test credentials/domain properties are required only to close the still-open Phase 0 comparative-map and unapproved-origin-rejection gates.
+**Status:** inventory reconciled 2026-10-02. No production credential is needed for local documentation/product work. Hosted development/production inputs belong to M3A/M5B; temporary MapTiler/Stadia credentials belong only to optional M4 tiles. Follow the [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md), not historical phase numbering.
 
 Use this as a deploy/rotation handoff. Never paste a real value into this file, an issue, chat, screenshot, fixture, URL query, serial log, or support export.
 
@@ -26,7 +26,7 @@ A publishable key is not a user, device, or authorization credential. RLS and au
 | one-use claim code | user-authorized server operation | 16-character canonical user display and pairing request only; peppered HMAC digest server-side | logs/analytics/email by default, long-term DB, firmware after exchange | 80 random bits, 900-second TTL, maximum five failed consumes, atomic one-use, consumed/expired purge <=24 h |
 | Supabase Auth SMTP credentials | production account-email setup by operator | Supabase Auth provider settings/secret manager | browser/repo/collar | confirmation/recovery tests, DKIM/SPF/DMARC, provider revoke/rotate runbook |
 | Vercel deployment/team token | only if CI/API deployment needs it | CI secret store with least scope; prefer native integration/workload identity | runtime browser, repo, collar, build logs | expiry/owner/scope documented; deployment + revoke rehearsal |
-| map provider browser key/domain auth | Phase 0 bake-off temporary; Phase 6 production | browser only if provider designed it as public; exact allowed origins/domain/referrer; separate envs | firmware/server secret assumptions, repo permanent key, screenshots | unapproved-origin rejection, quota/budget alerts, rotate and redeploy; no route in requests |
+| map provider browser key/domain auth | Optional M4 comparison/integration; M5B production if enabled | browser only if provider designed it as public; exact allowed origins/domain/referrer; separate envs | firmware/server secret assumptions, repo permanent key, screenshots | unapproved-origin rejection, quota/budget alerts, rotate and redeploy; no route in requests |
 | stable device API DNS account | before Phase 3 field firmware | registrar/DNS operator account with MFA and recovery | firmware API token, repo | CNAME/cert expiry monitoring, provider migration rehearsal, two-owner recovery |
 | Vercel web DNS/domain account | web deployment | registrar/Vercel operator with MFA | app runtime secret | redirect/origin/certificate tests and recovery contacts |
 | Supabase CLI access token | dev/CI only if hosted migrations need it | developer credential store or CI secret, scoped/separate | repo, frontend, Edge runtime, collar | owner/last-used/expiry; rotate on offboarding/leak |
@@ -53,7 +53,11 @@ A publishable key is not a user, device, or authorization credential. RLS and au
 
 ## Provisioning checklist
 
-### Phase 1 local/staging foundation
+### M1 local work versus M3A hosted-development setup
+
+M1 uses the existing loopback stack and disposable local credentials; it does
+not require external accounts. The operator/project checklist below applies
+when starting hosted M3A.
 
 - [ ] Name an operator/backup owner for each account and enable phishing-resistant MFA where supported.
 - [ ] Create separate Supabase project/env; record region, plan, project ID (not secrets), backup/PITR state, spending limits, and contacts.
@@ -63,7 +67,7 @@ A publishable key is not a user, device, or authorization credential. RLS and au
 - [ ] Configure exact local/staging Auth URLs and email behavior; do not use production SMTP for load tests.
 - [ ] Create temporary map key only when needed; fragment/local secret handling keeps it out of server logs and source.
 
-### Phase 3 hosted device proof
+### M3B/C hosted device proof
 
 - [ ] Use development Supabase hostname for lab only; record endpoint separately from versioned paths.
 - [ ] Provision one unique development collar credential through the real claim flow; no manual global token.
@@ -71,7 +75,7 @@ A publishable key is not a user, device, or authorization credential. RLS and au
 - [ ] Configure rate/body limits and budget alerts before Internet exposure.
 - [ ] Rehearse device rotation, normal unlink through `device-v1-revoke`, lost response/exact replay of the original disposition, prior website/different-request revoke returning `already_revoked`, generic-error retention, forced local clear warning, and website-side revocation.
 
-### Phase 6/7 field production
+### M5B private field release
 
 - [ ] User supplies/owns a stable device API domain; enable Supabase custom domain and validate CNAME/certificate before flashing field endpoints.
 - [ ] Configure production Vercel domain, Supabase Auth site/redirect URLs, exact CORS/origin policies, and map-origin restrictions.
@@ -96,9 +100,9 @@ If exposed:
 
 ## External inputs still required
 
-No value is needed to author or review the Phase 0 contracts. Formal Phase 0 exit does require the temporary provider credentials below; later implementation requires the remaining user/operator inputs:
+Local web work needs no external provider credential. Obtain these inputs only for the corresponding hosted or optional-map branch:
 
-- an owned domain and DNS access for stable device API/web names;
+- stable validated site origin and owned device API domain/DNS access before durable field use under ADR-0005; a custom website domain is optional;
 - separate Supabase and Vercel projects/accounts and plan decisions;
 - a temporary origin-restricted MapTiler key and temporary Stadia property/domain-auth setup to finish the comparative bake-off and prove unapproved-origin rejection, then the selected provider account/domain restrictions;
 - a production email domain/provider/SMTP credentials;

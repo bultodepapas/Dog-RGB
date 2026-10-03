@@ -48,7 +48,7 @@ values
     '51000000-0000-4000-8000-000000000001',
     '31000000-0000-4000-8000-000000000003',
     'Capacity A',
-    'active',
+    'retired', -- historical collar; only Capacity B is currently active
     'xiao-s3-r1',
     'phase1-capacity',
     1,

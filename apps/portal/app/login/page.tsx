@@ -28,7 +28,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const notice = first(params.logged_out)
     ? "La sesión de este dispositivo se cerró correctamente."
     : first(params.password_updated)
-      ? "La contraseña cambió. Inicia sesión con la nueva contraseña."
+      ? "La contraseña cambió. Cerramos la sesión usada para recuperarla en este navegador. Inicia sesión con la nueva contraseña."
       : first(params.confirmed)
         ? "El correo quedó confirmado."
         : null;

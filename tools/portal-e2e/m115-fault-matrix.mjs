@@ -556,13 +556,18 @@ async function waitForBlocked(applicationName, blockerName, timeoutMs = 5_000) {
 
 function seedRaceFixtures(fixtures) {
   psql(`
+    begin;
+    insert into api.dogs (id, name, created_by)
+    values ${fixtures.map((fixture) => `(${sqlUuid(fixture.dogId)}, 'M1.15 isolated race', '${OWNER_ID}')`).join(",\n")};
+    insert into api.dog_memberships (dog_id, user_id, role)
+    values ${fixtures.map((fixture) => `(${sqlUuid(fixture.dogId)}, '${OWNER_ID}', 'owner')`).join(",\n")};
     insert into api.collars (
       id, device_public_id, dog_id, display_name, state,
       protocol_version, hardware_revision, firmware_version,
       telemetry_schema, config_schema, capability_manifest, capability_hash, linked_at
     ) values
       ${fixtures.map((fixture, index) => `(
-        ${sqlUuid(fixture.collarId)}, ${sqlUuid(fixture.deviceId)}, '${DOG_ID}',
+        ${sqlUuid(fixture.collarId)}, ${sqlUuid(fixture.deviceId)}, ${sqlUuid(fixture.dogId)},
         'M1.15 race ${index + 1}', 'active', 1, 'xiao-s3-r1', '2.0.0-cloud.1', 3, 7,
         '{"manifest_schema":1,"hardware_revision":"xiao-s3-r1","protocol_versions":[1],"telemetry":{"schemas":[3]},"config_schemas":[7]}'::jsonb,
         decode('${fixture.capabilityHash.toString("hex")}', 'hex'), statement_timestamp()
@@ -572,6 +577,7 @@ function seedRaceFixtures(fixtures) {
       ${sqlUuid(fixture.credentialId)}, ${sqlUuid(fixture.collarId)},
       decode('${fixture.secretDigest.toString("hex")}', 'hex'), 'active'
     )`).join(",\n")};
+    commit;
   `);
 }
 
@@ -647,6 +653,7 @@ function assertRaceState(fixture, expectedReceipt, expectedSyncMetadata) {
 
 async function runDeterministicRaces() {
   const fixtures = [1, 2].map(() => ({
+    dogId: randomUUID(),
     collarId: randomUUID(),
     deviceId: randomUUID(),
     credentialId: randomUUID(),

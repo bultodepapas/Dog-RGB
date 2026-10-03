@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 
-const DOG_ID = "30000000-0000-4000-8000-000000000003";
 const OWNER_ID = "10000000-0000-4000-8000-000000000001";
 const OUTSIDER_ID = "20000000-0000-4000-8000-000000000002";
 const EDITOR_ID = "19100000-0000-4000-8000-000000000001";
@@ -127,6 +126,7 @@ function assertDenied(result, label) {
 const container = databaseContainer();
 const collarId = randomUUID();
 const deviceId = randomUUID();
+const fixtureDogId = randomUUID();
 const tokens = {
   owner: userToken(OWNER_ID),
   editor: userToken(EDITOR_ID),
@@ -157,13 +157,17 @@ try {
       )
     on conflict (id) do nothing;
 
+    insert into api.dogs (id, name, timezone, created_by)
+    values ('${fixtureDogId}', 'M1.11 raw matrix fixture', 'America/Bogota', '${OWNER_ID}');
+
     insert into api.dog_memberships (dog_id, user_id, role) values
-      ('${DOG_ID}', '${EDITOR_ID}', 'editor'),
-      ('${DOG_ID}', '${VIEWER_ID}', 'viewer')
+      ('${fixtureDogId}', '${OWNER_ID}', 'owner'),
+      ('${fixtureDogId}', '${EDITOR_ID}', 'editor'),
+      ('${fixtureDogId}', '${VIEWER_ID}', 'viewer')
     on conflict (dog_id, user_id) do update set role = excluded.role;
 
     insert into api.collars (id, device_public_id, dog_id, display_name, state, linked_at)
-    values ('${collarId}', '${deviceId}', '${DOG_ID}', 'M1.11 raw matrix', 'active', statement_timestamp());
+    values ('${collarId}', '${deviceId}', '${fixtureDogId}', 'M1.11 raw matrix', 'active', statement_timestamp());
   `);
 
   const mutationId = randomUUID();
@@ -252,8 +256,7 @@ try {
   );
 } finally {
   psql(container, `
-    delete from api.collars where id = '${collarId}';
-    delete from api.dog_memberships where dog_id = '${DOG_ID}' and user_id in ('${EDITOR_ID}', '${VIEWER_ID}');
+    delete from api.dogs where id = '${fixtureDogId}';
     delete from auth.users where id in ('${EDITOR_ID}', '${VIEWER_ID}');
   `);
 }

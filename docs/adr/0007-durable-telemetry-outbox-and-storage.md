@@ -1,10 +1,10 @@
 # ADR-0007: Durable telemetry outbox on a raw flash ring
 
-**Status:** Accepted as design direction; remediated host evidence awaiting independent acceptance
+**Status:** Host candidate accepted by independent AI review (2026-10-02); physical gate open
 
 **Date:** 2026-08-13
 
-**Implementation evidence:** Review/open. The corrected 664-slot byte-addressed candidate has regressions for all seven reproduced fallback/loss/corruption failures and passes 51/51 with regenerated deterministic metrics. Independent acceptance is still required. Physical ESP32 flash/power-cut evidence remains a separate mandatory gate.
+**Implementation evidence:** The [initial independent AI review](../cloud/phase0-outbox-independent-review.md) rejected candidate `978be4a09712768f55695be05ae6c4ff4093bb79`. The [remediation](../cloud/phase0-outbox-remediation-2026-10-02.md) closes those reproductions with durable logical identity, conservative recovery, loss/journal cuts, preflight counters and canonical UTF-8/LF evidence. The expanded host matrix passes 67/67; [independent AI acceptance](../cloud/phase0-outbox-remediation-review-2026-10-02.md) covers all 12 host invariants. No firmware or physical acceptance is implied.
 
 **Scope:** Cloud telemetry staging, retry/ACK/reclaim semantics, pressure behavior, and legacy route preservation.
 
@@ -60,7 +60,9 @@ A reset after server commit but before step 6 replays the same chunk; database u
 
 - Maintain two CRC-protected, generation-numbered superblocks with wrap-safe selection and readback verification.
 - Metadata describes committed boundaries and exact ACK evidence; it is not the sole evidence that a chunk exists. On ambiguity, scan and validate data slots, recover fully written orphan chunks conservatively, and never convert uncertain data into ACKed data.
-- Journal format v2 binds each reclaim intent to exact slot ordinals and carries a CRC-excluded, one-way consumed marker. Program and verify that marker only after the sector is fully erased, and never refill before it is durable; a fallback journal can therefore never resurrect old erase authority over newer data.
+- Journal format v3 retains v2's binding of each reclaim intent to exact slot ordinals and its a CRC-excluded, one-way consumed marker. Program and verify that marker only after the sector is fully erased, and never refill before it is durable; a fallback journal can therefore never resurrect old erase authority over newer data.
+- Journal v3 and emergency v2 persist a single-device `(device UUID, boot, chunk)` high-water in their existing 36-byte tails. New seals must increase `(boot, chunk)` lexicographically; resident exact retries are idempotent, reclaimed identities are rejected. Full-storage loss atomically consumes its identity. Native boot allocation and legacy boot-zero import ordering belong to the firmware gate.
+- Any committed journal/emergency record with failed validation makes mutation/reclaim read-only, even if an older valid copy exists. Complete CRC/semantic-valid bodies recover as the new state even with a partial/erased commit marker, because bodies precede markers. Invalid unmarked partial bodies may fall back; partial ACK markers never authorize ACK. Older metadata versions require explicit migration; this host candidate never formats them.
 - Retain the global ordinal from a corrupt payload when its header remains valid and quarantine it until an acknowledged loss makes it reclaimable. If a committed header cannot be decoded, make mutation/reclaim read-only rather than risk ordinal reuse.
 - Reclaim only complete sectors so an erase cannot destroy another unacknowledged slot.
 - Persist counters for recoveries, corrupt slots, orphan salvage, failed reads/writes/erases, pressure level, dropped observations, and explicit data-loss intervals. Do not log coordinates.
@@ -84,9 +86,9 @@ The checked [storage feasibility report](../cloud/phase0-storage-feasibility.md)
 
 - The superseded RAM-only model's 20/20 run is invalid historical evidence. It accepted `acknowledge_through(999)` after only chunks `0..2` existed, reclaimed all three, and could not construct recovery from a persisted flash image.
 - The corrected candidate models NOR 1→0 programming, whole-sector erase, fresh-image mounts, globally monotonic outbox ordinals, exact per-slot ACK evidence, contiguous-prefix reclaim, A/B metadata journals, and two independently erasable emergency sectors. Its provisional geometry is 664 chunks/63,744 points, or 15.624 days at the four-hours-moving/five-second plus twenty-hours-stationary/sixty-second profile.
-- The remediated suite binds reclaim intent to the exact sector slot ordinals, irreversibly consumes it before refill, derives the next ordinal from retained loss tombstones and quarantined corrupt headers, fails read-only on unreadable committed headers, processes loss intervals without range-sized allocation/iteration, durably coalesces a second pending loss while the first ACK transitions, automatically finalizes acknowledged sparse loss when the contiguous prefix closes, and distinguishes ACKed corrupt payloads from unsynchronized loss. Those seven regressions and the deterministic 10,000-cycle workload pass 51/51.
+- The remediated suite binds reclaim intent to the exact sector slot ordinals, irreversibly consumes it before refill, derives the next ordinal from retained loss tombstones and quarantined corrupt headers, fails read-only on unreadable committed headers, processes loss intervals without range-sized allocation/iteration, durably coalesces a second pending loss while the first ACK transitions, automatically finalizes acknowledged sparse loss when the contiguous prefix closes, and distinguishes ACKed corrupt payloads from unsynchronized loss. That August candidate passed 51/51 but was rejected. The current 67/67 suite also covers logical-identity history, loss/journal cuts, overflow preflight, and damaged commit markers.
 
-The host recovery/reclaim gate is therefore **review/open**, not accepted. The raw ring remains the accepted design direction because its fixed format makes the required invariants inspectable and its capacity difference from the idealized LittleFS model is small; that decision does not authorize firmware implementation. Candidate amplification, salvage, cut, recovery-scan, and wear figures remain provisional until an independent review accepts the complete host matrix.
+The original host candidate was **rejected** on 2026-10-02. The corrected candidate `fb6dbef` is [independently accepted](../cloud/phase0-outbox-remediation-review-2026-10-02.md) within the documented host fault model. The raw ring remains the design direction because its fixed format makes the required invariants inspectable and its capacity difference from the idealized LittleFS model is small; M2A now permits the separately planned M2B implementation, while physical acceptance remains mandatory. Candidate amplification, salvage, cut, recovery-scan, and wear figures remain provisional. The remediation closes the reproduced defects and cut/counter evidence gaps; the rebaselined sources and canonical bytes passed the clean-tree gate and independent review.
 
 No host model proves physical safety. Flash-driver timing, brownout behavior, cache behavior, actual LittleFS write amplification, metadata wear, and interaction with GNSS/LED work require target measurements. The LittleFS comparison remains an idealized model, not a measured library trace.
 
@@ -118,7 +120,7 @@ No host model proves physical safety. Flash-driver timing, brownout behavior, ca
 
 ### Host recovery/reclaim gate
 
-This gate is review/open. Before any firmware outbox work is authorized (Phase 1 local-cloud work is already proceeding under the explicit exception recorded in the parent plan):
+This host gate passed for `fb6dbef` on 2026-10-02; the [ledger](../cloud/phase0-outbox-remediation-review-2026-10-02.md) records the decision. Subsequent storage changes must repeat these requirements before firmware outbox work is authorized (Phase 1 local-cloud work is already proceeding under the explicit exception recorded in the parent plan):
 
 1. keep every destructive fallback, sequence-reuse, bounded-loss, ACK-transition, and corruption-classification reproduction in the byte-image suite, including fresh-instance recovery after every cut;
 2. prove exact sent-manifest ACK matching, durable holes, sector-safe reclaim, bounded/idempotent loss reporting, and fail-closed recovery from corrupt metadata/loss copies;
@@ -136,7 +138,7 @@ After host acceptance, rerun equivalent tests against the production codec and a
 5. byte-golden codec/layout tests and refusal of future/corrupt versions;
 6. legacy-v2 dual-read/export and proof that initialization never erases existing routes.
 
-If raw flash fails any gate or actual LittleFS traces materially outperform it without losing exact recovery guarantees, revisit this ADR before field deployment. Phase 0 remains open and Phase 2 firmware/cloud integration remains unauthorized until the host gate, physical gate, and separate credentialed provider/origin-control/human-review map gate all close through the parent plan's exit review.
+If raw flash fails any gate or actual LittleFS traces materially outperform it without losing exact recovery guarantees, revisit this ADR before field deployment. **Dependency clarification — 2026-10-02:** M2A host acceptance permits offline M2B implementation. M2C physical evidence remains mandatory for the firmware-foundation exit and subsequent physical cloud acceptance. Provider/origin/reviewer evidence gates only optional M4 tiles; it does not gate firmware implementation, local web completion or hosted simulator preview. The [master dependency order](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#7-dependency-order) replaces the former aggregate Phase 0 block; reviewed host bytes, hashes and acceptance remain unchanged.
 
 ## References
 
