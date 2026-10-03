@@ -2,7 +2,7 @@
 
 This is the canonical documentation index for Dog-RGB. English is the source language; Spanish pages are maintained as convenience translations for builders and users.
 
-Last full code-alignment review: **2026-08-13**. Display documentation reconciled through **I6a on 2026-09-12** against implementation and recorded evidence; development subsequently delivered I6c opt-in bench preparation and I6d State. This scoped update does not revalidate unrelated workstreams.
+Last full code-alignment review: **2026-08-13**. Display documentation reconciled through **I6a on 2026-09-12** against implementation and recorded evidence; development subsequently delivered I6c opt-in bench preparation and I6d State. The web/cloud plan and references were reconciled on **2026-10-02** against repository code and scoped local checks. These scoped updates do not revalidate unrelated workstreams.
 
 ## Document status
 

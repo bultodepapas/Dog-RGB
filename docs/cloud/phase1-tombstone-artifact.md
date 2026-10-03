@@ -4,6 +4,13 @@
 and tested as of 2026-08-18. No production signing key, KMS, off-site object
 store, export scheduler, or hosted recovery trust bundle is configured.
 
+**Release-scope clarification — 2026-10-02:** the production gate below applies
+to adopting this signed-custody profile. Private DIY v1 follows [M5B](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#m5b--private-production-release):
+protect deletion records independently of the restored backup and verify replay
+before traffic; KMS/HSM and a new custody service are optional. Broader
+external-user operation requires a separate risk/scope review. The implemented
+format and historical verification remain unchanged.
+
 ## Purpose
 
 A database backup can predate a completed deletion. The restore process must

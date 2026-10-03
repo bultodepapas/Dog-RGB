@@ -91,7 +91,7 @@ Before issuing a claim code, show:
 - data classes to be uploaded and the high sensitivity of location history;
 - sync occurs automatically on known Wi-Fi after pairing;
 - first-release local-only fields;
-- retention defaults, map-provider disclosure, and account deletion/export links;
+- retention defaults and account deletion/export links; disclose the selected map provider only when optional tiles are enabled;
 - last-synchronized rather than live-tracking behavior;
 - an explicit confirm action and recoverable cancellation.
 

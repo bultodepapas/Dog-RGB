@@ -53,7 +53,11 @@ A publishable key is not a user, device, or authorization credential. RLS and au
 
 ## Provisioning checklist
 
-### Phase 1 local/staging foundation
+### M1 local work versus M3A hosted-development setup
+
+M1 uses the existing loopback stack and disposable local credentials; it does
+not require external accounts. The operator/project checklist below applies
+when starting hosted M3A.
 
 - [ ] Name an operator/backup owner for each account and enable phishing-resistant MFA where supported.
 - [ ] Create separate Supabase project/env; record region, plan, project ID (not secrets), backup/PITR state, spending limits, and contacts.
@@ -63,7 +67,7 @@ A publishable key is not a user, device, or authorization credential. RLS and au
 - [ ] Configure exact local/staging Auth URLs and email behavior; do not use production SMTP for load tests.
 - [ ] Create temporary map key only when needed; fragment/local secret handling keeps it out of server logs and source.
 
-### Phase 3 hosted device proof
+### M3B/C hosted device proof
 
 - [ ] Use development Supabase hostname for lab only; record endpoint separately from versioned paths.
 - [ ] Provision one unique development collar credential through the real claim flow; no manual global token.
@@ -71,7 +75,7 @@ A publishable key is not a user, device, or authorization credential. RLS and au
 - [ ] Configure rate/body limits and budget alerts before Internet exposure.
 - [ ] Rehearse device rotation, normal unlink through `device-v1-revoke`, lost response/exact replay of the original disposition, prior website/different-request revoke returning `already_revoked`, generic-error retention, forced local clear warning, and website-side revocation.
 
-### Phase 6/7 field production
+### M5B private field release
 
 - [ ] User supplies/owns a stable device API domain; enable Supabase custom domain and validate CNAME/certificate before flashing field endpoints.
 - [ ] Configure production Vercel domain, Supabase Auth site/redirect URLs, exact CORS/origin policies, and map-origin restrictions.

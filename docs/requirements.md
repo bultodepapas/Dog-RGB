@@ -48,6 +48,7 @@ These additions close product gaps without changing the local collar requirement
 | WEB-04 | Owners must export and delete dog/account data, see durable deletion progress, and understand retention/backup lag before persistent real-data use. | Backend primitives only; M5A/B open |
 | WEB-05 | The complete website must pass scoped mobile/keyboard/a11y/performance and current clean CI owner-journey checks. | M1.17–M1.18/M1.22 open; feature-level evidence is not whole-site acceptance |
 | WEB-06 | Hosted Auth must use validated environment origins, exact redirects and tested delivery/recovery; previews use isolated development data. | Local-only origin implemented; M3A open |
+| WEB-07 | The same owner must be able to re-enroll a revoked collar for the same dog, with at most one active collar per dog, using a fresh credential, preserved identity/history and denial of old-credential sync; old revoke retries cannot affect the new enrollment. Cross-owner transfer is deferred. | Current claim rejects all existing device UUIDs; M1.23 and physical M3C proof remain open |
 
 ## Quality and resource requirements
 

@@ -138,7 +138,7 @@ After host acceptance, rerun equivalent tests against the production codec and a
 5. byte-golden codec/layout tests and refusal of future/corrupt versions;
 6. legacy-v2 dual-read/export and proof that initialization never erases existing routes.
 
-If raw flash fails any gate or actual LittleFS traces materially outperform it without losing exact recovery guarantees, revisit this ADR before field deployment. Phase 0 remains open and Phase 2 firmware/cloud integration remains unauthorized until the host gate, physical gate, and separate credentialed provider/origin-control/human-review map gate all close through the parent plan's exit review.
+If raw flash fails any gate or actual LittleFS traces materially outperform it without losing exact recovery guarantees, revisit this ADR before field deployment. **Dependency clarification — 2026-10-02:** M2A host acceptance permits offline M2B implementation. M2C physical evidence remains mandatory for the firmware-foundation exit and subsequent physical cloud acceptance. Provider/origin/reviewer evidence gates only optional M4 tiles; it does not gate firmware implementation, local web completion or hosted simulator preview. The [master dependency order](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#7-dependency-order) replaces the former aggregate Phase 0 block; reviewed host bytes, hashes and acceptance remain unchanged.
 
 ## References
 

@@ -119,6 +119,11 @@ The checked map manifest is durable technical evidence rather than a performance
 
 ## Gate register
 
+The aggregate Phase 0 label below is retained for evidence history. Under the
+2026-10-02 master plan, physical acceptance blocks M2/M3 physical closure and
+provider acceptance blocks only optional M4 tiles. Neither blocks local web
+completion or the synthetic hosted preview.
+
 | Gate | State | Evidence required to close |
 | --- | --- | --- |
 | Current project contract, opt-in/offline invariant, and field ownership | Closed for Phase 0 documentation | Reopen on any new firmware field, remote Home/power proposal, or cloud boundary change. |
