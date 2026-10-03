@@ -432,6 +432,12 @@ entrypoint = "./functions/user-v1-issue-claim/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/user-v1-issue-claim/*.html" ]
 
+[functions.user-v1-account-deletion]
+enabled = true
+verify_jwt = true
+import_map = "./functions/user-v1-account-deletion/deno.json"
+entrypoint = "./functions/user-v1-account-deletion/index.ts"
+
 [functions.device-v1-claim]
 enabled = true
 verify_jwt = false

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default function SignupPage() {
   return (
     <AuthShell
-      eyebrow="CUENTA DE PROPIETARIO / LOCAL"
+      eyebrow="CUENTA DE PROPIETARIO"
       title="Crea tu acceso privado."
       description="La cuenta extiende el collar; no reemplaza sus funciones locales. Confirma el correo antes de vincular un collar."
       footer={

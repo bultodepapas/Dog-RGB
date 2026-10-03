@@ -34,7 +34,7 @@ export default async function ForgotPasswordPage({
       title={canUpdate ? "Define una contraseña nueva." : "Recupera tu acceso."}
       description={
         canUpdate
-          ? "El enlace fue verificado para esta sesión. Al guardar, volverás al inicio de sesión."
+          ? "El enlace fue verificado. Al guardar, se cerrará la sesión de recuperación en este navegador y volverás al inicio de sesión."
           : "Enviaremos un enlace de un solo uso si existe una cuenta para ese correo."
       }
       footer={

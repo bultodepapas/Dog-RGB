@@ -117,9 +117,10 @@ export function CollarRevokeForm({
             Revocar acceso de {collarName}
           </h3>
           <p>
-            Este cambio impide que este collar vuelva a sincronizar con la
-            nube. Las grabaciones históricas permanecen. La web actual no puede
-            reactivar ni volver a vincular este mismo dispositivo.
+            Este cambio invalida la credencial actual y detiene la sincronización.
+            Las grabaciones históricas permanecen. Para volver a usar este collar,
+            el propietario debe generar un código y vincularlo desde el dispositivo
+            con una credencial nueva.
           </p>
           <form
             action={action}
@@ -137,8 +138,8 @@ export function CollarRevokeForm({
                 value={REVOKE_CONFIRMATION_VALUE}
               />
               <span>
-                Entiendo que el collar perderá el acceso a la nube y que esta
-                web todavía no ofrece reactivación.
+                Entiendo que el collar perderá el acceso a la nube hasta que lo
+                vincule de nuevo con una credencial nueva.
               </span>
             </label>
             {state.status === "error" ? (

@@ -194,12 +194,12 @@ export function CollarOverview({ snapshot }: Readonly<{ snapshot: CollarPageDto 
         )}
 
         <section className="collar-section" aria-labelledby="pairing-title">
-          <h2 id="pairing-title">Vincular otro collar</h2>
+          <h2 id="pairing-title">Vincular o volver a vincular</h2>
           <div className="workspace-boundary claim-boundary">
             {snapshot.canIssueClaim ? (
               <>
                 <strong>UN SOLO USO · 15 MINUTOS</strong>
-                <span>El código se mostrará una sola vez en esta pantalla.</span>
+                <span>El código se mostrará una sola vez en esta pantalla. Solo se admite un collar activo por perro; revoca el anterior antes de sustituirlo. Volver a vincular el mismo dispositivo requiere al propietario y conserva su historial.</span>
                 <ClaimCodeForm dogId={dog.id} />
               </>
             ) : (

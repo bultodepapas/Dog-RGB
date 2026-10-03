@@ -17,6 +17,31 @@ const LOCAL_AUTH_ORIGINS = new Map([
   ["localhost:3000", "http://localhost:3000"],
 ]);
 
+function configuredOrigin(candidate: string): string | null {
+  try {
+    const url = new URL(candidate);
+    const isLoopback = ["127.0.0.1", "localhost", "[::1]"].includes(
+      url.hostname,
+    );
+
+    if (
+      (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) ||
+      !url.hostname ||
+      url.username ||
+      url.password ||
+      (url.pathname !== "" && url.pathname !== "/") ||
+      url.search ||
+      url.hash
+    ) {
+      return null;
+    }
+
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
 export function parseEmailOtpType(
   candidate: string | null,
 ): SupportedEmailOtpType | null {
@@ -42,11 +67,13 @@ export function confirmationErrorRedirect(
     : "/login?auth_error=invalid_or_expired";
 }
 
-export function resolveLocalAuthOrigin(hostHeader: string | null): string {
-  const host = hostHeader?.trim().toLowerCase() ?? "";
+export function resolveAuthOrigin(
+  configuredSiteOrigin: string | null | undefined,
+  hostHeader: string | null,
+): string | null {
+  const configured = configuredSiteOrigin?.trim();
+  if (configured) return configuredOrigin(configured);
 
-  // M1.2 is intentionally local-only. An unknown or injected Host must never
-  // become a redirect origin. M3 will replace this with the reviewed hosted
-  // site origin when Vercel Preview is authorized.
-  return LOCAL_AUTH_ORIGINS.get(host) ?? "http://127.0.0.1:3000";
+  const host = hostHeader?.trim().toLowerCase() ?? "";
+  return LOCAL_AUTH_ORIGINS.get(host) ?? null;
 }

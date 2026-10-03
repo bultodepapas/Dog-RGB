@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 
-const DOG_ID = "30000000-0000-4000-8000-000000000003";
 const OWNER_ID = "10000000-0000-4000-8000-000000000001";
 
 function invoke(command, args, options = {}) {
@@ -129,14 +128,27 @@ function state(container, collarId) {
 const container = databaseContainer();
 const collars = Array.from({ length: 3 }, () => randomUUID());
 const deviceIds = Array.from({ length: 3 }, () => randomUUID());
+const fixtureDogs = Array.from({ length: 3 }, () => randomUUID());
 
 try {
   psql(container, `
+    insert into api.dogs (id, name, timezone, created_by)
+    values
+      ${fixtureDogs.map((dogId, index) => `(
+        ${sqlUuid(dogId)}, 'M1.11 fixture ${index + 1}', 'America/Bogota', ${sqlUuid(OWNER_ID)}
+      )`).join(",\n")};
+
+    insert into api.dog_memberships (dog_id, user_id, role)
+    values
+      ${fixtureDogs.map((dogId) =>
+        `(${sqlUuid(dogId)}, ${sqlUuid(OWNER_ID)}, 'owner')`,
+      ).join(",\n")};
+
     insert into api.collars (id, device_public_id, dog_id, display_name, state, linked_at)
     values
-      (${sqlUuid(collars[0])}, ${sqlUuid(deviceIds[0])}, ${sqlUuid(DOG_ID)}, 'M1.11 concurrent distinct', 'active', statement_timestamp()),
-      (${sqlUuid(collars[1])}, ${sqlUuid(deviceIds[1])}, ${sqlUuid(DOG_ID)}, 'M1.11 concurrent replay', 'active', statement_timestamp()),
-      (${sqlUuid(collars[2])}, ${sqlUuid(deviceIds[2])}, ${sqlUuid(DOG_ID)}, 'M1.11 concurrent no-op', 'active', statement_timestamp());
+      (${sqlUuid(collars[0])}, ${sqlUuid(deviceIds[0])}, ${sqlUuid(fixtureDogs[0])}, 'M1.11 concurrent distinct', 'active', statement_timestamp()),
+      (${sqlUuid(collars[1])}, ${sqlUuid(deviceIds[1])}, ${sqlUuid(fixtureDogs[1])}, 'M1.11 concurrent replay', 'active', statement_timestamp()),
+      (${sqlUuid(collars[2])}, ${sqlUuid(deviceIds[2])}, ${sqlUuid(fixtureDogs[2])}, 'M1.11 concurrent no-op', 'active', statement_timestamp());
   `);
 
   const firstIds = [randomUUID(), randomUUID()];
@@ -231,5 +243,5 @@ try {
     "M1.11 RPC concurrency passed: first/existing one-winner, exact replay, and no-op receipts.",
   );
 } finally {
-  psql(container, `delete from api.collars where id in (${collars.map(sqlUuid).join(", ")});`);
+  psql(container, `delete from api.dogs where id in (${fixtureDogs.map(sqlUuid).join(", ")});`);
 }

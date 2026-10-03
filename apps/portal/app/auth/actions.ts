@@ -9,6 +9,7 @@ import {
   parseNewPasswordForm,
   parseSignupForm,
 } from "../../lib/auth/form";
+import { runGenericEmailRequest } from "../../lib/auth/email-request";
 import { resolveProtectedReturnPath } from "../../lib/auth/protected-route";
 import { getFreshIdentity } from "../../lib/supabase/identity";
 import { createServerSupabaseClient } from "../../lib/supabase/server";
@@ -16,9 +17,7 @@ import { createServerSupabaseClient } from "../../lib/supabase/server";
 const LOGIN_ERROR =
   "No pudimos iniciar sesión. Revisa las credenciales y confirma tu correo.";
 const SIGNUP_SUCCESS =
-  "Si la dirección puede registrarse, recibirás un enlace de confirmación. Revísalo en Mailpit durante el desarrollo local.";
-const RECOVERY_SUCCESS =
-  "Si existe una cuenta para esa dirección, recibirás un enlace para cambiar la contraseña.";
+  "Si la dirección puede registrarse, recibirás un enlace de confirmación. Si no llega, puedes solicitar otro desde aquí.";
 
 export async function loginAction(
   _previousState: AuthActionState,
@@ -71,12 +70,28 @@ export async function requestPasswordResetAction(
     return parsed.state;
   }
 
-  const supabase = await createServerSupabaseClient();
-  await supabase.auth.resetPasswordForEmail(parsed.value.email);
+  return runGenericEmailRequest(async () => {
+    const supabase = await createServerSupabaseClient();
+    return supabase.auth.resetPasswordForEmail(parsed.value.email);
+  });
+}
 
-  // Deliberately return the same response whether the account exists or the
-  // provider rejects the request. This avoids an email-enumeration oracle.
-  return { status: "success", message: RECOVERY_SUCCESS };
+export async function resendConfirmationAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const parsed = parseEmailForm(formData);
+  if (!parsed.ok) {
+    return parsed.state;
+  }
+
+  return runGenericEmailRequest(async () => {
+    const supabase = await createServerSupabaseClient();
+    return supabase.auth.resend({
+      type: "signup",
+      email: parsed.value.email,
+    });
+  });
 }
 
 export async function updatePasswordAction(

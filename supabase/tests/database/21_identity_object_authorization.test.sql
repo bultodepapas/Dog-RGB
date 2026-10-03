@@ -1,5 +1,8 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+-- Model a recently password-authenticated signed JWT for destructive owner calls.
+select set_config('request.jwt.claims', jsonb_build_object('amr',
+  jsonb_build_array(jsonb_build_object('method','password','timestamp',extract(epoch from statement_timestamp()))))::text, true);
 
 select plan(19);
 
@@ -57,9 +60,17 @@ select set_eq(
       ('api.get_deletion_job_v1(uuid)'),
       ('api.mutate_config_resource_v1(uuid,text,integer,uuid,bigint,jsonb,bytea)'),
       ('api.request_dog_deletion_v1(uuid,uuid,text)'),
-      ('api.revoke_collar_v1(uuid)')
+      ('api.revoke_collar_v1(uuid)'),
+      ('api.rename_dog_v1(uuid,text)'),
+      ('api.list_my_deletion_jobs_v1()'),
+      ('api.retry_my_deletion_job_v1(uuid)'),
+      ('api.summary_freshness_v1(uuid,date,uuid)'),
+      ('api.preview_my_account_deletion_v1()'),
+      ('api.get_my_account_deletion_v1()'),
+      ('api.retry_my_account_deletion_v1()'),
+      ('api.export_dog_data_v1(uuid,uuid)')
   $$,
-  'authenticated RPC execution is frozen to the exact five user functions'
+  'authenticated RPC execution is frozen to the exact thirteen user functions'
 );
 
 select is(
@@ -72,8 +83,8 @@ select is(
       and procedure.prosecdef
       and coalesce(procedure.proconfig, '{}'::text[]) @> array['search_path=""']
   ),
-  5::bigint,
-  'all five authenticated RPCs remain security-definer functions with an empty search path'
+  13::bigint,
+  'all thirteen authenticated RPCs remain security-definer functions with an empty search path'
 );
 
 select is(

@@ -7,9 +7,13 @@ import { createServer } from "node:net";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { chromium } from "@playwright/test";
+import { chromium, webkit } from "@playwright/test";
 
-import { prepareAuthorizationFixture } from "./authorization-fixtures.mjs";
+import { runAccountLifecycle } from "./account-lifecycle.mjs";
+import { runDogLifecycle } from "./dog-lifecycle.mjs";
+import { runPortalQuality, runWebkitSmoke } from "./quality.mjs";
+
+import { AUTHORIZATION_RPCS, prepareAuthorizationFixture } from "./authorization-fixtures.mjs";
 import { clearMailbox } from "./mailpit.mjs";
 import {
   M115_CHECKPOINTS,
@@ -17,6 +21,7 @@ import {
   runM115FaultMatrix,
 } from "./m115-fault-matrix.mjs";
 import {
+  assertPrivateRuntimeLogs,
   runM116PrivacyCacheGate,
   validateM116Artifact,
 } from "./m116-privacy-cache.mjs";
@@ -35,6 +40,10 @@ const expectedNode = "24.18.0";
 const expectedPlaywright = "1.62.1";
 const portalUrl = "http://127.0.0.1:3000";
 const m116Only = process.argv.includes("--m116-only");
+const qualityOnly = process.argv.includes("--quality-only");
+const coreOnly = process.argv.includes("--core-only");
+if ([m116Only, qualityOnly, coreOnly].filter(Boolean).length > 1) throw new Error("Choose only one focused portal gate.");
+const runStartedAt = Date.now();
 const M115_EXPECTED_COUNTS = Object.freeze({
   receipts: 6,
   chunks: 4,
@@ -147,7 +156,7 @@ function validateAuthorizationArtifact(value, cycle, expectedPhase) {
     artifact.phase !== expectedPhase ||
     artifact.cycle !== cycle ||
     artifact.surface.tables !== 11 ||
-    artifact.surface.rpcs !== 5 ||
+    artifact.surface.rpcs !== AUTHORIZATION_RPCS.length ||
     !Object.values(artifact.graphCounts).every(Number.isSafeInteger) ||
     !Object.values(artifact.graphCounts).every((count) => count >= 0) ||
     !Array.isArray(artifact.checkpoints) ||
@@ -253,14 +262,16 @@ async function verifyServices(environment) {
   await waitForCondition(async () => {
     try {
       const response = await fetch(`${environment.API_URL}/functions/v1/device-v1-sync`, {
-        signal: AbortSignal.timeout(1_000),
+        // Cold Edge compilation can outlive a one-second probe. Repeatedly
+        // cancelling it starts overlapping workers on small local machines.
+        signal: AbortSignal.timeout(10_000),
       });
       return response.status === 405 &&
         response.headers.get("content-type")?.includes("application/problem+json");
     } catch {
       return false;
     }
-  }, "Edge gateway");
+  }, "Edge gateway", 90_000);
   await waitForCondition(async () => {
     try {
       const response = await fetch(`${environment.MAILPIT_URL}/api/v1/info`, {
@@ -449,7 +460,7 @@ try {
 
   console.log("Portal E2E: replacing this repository's disposable local Supabase stack...");
   runQuiet("supabase", ["stop", "--no-backup"], { allowFailure: true });
-  runQuiet("supabase", ["start"]);
+  runQuiet("supabase", ["start", "--exclude", "studio,imgproxy,logflare,vector,supavisor,realtime,storage-api"]);
   environment = parseLocalEnvironment();
   await verifyServices(environment);
 
@@ -459,8 +470,8 @@ try {
     env: portalEnvironment(environment),
   });
 
-  for (const cycle of [1, 2]) {
-    if (!m116Only) {
+  for (const cycle of qualityOnly ? [2] : [1, 2]) {
+    if (!m116Only && !qualityOnly) {
     console.log(`M1.13: clean owner journey ${cycle}/2...`);
     run("supabase", ["db", "reset"]);
     await verifyServices(environment);
@@ -561,7 +572,7 @@ try {
         restartLocalStack: async () => {
           try {
             runQuiet("supabase", ["stop"]);
-            runQuiet("supabase", ["start"]);
+            runQuiet("supabase", ["start", "--exclude", "studio,imgproxy,logflare,vector,supavisor,realtime,storage-api"]);
             const restarted = parseLocalEnvironment();
             await verifyServices(restarted);
             environment = restarted;
@@ -571,7 +582,7 @@ try {
             });
           } catch (restartError) {
             try {
-              runQuiet("supabase", ["start"]);
+              runQuiet("supabase", ["start", "--exclude", "studio,imgproxy,logflare,vector,supavisor,realtime,storage-api"]);
               const recovered = parseLocalEnvironment();
               await verifyServices(recovered);
               environment = recovered;
@@ -596,7 +607,8 @@ try {
     if (faultRunError) throw faultRunError;
     }
 
-    console.log(`M1.16: clean privacy/cache gate ${cycle}/2...`);
+    console.log(qualityOnly ? "Portal quality: one clean privacy/lifecycle fixture..."
+      : `M1.16: clean privacy/cache gate ${cycle}/2...`);
     run("supabase", ["db", "reset"]);
     await verifyServices(environment);
     const privacyStartedAt = new Date().toISOString();
@@ -608,6 +620,7 @@ try {
     const containsInfrastructureSecret = infrastructureSecretDetector(environment);
     const privacyArtifactPath = join(privacyArtifactDirectory, `cycle-${cycle}.json`);
     let privacyRunError = null;
+    let privacyPassed = false;
     portal = await startPortal(environment);
     try {
       try {
@@ -622,6 +635,25 @@ try {
           portalUrl,
           readServiceLogs: async () => localServiceLogs(privacyStartedAt),
         });
+        privacyPassed = true;
+        if (cycle === 2 && !m116Only && !coreOnly) {
+          const qualityBrowser = await chromium.launch();
+          try {
+            await runPortalQuality({ browser: qualityBrowser, fixture: privacyFixture.manifest, portalUrl,
+              outputDirectory: join(workspace, "output", "playwright", "quality") });
+          } finally { await qualityBrowser.close(); }
+          await runWebkitSmoke({ browserType: webkit, fixture: privacyFixture.manifest, portalUrl,
+            outputDirectory: join(workspace, "output", "playwright", "quality") });
+          await runDogLifecycle({ browserType: chromium, fixture: privacyFixture.manifest, portalUrl,
+            apiUrl: environment.API_URL, publishableKey: environment.PUBLISHABLE_KEY,
+            outputDirectory: join(workspace, "output", "playwright", "quality") });
+          await runAccountLifecycle({ browserType: chromium, fixture: privacyFixture.manifest, portalUrl,
+            apiUrl: environment.API_URL, publishableKey: environment.PUBLISHABLE_KEY,
+            outputDirectory: join(workspace, "output", "playwright", "quality") });
+          assertPrivateRuntimeLogs(`${portal.portalLogs()}\n${localServiceLogs(privacyStartedAt)}`,
+            privacyFixture.manifest, privacyFixture.artifactContainsPrivateMaterial, containsInfrastructureSecret);
+          console.log("Portal lifecycle server/Edge/database log privacy passed.");
+        }
       } catch (error) {
         privacyRunError = error;
       }
@@ -646,12 +678,14 @@ try {
     validateM116Artifact(
       privacyArtifact,
       cycle,
-      privacyRunError ? "failed" : "passed",
+      privacyPassed ? "passed" : "failed",
     );
     if (privacyRunError) throw privacyRunError;
   }
   completed = true;
-  console.log(m116Only
+  console.log(qualityOnly
+    ? "Portal quality, mobile WebKit, dog/account lifecycle and privacy gates passed from one clean reset."
+    : m116Only
     ? "M1.16: privacy/cache gate passed from two clean resets."
     : "M1.13/M1.14/M1.15/M1.16: owner, authorization, fault, and privacy/cache gates " +
       "passed from two clean resets each.");
@@ -669,7 +703,7 @@ try {
       } catch {
         console.warn("Portal E2E final reset failed once; recovering services and retrying once.");
         try {
-          runQuiet("supabase", ["start"], { allowFailure: true });
+          runQuiet("supabase", ["start", "--exclude", "studio,imgproxy,logflare,vector,supavisor,realtime,storage-api"], { allowFailure: true });
           const recovered = parseLocalEnvironment();
           await verifyServices(recovered);
           environment = recovered;
@@ -687,4 +721,5 @@ try {
   if (!completed) {
     console.error("Portal E2E failed; see the sanitized cycle artifact for its last completed checkpoint.");
   }
+  console.log(`Portal E2E elapsed: ${Math.round((Date.now() - runStartedAt) / 1000)} seconds.`);
 }

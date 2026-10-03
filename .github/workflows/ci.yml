@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  release:
+    types: [published]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,6 +17,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine portal browser-test scope
+        id: portal-scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        shell: bash
+        run: |
+          if [[ "$EVENT_NAME" == release || -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            echo 'required=true' >> "$GITHUB_OUTPUT"
+          elif git diff --name-only "$BASE_SHA" HEAD | grep -E '^(apps/portal/|packages/(analytics|contracts)/|supabase/|contracts/device-v1/|tools/(portal-e2e|device-simulator|cloud_analytics)/|tests/portal-e2e/|playwright.portal.config.ts|package(-lock)?.json|\.node-version|\.supabase-version|\.github/workflows/ci.yml)' >/dev/null; then
+            echo 'required=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'required=false' >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-node@v4
         with:
@@ -51,6 +70,32 @@ jobs:
 
       - name: Run migrated-schema capacity gate
         run: npm run phase1:capacity -- --clean
+
+      - name: Install WebKit for portal mobile smoke
+        if: steps.portal-scope.outputs.required == 'true'
+        run: npx playwright install --with-deps webkit
+
+      - name: Run complete portal gate on disposable stack
+        if: steps.portal-scope.outputs.required == 'true'
+        timeout-minutes: 35
+        run: node tools/portal-e2e/run.mjs --clean
+
+      - name: Upload sanitized portal evidence
+        if: always() && steps.portal-scope.outputs.required == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-evidence-${{ github.sha }}
+          path: |
+            output/playwright/m113/cycle-*.json
+            output/playwright/m114/cycle-*.json
+            output/playwright/m115/cycle-*.json
+            output/playwright/m116/cycle-*.json
+            output/playwright/quality/quality.json
+            output/playwright/quality/webkit.json
+            output/playwright/quality/account-lifecycle.json
+            output/playwright/quality/dog-lifecycle.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload restore evidence
         if: always()

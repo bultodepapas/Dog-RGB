@@ -41,8 +41,8 @@ async function waitForLocalStack() {
     if (lastResult.status === 0) return;
     await new Promise((resolveWait) => setTimeout(resolveWait, 1_000));
   }
-  if (lastResult?.stdout) process.stdout.write(lastResult.stdout);
-  if (lastResult?.stderr) process.stderr.write(lastResult.stderr);
+  // Status output can contain local credentials; retain only the exit status.
+  console.error(`Local stack readiness failed (status ${lastResult?.status ?? "unknown"}).`);
   throw new Error("The Dog-RGB-1 local Supabase stack did not become ready within 60 seconds.");
 }
 

@@ -138,13 +138,17 @@ The maintained M1.13–M1.16 owner/authorization/fault/privacy gate is a **separ
 
 ```sh
 node tools/portal-e2e/run.mjs --clean
+# Twice-clean owner/authorization/fault/privacy matrix only:
+node tools/portal-e2e/run.mjs --clean --core-only
 # Focused privacy/cache rerun only:
 node tools/portal-e2e/run.mjs --clean --m116-only
+# One clean privacy + accessibility/performance + WebKit + deletion cycle:
+node tools/portal-e2e/run.mjs --clean --quality-only
 ```
 
-The E2E runner builds/starts the production portal and uses synthetic fixtures, Mailpit and the simulator with sanitized artifacts. The current CI foundation job does not invoke this runner; M1.22 in the [master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) closes that gap. M1.17 accessibility and M1.18 performance have no completed gate yet. The AP/audit screenshot suites are not Next.js owner-portal evidence.
+The E2E runner builds/starts the production portal and uses synthetic fixtures, Mailpit and the simulator with sanitized artifacts. CI invokes it for relevant portal/schema/contract/runner changes and published releases. The full command also runs Chromium axe/layout/performance measurements and a WebKit mobile smoke; install both browsers with `npx playwright install chromium webkit` first (`--with-deps` on Linux). The focused `--core-only` command preserves the twice-clean owner/authorization/fault/privacy matrix without the quality/lifecycle extension. `--m116-only` runs only two privacy cycles. `--quality-only` runs those gates and one privacy cycle; it does not replace the twice-clean owner/authorization/fault matrix. Results belong under `output/playwright/quality`; automated findings do not substitute for the manual assertions in the [master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md). The AP/audit screenshot suites are not Next.js owner-portal evidence.
 
-For a non-reset source/build check use `npm run phase1:check` and `npm run portal:build`. On 2026-10-02 both passed under Node 24.18.0/npm 11.6.2; that review did not rerun database, Edge or browser acceptance.
+For a non-reset source/build check use `npm run phase1:check` and `npm run portal:build`. Run the opt-in summary worker with `node tools/cloud_analytics/run.mjs`; it consumes bounded batches and does not install a schedule. Acceptance results and remaining limits belong in the current cloud evidence, separately from historical review runs.
 
 ## Visual regression
 
@@ -211,10 +215,10 @@ For interactive controls, GNSS profiles, GDB, VCD channels, and portal-network l
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pushes to `main` and pull requests:
+`.github/workflows/ci.yml` runs on pushes to `main`, pull requests and published releases:
 
 - **Host tests:** the complete Python firmware contract suite;
-- **Web portal:** the Next.js production build;
+- **Web portal:** the Next.js production build; relevant changes/releases also run the maintained clean owner/authorization/fault/privacy matrix, Chromium quality checks and WebKit smoke;
 - **Embedded AP portal:** stale-asset check, deterministic generator tests, clean-checkout static smoke, and Playwright behavior/a11y tests;
 - **Embedded AP visual:** screenshot comparison in the pinned Playwright container;
 - **Cloud foundation:** clean local Supabase reset, database/Edge/simulator/operations gates, committed `api` type drift, and the capacity fixture;

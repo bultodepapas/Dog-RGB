@@ -34,8 +34,8 @@ export type TodayDailySummaryRecord = Readonly<{
   dog_id: string;
   local_date: string;
   timezone: string;
-  coverage_ratio: number;
-  unknown_s: number;
+  coverage_ratio: number | null;
+  unknown_s: number | null;
   algorithm_version: number;
   computed_at: string;
 }>;
@@ -53,7 +53,7 @@ export type TodayRecordingRecord = Readonly<{
 
 export type TodayRecordingSummaryRecord = Readonly<{
   recording_id: string;
-  coverage_ratio: number;
+  coverage_ratio: number | null;
   algorithm_version: number;
   computed_at: string;
 }>;
@@ -71,6 +71,7 @@ export type TodaySnapshotDto = Readonly<{
     unknownSeconds: number;
   }> | null;
   latestRecording: Readonly<{
+    id: string;
     startedAt: string | null;
     timeQuality: TodayRecordingTimeQuality;
     state: TodayRecordingState;
@@ -290,6 +291,7 @@ export function createTodaySnapshotDto(
     ) {
       unavailable();
     }
+    if (input.dailySummary.coverage_ratio !== null && input.dailySummary.unknown_s !== null) {
     coverage(input.dailySummary.coverage_ratio);
     nonNegativeSafeInteger(input.dailySummary.unknown_s);
     positiveSafeInteger(input.dailySummary.algorithm_version);
@@ -298,6 +300,7 @@ export function createTodaySnapshotDto(
       coverageRatio: input.dailySummary.coverage_ratio,
       unknownSeconds: input.dailySummary.unknown_s,
     });
+    }
   }
 
   if (!input.collar && (input.latestRecording || input.recordingSummary)) {
@@ -341,7 +344,7 @@ export function createTodaySnapshotDto(
     nonNegativeSafeInteger(input.latestRecording.point_count);
 
     let recordingCoverage: number | null = null;
-    if (input.recordingSummary) {
+    if (input.recordingSummary && input.recordingSummary.coverage_ratio !== null) {
       uuid(input.recordingSummary.recording_id);
       if (input.recordingSummary.recording_id !== input.latestRecording.id) {
         unavailable();
@@ -353,6 +356,7 @@ export function createTodaySnapshotDto(
     }
 
     latestRecording = Object.freeze({
+      id: input.latestRecording.id,
       startedAt,
       timeQuality,
       state: asRecordingState(input.latestRecording.state),

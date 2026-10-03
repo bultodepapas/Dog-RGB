@@ -42,13 +42,13 @@ These additions close product gaps without changing the local collar requirement
 
 | ID | Requirement | State / gate |
 | --- | --- | --- |
-| WEB-01 | Returning owners must reach existing authorized dogs without recreating profiles; zero/one/multiple memberships and safe deep links have deterministic entry paths. | Open, M1.19; dog-list DAL exists |
-| WEB-02 | Confirmation resend, password recovery, expired sessions and failed mutations must offer a tested recovery path without leaking account existence or secrets. | Auth actions partly implemented; M1.20–M1.21 completion/evidence open |
-| WEB-03 | Today/History/detail must consume versioned real summaries with explicit freshness/quality/gaps; missing data never means inactivity. | Reads implemented; producer and useful-view integration open, M4A/core M4C |
-| WEB-04 | Owners must export and delete dog/account data, see durable deletion progress, and understand retention/backup lag before persistent real-data use. | Backend primitives only; M5A/B open |
+| WEB-01 | Returning owners must reach existing authorized dogs without recreating profiles; zero/one/multiple memberships and safe deep links have deterministic entry paths. | Implemented with zero/one/multiple entry; M1.19 browser evidence required |
+| WEB-02 | Confirmation resend, password recovery, expired sessions and failed mutations must offer a tested recovery path without leaking account existence or secrets. | Recovery/resend and product states implemented; M1.20–M1.21 release evidence required |
+| WEB-03 | Today/History/detail must consume versioned real summaries with explicit freshness/quality/gaps; missing data never means inactivity. | Versioned producer and UI implemented; bounded manual local worker, no schedule; M4A/core M4C evidence |
+| WEB-04 | Owners must export and delete dog/account data, see durable deletion progress, and understand retention/backup lag before persistent real-data use. | Local owner UI/RPCs implemented; M5A integration evidence and M5B hosted operation remain separate |
 | WEB-05 | The complete website must pass scoped mobile/keyboard/a11y/performance and current clean CI owner-journey checks. | M1.17–M1.18/M1.22 open; feature-level evidence is not whole-site acceptance |
-| WEB-06 | Hosted Auth must use validated environment origins, exact redirects and tested delivery/recovery; previews use isolated development data. | Local-only origin implemented; M3A open |
-| WEB-07 | The same owner must be able to re-enroll a revoked collar for the same dog, with at most one active collar per dog, using a fresh credential, preserved identity/history and denial of old-credential sync; old revoke retries cannot affect the new enrollment. Cross-owner transfer is deferred. | Current claim rejects all existing device UUIDs; M1.23 and physical M3C proof remain open |
+| WEB-06 | Hosted Auth must use validated environment origins, exact redirects and tested delivery/recovery; previews use isolated development data. | Trusted PORTAL_SITE_ORIGIN implemented; actual hosted Auth/email evidence remains M3A |
+| WEB-07 | The same owner must be able to re-enroll a revoked collar for the same dog, with at most one active collar per dog, using a fresh credential, preserved identity/history and denial of old-credential sync; old revoke retries cannot affect the new enrollment. Cross-owner transfer is deferred. | Local same-dog owner re-enrollment and active-collar constraint implemented; physical credential replacement remains M3C |
 
 ## Quality and resource requirements
 
@@ -70,7 +70,7 @@ These additions close product gaps without changing the local collar requirement
 | QR-14 | Cloud-disabled firmware must have no cloud DNS/TLS/upload dependency and must stay within measured loop, heap, flash, energy, and storage budgets. | Target. Existing local behavior is the regression baseline; physical measurements remain required. |
 | QR-15 | Device/cloud protocols must be versioned, bounded, schema-validated, idempotent, and byte/semantic-compatible with the frozen v3 storage codec. | Device-v1 contracts pass 48/48; corrected host outbox has independent AI acceptance at `fb6dbef` (67/67). Native codec/identity/assembler exist in isolation; runtime protocol/outbox integration and physical acceptance remain open. Codec compatibility and cloud-disabled behavior remain regression gates. |
 | QR-16 | User-facing cloud queries must be membership-authorized with explicit database grants and RLS, and cross-user/anonymous/service-function attacks must be automated before UI rollout. | Local migrations/RLS/Edge and M1.14 cross-owner/object authorization evidence exist. Hosted parity and authorization for new routes remain open. |
-| QR-17 | Raw location must have a finite enforced retention period, export/deletion workflow, redacted logs, and documented provider/backup lag. | Initial 12-month raw-location default accepted. Local bounded retention/deletion/restore primitives exist; export/delete/account UI, other retention classes and operational scheduling remain open. |
+| QR-17 | Raw location must have a finite enforced retention period, export/deletion workflow, redacted logs, and documented provider/backup lag. | Initial 12-month raw-location default accepted. Local bounded retention/deletion/restore primitives exist; export/delete/account UI is implemented with local acceptance tracked in the master plan; other retention classes and operational scheduling remain open. |
 
 ## Hardware safety requirements
 

@@ -48,13 +48,21 @@ export async function clearMailbox() {
   }
 }
 
-export async function takeConfirmationLink(email, timeoutMs = 15_000) {
+export function takeConfirmationLink(email, timeoutMs = 15_000) {
+  return takeAuthLink(email, "email", CONFIRMATION_SUBJECT, timeoutMs);
+}
+
+export function takeRecoveryLink(email, timeoutMs = 15_000) {
+  return takeAuthLink(email, "recovery", "Cambia tu contraseña Dog RGB", timeoutMs);
+}
+
+async function takeAuthLink(email, type, subject, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   let match = null;
   while (Date.now() < deadline) {
     const mailbox = await json("/api/v1/messages?start=0&limit=50");
     const matches = messagesFrom(mailbox).filter((message) =>
-      message?.Subject === CONFIRMATION_SUBJECT && recipients(message).includes(email));
+      message?.Subject === subject && recipients(message).includes(email));
     if (matches.length > 1) {
       throw new Error("M1.13 Mailpit contained duplicate confirmation messages.");
     }
@@ -92,7 +100,7 @@ export async function takeConfirmationLink(email, timeoutMs = 15_000) {
   const tokenHash = link.searchParams.get("token_hash");
   if (
     keys.join(",") !== "token_hash,type" ||
-    link.searchParams.get("type") !== "email" ||
+    link.searchParams.get("type") !== type ||
     typeof tokenHash !== "string" ||
     tokenHash.length < 32 || tokenHash.length > 256
   ) {

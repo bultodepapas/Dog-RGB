@@ -1,9 +1,10 @@
 # Optional cloud documentation
 
-**Status — 2026-10-02:** local backend and owner portal implemented, website incomplete. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) owns current status, next tasks and release gates; this directory indexes evidence, not a second backlog. No hosted production website or firmware cloud sync is claimed.
+**Status — 2026-10-03:** core local web v1 implemented; final integration acceptance is tracked separately. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) owns current status, next tasks and release gates; this directory indexes evidence, not a second backlog. No hosted production website or firmware cloud sync is claimed.
 
 | Document | Purpose |
 | --- | --- |
+| [Local web v1 implementation](local-web-v1-implementation-2026-10-03.md) | current portal scope, bounded contracts, executed validation and remaining hosted/physical gates |
 | [Phase 0 execution report](phase0-execution-report.md) | delivered 0A/0B/0C work, validation snapshot, explicit open/closed gate register, and owner-authorized local Phase 1 boundary |
 | [Field matrix](phase0-field-matrix.md) | every current runtime-config field and telemetry/status group: units, range, privacy, source, and accepted sync/exclusion policy |
 | [Storage feasibility](phase0-storage-feasibility.md) | fixed Track v3 codec, provisional 664-slot raw geometry, independently accepted 67/67 host matrix, LittleFS comparison, and open physical gate |

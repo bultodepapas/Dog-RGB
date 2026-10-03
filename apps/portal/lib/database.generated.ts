@@ -300,63 +300,81 @@ export type Database = {
           average_moving_cmps: number | null
           average_observed_cmps: number | null
           computed_at: string
-          coverage_ratio: number
-          distance_m: number
+          coverage_ratio: number | null
+          distance_m: number | null
           dog_id: string
-          dropped_points: number
+          dropped_points: number | null
           filtered_max_speed_cmps: number | null
-          gap_count: number
-          inactive_s: number
+          gap_count: number | null
+          inactive_s: number | null
           local_date: string
-          moving_s: number
-          observed_s: number
+          moving_s: number | null
+          observed_s: number | null
+          source_received_at: string | null
           source_revision: number
+          source_schema_max: number | null
+          source_schema_min: number | null
+          summary_status: string
           timezone: string
-          unknown_s: number
-          valid_points: number
-          warning_points: number
+          unknown_s: number | null
+          valid_points: number | null
+          warning_points: number | null
+          window_end: string | null
+          window_start: string | null
         }
         Insert: {
           algorithm_version: number
           average_moving_cmps?: number | null
           average_observed_cmps?: number | null
           computed_at?: string
-          coverage_ratio: number
-          distance_m: number
+          coverage_ratio?: number | null
+          distance_m?: number | null
           dog_id: string
-          dropped_points: number
+          dropped_points?: number | null
           filtered_max_speed_cmps?: number | null
-          gap_count: number
-          inactive_s: number
+          gap_count?: number | null
+          inactive_s?: number | null
           local_date: string
-          moving_s: number
-          observed_s: number
+          moving_s?: number | null
+          observed_s?: number | null
+          source_received_at?: string | null
           source_revision: number
+          source_schema_max?: number | null
+          source_schema_min?: number | null
+          summary_status?: string
           timezone: string
-          unknown_s: number
-          valid_points: number
-          warning_points: number
+          unknown_s?: number | null
+          valid_points?: number | null
+          warning_points?: number | null
+          window_end?: string | null
+          window_start?: string | null
         }
         Update: {
           algorithm_version?: number
           average_moving_cmps?: number | null
           average_observed_cmps?: number | null
           computed_at?: string
-          coverage_ratio?: number
-          distance_m?: number
+          coverage_ratio?: number | null
+          distance_m?: number | null
           dog_id?: string
-          dropped_points?: number
+          dropped_points?: number | null
           filtered_max_speed_cmps?: number | null
-          gap_count?: number
-          inactive_s?: number
+          gap_count?: number | null
+          inactive_s?: number | null
           local_date?: string
-          moving_s?: number
-          observed_s?: number
+          moving_s?: number | null
+          observed_s?: number | null
+          source_received_at?: string | null
           source_revision?: number
+          source_schema_max?: number | null
+          source_schema_min?: number | null
+          summary_status?: string
           timezone?: string
-          unknown_s?: number
-          valid_points?: number
-          warning_points?: number
+          unknown_s?: number | null
+          valid_points?: number | null
+          warning_points?: number | null
+          window_end?: string | null
+          window_start?: string | null
         }
         Relationships: [
           {
@@ -472,57 +490,81 @@ export type Database = {
           average_moving_cmps: number | null
           average_observed_cmps: number | null
           computed_at: string
-          coverage_ratio: number
-          distance_m: number
-          dropped_points: number
+          coverage_ratio: number | null
+          distance_m: number | null
+          dropped_points: number | null
           filtered_max_speed_cmps: number | null
-          gap_count: number
-          inactive_s: number
-          moving_s: number
-          observed_s: number
+          gap_count: number | null
+          inactive_s: number | null
+          moving_s: number | null
+          observed_s: number | null
           phase_durations: Json | null
           recording_id: string
-          unknown_s: number
-          valid_points: number
-          warning_points: number
+          source_received_at: string | null
+          source_revision: number
+          source_schema_max: number | null
+          source_schema_min: number | null
+          summary_status: string
+          unknown_s: number | null
+          valid_points: number | null
+          warning_points: number | null
+          window_end: string | null
+          window_scope: string | null
+          window_start: string | null
         }
         Insert: {
           algorithm_version: number
           average_moving_cmps?: number | null
           average_observed_cmps?: number | null
           computed_at?: string
-          coverage_ratio: number
-          distance_m: number
-          dropped_points: number
+          coverage_ratio?: number | null
+          distance_m?: number | null
+          dropped_points?: number | null
           filtered_max_speed_cmps?: number | null
-          gap_count: number
-          inactive_s: number
-          moving_s: number
-          observed_s: number
+          gap_count?: number | null
+          inactive_s?: number | null
+          moving_s?: number | null
+          observed_s?: number | null
           phase_durations?: Json | null
           recording_id: string
-          unknown_s: number
-          valid_points: number
-          warning_points: number
+          source_received_at?: string | null
+          source_revision?: number
+          source_schema_max?: number | null
+          source_schema_min?: number | null
+          summary_status?: string
+          unknown_s?: number | null
+          valid_points?: number | null
+          warning_points?: number | null
+          window_end?: string | null
+          window_scope?: string | null
+          window_start?: string | null
         }
         Update: {
           algorithm_version?: number
           average_moving_cmps?: number | null
           average_observed_cmps?: number | null
           computed_at?: string
-          coverage_ratio?: number
-          distance_m?: number
-          dropped_points?: number
+          coverage_ratio?: number | null
+          distance_m?: number | null
+          dropped_points?: number | null
           filtered_max_speed_cmps?: number | null
-          gap_count?: number
-          inactive_s?: number
-          moving_s?: number
-          observed_s?: number
+          gap_count?: number | null
+          inactive_s?: number | null
+          moving_s?: number | null
+          observed_s?: number | null
           phase_durations?: Json | null
           recording_id?: string
-          unknown_s?: number
-          valid_points?: number
-          warning_points?: number
+          source_received_at?: string | null
+          source_revision?: number
+          source_schema_max?: number | null
+          source_schema_min?: number | null
+          summary_status?: string
+          unknown_s?: number | null
+          valid_points?: number | null
+          warning_points?: number | null
+          window_end?: string | null
+          window_scope?: string | null
+          window_start?: string | null
         }
         Relationships: [
           {
@@ -738,7 +780,16 @@ export type Database = {
         }
         Returns: Json
       }
+      export_dog_data_v1: {
+        Args: { p_dog_id: string; p_recording_id?: string }
+        Returns: Json
+      }
+      get_account_deletion_receipt_v1: {
+        Args: { p_request_id: string; p_user_id: string }
+        Returns: Json
+      }
       get_deletion_job_v1: { Args: { p_job_id: string }; Returns: Json }
+      get_my_account_deletion_v1: { Args: never; Returns: Json }
       issue_device_claim_v1: {
         Args: {
           p_code_digest: string
@@ -749,6 +800,7 @@ export type Database = {
         }
         Returns: string
       }
+      list_my_deletion_jobs_v1: { Args: never; Returns: Json }
       mutate_config_resource_v1: {
         Args: {
           p_base_server_version: number
@@ -761,6 +813,26 @@ export type Database = {
         }
         Returns: Json
       }
+      prepare_account_deletion_finalization_v1: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
+      preview_my_account_deletion_v1: { Args: never; Returns: Json }
+      rename_dog_v1: {
+        Args: { p_dog_id: string; p_name: string }
+        Returns: string
+      }
+      request_account_deletion_v1: {
+        Args: {
+          p_confirmation_phrase: string
+          p_confirmation_version: string
+          p_recent_password_at: number
+          p_request_id: string
+          p_scope_sha256: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       request_dog_deletion_v1: {
         Args: {
           p_confirmation_version: string
@@ -769,7 +841,17 @@ export type Database = {
         }
         Returns: Json
       }
+      retry_my_account_deletion_v1: { Args: never; Returns: Json }
+      retry_my_deletion_job_v1: { Args: { p_job_id: string }; Returns: Json }
       revoke_collar_v1: { Args: { p_collar_id: string }; Returns: boolean }
+      summary_freshness_v1: {
+        Args: {
+          p_dog_id: string
+          p_local_date?: string
+          p_recording_id?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

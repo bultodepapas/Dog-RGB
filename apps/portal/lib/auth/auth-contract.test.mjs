@@ -8,11 +8,12 @@ import {
   parseNewPasswordForm,
   parseSignupForm,
 } from "./form.ts";
+import { runGenericEmailRequest } from "./email-request.ts";
 import {
   confirmationErrorRedirect,
   parseEmailOtpType,
   resolveConfirmationRedirect,
-  resolveLocalAuthOrigin,
+  resolveAuthOrigin,
 } from "./redirect.ts";
 
 function form(values) {
@@ -133,20 +134,36 @@ test("invalid or expired links return to the matching recovery surface", () => {
   );
 });
 
-test("local confirmation origin is exact and fails closed on Host injection", () => {
+test("confirmation uses the explicit trusted site origin and ignores Host", () => {
   assert.equal(
-    resolveLocalAuthOrigin("127.0.0.1:3000"),
+    resolveAuthOrigin(undefined, "127.0.0.1:3000"),
     "http://127.0.0.1:3000",
   );
   assert.equal(
-    resolveLocalAuthOrigin("LOCALHOST:3000"),
+    resolveAuthOrigin(null, "LOCALHOST:3000"),
     "http://localhost:3000",
   );
-  assert.equal(
-    resolveLocalAuthOrigin("attacker.example"),
-    "http://127.0.0.1:3000",
-  );
-  assert.equal(resolveLocalAuthOrigin(null), "http://127.0.0.1:3000");
+  assert.equal(resolveAuthOrigin("https://portal.example", "attacker.example"), "https://portal.example");
+  assert.equal(resolveAuthOrigin("https://portal.example/path", null), null);
+  assert.equal(resolveAuthOrigin("http://portal.example", null), null);
+  assert.equal(resolveAuthOrigin("https://portal.example?next=//attacker.example", null), null);
+  assert.equal(resolveAuthOrigin(null, "attacker.example"), null);
+  assert.equal(resolveAuthOrigin(undefined, null), null);
+});
+
+test("email recovery and confirmation requests share one generic outcome", () => {
+  return Promise.all([
+    runGenericEmailRequest(async () => ({ error: null })),
+    runGenericEmailRequest(async () => ({ error: new Error("provider unavailable") })),
+    runGenericEmailRequest(async () => {
+      throw new Error("network unavailable");
+    }),
+  ]).then(([success, providerFailure, networkFailure]) => {
+    assert.deepEqual(providerFailure, success);
+    assert.deepEqual(networkFailure, success);
+    assert.match(success.message, /Si la solicitud puede completarse/u);
+    assert.match(success.message, /inténtalo de nuevo/u);
+  });
 });
 
 test("logout is explicitly local to the current session", async () => {
@@ -156,6 +173,22 @@ test("logout is explicitly local to the current session", async () => {
   );
   assert.match(actions, /signOut\(\{ scope: "local" \}\)/u);
   assert.doesNotMatch(actions, /user_metadata|service_role|sb_secret_/u);
+});
+
+test("recovery and resend use bounded email inputs and hide provider outcomes", async () => {
+  const [actions, forms, callback] = await Promise.all([
+    readFile(new URL("../../app/auth/actions.ts", import.meta.url), "utf8"),
+    readFile(new URL("../../app/components/auth-forms.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../../app/auth/confirm/route.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(actions, /resetPasswordForEmail\(parsed\.value\.email\)/u);
+  assert.match(actions, /auth\.resend\(\{\s*type: "signup",\s*email: parsed\.value\.email,/u);
+  assert.equal((actions.match(/return runGenericEmailRequest\(async \(\) => \{/gu) ?? []).length, 2);
+  assert.match(forms, /id="confirmation-resend-email"[\s\S]*?maxLength=\{254\}/u);
+  assert.match(callback, /process\.env\.PORTAL_SITE_ORIGIN/u);
+  assert.match(callback, /if \(!redirectOrigin\)/u);
+  assert.doesNotMatch(`${actions}\n${forms}`, /Mailpit|M1\.\d+/u);
 });
 
 test("password updates require fresh Auth-server identity before mutation", async () => {

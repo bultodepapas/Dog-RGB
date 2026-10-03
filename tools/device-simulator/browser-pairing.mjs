@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { readdir, readFile } from "node:fs/promises";
 import { createServer } from "node:net";
@@ -8,8 +9,12 @@ import { fileURLToPath } from "node:url";
 
 import { createPairOnlySimulator } from "./pair-only.mjs";
 
-const DOG_ID = "30000000-0000-4000-8000-000000000003";
+const DOG_ID = randomUUID();
+const OWNER_ID = "20000000-0000-4000-8000-000000000002";
+const OWNER_EMAIL = "other@example.test";
+const OWNER_PASSWORD = "local-other-password";
 const CLAIM_CODE_PATTERN = /^[0-9A-HJKMNP-TV-Z]{16}$/u;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const workspace = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const portalDirectory = join(workspace, "apps", "portal");
 const nextCli = join(workspace, "node_modules", "next", "dist", "bin", "next");
@@ -19,6 +24,7 @@ if (!supabaseProjectMatch) throw new Error("Local Supabase project identity is i
 const supabaseProjectId = supabaseProjectMatch[1];
 const apiUrl = process.env.SUPABASE_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+let pairingDogCreated = false;
 
 if (!apiUrl || !publishableKey) {
   throw new Error("Local public Supabase environment is required for browser pairing.");
@@ -226,6 +232,42 @@ function databaseContainer() {
   return containers[0];
 }
 
+function createPairingDog() {
+  const container = databaseContainer();
+  pairingDogCreated = true;
+  const created = spawnSync("docker", [
+    "exec", "-i", container, "psql", "-X", "-q", "-A", "-t",
+    "-v", "ON_ERROR_STOP=1", "-U", "supabase_admin", "-d", "postgres",
+  ], {
+    input: `
+      begin;
+      insert into api.dogs (id, name, timezone, created_by)
+      values ('${DOG_ID}'::uuid, 'Browser pairing fixture', 'America/Bogota', '${OWNER_ID}'::uuid);
+      insert into api.dog_memberships (dog_id, user_id, role)
+      values ('${DOG_ID}'::uuid, '${OWNER_ID}'::uuid, 'owner');
+      commit;
+    `,
+    encoding: "utf8",
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  if (created.status !== 0) throw new Error("Unable to create the isolated local pairing dog.");
+}
+
+function cleanupPairingDog() {
+  if (!pairingDogCreated) return;
+  const container = databaseContainer();
+  const deleted = spawnSync("docker", [
+    "exec", "-i", container, "psql", "-X", "-q", "-A", "-t",
+    "-v", "ON_ERROR_STOP=1", "-U", "supabase_admin", "-d", "postgres",
+  ], {
+    input: `delete from api.dogs where id = '${DOG_ID}'::uuid;`,
+    encoding: "utf8",
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  if (deleted.status !== 0) throw new Error("Unable to remove the isolated local pairing dog.");
+  pairingDogCreated = false;
+}
+
 function verifyPairingPersistence(pairing) {
   const sql = `
     select json_build_object(
@@ -284,6 +326,79 @@ function verifyPairingPersistence(pairing) {
   });
 }
 
+async function revokeSyntheticCollar(pairing) {
+  const authenticated = await fetch(`${apiUrl}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: publishableKey, "content-type": "application/json" },
+    body: JSON.stringify({ email: OWNER_EMAIL, password: OWNER_PASSWORD }),
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (authenticated.status !== 200) {
+    throw new Error("Local owner password authentication failed before pairing cleanup.");
+  }
+  const session = await authenticated.json();
+  if (session?.user?.id !== OWNER_ID || typeof session.access_token !== "string") {
+    throw new Error("Local owner authentication returned an unexpected identity.");
+  }
+  ownerAccessToken = session.access_token;
+  const priorScanner = containsPrivateMaterial;
+  containsPrivateMaterial = (value) => {
+    const includesOwnerToken = typeof value === "string"
+      ? value.includes(ownerAccessToken)
+      : Buffer.isBuffer(value) && value.includes(Buffer.from(ownerAccessToken));
+    return includesOwnerToken || Boolean(priorScanner?.(value));
+  };
+
+  const revoked = await fetch(`${apiUrl}/rest/v1/rpc/revoke_collar_v1`, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      authorization: `Bearer ${ownerAccessToken}`,
+      "content-profile": "api",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ p_collar_id: pairing.collarId }),
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (revoked.status !== 200 || await revoked.json() !== true) {
+    throw new Error("Owner revoke_collar_v1 did not confirm synthetic collar revocation.");
+  }
+
+  const sql = `
+    select json_build_object(
+      'collar_state', (select state from api.collars
+        where id = '${pairing.collarId}'::uuid and dog_id = '${pairing.dogId}'::uuid
+          and device_public_id = '${pairing.deviceId}'::uuid),
+      'collar_revoked', (select revoked_at is not null from api.collars
+        where id = '${pairing.collarId}'::uuid),
+      'credential_state', (select state from private.device_credentials
+        where collar_id = '${pairing.collarId}'::uuid),
+      'credential_revoked', (select revoked_at is not null from private.device_credentials
+        where collar_id = '${pairing.collarId}'::uuid),
+      'active_dog_collars', (select count(*) from api.collars
+        where dog_id = '${pairing.dogId}'::uuid and state = 'active')
+    )::text;
+  `;
+  const queried = spawnSync("docker", [
+    "exec", "-i", databaseContainer(), "psql", "-X", "-q", "-A", "-t",
+    "-v", "ON_ERROR_STOP=1", "-U", "supabase_admin", "-d", "postgres",
+  ], { input: sql, encoding: "utf8", maxBuffer: 2 * 1024 * 1024 });
+  if (queried.status !== 0) throw new Error("Unable to verify revoked pairing persistence.");
+  let evidence;
+  try {
+    evidence = JSON.parse(queried.stdout.trim());
+  } catch {
+    throw new Error("Revoked pairing persistence returned invalid evidence.");
+  }
+  assert.deepEqual(evidence, {
+    collar_state: "revoked",
+    collar_revoked: true,
+    credential_state: "revoked",
+    credential_revoked: true,
+    active_dog_collars: 0,
+  });
+}
+
 const port = await availablePort();
 const portalUrl = `http://127.0.0.1:${port}`;
 let serverOutput = "";
@@ -315,6 +430,7 @@ capture(portalProcess.stderr, appendServerOutput);
 
 let browser;
 let claimCode = null;
+let ownerAccessToken = null;
 let containsPrivateMaterial = null;
 let privacyScanned = false;
 let scannedFiles = 0;
@@ -332,6 +448,7 @@ async function sealAndScan() {
   privacyScanned = true;
 }
 try {
+  createPairingDog();
   await waitForPortal(portalUrl, portalProcess);
   browser = await chromium.launch({
     headless: true,
@@ -341,12 +458,15 @@ try {
   const page = await context.newPage();
   const collarsPath = `/app/${DOG_ID}/collars`;
   await page.goto(`${portalUrl}/login?next=${encodeURIComponent(collarsPath)}`);
-  await page.locator('input[name="email"]').fill("owner@example.test");
-  await page.locator('input[name="password"]').fill("local-owner-password");
+  await page.locator('input[name="email"]').fill(OWNER_EMAIL);
+  await page.locator('input[name="password"]').fill(OWNER_PASSWORD);
   await Promise.all([
     page.waitForURL((url) => url.pathname === collarsPath),
     page.getByRole("button", { name: "INICIAR SESIÓN" }).click(),
   ]);
+  const cloudConsent = page.locator('input[name="cloudConsent"]');
+  await cloudConsent.check();
+  assert.equal(await cloudConsent.isChecked(), true);
   await page.getByRole("button", { name: "Generar código" }).click();
   const codeElement = page.locator('[role="status"] code');
   await codeElement.waitFor({ state: "visible" });
@@ -378,17 +498,26 @@ try {
   });
   containsPrivateMaterial = (value) => simulator.artifactContainsPrivateMaterial(value);
   const proof = await simulator.proveReplaySafety();
-  assert.equal(proof.ok, true);
-  assert.equal(proof.pairing.dogId, DOG_ID);
-  verifyPairingPersistence(proof.pairing);
-  const anonymousCollar = await fetch(
-    `${apiUrl}/rest/v1/collars?id=eq.${proof.pairing.collarId}&select=id`,
-    { headers: { apikey: publishableKey } },
-  );
-  assert.equal([401, 403].includes(anonymousCollar.status), true);
-  assert.equal(simulator.artifactContainsPrivateMaterial(await anonymousCollar.text()), false);
+  if (!proof?.pairing || proof.pairing.dogId !== DOG_ID ||
+      !UUID_PATTERN.test(proof.pairing.collarId) || !UUID_PATTERN.test(proof.pairing.deviceId)) {
+    throw new Error("Pair-only simulator did not return a safely scoped collar identity.");
+  }
+  try {
+    assert.equal(proof.ok, true);
+    verifyPairingPersistence(proof.pairing);
+    const anonymousCollar = await fetch(
+      `${apiUrl}/rest/v1/collars?id=eq.${proof.pairing.collarId}&select=id`,
+      { headers: { apikey: publishableKey } },
+    );
+    assert.equal([401, 403].includes(anonymousCollar.status), true);
+    assert.equal(simulator.artifactContainsPrivateMaterial(await anonymousCollar.text()), false);
+  } finally {
+    await revokeSyntheticCollar(proof.pairing);
+  }
+  cleanupPairingDog();
   await sealAndScan();
   claimCode = null;
+  ownerAccessToken = null;
 
   console.log(JSON.stringify({
     ok: true,
@@ -400,5 +529,13 @@ try {
 } finally {
   claimCode = null;
   await browser?.close().catch(() => {});
-  await sealAndScan();
+  try {
+    try {
+      cleanupPairingDog();
+    } finally {
+      await sealAndScan();
+    }
+  } finally {
+    ownerAccessToken = null;
+  }
 }

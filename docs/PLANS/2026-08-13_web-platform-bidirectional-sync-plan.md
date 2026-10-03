@@ -1,10 +1,10 @@
 # Dog RGB web platform — master execution plan
 
-**Status / review:** active; reconciled against repository `971fdb313954e37012dc2178f740238fd2670fa8` on **2026-10-02 (America/Bogota)**. M0 and M1.1–M1.16 have recorded local acceptance. The website is **not finished or deployed**. M2A is host-accepted; physical sync remains open.
+**Status / review:** local web v1 implementation in progress on **2026-10-03 (America/Bogota)**, based on `8d93abb`. M0 and M1.1–M1.16 retain their historical local acceptance; changed surfaces are being revalidated. No hosted deployment or physical cloud-sync acceptance.
 
-**Next task: M1.19, returning-owner navigation.** Login without a saved deep link and the home/private-brand links lead to `/onboarding`, which always renders dog creation. Reuse the existing authorized dog-list DAL to route zero/one/multiple memberships correctly; prove returning login does not create another dog. Then M1.20–M1.21 and M1.23, followed by the existing M1.17–M1.18 gates. This deliberately replaces the previous “M1.17 only” next step: first complete the user paths being audited.
+**Current task:** integrate and validate M1.19–M1.23, M4A/core M4C and M5A, then run M1.17–M1.18 and the M1.22 release matrix on the resulting product. The implementation now includes returning entry, recovery/resend, dog-name correction, same-dog re-enrollment, real summary computation, date filtering and data-lifecycle screens. A route or migration alone does not close its acceptance task.
 
-**Scope of this revision:** repository/code/test review and documentation reconciliation. No deployment, remote project inspection, DB reset, firmware change, or physical acceptance. No delivery percentage: checked engineering tasks are not a measure of usable product completion.
+**Next external boundary:** M3A hosted preview with synthetic data, after local release gates pass. M2 firmware/physical work proceeds independently. No completion percentage or production-readiness claim.
 
 ## 1. Authority and maintenance
 
@@ -15,7 +15,7 @@ Authority: executable contracts/migrations/tests for implemented behavior → ac
 - Keep status/order here, test commands in [testing](../testing.md), protocol in [device-v1](../../contracts/device-v1/README.md), and dated results in [cloud evidence](../cloud/README.md). Indexes link here; do not reproduce the task ledger.
 - Each started task records **owner, implementation commit, environment, exact command/artifact, result, remaining limits**. Assign a delivery window after its dependencies are available; remove speculative multi-week estimates.
 - Mark complete only with evidence; reopen affected acceptance when behavior changes. Use additive migrations. Do not rewrite historical acceptance/rejection or regenerate frozen outbox evidence to match a documentation revision.
-- Before provider/API changes, verify current official docs; before service selection, verify actual region, cost, quota and terms. Do not upgrade dependencies as part of this review.
+- Before provider/API changes, verify current official docs; before service selection, verify actual region, cost, quota and terms. Dependency changes require a concrete reason and regression evidence; the implementation updates Next.js from 16.3.1 to 16.3.8 for published security fixes.
 - Repository owner decides service accounts, spending, operational responsibility and production opt-in. Missing provider credentials block their branch only. No hardware/map dependency blocks local web work.
 
 ## 2. Exact product being built
@@ -121,17 +121,17 @@ Any implementation that violates an invariant is rejected even if its happy-path
 
 ### 5.1 Delivered scope
 
-| Area | Repository evidence | Exact limit |
+| Area | Current implementation | Acceptance boundary |
 | --- | --- | --- |
-| M0; M1.1–M1.7 | Pinned Next.js/Supabase environment, Auth signup/login/confirmation/recovery actions, protected DAL, dog creation, ephemeral claim, simulator pairing; `apps/portal`, `tools/phase1_local.mjs` | Local development; recovery code exists but the maintained M1.13 journey is not a complete recovery/returning-user test |
-| M1.8–M1.10 | Today reads, bounded/keyset History, detail table and segmented SVG; [History](../cloud/m19-history-query-plan.md), [detail](../cloud/m110-recording-detail-evidence.md) | Reading seeded summaries is not computing them; SVG is not a basemap |
-| M1.11–M1.12 | [Brightness](../cloud/m111-brightness-configuration-evidence.md), [collar diagnostics/revoke](../cloud/m112-collar-diagnostics-revoke-evidence.md) | Desired/reported convergence with simulator; no physical Applied proof |
-| M1.13–M1.16 | [Owner journey](../cloud/m113-playwright-owner-journey-evidence.md), [authorization](../cloud/m114-identity-object-authorization-evidence.md), [faults](../cloud/m115-deterministic-fault-evidence.md), [privacy/cache](../cloud/m116-privacy-cache-evidence.md) | Recorded twice-clean local evidence; not rerun in this review; no current remote CI claim |
-| Local backend | 16 migrations, 21 pgTAP files, four Edge gateways; explicit grants/RLS, replay, configuration, deletion/retention/restore tooling | Local schema/tooling; no deployed project or complete owner data lifecycle |
+| M0 / M1 foundation | Next.js 16.3.8, local Supabase, grants/RLS, Auth, owner entry, simulator claim/upload, private DAL | [Current implementation and test record](../cloud/local-web-v1-implementation-2026-10-03.md); historical M1.13–M1.16 acceptance does not certify changed code |
+| M1E | Returning selection, real recovery/resend, dog-name correction, same-dog re-enrollment and one-active-collar constraint | Local browser/database/simulator gates; physical credential replacement remains M3C |
+| M4A / M4C core | Bounded summary producers and provenance-aware Today/History/detail; date range and latest-detail navigation | No physical accuracy/behavior claim; segmented SVG/table, no tiles; scheduler not activated |
+| M5A | Consent/privacy, bounded private JSON/GeoJSON, reauthenticated dog deletion and Auth-last account orchestration | Local lifecycle validation is separate from hosted retention/backup enforcement |
+| M1D / M1.22 | Expanded browser runner, axe/layout/performance measurements, WebKit smoke and relevant-path/release CI | Exact executed results in current record; no remote CI or manual acceptance inferred from configuration |
 | M2A | [Independent AI host acceptance](../cloud/phase0-outbox-remediation-review-2026-10-02.md), candidate `fb6dbef`, 67/67 | Host fault model only; not human or ESP32 acceptance |
 | M2B increments | [Codec](../cloud/m24a-track-v3-codec-evidence.md) `d244221`, [identity](../cloud/m23a-device-identity-evidence.md) `f148bec`, [assembler](../cloud/m24b-chunk-assembly-evidence.md) `971fdb3` | Isolated C++ components; no runtime observation/outbox/cloud integration |
 
-### 5.2 Gaps that determine the next work
+### 5.2 Findings at the pre-implementation review (`971fdb3`)
 
 | Priority / finding | Source checked | Required closure |
 | --- | --- | --- |
@@ -147,9 +147,9 @@ Any implementation that violates an invariant is rejected even if its happy-path
 | P2 — CI does not execute the maintained M1.13–M1.16 orchestrator | `.github/workflows/ci.yml` calls `phase1:local`; that script does not call `tools/portal-e2e/run.mjs` | M1.22: connect the existing runner to CI; production build alone is insufficient |
 | P2 — Documentation overstated absence and readiness at once | README/requirements/ADR index said accounts, reads or brightness were absent; older plan still presented a Vercel device API and Google Maps | Reconciled here and at entry points; preserve historical files as historical |
 
-P1/P2 are delivery priorities, not security severity ratings. No unobserved runtime vulnerability is asserted by this review.
+These findings describe the earlier audit baseline, not the current implementation inventory. Closure is recorded in section 8 and current evidence. P1/P2 are delivery priorities, not security severity ratings.
 
-### 5.3 Validation performed on 2026-10-02
+### 5.3 Historical documentation-review validation (`971fdb3`)
 
 Darwin arm64, Node **24.18.0**, npm **11.6.2**, Next.js **16.3.1**:
 
@@ -177,10 +177,10 @@ Core web v1 includes Spanish UI, one-owner/one-dog/one-active-collar primary jou
 
 ```mermaid
 flowchart TD
-  ENTRY[M1E: returning owner and recovery] --> QUALITY[M1D: accessibility and performance]
-  QUALITY --> DATA[M4A and core M4C: summaries and useful views]
+  ENTRY[M1E: returning owner and recovery] --> DATA[M4A and core M4C: summaries and useful views]
   DATA --> PRIVACY[M5A: owner data lifecycle]
-  PRIVACY --> CI[M1.22: release regression and CI]
+  PRIVACY --> QUALITY[M1D: accessibility and performance]
+  QUALITY --> CI[M1.22: release regression and CI]
   CI --> PREVIEW[M3A: hosted preview with simulator]
   HOST[M2A: accepted host outbox] --> FW[M2B and M2C: firmware and physical proof]
   PREVIEW --> COLLAR[M3B and M3C: physical vertical slice]
@@ -189,7 +189,7 @@ flowchart TD
   MAP[M4B: optional provider decision] -. tiles only .-> DATA
 ```
 
-Default web queue: **M1.19 → M1.20 → M1.21 → M1.23 → M1.17 → M1.18 → M4A/core M4C → M5A → M1.22 → M3A**. Run relevant regression gates with every delivery; repeat a11y/performance on new surfaces before declaring local completion. M2 may continue independently; hosted physical work requires both branches. Do not postpone analytics/export/UI work until hardware or buy services to close local tests.
+Default web queue: **M1E → M4A/core M4C + M5A → M1.17/M1.18 → M1.22 → M3A**. Run relevant regression gates with every delivery; repeat a11y/performance on new surfaces before declaring local completion. M2 may continue independently; hosted physical work requires both branches. Do not postpone analytics/export/UI work until hardware or buy services to close local tests.
 
 ## 8. Executable milestones
 
@@ -199,7 +199,7 @@ Preserve pinned toolchain, contracts, clean migrations, generated assets/types, 
 
 ### M1 — Complete the local owner experience
 
-#### M1E — Product completion, next
+#### M1E — Product completion
 
 | Task | Deliverable | Acceptance |
 | --- | --- | --- |
@@ -347,7 +347,7 @@ M2.1–M2.2 accepted by independent AI review on `fb6dbef` (2026-10-02): all 12 
 | [ ] M5.6b | Reauthenticated, strong-confirmation dog deletion reuses existing job/RPC. Block access/ingest immediately; show pending/failed/retry/completed from durable state; reuse `private.process_dog_deletion_batch_v1` to remove actual records. For local acceptance, use the existing `npm run phase1:deletion` fixture drill and invoke that worker from the owner-journey harness for its own jobs; the fixture drill is not a general job-drain CLI. Hosted schedules remain M5B; no new worker service. Revocation alone preserves history. Verify concurrent upload, duplicate request, other-dog survival, logout/relogin and export absence after purge |
 | [ ] M5.6c | Account deletion orchestration: authenticated owner, explicit inventory of owned dogs and memberships, reauthentication and explicit confirmation, close access, revoke devices, enqueue/purge owned data and keep Auth until every purge job completes, then remove Auth/profile/memberships last in recoverable order. While pending, deny ordinary reads/new dog/claim/config writes but retain authenticated status/retry access through logout/login; `get_deletion_job_v1` requires a live caller. Failed jobs must not orphan the owner's recovery path. Explicit confirmation covers all dogs the account owns, including impact on other members; reader/editor memberships only detach. Preflight `dogs.created_by` (Auth FK `ON DELETE RESTRICT`): if a surviving creator reference cannot be removed through the authorized deletion set, block before any destructive action and require ownership resolution; no automatic transfer. Test sole owner, co-owner, viewer/editor and creator-without-ownership cases. Preserve sanitized deletion receipt/status across interrupted processing; no “complete” on partial failure |
 
-Routes above are **planned**, not present. Reuse existing auth/DAL/RLS/jobs; do not create a separate admin service. Extend route guards, return-path allowlists, cache/privacy scanner and a11y matrix in the same implementation. Recording-only delete, email change, sharing and retention customization are deferred; dog/account export/delete are the v1 boundary.
+`/account`, `/privacy` and the dog data page are implemented; export and account finalization require their integration evidence. Reuse existing auth/DAL/RLS/jobs; do not create a separate admin service. Extend route guards, return-path allowlists, cache/privacy scanner and a11y matrix in the same implementation. Recording-only delete, email change, sharing and retention customization are deferred; owner dog-data exports and dog/account deletion are the v1 boundary. `/account` links to each owned dog’s export; Auth/profile/membership export is not implemented.
 
 #### M5B — Private production release
 
@@ -356,7 +356,7 @@ Routes above are **planned**, not present. Reuse existing auth/DAL/RLS/jobs; do 
 | [ ] M5.1–M5.2 | Explicit owner opt-in, intended users/collars, named operator/contact, actual service tiers/regions, monthly ceiling and alerts from measured preview/collar use. Free/paid chosen from verified requirements; no assumed prices or mandatory enterprise tier |
 | [ ] M5.3–M5.4 | Stable site/device API origins, verified TLS and exact redirects; configured production SMTP, delivery/recovery tests and sender-domain setup. Preserve ADR-0005: an owned stable device API domain is required before durable field use; a custom website vanity domain is optional |
 | [ ] M5.5b / M5.7 | Reviewed privacy copy and actual retention per data class; enable bounded retention/deletion/summary schedules only after M5.5a–b, M5.6a–c and worker tests pass. M5.5 closes only when both its product-copy and operational-policy subdeliverables pass. Verify oldest overdue item, purge completion, retries, alerts and job behavior under limits; no infinite dormant queues |
-| [ ] M5.8 | Restore into an isolated environment; disable outbound jobs first, reapply secrets/Auth/functions/settings, verify hashes/RLS and replay post-backup deletions before traffic. Use managed backup or documented encrypted logical-export fallback with measured restore/expiry; no mandatory paid clone/PITR. Fix RPO/RTO and backup lag from demonstrated operation |
+| [ ] M5.8 | Restore into an isolated environment; disable outbound jobs first, reapply secrets/Auth/functions/settings, verify hashes/RLS and replay post-backup dog **and account/Auth** deletions before traffic. Existing signed replay covers dog tombstones only; account identity replay is a required M5.8 gap, not evidence provided by the current drill. Use managed backup or documented encrypted logical-export fallback with measured restore/expiry; no mandatory paid clone/PITR. Fix RPO/RTO and backup lag from demonstrated operation |
 | [ ] M5.9–M5.10 | Short runbook: failed login/sync, revoke/rotation, stalled jobs, outage, quota/cost, DNS/cert, rollback and restore; explicit signals/thresholds and responsible person. Publish concise privacy/support/terms appropriate to intended use and verify an actual release/rollback smoke |
 
 **Exit:** local web complete + hosted preview + physical integration + M5A/B evidence. No open data-loss, cross-owner access, false Applied or core-workflow defect. Advanced hardening (Secure Boot, flash encryption, mTLS, KMS/HSM, signed off-site custody, SIEM/WAF, formal pentest, multi-region) stays optional. Preserved signed-tombstone tooling may support restore; it does not mandate a new custody service.
@@ -398,6 +398,11 @@ Use:
 /forgot-password
 /auth/confirm
 /onboarding
+/account
+/privacy
+/app/[dogId]/data
+/app/[dogId]/data/export
+/app/[dogId]/recordings/[recordingId]/geojson
 /app/[dogId]/today
 /app/[dogId]/history
 /app/[dogId]/recordings/[recordingId]
@@ -405,7 +410,7 @@ Use:
 /app/[dogId]/configuration
 ```
 
-M1.19 makes `/onboarding` an authorized entry/selection flow. M5A adds `/account`, `/privacy` and `/app/[dogId]/data` before hosted web completion. Sharing/admin routes remain deferred.
+`/onboarding` is the authorized zero/one/multiple-membership entry. `/account` remains reachable while a deletion is pending. Downloads require fresh owner authorization and never use public storage. Sharing/admin routes remain deferred.
 
 ### 9.4 Visual and accessibility boundary
 

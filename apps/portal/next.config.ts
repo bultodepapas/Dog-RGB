@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   async headers() {
     return [
+      { source: "/account/:path*", headers: [...privateResponseHeaders] },
       { source: "/onboarding", headers: [...privateResponseHeaders] },
       { source: "/app/:path*", headers: [...privateResponseHeaders] },
     ];

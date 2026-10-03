@@ -49,7 +49,7 @@ function recordingDetailPath(pathname, fixture) {
 }
 
 function privateRoute(pathname) {
-  return pathname === "/onboarding" || pathname.startsWith("/app/");
+  return pathname === "/onboarding" || pathname === "/account" || pathname.startsWith("/account/") || pathname.startsWith("/app/");
 }
 
 function assertNoRoutePayload(text, label) {
@@ -76,6 +76,13 @@ function assertNoPrivateMaterial(text, containsPrivateMaterial, containsInfrastr
   assert.equal(containsPrivateMaterial(text), false, `${label} exposed fixture secret material`);
   assert.equal(containsInfrastructureSecret(text), false, `${label} exposed local infrastructure secret material`);
   assert.equal(SENSITIVE_TOKEN_PATTERN.test(text), false, `${label} exposed a secret key or JWT-shaped token`);
+}
+
+export function assertPrivateRuntimeLogs(text, fixture, containsPrivateMaterial, containsInfrastructureSecret) {
+  assertNoPrivateMaterial(text, containsPrivateMaterial, containsInfrastructureSecret, "server/Edge/database logs");
+  assertNoRoutePayload(text, "server/Edge/database logs");
+  assert.equal([fixture.dogA.name, fixture.dogB.name].some(name => text.includes(name)), false, "runtime logs exposed a dog name");
+  assert.equal(INTERNAL_ERROR_PATTERN.test(text), false, "runtime logs exposed an internal error");
 }
 
 async function filesBelow(root) {
@@ -336,6 +343,8 @@ export async function runM116PrivacyCacheGate({
     await page.waitForURL(new RegExp(`/app/${fixture.dogA.id}/today$`, "u"));
     await inspectCurrentPage("owner Today HTML");
     await inspectRsc(`/app/${fixture.dogA.id}/today`);
+    await inspectRsc("/account");
+    await inspectRsc(`/app/${fixture.dogA.id}/data`);
     await page.getByRole("link", { name: "Historial" }).click();
     await page.waitForURL(new RegExp(`/app/${fixture.dogA.id}/history$`, "u"));
     await inspectCurrentPage("owner History HTML");
@@ -421,13 +430,12 @@ export async function runM116PrivacyCacheGate({
     browser = null;
 
     const runtimeLogs = `${portalLogs()}\n${await readServiceLogs()}`;
-    assertNoPrivateMaterial(
+    assertPrivateRuntimeLogs(
       runtimeLogs,
+      fixture,
       containsPrivateMaterial,
       containsInfrastructureSecret,
-      "server/Edge/database logs",
     );
-    assert.equal(INTERNAL_ERROR_PATTERN.test(runtimeLogs), false, "runtime logs exposed an internal error");
     checkpoint("server-edge-database-logs");
 
     const retained = await filesBelow(artifactDirectory);

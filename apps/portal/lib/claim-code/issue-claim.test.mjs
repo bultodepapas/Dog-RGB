@@ -101,7 +101,7 @@ test("write authorization precedes one exact Edge invocation", async () => {
 
   assert.deepEqual(await mutate(form()), {
     ok: true,
-    state: { status: "success", message: "", code: CODE },
+    state: { status: "success", message: "", code: CODE, expiresAt: EXPIRES_AT },
   });
   assert.deepEqual(calls, [
     ["isCanonicalUuid", DOG_ID],

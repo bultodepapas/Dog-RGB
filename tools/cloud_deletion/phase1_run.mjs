@@ -129,8 +129,10 @@ try {
   });
 
   const [first, replay] = await Promise.all([sendDeletion(), sendDeletion()]);
-  assert.equal(first.response.ok, true, `First deletion request failed with HTTP ${first.response.status}.`);
-  assert.equal(replay.response.ok, true, `Concurrent replay failed with HTTP ${replay.response.status}.`);
+  const failureCode = (result) => /^[A-Za-z0-9_]+$/u.test(result.body?.message ?? "")
+    ? result.body.message : /^[A-Za-z0-9_]+$/u.test(result.body?.code ?? "") ? result.body.code : "unspecified";
+  assert.equal(first.response.ok, true, `First deletion request failed with HTTP ${first.response.status} (${failureCode(first)}).`);
+  assert.equal(replay.response.ok, true, `Concurrent replay failed with HTTP ${replay.response.status} (${failureCode(replay)}).`);
   assert.equal(first.body.job_id, replay.body.job_id, "Concurrent replay returned another job.");
   assert.equal(first.body.tombstone_sha256, replay.body.tombstone_sha256);
   assert.equal(first.body.status, "pending");

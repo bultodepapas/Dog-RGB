@@ -350,3 +350,37 @@ export function checkpointRevoked({ collarId, recordingId }) {
     retained_points: 3,
   }, "revocation");
 }
+
+export function membershipSelectionFixture(email, remove = false) {
+  const actor = safeEmail(email);
+  if (remove) {
+    const result = queryJson(`
+      with removed as (
+        delete from api.dogs where name = 'M113 membership selector fixture'
+          and created_by = (select id from auth.users where email = ${actor}) returning id
+      ) select json_build_object('removed', count(*)) from removed;
+    `);
+    exact(result, { removed: 1 }, "membership selector cleanup");
+    return;
+  }
+  const result = queryJson(`
+    with dog as (
+      insert into api.dogs (name, timezone, created_by)
+      values ('M113 membership selector fixture', 'America/Bogota', (select id from auth.users where email = ${actor})) returning id, created_by
+    ), member as (
+      insert into api.dog_memberships (dog_id, user_id, role)
+      select id, created_by, 'owner' from dog returning dog_id
+    ) select json_build_object('added', count(*)) from member;
+  `);
+  exact(result, { added: 1 }, "membership selector setup");
+}
+
+export function expireRecoveryFixture(email) {
+  const result = queryJson(`
+    with expired as (
+      update auth.users set recovery_sent_at = now() - interval '2 hours'
+      where email = ${safeEmail(email)} and recovery_token <> '' returning id
+    ) select json_build_object('expired', count(*)) from expired;
+  `);
+  exact(result, { expired: 1 }, "recovery expiry setup");
+}

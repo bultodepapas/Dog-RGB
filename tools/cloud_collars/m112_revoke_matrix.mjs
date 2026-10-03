@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
-const DOG_ID = "30000000-0000-4000-8000-000000000003";
 const OWNER_ID = "10000000-0000-4000-8000-000000000001";
 const OUTSIDER_ID = "20000000-0000-4000-8000-000000000002";
 const EDITOR_ID = "19200000-0000-4000-8000-000000000001";
@@ -237,6 +236,9 @@ const restFixture = {
   deviceId: randomUUID(),
   credentialId: randomUUID(),
 };
+const fixtureDogs = Array.from({ length: RACE_COUNT + 1 }, () => randomUUID());
+raceFixtures.forEach((fixture, index) => { fixture.dogId = fixtureDogs[index]; });
+restFixture.dogId = fixtureDogs[RACE_COUNT];
 const tokens = {
   owner: userToken(OWNER_ID),
   editor: userToken(EDITOR_ID),
@@ -267,9 +269,18 @@ try {
       )
     on conflict (id) do nothing;
 
+    insert into api.dogs (id, name, timezone, created_by)
+    values
+      ${fixtureDogs.map((dogId, index) => `(
+        ${sqlUuid(dogId)}, 'M1.12 fixture ${index + 1}', 'America/Bogota', ${sqlUuid(OWNER_ID)}
+      )`).join(",\n")};
+
     insert into api.dog_memberships (dog_id, user_id, role) values
-      ('${DOG_ID}', '${EDITOR_ID}', 'editor'),
-      ('${DOG_ID}', '${VIEWER_ID}', 'viewer')
+      ${fixtureDogs.flatMap((dogId) => [
+        `(${sqlUuid(dogId)}, ${sqlUuid(OWNER_ID)}, 'owner')`,
+        `(${sqlUuid(dogId)}, ${sqlUuid(EDITOR_ID)}, 'editor')`,
+        `(${sqlUuid(dogId)}, ${sqlUuid(VIEWER_ID)}, 'viewer')`,
+      ]).join(",\n")}
     on conflict (dog_id, user_id) do update set role = excluded.role;
 
     insert into api.collars (
@@ -281,14 +292,14 @@ try {
       oldest_unacknowledged_at, dropped_points_total, sync_error_present
     ) values
       ${raceFixtures.map((fixture, index) => `(
-        '${fixture.collarId}', '${fixture.deviceId}', '${DOG_ID}',
+        '${fixture.collarId}', '${fixture.deviceId}', '${fixture.dogId}',
         'M1.12 race ${index + 1}', 'active', 1, 'xiao-s3-r1', '2.0.0-cloud.1', 3, 7,
         '{"manifest_schema":1,"hardware_revision":"xiao-s3-r1","protocol_versions":[1],"telemetry":{"schemas":[3]},"config_schemas":[7]}'::jsonb,
         decode('${fixture.capabilityHash.toString("hex")}', 'hex'),
         statement_timestamp(), null, null, null, null, null, null, null, null, null
       )`).join(",\n")},
       (
-        '${restFixture.collarId}', '${restFixture.deviceId}', '${DOG_ID}',
+        '${restFixture.collarId}', '${restFixture.deviceId}', '${restFixture.dogId}',
         'M1.12 Data API fixture', 'active', 1, 'xiao-s3-r1', '2.0.0-cloud.1', 3, 7,
         '{"manifest_schema":1,"hardware_revision":"xiao-s3-r1","protocol_versions":[1],"telemetry":{"schemas":[3]},"config_schemas":[7]}'::jsonb,
         decode(repeat('66', 32), 'hex'), statement_timestamp(), statement_timestamp(),
@@ -367,11 +378,8 @@ try {
     `M1.12 local matrix passed: ${RACE_COUNT} sync/revoke races, exact replay, RLS reads, and owner-only Data API revocation.`,
   );
 } finally {
-  const allCollars = [...raceFixtures.map(({ collarId }) => collarId), restFixture.collarId];
   psql(container, `
-    delete from api.collars where id in (${allCollars.map(sqlUuid).join(", ")});
-    delete from api.dog_memberships
-    where dog_id = '${DOG_ID}' and user_id in ('${EDITOR_ID}', '${VIEWER_ID}');
+    delete from api.dogs where id in (${fixtureDogs.map(sqlUuid).join(", ")});
     delete from auth.users where id in ('${EDITOR_ID}', '${VIEWER_ID}');
   `);
 }

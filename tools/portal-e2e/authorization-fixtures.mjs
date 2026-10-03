@@ -23,6 +23,14 @@ export const AUTHORIZATION_RPCS = Object.freeze([
   "revoke_collar_v1",
   "request_dog_deletion_v1",
   "get_deletion_job_v1",
+  "rename_dog_v1",
+  "list_my_deletion_jobs_v1",
+  "retry_my_deletion_job_v1",
+  "summary_freshness_v1",
+  "preview_my_account_deletion_v1",
+  "get_my_account_deletion_v1",
+  "retry_my_account_deletion_v1",
+  "export_dog_data_v1",
 ]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -579,6 +587,22 @@ export function deleteAuthorizationViewer(manifest) {
     throw new Error("Deleting the isolated viewer did not remove its Auth and membership state.");
   }
   return { deletedUser: true, authStateRows: 0, applicationRows: 0 };
+}
+
+export function setAuthorizationViewerMembership(manifest, present) {
+  const viewer = sqlLiteral(requireUuid(manifest.accounts.viewer.id, "viewer id"));
+  const dog = sqlLiteral(requireUuid(manifest.dogA.id, "dog id"));
+  psql(present
+    ? `insert into api.dog_memberships (dog_id, user_id, role) values (${dog}::uuid, ${viewer}::uuid, 'viewer');`
+    : `delete from api.dog_memberships where dog_id=${dog}::uuid and user_id=${viewer}::uuid;`);
+}
+
+export function setQualitySelectionMembership(manifest, present) {
+  const owner = sqlLiteral(requireUuid(manifest.accounts.ownerA.id, "owner id"));
+  const dog = sqlLiteral(requireUuid(manifest.dogB.id, "dog id"));
+  psql(present
+    ? `insert into api.dog_memberships (dog_id, user_id, role) values (${dog}::uuid, ${owner}::uuid, 'viewer');`
+    : `delete from api.dog_memberships where dog_id=${dog}::uuid and user_id=${owner}::uuid and role='viewer';`);
 }
 
 // These bounded helpers let the Playwright process exercise the public local

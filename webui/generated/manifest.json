@@ -3,7 +3,7 @@
   "generator": "webui/build.mjs",
   "node_version": "24.18.0",
   "html_minifier_terser_version": "7.2.0",
-  "source_sha256": "183953196c6aa8664e17700757320489307e396a14b0be41fefcf1ff9f68240e",
+  "source_sha256": "18a242971094ab098a9c8bdb2fbb2919bef1160c2f06ec326a91616524ab323a",
   "inputs": [
     {
       "path": ".node-version",
@@ -12,13 +12,13 @@
     },
     {
       "path": "package.json",
-      "sha256": "7ca37c2821218de37ed714bd99e287c141fab297fd24ee3ebf0ee969d9004706",
-      "bytes": 3206
+      "sha256": "832c20143f7e4e82c4df52d5a84ac1712ae8c94c6781abb8cefb2ddcdae3d513",
+      "bytes": 3281
     },
     {
       "path": "package-lock.json",
-      "sha256": "69f7e93348153ff68aa25e93f7b703b821df95e4d33b05fbfcd032a9eea21bfe",
-      "bytes": 232292
+      "sha256": "3eaf87608de11c0280d429a4d58df59920cc46d90844953b07a54f0840d17fac",
+      "bytes": 232322
     },
     {
       "path": "webui/build.mjs",
@@ -58,7 +58,7 @@
     },
     {
       "path": "Platformio/Dog-RGB/src/web/generated_assets.cpp",
-      "sha256": "52c71753e87aa9f2688ac9706828a641c6d3e341d2306b6f729a6e8ed13bafdb"
+      "sha256": "eca2524a767a53d0b9b6f35ef69ee46f565e395bda50d3528325fa50f1f64d42"
     }
   ],
   "totals": {

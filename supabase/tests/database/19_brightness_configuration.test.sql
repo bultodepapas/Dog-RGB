@@ -67,21 +67,21 @@ select ok(
 select ok(
   position(
     'for update of c' in lower(pg_get_functiondef(
-      'api.mutate_config_resource_v1(uuid,text,integer,uuid,bigint,jsonb,bytea)'::regprocedure
+      'private.mutate_config_resource_unlocked_v1(uuid,text,integer,uuid,bigint,jsonb,bytea)'::regprocedure
     ))
   ) < position(
     'select * into v_existing' in lower(pg_get_functiondef(
-      'api.mutate_config_resource_v1(uuid,text,integer,uuid,bigint,jsonb,bytea)'::regprocedure
+      'private.mutate_config_resource_unlocked_v1(uuid,text,integer,uuid,bigint,jsonb,bytea)'::regprocedure
     ))
   ),
   'the stable active-collar row is locked before replay and optional-head reads'
 );
 select ok(
   pg_get_functiondef(
-    'api.mutate_config_resource_v1(uuid,text,integer,uuid,bigint,jsonb,bytea)'::regprocedure
+    'private.mutate_config_resource_unlocked_v1(uuid,text,integer,uuid,bigint,jsonb,bytea)'::regprocedure
   ) like '%invalid_body_sha256%'
   and pg_get_functiondef(
-    'api.mutate_config_resource_v1(uuid,text,integer,uuid,bigint,jsonb,bytea)'::regprocedure
+    'private.mutate_config_resource_unlocked_v1(uuid,text,integer,uuid,bigint,jsonb,bytea)'::regprocedure
   ) like '%25[0-5]%'
   ,
   'the RPC binds the canonical brightness body to an exact SHA-256 digest'
@@ -115,6 +115,17 @@ insert into api.dog_memberships (dog_id, user_id, role) values
   ('30000000-0000-4000-8000-000000000003', '19000000-0000-4000-8000-000000000002', 'viewer')
 on conflict (dog_id, user_id) do update set role = excluded.role;
 
+insert into api.dogs (id, name, timezone, created_by)
+values (
+  '30000000-0000-4000-8000-000000000004',
+  'Brightness editor dog',
+  'America/Bogota',
+  '10000000-0000-4000-8000-000000000001'
+);
+insert into api.dog_memberships (dog_id, user_id, role) values
+  ('30000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001', 'owner'),
+  ('30000000-0000-4000-8000-000000000004', '19000000-0000-4000-8000-000000000001', 'editor');
+
 insert into api.collars (
   id, device_public_id, dog_id, display_name, state, linked_at
 ) values
@@ -127,7 +138,7 @@ insert into api.collars (
   (
     '89000000-0000-4000-8000-000000000002',
     '89100000-0000-4000-8000-000000000002',
-    '30000000-0000-4000-8000-000000000003',
+    '30000000-0000-4000-8000-000000000004',
     'Brightness editor fixture', 'active', '2026-08-25 11:00:00+00'
   ),
   (

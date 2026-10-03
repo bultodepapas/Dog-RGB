@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import {
   loginAction,
+  resendConfirmationAction,
   requestPasswordResetAction,
   signupAction,
   updatePasswordAction,
@@ -91,63 +92,102 @@ export function SignupForm() {
   );
 
   return (
+    <>
+      <form className="auth-form" action={action}>
+        <label htmlFor="signup-email">Correo</label>
+        <input
+          id="signup-email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          maxLength={254}
+          aria-describedby={
+            state.fieldErrors?.email ? "signup-email-error" : undefined
+          }
+          required
+        />
+        <FieldError id="signup-email-error" message={state.fieldErrors?.email} />
+
+        <label htmlFor="signup-password">Contraseña</label>
+        <input
+          id="signup-password"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          minLength={PASSWORD_MIN_LENGTH}
+          maxLength={128}
+          aria-describedby="signup-password-help signup-password-error"
+          required
+        />
+        <span className="field-help" id="signup-password-help">
+          Entre {PASSWORD_MIN_LENGTH} y 128 caracteres.
+        </span>
+        <FieldError
+          id="signup-password-error"
+          message={state.fieldErrors?.password}
+        />
+
+        <label htmlFor="signup-password-confirmation">
+          Repite la contraseña
+        </label>
+        <input
+          id="signup-password-confirmation"
+          name="passwordConfirmation"
+          type="password"
+          autoComplete="new-password"
+          minLength={PASSWORD_MIN_LENGTH}
+          maxLength={128}
+          aria-describedby={
+            state.fieldErrors?.passwordConfirmation
+              ? "signup-password-confirmation-error"
+              : undefined
+          }
+          required
+        />
+        <FieldError
+          id="signup-password-confirmation-error"
+          message={state.fieldErrors?.passwordConfirmation}
+        />
+        <FormMessage state={state} />
+        <button type="submit" disabled={pending}>
+          {pending ? "CREANDO…" : "CREAR CUENTA"}
+        </button>
+      </form>
+      <ConfirmationResendForm />
+    </>
+  );
+}
+
+export function ConfirmationResendForm() {
+  const [state, action, pending] = useActionState(
+    resendConfirmationAction,
+    INITIAL_AUTH_ACTION_STATE,
+  );
+
+  return (
     <form className="auth-form" action={action}>
-      <label htmlFor="signup-email">Correo</label>
+      <p>¿No recibiste el correo de confirmación? Solicita otro enlace.</p>
+      <label htmlFor="confirmation-resend-email">Dirección para reenviar</label>
       <input
-        id="signup-email"
+        id="confirmation-resend-email"
         name="email"
         type="email"
         autoComplete="email"
         inputMode="email"
         maxLength={254}
         aria-describedby={
-          state.fieldErrors?.email ? "signup-email-error" : undefined
-        }
-        required
-      />
-      <FieldError id="signup-email-error" message={state.fieldErrors?.email} />
-
-      <label htmlFor="signup-password">Contraseña</label>
-      <input
-        id="signup-password"
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        minLength={PASSWORD_MIN_LENGTH}
-        maxLength={128}
-        aria-describedby="signup-password-help signup-password-error"
-        required
-      />
-      <span className="field-help" id="signup-password-help">
-        Entre {PASSWORD_MIN_LENGTH} y 128 caracteres.
-      </span>
-      <FieldError
-        id="signup-password-error"
-        message={state.fieldErrors?.password}
-      />
-
-      <label htmlFor="signup-password-confirmation">Repite la contraseña</label>
-      <input
-        id="signup-password-confirmation"
-        name="passwordConfirmation"
-        type="password"
-        autoComplete="new-password"
-        minLength={PASSWORD_MIN_LENGTH}
-        maxLength={128}
-        aria-describedby={
-          state.fieldErrors?.passwordConfirmation
-            ? "signup-password-confirmation-error"
-            : undefined
+          state.fieldErrors?.email ? "confirmation-resend-email-error" : undefined
         }
         required
       />
       <FieldError
-        id="signup-password-confirmation-error"
-        message={state.fieldErrors?.passwordConfirmation}
+        id="confirmation-resend-email-error"
+        message={state.fieldErrors?.email}
       />
       <FormMessage state={state} />
       <button type="submit" disabled={pending}>
-        {pending ? "CREANDO…" : "CREAR CUENTA"}
+        {pending ? "SOLICITANDO…" : "REENVIAR CONFIRMACIÓN"}
       </button>
     </form>
   );
