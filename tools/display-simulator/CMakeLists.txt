@@ -15,6 +15,13 @@ if(NOT LVGL_VERSION STREQUAL "8.4.0")
 endif()
 set(LV_CONF_PATH "${FIRMWARE}/include/lv_conf.h" CACHE STRING "Shared configuration" FORCE)
 add_subdirectory("${LVGL_SOURCE_DIR}" lvgl EXCLUDE_FROM_ALL)
+set(IDENTITY_FONT_DIR "${FIRMWARE}/src/display/fonts" CACHE PATH "Identity font variant")
+add_library(display_ui_theme STATIC
+  "${FIRMWARE}/src/display/ui/ui_theme.cpp"
+  "${FIRMWARE}/src/display/identity.cpp"
+  "${IDENTITY_FONT_DIR}/dog_name_14.c")
+target_include_directories(display_ui_theme PUBLIC "${FIRMWARE}/include")
+target_link_libraries(display_ui_theme PUBLIC lvgl)
 add_executable(display_simulator main.cpp
   "${FIRMWARE}/src/display/ui/walk_view.cpp"
   "${FIRMWARE}/src/display/ui/connection_view.cpp"
@@ -24,7 +31,7 @@ add_executable(display_simulator main.cpp
   "${FIRMWARE}/src/display/text_view.cpp"
   "${FIRMWARE}/src/led/led_state.cpp")
 target_include_directories(display_simulator PRIVATE "${FIRMWARE}/include")
-target_link_libraries(display_simulator PRIVATE lvgl)
+target_link_libraries(display_simulator PRIVATE display_ui_theme)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(display_simulator PRIVATE -Wall -Wextra -Werror -UNDEBUG)
 elseif(MSVC)
@@ -68,7 +75,6 @@ foreach(IDENTITY_DISPLAY IN ITEMS 0 1)
   endif()
   add_test(NAME "display_identity_api_${IDENTITY_DISPLAY}_contract" COMMAND ${API_TARGET})
 endforeach()
-set(IDENTITY_FONT_DIR "${FIRMWARE}/src/display/fonts" CACHE PATH "Identity font variant")
 add_executable(display_identity_test test_identity.cpp
   "${FIRMWARE}/src/display/ui/walk_view.cpp"
   "${FIRMWARE}/src/display/ui/connection_view.cpp"
@@ -80,7 +86,7 @@ add_executable(display_identity_test test_identity.cpp
   "${IDENTITY_FONT_DIR}/dog_name_28.c"
   "${IDENTITY_FONT_DIR}/dog_phone_18.c")
 target_include_directories(display_identity_test PRIVATE "${FIRMWARE}/include")
-target_link_libraries(display_identity_test PRIVATE lvgl)
+target_link_libraries(display_identity_test PRIVATE display_ui_theme)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(display_identity_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
 elseif(MSVC)
@@ -100,6 +106,7 @@ endif()
 add_test(NAME display_contact_qr_contract COMMAND display_contact_qr_test "${CMAKE_CURRENT_BINARY_DIR}/qr-test-output")
 add_test(NAME display_static_contract COMMAND display_simulator "${CMAKE_CURRENT_BINARY_DIR}/test-output")
 add_executable(display_port_test test_port.cpp
+  "${FIRMWARE}/src/display/identity_console.cpp"
   "${FIRMWARE}/src/display/identity_store.cpp"
   "${FIRMWARE}/src/display/identity_snapshot.cpp"
   "${FIRMWARE}/src/display/identity.cpp"
@@ -117,10 +124,11 @@ add_executable(display_port_test test_port.cpp
   "${FIRMWARE}/src/display/connection.cpp"
   "${FIRMWARE}/src/display/text_view.cpp"
   "${FIRMWARE}/src/led/led_state.cpp")
-target_include_directories(display_port_test PRIVATE test-support "${FIRMWARE}/include")
+target_include_directories(display_port_test PRIVATE test-support "${FIRMWARE}/include"
+  "${FIRMWARE}/.pio/libdeps/waveshare_lcd169_displaycheck/ArduinoJson/src")
 target_compile_definitions(display_port_test PRIVATE DOG_RGB_BOARD_WAVESHARE_LCD169_V2=1
   DOG_RGB_DISPLAY_ENABLED=1 DOG_RGB_DISPLAY_LVGL=1 DOG_RGB_BRINGUP_STAGE=3)
-target_link_libraries(display_port_test PRIVATE lvgl)
+target_link_libraries(display_port_test PRIVATE display_ui_theme)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(display_port_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
 elseif(MSVC)
@@ -129,6 +137,20 @@ endif()
 add_test(NAME display_port_contract COMMAND display_port_test)
 add_test(NAME display_port_failure COMMAND display_port_test fail)
 add_test(NAME display_port_identity_boot COMMAND display_port_test identity)
+add_executable(display_identity_console_test test_identity_console.cpp
+  "${FIRMWARE}/src/display/identity_console.cpp"
+  "${FIRMWARE}/src/display/identity_store.cpp"
+  "${FIRMWARE}/src/display/identity.cpp"
+  "${FIRMWARE}/src/display/contact.cpp")
+target_include_directories(display_identity_console_test PRIVATE test-support "${FIRMWARE}/include"
+  "${FIRMWARE}/.pio/libdeps/waveshare_lcd169_displaycheck/ArduinoJson/src")
+target_compile_definitions(display_identity_console_test PRIVATE DOG_RGB_BRINGUP_STAGE=3 DOG_RGB_DISPLAY_LVGL=1)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(display_identity_console_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+elseif(MSVC)
+  target_compile_options(display_identity_console_test PRIVATE /UNDEBUG)
+endif()
+add_test(NAME display_identity_console_contract COMMAND display_identity_console_test)
 add_executable(display_connection_adapter_test test_connection_adapter.cpp
   "${FIRMWARE}/src/display/connection_snapshot.cpp")
 target_include_directories(display_connection_adapter_test PRIVATE test-support "${FIRMWARE}/include")

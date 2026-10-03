@@ -1,0 +1,166 @@
+{
+  "date": "2026-09-12",
+  "scope": "Real display service, LVGL port and store; fake Arduino/SPI/NVS. No physical scan or timing claim.",
+  "tests": {
+    "ctest": 11,
+    "python_host": 147,
+    "builds": 3,
+    "prior_i6d_pngs_unchanged": 14
+  },
+  "host_lvgl_free_bytes": 31608,
+  "images": {
+    "boot-identity": {
+      "sha256": "116f97438a04069cd5dab4c077a28d64e75c1b2049288ab9622e858368df6f4c",
+      "decoded_count": 1,
+      "payload_matches": true
+    },
+    "identity": {
+      "sha256": "116f97438a04069cd5dab4c077a28d64e75c1b2049288ab9622e858368df6f4c",
+      "decoded_count": 1,
+      "payload_matches": true
+    },
+    "renamed": {
+      "sha256": "df83632296bd1adf789a749c498f2d5acf19bc6d246f6c0e9da4cd8dcd888fc1",
+      "decoded_count": 1,
+      "payload_matches": true
+    },
+    "call": {
+      "sha256": "1070132caea07561a9210f545187413c85951bf214c16c658d55908dd5ce0ecd",
+      "decoded_count": 1,
+      "payload_matches": true
+    },
+    "restored": {
+      "sha256": "116f97438a04069cd5dab4c077a28d64e75c1b2049288ab9622e858368df6f4c",
+      "decoded_count": 1,
+      "payload_matches": true
+    },
+    "activity-four": {
+      "sha256": "c8da27cc03a87851f767e8e5d03c98f2b0007c9623ef05746a0f0d1c7727d7e9",
+      "decoded_count": 0,
+      "payload_matches": true
+    },
+    "connection-four": {
+      "sha256": "88b1545ece1c540f7ad0346214834530659ee29e3629bb415888844710550a6d",
+      "decoded_count": 0,
+      "payload_matches": true
+    },
+    "status-four": {
+      "sha256": "e6b9f43d1156eea81603198ab96dadfafeaebcdf407ce86e40f2f836f82eded4",
+      "decoded_count": 0,
+      "payload_matches": true
+    },
+    "long-name": {
+      "sha256": "9812890a9fa36a6abc1836ee9c5d90af0a1cf7bd6e3d5112a3c454a1e255d645",
+      "decoded_count": 0,
+      "payload_matches": true
+    },
+    "disabled-qr": {
+      "sha256": "9812890a9fa36a6abc1836ee9c5d90af0a1cf7bd6e3d5112a3c454a1e255d645",
+      "decoded_count": 0,
+      "payload_matches": true
+    },
+    "cleared": {
+      "sha256": "5dd477e2d827c1b7bbd25fcc72b11254a7421819a1b0ec48cc7bda9db25a4356",
+      "decoded_count": 0,
+      "payload_matches": true
+    }
+  },
+  "builds": {
+    "seeed_xiao_esp32s3": {
+      "status": "SUCCESS",
+      "ram_bytes": 57636,
+      "flash_bytes": 1154219,
+      "firmware_sha256": "aa3016a0f7b8e5836a93059b8c4b5ebb10bb905524cf71393af188d479306859"
+    },
+    "waveshare_lcd169": {
+      "status": "SUCCESS",
+      "ram_bytes": 123068,
+      "flash_bytes": 1480739,
+      "firmware_sha256": "284417fd032844d358c73a0d5d8d1a6191756b8721ee986c592e3775a4b3a4bc"
+    },
+    "waveshare_lcd169_displaycheck": {
+      "status": "SUCCESS",
+      "ram_bytes": 123068,
+      "flash_bytes": 1482499,
+      "firmware_sha256": "861064af8835994af2cec8dc1693a87461e8d4032a7a1a03f0bd752abaeeb4c6"
+    }
+  },
+  "source_sha256": {
+    "Platformio/Dog-RGB/src/display/display.cpp": "ea98c74de18abeb55d72ccd9df77d6408fc60a14e5e19b69745308d5b7ff72fd",
+    "Platformio/Dog-RGB/src/display/lvgl_port.cpp": "4808bf30b63a28e670b6a46e2f5057c9cd2549f4914fb7bdb1738f2f81292127",
+    "Platformio/Dog-RGB/include/display/lvgl_port.h": "b28ff04aa3ab0d95b383eae79cdd863ec524c3130b65881c1b25a6684c9657a5",
+    "Platformio/Dog-RGB/include/display/identity_snapshot.h": "491d453c7451e79c67f58cbdc4d5d243e59132620be247cac7edc1062288564c",
+    "Platformio/Dog-RGB/src/display/identity_snapshot.cpp": "14c507e69a952a9755b3023a2496a3bd464241559d0cc0df370d2b54cc27de20",
+    "tools/display-simulator/CMakeLists.txt": "1eb61c29109d6eec55bd691df3c5ae0af6877752ba28d4d603f1ea132ee9d287",
+    "tools/display-simulator/test_port.cpp": "a1e4306ec61cf2649166fc39b71cfc2c9d941b5e5b32e8e886c69b57eb7bdb83",
+    "tools/display-simulator/render_port.py": "929053ccd2fb54a6f81010e76254d10de8380e762c572bff4fe58a03c95a78fb",
+    "Platformio/Dog-RGB/tools/display_bench.py": "1cc2d07835d083fac8d01746fbdc7eb55600485460fc3b5602d71f175897c393",
+    "Platformio/Dog-RGB/src/display/ui/connection_view.cpp": "1c1ebcf083ab5e2421c6710402f8438ec34ef61aa533d7e5859b1f335bf080f6",
+    "Platformio/Dog-RGB/src/display/ui/contact_qr.cpp": "3b2d299eece601f246ece651bcf571232900d602c90db40375792f44c0d6799d",
+    "Platformio/Dog-RGB/src/display/ui/identity_view.cpp": "8f44f1e457e41eb5d6f9fa8ee21cfb2178f478bc390a2f3f6f044c6243a6e19f",
+    "Platformio/Dog-RGB/src/display/ui/status_view.cpp": "d34c6a02125eb712be63b0659aa31fa960420786085f3a050ab484735c96023f",
+    "Platformio/Dog-RGB/src/display/ui/walk_view.cpp": "783b8c50222e5db1c110e894bbbc92a61c71352e837e41aac2c405f3c24fdc3f"
+  },
+  "usb_initial": {
+    "duration_s": 45.14099999999962,
+    "lcd_reports": 80,
+    "system_reports": 2,
+    "lcd_tick_max_us": 43879,
+    "lcd_draw_p95_upper_max_us": 50000,
+    "lcd_pages": [
+      "activity",
+      "connection",
+      "status"
+    ],
+    "lcd_last": {
+      "ready": 1,
+      "enabled": 1,
+      "light": 1,
+      "test": 0,
+      "demo": 0,
+      "sample_ms": 71986,
+      "pending": 0,
+      "init_us": 681158,
+      "draw_ticks": 8,
+      "rows": 0,
+      "draw_max_us": 43879,
+      "p95_upper_us": 50000,
+      "tick_max_us": 43879,
+      "ui": "lvgl",
+      "flushes": 96,
+      "pixels": 410464,
+      "flush_max_us": 2676,
+      "lv_free": 38768,
+      "lv_largest": 38768,
+      "page": "connection",
+      "clicks": 3,
+      "idle_ms": 0,
+      "idle": 0,
+      "timeouts": 0,
+      "qr_generations": 0
+    },
+    "heap": {
+      "first": 156980,
+      "last": 156976,
+      "min": 156976,
+      "max": 156980
+    },
+    "min_heap": {
+      "first": 156756,
+      "last": 156756,
+      "min": 156756,
+      "max": 156756
+    },
+    "gps_overflow": {
+      "first": 0,
+      "last": 0,
+      "min": 0,
+      "max": 0
+    },
+    "fatal_markers": [],
+    "malformed_records": 1,
+    "gps_clock_regressions": 0,
+    "scope": "COM6, no identity configured, GPS/LED absent; injected USB page/wake commands, not physical BOOT or QR acceptance"
+  },
+  "firmware_flashed": true
+}

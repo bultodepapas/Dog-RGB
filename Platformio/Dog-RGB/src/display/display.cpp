@@ -12,6 +12,10 @@
 #endif
 #if DOG_RGB_BRINGUP_STAGE == 3
 #include "bringup/display_demo.h"
+#if DOG_RGB_DISPLAY_LVGL == 1
+#include "display/identity_console.h"
+#include "display/identity_store.h"
+#endif
 #endif
 
 #if DOG_RGB_DISPLAY_ENABLED != 1
@@ -138,10 +142,28 @@ uint32_t p95_upper_us() {
   return max_tick_us;
 }
 #if DOG_RGB_BRINGUP_STAGE == 3
+// USB access is a physical bench capability, compiled out of product/Classic.
+#if DOG_RGB_DISPLAY_LVGL == 1
+IdentityConsole identity_console;
+void identity_reply(const char *status) {
+  if (!status) return;
+  char line[112];
+  const int n = snprintf(line, sizeof(line), "\n[IDENTITY] version=1 status=%s generation=%lu configured=%d\n",
+      status, static_cast<unsigned long>(identity::generation()), identity::configured());
+  if (n > 0 && static_cast<size_t>(n) < sizeof(line)) Serial.write(reinterpret_cast<const uint8_t *>(line), n);
+}
+#endif
 void commands() {
-  // Bounded USB input. Commands change only the LCD service, never GPS/LEDs/NVS.
+  // Eight bytes per loop. Only the explicit 'j' frame can write identity NVS.
+#if DOG_RGB_DISPLAY_LVGL == 1
+  identity_reply(identity_console.poll(millis()));
+#endif
   for (unsigned n = 0; n < 8 && Serial.available() > 0; ++n) {
-    switch (Serial.read()) {
+    const auto byte = static_cast<uint8_t>(Serial.read());
+#if DOG_RGB_DISPLAY_LVGL == 1
+    if (identity_console.active()) { identity_reply(identity_console.feed(byte, millis())); continue; }
+#endif
+    switch (byte) {
       case 't': test_pattern = true; redraw = true; break;
       case 'v': demo = false; test_pattern = false; redraw = true; break;
       case 'f':
@@ -155,6 +177,7 @@ void commands() {
       case 'c': choose_page(lvgl_port::Page::Connection); break;
       case 'e': choose_page(lvgl_port::Page::Status); break;
       case 'p': choose_page(lvgl_port::Page::Identity); break;
+      case 'j': identity_console.begin(millis()); identity_reply("ready"); break;
       case 'n': click(); break; // Same event as a debounced BOOT release.
       case 'i': if (lvgl_ready) inactivity.configure(30000, millis()); break;
       case 'o': inactivity.configure(0, millis()); break; // Disable, without waking.

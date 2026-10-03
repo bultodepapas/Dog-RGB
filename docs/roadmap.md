@@ -55,7 +55,7 @@ per service call after reduced page redraw and staged margin restoration.
 [Baseline I6a](baselines/display-i6-2026-09-12.md) records the exact image and
 limits; full optical/radio and GNSS/LED/HTTP joint acceptance remain open. I6c adds an opt-in bench timeout, disabled on boot; see the [guide](../Platformio/Dog-RGB/docs/display-i6c.md).
 
-[VIS-3 integration](baselines/display-vis3-2026-09-12.md) now connects the saved identity to conditional three/four-page navigation. Physical contact configuration, QR/BOOT/reboot acceptance remain open. Next software increment is VIS-4 visual consistency, followed by measured motion; this does not close V2/V3.
+[VIS-3 integration](baselines/display-vis3-2026-09-12.md) connects the saved identity to conditional three/four-page navigation. [USB setup, persistence, physical QR and BOOT](baselines/display-identity-usb-2026-09-12.md) have basic bench acceptance. [VIS-4](baselines/display-vis4-2026-09-12.md) adds shared styling and pet-name headers, built and loaded with 30 USB navigation changes verified; new header optical review is pending. Next is VIS-5 temporal captures and one measured optional indicator transition. AP, expanded optical conditions and V2/V3 remain open.
 
 [28 GitHub/MCP investigations](display-github-research-2026-09-12.md) refine that
 step into VIS-1a (bounded QR, explicit margin, independent decoder) and VIS-1b

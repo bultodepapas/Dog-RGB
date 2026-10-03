@@ -36,7 +36,8 @@ no se pone a cero con `r`. No imprime nombre, teléfono ni payload por serial.
 Configurar desde `/config`, sección **Placa de mi perro**, con teléfono
 internacional explícito y canal WhatsApp/llamada/desactivado. La identidad real
 no se compila como fixture ni como valor por defecto. Para lectura del QR no
-hace falta conectarse al AP; para editar sí se requiere acceso al portal local.
+hace falta conectarse al AP. El portal es la vía de producto; el diagnóstico
+etapa 3 ofrece ahora [configuración USB](identity-usb.md) si el AP no es accesible.
 Contrato de persistencia/HTTP: [API](../../../docs/display-identity-api.md).
 
 ## Verificación reproducible
@@ -49,7 +50,7 @@ tools/display-simulator/build/qr-venv/Scripts/python.exe tools/display-simulator
 ```
 
 El segundo usa el entorno de [decoder fijado](../../../tools/display-simulator/README.md).
-Once CTest incluyen el arranque separado con identidad persistida y el servicio
+Doce CTest incluyen el arranque separado con identidad persistida y el servicio
 real junto al store/adapter reales, con Arduino/SPI/Preferences de prueba.
 Once capturas del framebuffer SPI comprueban cinco QR y seis vistas sin QR.
 Incluye copia sin alias, fallo de guardado, renombrar sin regenerar, edición en

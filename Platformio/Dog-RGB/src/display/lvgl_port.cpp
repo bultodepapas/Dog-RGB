@@ -91,6 +91,8 @@ void set_identity(const IdentitySnapshot &identity) {
   const auto &contact = identity_view.contact();
   const bool available = identity_view.name().result == NameResult::Ready && contact.phone[0] &&
       (contact.result == ContactResult::Ready || contact.result == ContactResult::Disabled);
+  const char *name = available ? identity.name : "";
+  walk.set_pet_name(name); connection_view.set_pet_name(name); status_view.set_pet_name(name);
   if (available == has_identity) return;
   has_identity = available;
   walk.set_page_indicator(has_identity ? "2/4" : "1/3");

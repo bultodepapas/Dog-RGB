@@ -142,3 +142,22 @@ tools/display-simulator/build/qr-venv/Scripts/python.exe tools/display-simulator
 Output is `output/port/`; all contacts are synthetic. This does not establish
 physical QR readability, NVS power-cut behavior or SPI performance. See the
 [VIS-3 guide](../../Platformio/Dog-RGB/docs/display-vis3.md).
+
+## Identity USB bench transport
+
+`render.py` runs twelve contracts after the USB extension. `IdentityConsole`
+is compiled only in stage 3; tests cover bounded framing, timeout/overflow drain,
+malformed data, concurrent edits and the real store. The port test verifies that
+JSON bytes never become LCD commands and saving does not wake the screen.
+The product and Classic do not include this transport. See the
+[USB guide](../../Platformio/Dog-RGB/docs/identity-usb.md).
+
+## Shared owner-page header (VIS-4)
+
+The main renderer now exports 21 captures (14 states plus seven name/demo/Unicode
+header fixtures). Actual port exports remain eleven. The three owner views use
+`ui_theme`/`PageHeader` and the generated 14 px name font. Tests cover measured
+UTF-8 abbreviation, every accepted Latin-1 letter, fixed demo labeling, bounds,
+no-op flush suppression and stable memory across repeated name/demo changes.
+All seven identity-page port frames remain pixel-identical to VIS-3.
+See [VIS-4](../../Platformio/Dog-RGB/docs/display-vis4.md).

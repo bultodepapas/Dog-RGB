@@ -41,9 +41,11 @@ void verify_layout(lv_obj_t *screen) {
   lv_obj_update_layout(screen);
   for (uint32_t i = 0; i < lv_obj_get_child_cnt(screen); ++i) {
     auto *obj = lv_obj_get_child(screen, i);
+    if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) continue;
     lv_area_t area; lv_obj_get_coords(obj, &area);
     assert(area.x1 >= 20 && area.x2 < 220 && area.y1 >= 20 && area.y2 < 264);
     for (uint32_t j = 0; j < i; ++j) {
+      if (lv_obj_has_flag(lv_obj_get_child(screen, j), LV_OBJ_FLAG_HIDDEN)) continue;
       lv_area_t other; lv_obj_get_coords(lv_obj_get_child(screen, j), &other);
       const bool separated = area.x2 < other.x1 || other.x2 < area.x1 || area.y2 < other.y1 || other.y2 < area.y1;
       if (!separated) std::cerr << "overlap children " << i << " / " << j << " at y=" << area.y1 << ".." << area.y2 << " / " << other.y1 << ".." << other.y2 << '\n';
@@ -61,7 +63,7 @@ void verify_layout(lv_obj_t *screen) {
 bool contains(lv_obj_t *screen, const char *value) {
   for (uint32_t i = 0; i < lv_obj_get_child_cnt(screen); ++i) {
     auto *obj = lv_obj_get_child(screen, i);
-    if (lv_obj_check_type(obj, &lv_label_class) && strcmp(lv_label_get_text(obj), value) == 0) return true;
+    if (!lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) && lv_obj_check_type(obj, &lv_label_class) && strcmp(lv_label_get_text(obj), value) == 0) return true;
   }
   return false;
 }
@@ -96,7 +98,7 @@ int main(int argc, char **argv) {
     if (name) save(output / (std::string(name) + ".ppm"));
   };
   render("searching");
-  assert(contains(walk.screen(), "-- km/h") && contains(walk.screen(), "RGB DOG / DEMO"));
+  assert(contains(walk.screen(), "-- km/h") && contains(walk.screen(), "GPS DEMO"));
   sample.gps_state = gps::ReceptionState::Fix; sample.speed_valid = true; sample.speed_kph = 7.2f;
   render("fix"); assert(contains(walk.screen(), "7.2 km/h"));
   const auto before = flushes;
@@ -127,7 +129,7 @@ int main(int argc, char **argv) {
   assert(after.free_size == baseline.free_size && after.free_biggest_size >= 16000);
   walk.update(display::format_view(sample), false);
   lv_refr_now(disp);
-  assert(contains(walk.screen(), "RGB DOG") && !contains(walk.screen(), "RGB DOG / DEMO"));
+  assert(contains(walk.screen(), "RGB DOG") && !contains(walk.screen(), "GPS DEMO"));
   display::ConnectionSnapshot connection;
   connection.ap_enabled = true;
   snprintf(connection.ap_ssid, sizeof(connection.ap_ssid), "%s", "DogRGB"); snprintf(connection.ap_ip, sizeof(connection.ap_ip), "%s", "192.168.4.1");
@@ -218,14 +220,66 @@ int main(int argc, char **argv) {
   render_status(nullptr);
   assert(contains(status.screen(), "Estado desconocido") && contains(status.screen(), "Aviso no identificado"));
   status.update(display::format_status(sample.gps_state, lights), true);
-  lv_refr_now(disp); verify_layout(status.screen()); assert(contains(status.screen(), "RGB DOG / GPS DEMO"));
+  lv_refr_now(disp); verify_layout(status.screen()); assert(contains(status.screen(), "GPS DEMO"));
   assert(!contains(status.screen(), "Guardado"));
+  // VIS-4: shared header across all owner pages; Unicode and constrained demo width.
+  sample.gps_state = gps::ReceptionState::Fix;
+  lights = {}; lights.transport_enabled = true;
+  snprintf(connection.ap_ssid, sizeof(connection.ap_ssid), "%s", "DogRGB");
+  snprintf(connection.sta_ssid, sizeof(connection.sta_ssid), "%s", "Casa");
+  const auto header_frame = [&](const char *pet, bool demo, unsigned page, const char *file) {
+    walk.set_pet_name(pet); networks.set_pet_name(pet); status.set_pet_name(pet);
+    walk.set_page_indicator("2/4"); networks.set_page_indicator("3/4"); status.set_page_indicator("4/4");
+    walk.update(display::format_view(sample), demo, "Portal disponible");
+    networks.update(display::format_connection(connection), demo);
+    status.update(display::format_status(sample.gps_state, lights), demo);
+    lv_obj_t *pages[] = {walk.screen(), networks.screen(), status.screen()};
+    for (unsigned i = 0; i < 3; ++i) {
+      if (i == page) lv_obj_clear_flag(pages[i], LV_OBJ_FLAG_HIDDEN);
+      else lv_obj_add_flag(pages[i], LV_OBJ_FLAG_HIDDEN);
+      verify_layout(pages[i]);
+    }
+    lv_refr_now(disp);
+    if (file) save(output / (std::string(file) + ".ppm"));
+  };
+  header_frame("FREYA", false, 0, "owner-activity"); assert(contains(walk.screen(), "FREYA"));
+  header_frame("FREYA", true, 1, "owner-wifi-demo");
+  assert(contains(networks.screen(), "FREYA") && contains(networks.screen(), "GPS DEMO"));
+  header_frame("Ren\xc3\xa9", false, 2, "owner-accent"); assert(contains(status.screen(), "Ren\xc3\xa9"));
+  header_frame("Ni\xc3\xb1o", true, 0, "owner-enye-demo"); assert(contains(walk.screen(), "Ni\xc3\xb1o"));
+  header_frame("Maximiliano de la Sierra", false, 0, "owner-long");
+  header_frame("WWWWWWWWWWWWWWWWWWWWWWWW", true, 2, "owner-wide-demo");
+  header_frame("Rene\xcc\x81", false, 1, "owner-invalid"); assert(contains(networks.screen(), "RGB DOG"));
+  // Every accepted non-ASCII glyph exists; full-width extreme names remain single line.
+  for (unsigned cp = 0xc0; cp <= 0xff; ++cp) {
+    if (cp == 0xd7 || cp == 0xf7) continue;
+    lv_font_glyph_dsc_t glyph; assert(lv_font_get_glyph_dsc(&dog_name_14, &glyph, cp, 0));
+    std::string name;
+    for (unsigned i = 0; i < 24; ++i) { name += char(0xc0 | (cp >> 6)); name += char(0x80 | (cp & 63)); }
+    header_frame(name.c_str(), true, 0, nullptr);
+  }
+  header_frame("FREYA", false, 0, nullptr);
+  lv_mem_monitor_t header_before; lv_mem_monitor(&header_before);
+  const auto header_flushes = flushes;
+  // No setters/redraw for unchanged content (avoid touching visibility flags in this check).
+  for (unsigned i = 0; i < 100; ++i) {
+    walk.set_pet_name("FREYA"); walk.update(display::format_view(sample), false, "Portal disponible");
+    lv_refr_now(disp);
+  }
+  assert(flushes == header_flushes);
+  for (unsigned i = 0; i < 30; ++i) {
+    header_frame("Maximiliano de la Sierra", true, 2, nullptr);
+    header_frame("Ren\xc3\xa9", false, 1, nullptr);
+    header_frame("FREYA", false, 0, nullptr);
+  }
+  lv_mem_monitor_t header_after; lv_mem_monitor(&header_after);
+  assert(header_after.free_size == header_before.free_size);
   display::ReleaseButton button;
   button.begin(true, 0); assert(!button.update(false, 10)); assert(!button.update(false, 50));
   button.begin(false, UINT32_MAX - 100);
   assert(!button.update(true, UINT32_MAX - 60)); assert(!button.update(true, UINT32_MAX - 20));
   assert(!button.update(false, 20)); assert(button.update(false, 60)); assert(!button.update(false, 100));
   std::cout << "LVGL " << LVGL_VERSION_MAJOR << '.' << LVGL_VERSION_MINOR << '.' << LVGL_VERSION_PATCH
-            << ": fourteen captures, non-overlapping bounds, unchanged updates, validity, retained distance, modes, demo isolation passed; "
+            << ": twenty-one captures, non-overlapping bounds, unchanged updates, validity, retained distance, modes, demo isolation passed; "
             << "pool_free=" << after.free_size << " largest=" << after.free_biggest_size << '\n';
 }

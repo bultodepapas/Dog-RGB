@@ -2,7 +2,7 @@
 import json
 import shutil
 import subprocess
-import tempfile
+from native_temp import native_temp_dir
 import unittest
 from pathlib import Path
 
@@ -120,7 +120,7 @@ class BoardProfileTests(unittest.TestCase):
             [DISPLAY], [DISPLAY, "DOG_RGB_BRINGUP_STAGE=0"],
         ]
         for flags in selections:
-            with self.subTest(flags=flags), tempfile.TemporaryDirectory() as directory:
+            with self.subTest(flags=flags), native_temp_dir() as directory:
                 folder = Path(directory)
                 (folder / "Arduino.h").write_text(ARDUINO_STUB, encoding="utf-8")
                 (folder / "esp_system.h").write_text(

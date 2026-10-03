@@ -1,0 +1,104 @@
+{
+  "date": "2026-09-12",
+  "scope": "VIS-4 owner-page header and shared theme; Placa unchanged.",
+  "tests": {
+    "native_ctest": 12,
+    "python_host": 152,
+    "builds": 3,
+    "main_captures": 21,
+    "port_captures": 11,
+    "unchanged_identity_frames": 7
+  },
+  "builds": {
+    "seeed_xiao_esp32s3": {
+      "status": "SUCCESS",
+      "ram_bytes": 57636,
+      "flash_bytes": 1154219,
+      "firmware_sha256": "fb82bbffaf0e17817dd7792ca909587d9c161fc0e5c7744d555f3d502bb24354"
+    },
+    "waveshare_lcd169": {
+      "status": "SUCCESS",
+      "ram_bytes": 123268,
+      "flash_bytes": 1488279,
+      "firmware_sha256": "9cb136a0f2cb67ba9a44def66fc6ebddc637c096a0a54fe4312b36810f6739b1"
+    },
+    "waveshare_lcd169_displaycheck": {
+      "status": "SUCCESS",
+      "ram_bytes": 123804,
+      "flash_bytes": 1493703,
+      "firmware_sha256": "80e37e4cf559e82c99a98c7cb5e86063bd94890c3773486084bd7baf63b8fdb6"
+    }
+  },
+  "source_sha256": {
+    "Platformio/Dog-RGB/include/display/ui_theme.h": "1bf9072656af22a36d24dc0936da3aa642542e7110005fa0473094f4b8d44c76",
+    "Platformio/Dog-RGB/src/display/ui/ui_theme.cpp": "19b5731295fcdfb148104cdfb8b1520900d28502aeadd84900d91b5674182de1",
+    "Platformio/Dog-RGB/src/display/fonts/dog_name_14.c": "8e8c9e4556d8f3f98470c37cf0c6635a7caa154bbfe78a1ff72c974aa4c25d97",
+    "Platformio/Dog-RGB/src/display/lvgl_port.cpp": "7a131683eb3f6d703c1268da329b727f4f17052a3764c1ac62576bd2712ba571",
+    "tools/display-fonts/generate.py": "21303dacc84d351a9acffa87b6491c6d78fc2116dda58932746fc7c1bfa6ed16",
+    "tools/display-fonts/manifest.json": "bfe05cb6d81a8dc7a415f07916aae429b2c2c248a7acfb21070386526ac5c1d5",
+    "tools/display-simulator/main.cpp": "94c7188ec3541883cc2b0bd7e1deee489916aa043bec6bf1fcb966e0e17947e9",
+    "tools/display-simulator/CMakeLists.txt": "d8f36798403f4d250fe1e0781344a7f8e563beb419810ba2b2d5fadf1a896dc9",
+    "Platformio/Dog-RGB/src/display/ui/walk_view.cpp": "d56d9b7475f07b4315a60774d671831781b121e220a6e7d1c6d01df8acdd3cec",
+    "Platformio/Dog-RGB/include/display/walk_view.h": "162727dea56fc3ca2cfffffccaa10df56bf5e6d99476afb0095af78bfbbc6065",
+    "Platformio/Dog-RGB/src/display/ui/connection_view.cpp": "a917d64430cb02cee9bdb48a147f72ab8c0367d48a555fbc260bd6d741f788f5",
+    "Platformio/Dog-RGB/include/display/connection_view.h": "42247f046c213d278102b46d4395569c909b7be44e91aee12782d6023580c36a",
+    "Platformio/Dog-RGB/src/display/ui/status_view.cpp": "91b2728d529470abf02cfa929e7152e5c85f7c5a8eaee0966d03f5558303dbef",
+    "Platformio/Dog-RGB/include/display/status_view.h": "a4ccbc6a6ce3e81460640e523bebc7c2fbf481d52f95174ece10ae13381486c0"
+  },
+  "images": {
+    "activity-four.png": "b8cf91925d5574f5b7e4811d993f0330b13d12b416d6ccc99294e6c43cec5c9f",
+    "connection-ap.png": "63718a8a9c1369e2bdfa7a2d85f80f947b2bb81720c78ce0b44c739f9b665df8",
+    "connection-both.png": "8f1816246e2a1c20b18adb280cc00760d6fd3ecae8c0182a34d9cf3d41fdf407",
+    "connection-four.png": "4c9eaed0488ac3f8004872f66ba885c1e9725281089c9db5955732c44e76aae5",
+    "connection-idle.png": "e94ff0b3397c00f53d19cdafe8becbd66832a77d72a169e2a80c74dfeffde8fe",
+    "connection-long.png": "5fe94f721f3810447b16f9a86756c1df26afac90a09ca33ff2eeb094fdaadf9b",
+    "connection-off.png": "85fd864d7a394c2c2f51d4702bb7bd86928d6f1b2c76835f859423cf6dbef0d0",
+    "connection-trying.png": "65c5dc3a58427b8fb7811b750e4227d81b09de09da456ccd3f78be832b7516b6",
+    "fix.png": "902048b4ec9efd9d4852eb5fa698a05bf944d22777264732abab2352a415e77e",
+    "owner-accent.png": "0482475d3bedaf8b3b7c517498b589f718cb1ba618cde5df8eacf98fb2a5a4b0",
+    "owner-activity.png": "07b87a78459c153362a73c14f55603dc71867741a41e9d7a369014b1e1813b32",
+    "owner-enye-demo.png": "37922c091fe723811b9bf519b7ceb336ce11713d39d417467ac10c1e0d47bb62",
+    "owner-invalid.png": "eb76f13df54214e48cb3a0411ad8af7dafb9b508c2ac2b4e8f28b162e4276b30",
+    "owner-long.png": "488ab2e856f0ba1f96e9c7d0611f24a4aa7ff14d29c525919732daba8e436289",
+    "owner-wide-demo.png": "435fb0bd2cdac68324a470770dfbf0d4026c3590df5985aeac073ec0b6c74984",
+    "owner-wifi-demo.png": "4569e616b5a477d72c0bef83d7335a6e300e15be9f2194ae3a9b379c83861d99",
+    "searching.png": "b78e2263e88a6cea4f18a5d5ec74f46eaa5c30ede594cfccf102501af0a8dbc9",
+    "stale.png": "d0ee5fa093dbacdec99cadc096cdaa49c58741b82a780e898b706a1382d30f8d",
+    "status-alert.png": "284d97a1e45f46ecb3bf17e3e72467d96caa2aba7b860594322508ea109798a8",
+    "status-day.png": "0aa44bf69138ff7abe234110a07d3cf8ff9ceee419715b74613c098ede205306",
+    "status-fix.png": "e593cf8a5d9968e6ce9f0992dbf38e102ca9bc856cb9f9cc4f772647779f91f8",
+    "status-four.png": "9d0a73ea24f9528e5e90920073eb3a057f0d1399e4c9173a3531c24bdb9b28e0",
+    "status-no-data.png": "317c2efca73009a059fbda6e2741094e5fa20d0652013a53ccf7831bea5d7e1b",
+    "status-paused.png": "12f86f7358b1fd8bb23639279a208b3496512e3f3fdf978e9a9a0d59731bac25"
+  },
+  "host_pool_free_bytes": 30584,
+  "font_14_object_text_bytes": 7426,
+  "font_14_object_bss_bytes": 8,
+  "physical_usb": {
+    "samples": 113,
+    "navigation_changes": 30,
+    "wake_same_page": true,
+    "next_click_advances": true,
+    "qr_generations": 1,
+    "draw_max_us": 45863,
+    "mixed_navigation_p95_upper_us": 50000,
+    "lv_pool_free_final_bytes": 38084,
+    "lv_largest_final_bytes": 38084,
+    "final_page": "activity",
+    "final_demo": false,
+    "final_light": true,
+    "optical_header_review": "pending",
+    "identity_receipt": {
+      "operation": "status",
+      "status": "ready",
+      "generation": 1,
+      "configured": true
+    },
+    "flashed_firmware_sha256": "80e37e4cf559e82c99a98c7cb5e86063bd94890c3773486084bd7baf63b8fdb6",
+    "local_evidence_sha256": {
+      "navigation.log": "b90692c6a032f8c719f3989e16c4e7ecb7b1b7b3049e8a60df346b5c7c0bd490",
+      "upload.log": "3a9b780dfc4f315e3c462d44a044572723da763b3c53feab66cdcdb35593aad1",
+      "identity-receipt.json": "1c4b0c5f9fe8ee38f9f70b0f0fc65913dff47cd30f26d1e963abb3ebc80b1f18"
+    }
+  }
+}

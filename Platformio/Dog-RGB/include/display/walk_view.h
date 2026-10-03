@@ -1,5 +1,6 @@
 #pragma once
 #include <lvgl.h>
+#include "display/ui_theme.h"
 #include "display/text_view.h"
 
 namespace display {
@@ -9,11 +10,11 @@ class WalkView {
   bool begin(const TextView &view, bool demo, const char *connection = "", lv_obj_t *parent = nullptr);
   void update(const TextView &view, bool demo, const char *connection = "");
   void set_page_indicator(const char *text);
+  void set_pet_name(const char *name) { header_.set_name(name); }
   lv_obj_t *screen() const { return screen_; }
  private:
-  lv_obj_t *page_indicator_ = nullptr;
+  ui::PageHeader header_;
   lv_obj_t *screen_ = nullptr;
-  lv_obj_t *title_ = nullptr;
   lv_obj_t *status_ = nullptr;
   lv_obj_t *speed_ = nullptr;
   lv_obj_t *distance_ = nullptr;

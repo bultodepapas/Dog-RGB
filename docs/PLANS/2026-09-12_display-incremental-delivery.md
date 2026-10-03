@@ -44,8 +44,8 @@ decoder independiente; VIS-1b integra tipografía y layouts A/B.
 [VIS-1a ya está implementado y verificado en host](../baselines/display-vis1a-2026-09-12.md).
 [VIS-1b ya está implementado y verificado en host](../baselines/display-vis1b-2026-09-12.md).
 [VIS-2, persistencia/editor, está implementado en software](../baselines/display-vis2-2026-09-12.md).
-VIS-3 integra identidad y navegación de tres/cuatro páginas; aceptación física
-en curso. [Evidencia](../baselines/display-vis3-2026-09-12.md). Drivers alternativos
+VIS-3 integra identidad y navegación de tres/cuatro páginas; contacto, reinicio,
+QR y BOOT aceptados en banco USB. [Evidencia](../baselines/display-identity-usb-2026-09-12.md). Drivers alternativos
 y editores siguen opcionales.
 
 Secuencia visual activa: VIS-1 prototipo LVGL de identificación/QR → VIS-2 datos,
@@ -558,7 +558,10 @@ Una entrada breve bajo `docs/baselines/` debe indicar: objetivo, commit y board/
 | I6 | I6a/I6c confirmados; I6d implementado con evidencia separada. Producto sin timeout automático; V1 restante/V3 abiertos; I6b/I6e sin iniciar |
 | I7 | Identidad/QR priorizados mediante VIS-1a/1b y siguientes; otras extensiones opcionales |
 
-Próximo trabajo: completar configuración y aceptación física VIS-3; después VIS-4. Mantener V1 restante y V2 cuando haya periféricos,
+VIS-4 implementado/cargado: tema y cabeceras con nombre; 30 cambios USB verificados,
+lectura física nueva pendiente. [Evidencia](../baselines/display-vis4-2026-09-12.md).
+Próximo trabajo: VIS-5, captura temporal y un indicador animado opcional medido;
+AP y matriz óptica ampliada pendientes. Mantener V1 restante y V2 cuando haya periféricos,
 seguido de V3. Recuperar Wokwi cuando CLI/token estén disponibles como tarea de
 regresión Classic independiente; no acredita el panel Waveshare. Los targets
 Display siguen experimentales y el uso portátil permanece sin validar.

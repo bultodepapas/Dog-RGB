@@ -64,8 +64,11 @@
 - [x] VIS-1b host: identity layouts A/B, 28/18 px fonts, complete name/phone; NFC alphabet/UTF-8/width contracts, 13 fixtures with independent QR checks and stable pool. [Baseline](baselines/display-vis1b-2026-09-12.md).
 - [x] VIS-2 software: identity A/B store, local API/editor, NFC, independent dirty state and generation conflicts. [Baseline](baselines/display-vis2-2026-09-12.md).
 - [x] VIS-3 software: owned store snapshot, conditional boot, four-page cycle, live edits/deletion without wake, QR caching and eleven native contracts. [Baseline](baselines/display-vis3-2026-09-12.md).
-- [ ] VIS-3 physical: configure local contact, optical QR, four-page BOOT and persisted-identity reboot acceptance.
-- [ ] VIS-4–5: shared visual components, then one measured optional transition; V3 acceptance stays open.
+- [x] VIS-3 basic USB bench: contact saved, survives reset, QR/phone readability and physical four-page BOOT confirmed. [Evidence](baselines/display-identity-usb-2026-09-12.md).
+- [ ] VIS-3 remaining: AP access and expanded optical/portable conditions; joint V2/V3 unchanged.
+- [x] VIS-4 software/USB: shared theme and pet-name headers; 21+11 captures, 12 native/152 Python tests, three builds and 30 USB navigation changes. [Evidence](baselines/display-vis4-2026-09-12.md).
+- [ ] VIS-4 physical reading: owner confirmation of the new Activity/Wi-Fi/State headers.
+- [ ] VIS-5: deterministic temporal captures, then one measured optional indicator transition; cancellation/wake and instant comparison required. V3 acceptance stays open.
 - [ ] I7 other extensions: identity is prioritized through VIS; walk lifecycle, calibrated battery, international SSID typography, IMU/RTC and contextual alerts remain separate optional increments.
 - [x] Pause reconciliation: governing plan, usage/workflow, research notes, queue and indexes aligned with I6a; that documentation-only pause was subsequently ended by the owner.
 

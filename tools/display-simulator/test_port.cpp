@@ -246,4 +246,21 @@ int main(int argc, char **argv) {
   for (unsigned i = 0; i < 30; ++i) { command('s'); command('l'); pump(5); }
   assert(display::lvgl_port::stats().free_bytes == identity_memory);
   std::cout << "VIS-3 pool free=" << identity_memory << " largest=" << display::lvgl_port::stats().largest_free << '\n';
+  // Explicit USB frame owns its bytes; embedded LCD command letters do nothing.
+  command('j'); assert(Serial.output.find("status=ready") != std::string::npos);
+  const auto state_before = report();
+  const auto writes_before = storage::test_prefs.writes;
+  Serial.input = "npdfbxxx\n";
+  display::tick(); assert(Serial.input == "\n"); // Still eight bytes per service.
+  display::tick();
+  assert(Serial.output.find("status=fields") != std::string::npos);
+  assert(storage::test_prefs.writes == writes_before && report() == state_before);
+  command('b'); command('j');
+  Serial.input = "{\"name\":\"LUNA\",\"phone\":\"+100000000000\",\"qr_kind\":\"whatsapp\",\"expected_generation\":" +
+      std::to_string(identity::generation()) + "}\n";
+  while (!Serial.input.empty()) display::tick();
+  pump(10); assert(light_level == LOW);
+  assert(!strcmp(identity::get().name, "LUNA") && Serial.output.find("status=saved") != std::string::npos);
+  assert(Serial.output.find("LUNA") == std::string::npos && Serial.output.find("+100000000000") == std::string::npos);
+  command('n'); has("page=identity"); assert(light_level == HIGH);
 }

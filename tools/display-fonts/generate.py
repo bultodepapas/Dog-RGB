@@ -29,7 +29,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(ROOT / 'source/OFL.txt', OUT / 'OFL.txt')
     outputs = {}
-    for size, name, glyphs in [(28, 'dog_name_28', RANGE), (18, 'dog_phone_18', '0x2b,0x30-0x39')]:
+    for size, name, glyphs in [(14, 'dog_name_14', RANGE + ',0x2e'), (28, 'dog_name_28', RANGE), (18, 'dog_phone_18', '0x2b,0x30-0x39')]:
         for bpp in (2, 4):
             target = OUT / (name + '.c') if bpp == 4 else generated / (name + '.c')
             subprocess.run(['node', 'node_modules/lv_font_conv/lv_font_conv.js',

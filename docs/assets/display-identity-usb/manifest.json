@@ -1,0 +1,265 @@
+{
+  "date": "2026-09-12",
+  "scope": "Stage-3 USB identity setup, physical persistence/QR acceptance; AP and joint GPS/LED acceptance remain open.",
+  "tests": {
+    "native_ctest": 12,
+    "python_host": 152,
+    "firmware_builds": 3
+  },
+  "builds": {
+    "seeed_xiao_esp32s3": {
+      "status": "SUCCESS",
+      "ram_bytes": 57636,
+      "flash_bytes": 1154219,
+      "firmware_sha256": "7715966cb06c9ea926d36564c24def4e6646d47605e66da7721a718a39d39bb5"
+    },
+    "waveshare_lcd169": {
+      "status": "SUCCESS",
+      "ram_bytes": 123068,
+      "flash_bytes": 1480739,
+      "firmware_sha256": "ec0cbc980a0addc17a80927e6c808265dfde4fe08e07c7703d7340d27c664282"
+    },
+    "waveshare_lcd169_displaycheck": {
+      "status": "SUCCESS",
+      "ram_bytes": 123604,
+      "flash_bytes": 1486179,
+      "firmware_sha256": "f5f5b99a1b086921229343f6d0cdce4546fb787ea1d43bd1bbc6bca12a6a626d"
+    }
+  },
+  "source_sha256": {
+    "Platformio/Dog-RGB/include/display/identity_console.h": "8f42e13463215b4a07c12585e2fe04970a96769f7703385bc1dc2a455a874d61",
+    "Platformio/Dog-RGB/src/display/identity_console.cpp": "8fc85da531b5c4f25c187a27f794577faffa913a868a3fe2a691766460afdc12",
+    "Platformio/Dog-RGB/src/display/display.cpp": "f68ba98c8c2d2e0963977fb3e46a989c51d096e0239f3049ce19313136867ace",
+    "Platformio/Dog-RGB/tools/identity_usb.py": "2216cbadaad18714e77eeff51cb3dec2af3398efc8adb1bcba8804e1b9c162db",
+    "Platformio/Dog-RGB/test/test_identity_usb.py": "3d1760c0e899a219c4bff4df84caf5a947741a501ace1a4527f1f78f75ac3799",
+    "Platformio/Dog-RGB/test/native_temp.py": "ea7d7524e4739b620d89813907ddbddd320436af8c19afaaa961ccfe24b62328",
+    "Platformio/Dog-RGB/test/test_board_profiles.py": "4ef41db8fe78a006a3f7003faf6338d440fcbb5cf7665fb1d16c95ee179bda64",
+    "Platformio/Dog-RGB/test/test_gps_bringup.py": "68a319383e47aaf3dd227bc88109606e8e942944bbc1da6480e0447f3d762304",
+    "tools/display-simulator/test_identity_console.cpp": "4d2fa0617c787a8ef26f06047b2ac415075f2f350665603012d0bd6d49927591",
+    "tools/display-simulator/test_port.cpp": "52f0020a468293b3a875dae2754f310657346f2645f2e91100a4063dce6be1da",
+    "tools/display-simulator/CMakeLists.txt": "7c7cd6b7a802ec06ebadcf932c09474261672557facf84e0f5830603b47543bf"
+  },
+  "flashed_image_sha256": "f5f5b99a1b086921229343f6d0cdce4546fb787ea1d43bd1bbc6bca12a6a626d",
+  "save_receipt": {
+    "operation": "save",
+    "status": "saved",
+    "generation": 1,
+    "configured": true
+  },
+  "reboot_receipt": {
+    "operation": "status",
+    "status": "ready",
+    "generation": 1,
+    "configured": true
+  },
+  "physical_owner_confirmation": "Name/full phone readable, camera recognizes the intended WhatsApp URL, and owner confirms four physical BOOT releases through Activity/Wi-Fi/State/FREYA.",
+  "reboot-display": {
+    "duration_s": 8.125,
+    "lcd_reports": 18,
+    "system_reports": 0,
+    "lcd_last": {
+      "ready": 1,
+      "enabled": 1,
+      "light": 1,
+      "test": 0,
+      "demo": 0,
+      "sample_ms": 17119,
+      "pending": 0,
+      "init_us": 696336,
+      "draw_ticks": 0,
+      "rows": 0,
+      "draw_max_us": 0,
+      "p95_upper_us": 0,
+      "tick_max_us": 348,
+      "ui": "lvgl",
+      "flushes": 14,
+      "pixels": 67200,
+      "flush_max_us": 2747,
+      "lv_free": 38708,
+      "lv_largest": 38708,
+      "page": "identity",
+      "clicks": 0,
+      "idle_ms": 0,
+      "idle": 0,
+      "timeouts": 0,
+      "qr_generations": 1
+    },
+    "heap": null,
+    "min_heap": null,
+    "log_drop_bytes": null,
+    "gps_overflow": {
+      "first": 0,
+      "last": 0,
+      "min": 0,
+      "max": 0
+    },
+    "fatal_markers": [],
+    "malformed_records": 1,
+    "gps_clock_regressions": 0
+  },
+  "static-identity": {
+    "duration_s": 60.06300000000192,
+    "lcd_reports": 105,
+    "system_reports": 2,
+    "lcd_last": {
+      "ready": 1,
+      "enabled": 1,
+      "light": 1,
+      "test": 0,
+      "demo": 0,
+      "sample_ms": 100119,
+      "pending": 0,
+      "init_us": 696336,
+      "draw_ticks": 0,
+      "rows": 0,
+      "draw_max_us": 0,
+      "p95_upper_us": 0,
+      "tick_max_us": 372,
+      "ui": "lvgl",
+      "flushes": 0,
+      "pixels": 0,
+      "flush_max_us": 0,
+      "lv_free": 38708,
+      "lv_largest": 38708,
+      "page": "identity",
+      "clicks": 0,
+      "idle_ms": 0,
+      "idle": 0,
+      "timeouts": 0,
+      "qr_generations": 1
+    },
+    "heap": {
+      "first": 156456,
+      "last": 156456,
+      "min": 156456,
+      "max": 156456
+    },
+    "min_heap": {
+      "first": 155696,
+      "last": 155696,
+      "min": 155696,
+      "max": 155696
+    },
+    "log_drop_bytes": {
+      "first": 29920,
+      "last": 29920,
+      "min": 29920,
+      "max": 29920
+    },
+    "gps_overflow": {
+      "first": 0,
+      "last": 0,
+      "min": 0,
+      "max": 0
+    },
+    "fatal_markers": [],
+    "malformed_records": 1,
+    "gps_clock_regressions": 0
+  },
+  "navigation": {
+    "duration_s": 90.0309999999954,
+    "lcd_reports": 155,
+    "system_reports": 3,
+    "lcd_last": {
+      "ready": 1,
+      "enabled": 1,
+      "light": 1,
+      "test": 0,
+      "demo": 0,
+      "sample_ms": 201898,
+      "pending": 0,
+      "init_us": 696336,
+      "draw_ticks": 34,
+      "rows": 0,
+      "draw_max_us": 44976,
+      "p95_upper_us": 50000,
+      "tick_max_us": 44976,
+      "ui": "lvgl",
+      "flushes": 408,
+      "pixels": 1744472,
+      "flush_max_us": 2676,
+      "lv_free": 38708,
+      "lv_largest": 38708,
+      "page": "identity",
+      "clicks": 32,
+      "idle_ms": 0,
+      "idle": 0,
+      "timeouts": 1,
+      "qr_generations": 1
+    },
+    "heap": {
+      "first": 156456,
+      "last": 156456,
+      "min": 156456,
+      "max": 156456
+    },
+    "min_heap": {
+      "first": 154008,
+      "last": 154008,
+      "min": 154008,
+      "max": 154008
+    },
+    "log_drop_bytes": {
+      "first": 39963,
+      "last": 39963,
+      "min": 39963,
+      "max": 39963
+    },
+    "gps_overflow": {
+      "first": 0,
+      "last": 0,
+      "min": 0,
+      "max": 0
+    },
+    "fatal_markers": [],
+    "malformed_records": 0,
+    "gps_clock_regressions": 0,
+    "accepted_usb_checks": [
+      "30 ordered navigation events",
+      "timeout on identity",
+      "wake-only event 31",
+      "event 32 advances",
+      "stable QR generation count",
+      "service maximum <=50ms",
+      "final identity/light on/timer off"
+    ]
+  },
+  "unchanged_receipt": {
+    "operation": "save",
+    "status": "unchanged",
+    "generation": 1,
+    "configured": true
+  },
+  "owner_observation": {
+    "duration_s": 45.0940000000046,
+    "lcd_last": {
+      "ready": 1,
+      "enabled": 1,
+      "light": 1,
+      "test": 0,
+      "demo": 0,
+      "sample_ms": 303900,
+      "pending": 0,
+      "init_us": 696336,
+      "draw_ticks": 34,
+      "rows": 0,
+      "draw_max_us": 44976,
+      "p95_upper_us": 50000,
+      "tick_max_us": 44976,
+      "ui": "lvgl",
+      "flushes": 408,
+      "pixels": 1744472,
+      "flush_max_us": 2676,
+      "lv_free": 38708,
+      "lv_largest": 38708,
+      "page": "identity",
+      "clicks": 32,
+      "idle_ms": 0,
+      "idle": 0,
+      "timeouts": 1,
+      "qr_generations": 1
+    },
+    "commands": [],
+    "scope": "No injected commands; this capture retains clicks=32, so it does not independently timestamp the four releases reported by the owner."
+  }
+}

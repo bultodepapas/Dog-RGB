@@ -28,19 +28,19 @@ def main():
     build = ROOT / "build"
     subprocess.run(["cmake", "-S", str(ROOT), "-B", str(build), "-G", "Ninja",
                     "-DCMAKE_BUILD_TYPE=Release"], check=True)
-    subprocess.run(["cmake", "--build", str(build), "--target", "display_simulator", "display_port_test", "display_connection_adapter_test", "display_status_adapter_test", "display_contact_qr_test", "display_identity_test", "display_identity_store_test", "display_identity_api_0_test", "display_identity_api_1_test", "-j", "4"], check=True)
+    subprocess.run(["cmake", "--build", str(build), "--target", "display_simulator", "display_port_test", "display_connection_adapter_test", "display_status_adapter_test", "display_contact_qr_test", "display_identity_test", "display_identity_store_test", "display_identity_console_test", "display_identity_api_0_test", "display_identity_api_1_test", "-j", "4"], check=True)
     subprocess.run(["ctest", "--test-dir", str(build), "--output-on-failure"], check=True)
     exe = build / "display_simulator"
     if exe.with_suffix(".exe").exists():
         exe = exe.with_suffix(".exe")
     subprocess.run([str(exe), str(args.output.resolve())], check=True)
     hashes = {}
-    for name in ("searching", "fix", "stale", "connection-ap", "connection-both", "connection-trying", "connection-idle", "connection-off", "connection-long", "status-no-data", "status-day", "status-alert", "status-paused", "status-fix"):
+    for name in ("searching", "fix", "stale", "connection-ap", "connection-both", "connection-trying", "connection-idle", "connection-off", "connection-long", "status-no-data", "status-day", "status-alert", "status-paused", "status-fix", "owner-activity", "owner-wifi-demo", "owner-accent", "owner-enye-demo", "owner-long", "owner-wide-demo", "owner-invalid"):
         data = png_from_ppm(args.output / f"{name}.ppm")
         (args.output / f"{name}.png").write_bytes(data)
         hashes[name] = hashlib.sha256(data).hexdigest()
     firmware = ROOT.parents[1] / "Platformio/Dog-RGB"
-    inputs = ["include/lv_conf.h", "src/display/ui/walk_view.cpp", "src/display/text_view.cpp", "src/display/connection.cpp", "src/display/ui/connection_view.cpp", "src/display/display.cpp", "src/display/lvgl_port.cpp",
+    inputs = ["include/display/ui_theme.h", "src/display/ui/ui_theme.cpp", "src/display/fonts/dog_name_14.c", "include/lv_conf.h", "src/display/ui/walk_view.cpp", "src/display/text_view.cpp", "src/display/connection.cpp", "src/display/ui/connection_view.cpp", "src/display/display.cpp", "src/display/lvgl_port.cpp",
               "src/display/connection_snapshot.cpp", "include/display/connection.h", "include/display/button.h", "include/display/inactivity.h",
               "include/display/status.h", "include/display/status_view.h", "src/display/status.cpp", "src/display/status_snapshot.cpp", "src/display/ui/status_view.cpp", "include/display/lvgl_port.h",
               "include/display/text_view.h", "include/display/walk_view.h", "include/display/connection_view.h"]

@@ -89,3 +89,7 @@ se adaptan a identidad configurada; una edición no cambia página ni despierta
 LCD. Borrar la Placa visible retira el contacto y selecciona Actividad. Véase
 [contrato de navegación](../Platformio/Dog-RGB/docs/display-vis3.md). El GET de
 capability describe soporte de firmware, no aceptación óptica ni conexión GPS.
+
+La [herramienta USB de banco](../Platformio/Dog-RGB/docs/identity-usb.md) usa el
+mismo store únicamente en etapa 3. No cambia las guardas HTTP ni está presente
+en producto/Classic; acceso USB físico y acceso HTTP son transportes separados.

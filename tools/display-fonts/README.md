@@ -33,3 +33,11 @@ Each font additionally has 8 B BSS cache. These are isolated object measurements
 not the final linked identity page cost. `c_bytes` in the manifest is source
 file length, not flash usage. 4 bpp preserves smoother small curves/diagonals;
 2 bpp remains a measured option if the integrated flash budget needs trimming.
+
+VIS-4 adds `dog_name_14` (14 px, 600, 4 bpp) for owner-page headers. It uses the
+same name alphabet plus period for measured `...` abbreviation. The existing
+28 px name and 18 px phone assets remain byte-identical. `generate.py` includes
+both 2/4 bpp variants and records source hashes; only 4 bpp is linked by default.
+
+The 14 px 4 bpp font object measures 7,426 B text and 8 B BSS with the current
+Xtensa `-Os` toolchain; source size is 56,587 B and is not flash usage.

@@ -1,7 +1,7 @@
 """Native I2 reception semantics, diagnostic presentation and real bus limits."""
 import shutil
 import subprocess
-import tempfile
+from native_temp import native_temp_dir
 import unittest
 from pathlib import Path
 
@@ -182,7 +182,7 @@ class GpsBringupTests(unittest.TestCase):
     def check_bench(self, stage):
         compiler = shutil.which("g++")
         self.assertIsNotNone(compiler)
-        with tempfile.TemporaryDirectory() as directory:
+        with native_temp_dir() as directory:
             folder = Path(directory)
             (folder / "Arduino.h").write_text(ARDUINO, encoding="utf-8")
             (folder / "Adafruit_NeoPixel.h").write_text(
