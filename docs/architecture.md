@@ -257,6 +257,13 @@ an older boot. Point/chunk counters are volatile under a uniquely reserved boot.
 The service has no startup/GNSS caller; enrollment, credential lifecycle and
 observation integration remain separate M2B work.
 
+The [M2.4b chunk assembler](cloud/m24b-chunk-assembly-evidence.md) connects that
+identity service to the codec with a fixed 96-point batch. A failed hash retains
+the reservation; a rejected local-storage handoff retains the exact encoded
+frame. Quality changes, backward UTC and capacity require the caller to seal
+before retrying the incoming point. The buffer is volatile; durable outbox
+sealing, observation scheduling and runtime activation remain pending.
+
 The accepted target adds a fixed v3 observation/chunk format and a durable raw-partition outbox on the currently unused `0x150000` data partition:
 
 ```mermaid

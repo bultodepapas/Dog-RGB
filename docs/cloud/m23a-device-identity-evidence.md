@@ -1,6 +1,7 @@
 # M2.3a — Durable device identity and sequence allocation
 
 **Date:** 2026-10-02 (America/Bogota). **Baseline:** clean `d244221`.
+**Implementation commit:** `f148bec`; results below describe its original worktree.
 **Scope:** isolated C++ identity service and ESP-IDF NVS adapter. No caller in
 startup/GNSS, automatic provisioning, credential storage or cloud transport.
 M2.3 remains open for provisioning policy, credentials and observation startup.
@@ -105,7 +106,7 @@ time and the integrated observation gate remain M2B/M2C work.
 
 ## Validation results
 
-Local implementation worktree based on `d244221`; no deployment or board run.
+Original implementation worktree based on `d244221`; no deployment or board run.
 
 | Check | Result |
 | --- | --- |

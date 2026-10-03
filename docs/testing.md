@@ -245,6 +245,16 @@ These native tests inject byte-image write/read faults and exercise the actual
 SDK adapter against a fake NVS API. They require no board or credentials and run
 in the existing firmware host suite. See [M2.3a scope and recovery rules](cloud/m23a-device-identity-evidence.md).
 
+The native identity/codec bridge is tested separately:
+
+```sh
+python3 -m unittest discover -s Platformio/Dog-RGB/test -p 'test_chunk_assembler_native.py' -v
+```
+
+This exercises bounded batching, temporal boundaries, reservation/encoding retries
+and local-sink backpressure using the real identity service and codec. See
+[M2.4b handoff contract and evidence](cloud/m24b-chunk-assembly-evidence.md).
+
 The superseded RAM-only suite passed 20/20, but that historical green result is invalid recovery/reclaim evidence: it accepted `acknowledge_through(999)` after only chunks `0..2` existed and then reclaimed all three. It also recovered from retained Python objects instead of constructing a fresh runtime from persisted flash bytes.
 
 The byte-addressed model reconstructs from NOR bytes, retains durable logical

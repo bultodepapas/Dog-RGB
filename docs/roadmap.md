@@ -29,7 +29,7 @@ Current implementation order:
 | --- | --- | --- |
 | M0 | Local baseline — complete | Reviewed baseline and CI evidence in the master plan |
 | M1 | Simulator-driven local web slice | M1.1–M1.16 complete; M1.17 accessibility and M1.18 performance next; no map provider or firmware cloud code |
-| M2 | Offline firmware data foundation | M2A host accepted; isolated M2.4a codec and M2.3a identity service; enrollment/credentials/startup, observations, time/config/outbox integration and M2C physical evidence remain open |
+| M2 | Offline firmware data foundation | M2A host accepted; isolated M2.4a codec, M2.3a identity and M2.4b chunk assembler; enrollment/credentials/startup, observation cadence/gaps, time/config/outbox integration and M2C physical evidence remain open |
 | M3 | Hosted development plus one collar | hosted parity, verified TLS, `/cloud`, real replay/config fault proof; no production launch |
 | M4 | Truthful analytics and route product | replace the current queue-delete summary placeholder before any Cron schedule, then complete provider decision and map UI |
 | M5 | Production opt-in and operations | explicit owner decision, privacy/export/delete/retention/restore/domain/SMTP/cost gates |

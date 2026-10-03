@@ -9,9 +9,10 @@
 **Current milestone:** M1D — Local end-to-end gate; M1.1–M1.16 are complete and M1.17 is next.
 
 **Parallel offline firmware work — 2026-10-02:** M2A is independently accepted.
-M2.4a provides the isolated native Track v3 codec; M2.3a adds the isolated
-UUID/boot allocator and NVS adapter. Enrollment, credentials and startup
-integration precede M2.4 observations; runtime emission remains disabled.
+M2.4a provides the native Track v3 codec; M2.3a adds the UUID/boot allocator and
+NVS adapter. M2.4b connects these through an isolated chunk assembler.
+Enrollment, credentials, cadence/gaps and a durable outbox sink remain pending;
+runtime emission remains disabled.
 These increments do not close M1.17 or M2C physical acceptance.
 
 **Next executable task:** complete only M1.17: freeze the exact owner/editor/viewer, empty/error/pending/applied/stale/detail/revoke state matrix; test keyboard/focus/status semantics, 200% zoom, reduced motion, 44 px targets, and exact 320/428/768/1280 CSS-pixel containment; run automated WCAG 2 A/AA checks plus named manual assertions. Reuse the production local M1.13–M1.16 fixture/runner boundaries; do not absorb M1.18 performance, visual redesign, hosted deployment, firmware work, or a generic design system.
@@ -582,12 +583,14 @@ M2.1–M2.2 now pass for the host model. M2B may proceed under its existing scop
 #### M2B — Firmware implementation with cloud disabled
 
 - [ ] M2.3 Add persistent public device UUID, credential record state and boot sequence; allocate point/chunk sequences within each durably reserved boot.
-  - M2.3a identity/sequence increment: **implemented and validated — 2026-10-02 (America/Bogota)**; owner Codex with Luna/max implementation and independent review. Implementation: current worktree based on `d244221`.
+  - M2.3a identity/sequence increment: **implemented and validated — 2026-10-02 (America/Bogota)**; owner Codex with Luna/max implementation and independent review. Implementation commit: `f148bec`, based on `d244221`.
   - Scope: portable UUID/boot A/B store, explicit NVS adapter and bounded per-boot sequence reservations. No automatic provisioning or runtime emission. Credential lifecycle and observation startup integration remain open.
   - Evidence: [identity/sequence report](../cloud/m23a-device-identity-evidence.md); focused native suite 2/2, also under ASan/UBSan, with 987 core checks. Firmware host suite 156/156, outbox 67/67, protocol 48/48; Classic/Display builds pass. No runtime caller, source-pin change or physical acceptance.
   - Allocate the native-v3 boot sequence through CRC/generation-protected A/B storage, increment and read back before emitting any v3 record, and reserve zero for legacy data.
   - Never reuse a published or durably reserved boot; a failed allocation locks that instance. Fresh recovery may retry an unissued candidate only if the complete prior image remains intact. Corrupt pairs block allocation; integer exhaustion never wraps.
 - [ ] M2.4 Implement the frozen Track v3 codec and observation path.
+  - M2.4b native chunk assembly: **implemented and validated — 2026-10-02 (America/Bogota)**; owner Codex with Luna/max implementation, tests and independent review. Implementation: current worktree based on clean `f148bec`. Bounded identity/codec bridge; one reservation per batch, exact encoding/handoff retries, terminal final acceptance. Runtime cadence/GNSS, durable outbox and cloud transport remain separate work.
+  - M2.4b evidence: [assembly report](../cloud/m24b-chunk-assembly-evidence.md); focused suite 1/1, 376 C++ checks and 7 exact Python-oracle frames, also under ASan/UBSan. Full firmware suite 157/157; protocol 48/48; Classic/Display builds pass. Independent Luna/max review found no remaining defect in this scope. No production runtime caller or physical acceptance.
   - M2.4a codec-only increment: **implemented and validated — 2026-10-02 (America/Bogota)**; owner Codex, Luna/max implementation and independent review. Implementation commit: `d244221`, based on `0230227`.
   - Scope: bounded native C++ point/chunk codec and Python interoperability tests; no observation emission before M2.3 allocates durable identities. M2.4 remains open for observation scheduling, explicit gaps, and v2 preservation in the integrated path.
   - Evidence: [native codec report](../cloud/m24a-track-v3-codec-evidence.md); `python3 -m unittest discover -s Platformio/Dog-RGB/test -p 'test_track_v3_native.py' -v` passes 7/7, also under ASan/UBSan; 576 size/quality combinations, four canonical fixtures and eleven alias cases. Full firmware host suite 154/154; Classic/Display builds pass. Python source pins, v2 storage and runtime capture remain unchanged.
