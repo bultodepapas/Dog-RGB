@@ -54,7 +54,7 @@ There is no realtime/cellular path: the website can show only the last successfu
 - [`docs`](.) contains current references plus dated design history.
 - [`contracts/device-v1`](../contracts/device-v1/) is the protocol/schema authority. Its complete 48/48 suite passes, and eight Edge-consumed schemas are checked copies under `supabase/functions/_shared/contracts`.
 - [`supabase`](../supabase/) contains the implemented local migration stack, pgTAP suite, Auth configuration, and four Edge gateways. This is reproducible development infrastructure, not a hosted or production deployment.
-- [`apps/portal`](../apps/portal/) is the Vercel/Next.js workspace. It implements local Auth/onboarding, Today, History/detail, brightness desired/reported state, collar diagnostics and revoke. M1.17 accessibility and M1.18 performance remain open.
+- [`apps/portal`](../apps/portal/) is the Vercel/Next.js workspace. It implements local Auth/onboarding, Today, History/detail, brightness desired/reported state, collar diagnostics and revoke. Returning-owner entry, complete analytics/data lifecycle, accessibility/performance and release CI remain open; see the [master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md).
 - [`packages`](../packages/) and [`tools/device-simulator`](../tools/device-simulator/) contain shared constants/analytics and the deterministic claim/sync/config simulator.
 - [`tools/cloud_phase0`](../tools/cloud_phase0/) contains the v3/storage host model accepted by independent AI review at `fb6dbef` (67/67); target-hardware evidence remains open. [`tools/map_bakeoff`](../tools/map_bakeoff/) is the synthetic Colombia harness; the credentialed provider decision remains an M4 gate and does not block portal/firmware foundation work.
 - [`software`](../software/) is only a placeholder for optional future companion/cloud work.
@@ -232,12 +232,12 @@ This is proportionate protection for a local DIY portal, not a claim of Internet
 
 ### Runtime boundaries
 
-- **Website:** the Next.js workspace exists, but account/dog/history/configuration UX is not implemented. M1 adds it locally before any firmware Internet work. The eventual browser uses only a Supabase publishable key and authenticated user session.
-- **User identity/data:** the local Auth configuration and explicitly exposed `api` schema implement dog memberships, grants, and RLS. Portal integration and hosted parity remain pending; public IDs are never authorization.
+- **Website:** the Next.js workspace implements local Auth, dog creation, Today/History/detail, brightness and collar revoke. Returning-user entry, analytics/data lifecycle and release gates remain open. The browser uses only a Supabase publishable key and authenticated user session.
+- **User identity/data:** the local Auth configuration and explicitly exposed `api` schema implement dog memberships, grants, and RLS. Portal integration exists locally; hosted parity remains pending. Public IDs are never authorization.
 - **Device gateway:** four local Edge Functions implement `user-v1-issue-claim`, `device-v1-claim`, consolidated `device-v1-sync`, and idempotent `device-v1-revoke`. Collars will call this surface directly after the offline firmware foundation passes; the firmware HTTPS client does not exist yet.
 - **Private data:** the local migrations place claim/credential digests and replay receipts in a non-exposed `private` schema. Plaintext device credentials remain transient at the gateway and eventually persist only on the collar; they are never human credentials or browser/project keys.
 - **Stable endpoint:** the default Supabase hostname is allowed for M3 laboratory evidence with one development collar. An owned stable device API domain is required in M5 before field firmware is treated as durable/production, so a project/provider move does not permanently pin deployed devices to a provider-owned hostname.
-- **Maps:** MapLibre consumes a provider style and an application-owned segmented GeoJSON view model. Route data stays in the authenticated browser; providers receive only normal style/tile requests and viewport/network metadata. Stadia Dark is provisional until the full MapTiler/Stadia credentialed bake-off and unapproved-origin tests are retained/scored.
+- **Maps:** core v1 uses the implemented segmented SVG and point table. Optional MapLibre tiles will consume a provider style and an application-owned segmented GeoJSON view model. Route data stays in the authenticated browser; providers receive only normal style/tile requests and viewport/network metadata. Stadia Dark is provisional until the full MapTiler/Stadia credentialed bake-off and unapproved-origin tests are retained/scored.
 
 See [ADR-0005](adr/0005-device-cloud-gateway-and-stable-hostname.md), [ADR-0006](adr/0006-cloud-data-model-and-access-boundaries.md), and [ADR-0009](adr/0009-map-renderer-provider-and-colombia-bakeoff.md).
 
@@ -299,11 +299,11 @@ The implemented local migration stack separates:
 
 Canonical telemetry preserves exact wire integers plus time/quality/provenance. The foundation does not require PostGIS: normal playback first filters/orders by recording/time/sequence and builds provider-neutral route data in the authorized application layer. Initial indexes are relational/time/idempotency indexes. Partitioning, GiST, and spatial extensions require measured need and a later ADR change.
 
-Each dog has an IANA timezone. Local days can be 23, 24, or 25 hours; missing evidence becomes unknown, never inactivity. Raw points expire after 12 months by default while summaries/recording metadata remain until dog/account deletion. See [ADR-0006](adr/0006-cloud-data-model-and-access-boundaries.md), [ADR-0010](adr/0010-retention-and-truthful-activity-vocabulary.md), and the [field matrix](cloud/phase0-field-matrix.md).
+Each dog has an IANA timezone. Local days can be 23, 24, or 25 hours; missing evidence becomes unknown, never inactivity. The accepted policy expires raw points after 12 months by default while retaining summaries/recording metadata until dog/account deletion. The local retention primitive is unscheduled; automatic enforcement and owner data-lifecycle UI remain open. See [ADR-0006](adr/0006-cloud-data-model-and-access-boundaries.md), [ADR-0010](adr/0010-retention-and-truthful-activity-vocabulary.md), and the [field matrix](cloud/phase0-field-matrix.md).
 
 ### Bidirectional configuration
 
-The local database and simulator implement coherent-resource HLC LWW plus versioned desired/reported state. Firmware/AP convergence and the website brightness UI remain pending. When implemented, AP writes and downloaded winners must pass through one firmware validation and A/B persistence path; “Applied” requires the collar's exact reported version/hash.
+The local database, simulator and website brightness UI implement coherent-resource HLC LWW plus versioned desired/reported state. Firmware/AP and physical convergence remain pending. When implemented, AP writes and downloaded winners must pass through one firmware validation and A/B persistence path; “Applied” requires the collar's exact reported version/hash.
 
 Brightness is the first proof resource. Later resources group visual mode/Day Mode, all speed thresholds/effects, Simple effect, GPS quality gates, and fence distance. Home coordinates and LED power calibration are local-only for the first release, as are Wi-Fi/AP credentials, mDNS, and the local PIN. The device secret is excluded from configuration/history and used only as verified-TLS device authentication. See [ADR-0008](adr/0008-resource-level-hlc-lww-configuration-sync.md).
 

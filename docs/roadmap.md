@@ -14,30 +14,11 @@
 
 The [web-platform master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) is the active execution contract. Cloud stays optional and off by default: the collar, AP portal, local history, and exports remain usable without an account or Internet connection.
 
-Implemented local foundation:
+The local backend and M1.1–M1.16 owner portal have recorded acceptance; the site is not finished. The 2026-10-02 source review found missing returning-owner navigation, a summary worker that only deletes its queue, absent export/delete UI, local-only Auth redirects and incomplete release coverage. The master plan owns the detailed evidence and backlog.
 
-- device-v1 schemas/fixtures and HLC vectors pass 48/48;
-- the corrected host storage candidate passes 67/67 and has independent AI acceptance at `fb6dbef`; physical acceptance remains open;
-- M1.16 records 16 additive migrations, explicit grants/RLS, and four local Edge gateways;
-- the deterministic simulator covers claim, replay-safe upload, revoke, and desired/reported configuration;
-- local capacity, deletion, retention, restore, and tombstone drills are retained as engineering evidence;
-- the local owner portal implements Auth, onboarding, Today, History/detail, brightness, collar diagnostics and revoke; M1.13–M1.16 journey/authorization/fault/privacy evidence is retained; M1.17 accessibility and M1.18 performance remain open.
+Next: **M1.19 returning-owner navigation**, then account/product recovery and accessibility/performance. Complete useful summaries and owner data lifecycle locally before hosted preview. Firmware integration proceeds independently; it is required for a collar release, not for finishing web features. Tiled maps are optional, with their own provider gate.
 
-Current implementation order:
-
-| Order | Milestone | Current boundary |
-| --- | --- | --- |
-| M0 | Local baseline — complete | Reviewed baseline and CI evidence in the master plan |
-| M1 | Simulator-driven local web slice | M1.1–M1.16 complete; M1.17 accessibility and M1.18 performance next; no map provider or firmware cloud code |
-| M2 | Offline firmware data foundation | M2A host accepted; isolated M2.4a codec, M2.3a identity and M2.4b chunk assembler; enrollment/credentials/startup, observation cadence/gaps, time/config/outbox integration and M2C physical evidence remain open |
-| M3 | Hosted development plus one collar | hosted parity, verified TLS, `/cloud`, real replay/config fault proof; no production launch |
-| M4 | Truthful analytics and route product | replace the current queue-delete summary placeholder before any Cron schedule, then complete provider decision and map UI |
-| M5 | Production opt-in and operations | explicit owner decision, privacy/export/delete/retention/restore/domain/SMTP/cost gates |
-| M6 | Later capabilities | only with measured need and a new ADR |
-
-Map credentials do not block M0–M3. M2A host review is accepted; M2B firmware implementation and M2C physical proof remain open. Existing deletion/retention/restore prototypes are preserved but must not expand into production custody work before the end-to-end product slice exists.
-
-Detailed evidence remains in the [cloud reports](cloud/README.md). No deployed website, hosted project, firmware cloud client, physical outbox proof, final map provider, scheduled summary worker, or production operation is currently claimed.
+M2A has independent AI host acceptance; isolated codec/identity/assembler increments exist. Runtime capture/outbox/credentials/config integration and physical proof remain open. No hosted project, physical cloud client or production operation is claimed. See the [master dependency order](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#7-dependency-order) and [cloud evidence](cloud/README.md).
 
 ## Milestone 1 — Physical MVP evidence (highest priority)
 
@@ -116,8 +97,8 @@ These remaining ideas are explored in the [WLED lessons and implementation plan]
 
 - Reassess BLE only with an explicit SoftAP/STA coexistence strategy and phone matrix.
 - Build the read-only companion app only after BLE is a supported runtime mode.
-- Continue the separately gated optional web platform only in the order defined by its dated plan: Phase 0 contract/evidence; local Supabase/simulator; offline firmware data foundation; one-collar hosted vertical slice; reliable configuration; truthful analytics; product UI/maps; then operations/privacy completion.
-- Keep the first vertical slice deliberately small: real claim/upload, Today/recording history, a plain route, and brightness desired/applied state. Do not expand configuration or analytics until physical retry/power-cut and cross-user tests pass.
+- Continue the optional web platform under its [master dependency order](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#7-dependency-order); complete local user workflows, analytics and data lifecycle without waiting for hardware. Physical integration and production activation retain separate gates.
+- Keep the first vertical slice deliberately small: real claim/upload, Today/recording history, a plain route, and brightness desired/applied state. Additional remote configuration and physical activity claims wait for physical retry/power-cut and cross-user proof; basic versioned analytics may be completed with simulator fixtures first.
 - Treat live/cellular tracking, advanced analytics, sharing, Google Maps, OTA, and new sensors as later independent decisions, not foundation work.
 
 ## Milestone 6 — Optional product hardening

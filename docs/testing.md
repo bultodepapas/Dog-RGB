@@ -134,6 +134,18 @@ npm run phase1:local -- --clean
 
 It recreates the local database, checks the committed `api` types, runs pgTAP, lint/advisors, contracts, Edge boundaries, simulator flows, and the retained local operations drills. Never expose this development stack beyond localhost.
 
+The maintained M1.13–M1.16 owner/authorization/fault/privacy gate is a **separate** command. Both commands reset the repository's disposable local database; preserve any wanted development data first. Never use a hosted or `--linked` database:
+
+```sh
+node tools/portal-e2e/run.mjs --clean
+# Focused privacy/cache rerun only:
+node tools/portal-e2e/run.mjs --clean --m116-only
+```
+
+The E2E runner builds/starts the production portal and uses synthetic fixtures, Mailpit and the simulator with sanitized artifacts. The current CI foundation job does not invoke this runner; M1.22 in the [master plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) closes that gap. M1.17 accessibility and M1.18 performance have no completed gate yet. The AP/audit screenshot suites are not Next.js owner-portal evidence.
+
+For a non-reset source/build check use `npm run phase1:check` and `npm run portal:build`. On 2026-10-02 both passed under Node 24.18.0/npm 11.6.2; that review did not rerun database, Edge or browser acceptance.
+
 ## Visual regression
 
 On Linux/macOS, use the package script:

@@ -135,7 +135,7 @@ The checked map manifest is durable technical evidence rather than a performance
 
 The remaining Phase 0 critical path, execution order, failure behavior, artifact
 requirements, and exit checklist are now maintained in
-[Phase 0 of the accepted plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#phase-0--contract-evidence-and-decision-lock-exit-still-open).
+[current master dependency order](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#7-dependency-order).
 Passing host schemas or models does not authorize production deployment, device
 credential provisioning, or a firmware cloud client. The implemented Phase 1
 local database, Edge Functions, owner portal, shared packages, and simulator

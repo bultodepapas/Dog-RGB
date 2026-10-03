@@ -1,10 +1,10 @@
 # Cloud retention and deletion policy
 
-**Status:** Phase 0 accepted default, updated 2026-08-18. The local Phase 1
+**Status:** accepted default, scope reconciled 2026-10-02. The local Phase 1
 cascade, explicit owner-requested dog deletion, bounded raw-telemetry retention,
 and local isolated tombstone replay primitives are tested. No retention schedule
 is activated; data export/user UI, account deletion, other policy classes,
-hosted load, off-site tombstone custody, and managed backup replay remain gates.
+hosted load and an actual isolated restore/deletion replay remain gates; managed backup and advanced off-site signing custody are implementation options, not mandatory service purchases.
 
 This operational policy implements [ADR-0010](../adr/0010-retention-and-truthful-activity-vocabulary.md). It is a launch input, not a claim that Supabase/Vercel currently contain or delete Dog-RGB data.
 
@@ -85,17 +85,18 @@ calendar arithmetic, bounded point/chunk stages, rollback/retry, a per-collar
 anti-resurrection watermark, deletion-race serialization, and coordinate-free
 receipts. It deliberately does not activate automatic retention: export,
 strong-confirmation UI/account orchestration, reviewed hosted scheduling/load,
-the other policy classes, off-site tombstone custody, and isolated managed
-hosted restore remain gates.
+the other policy classes and an isolated hosted restore with deletion replay
+remain gates. A tested encrypted logical-backup path is acceptable.
 
 The [Phase 1 restore drill](phase1-restore-drill.md) separately proves that the
 complete synthetic local database can be restored twice with identical
 application hashes, Auth linkage, functions and effective RLS. It also exports a
 later deletion, authenticates it with the
 [signed Ed25519 artifact](phase1-tombstone-artifact.md), rejects tampering, and
-replays it into the older restore before access. Production key management,
-authenticated off-site custody, and managed hosted replay remain mandatory
-before activation.
+replays it into the older restore before access. Before activation, protect the
+chosen backup/deletion records and prove replay in the actual restore path.
+KMS/HSM, a new signed off-site custody service and paid managed cloning remain
+optional under M5B; retaining the local signed artifact does not require them.
 
 At implementation, automated tests and a staging drill must cover:
 

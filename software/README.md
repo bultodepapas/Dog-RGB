@@ -1,11 +1,11 @@
 # Future Software Area
 
-No companion app, backend, cloud portal, account system, or remote ingestion service is implemented here. The supported interface is the ESP32's local Wi-Fi portal.
+This directory remains a placeholder for companion software. The optional cloud implementation lives in [`apps/portal`](../apps/portal/) and [`supabase`](../supabase/), with shared packages and a device simulator. It is locally implemented but not deployed; the collar remains usable through its independent AP portal.
 
-If optional software work starts, keep it as a separate, explicitly scoped project and preserve offline collar operation/recovery. Relevant proposals:
+Preserve offline collar operation/recovery. Entry points:
 
 - [BLE companion app MVP](../docs/app_mvp_spec.md)
 - [BLE wire format](../docs/ble_spec.md)
-- [Cloud plan snapshot](../docs/PLANS/2026-08-01_cloud-portal-master-plan.md)
+- [Active website/cloud plan](../docs/PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md)
 
 Do not add cloud credentials, location data, generated build output, or local environment files to the repository.

@@ -1,6 +1,6 @@
 # Cloud privacy and data-flow inventory
 
-**Status:** Phase 0 proposal, 2026-08-13. No cloud collection currently exists.
+**Status:** accepted data-flow design, maturity reconciled 2026-10-02. Local backend and simulator-backed owner portal exist. No physical collar cloud collection or hosted deployment is claimed; export/delete/consent product completion and operational enforcement remain open under M5A/B of the [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md).
 
 This document describes the accepted opt-in design so implementation can be tested against a concrete privacy boundary. It is not a published privacy notice or legal conclusion; jurisdiction, operator identity, contact details, subprocessors, and launch terms must be completed before inviting external users.
 
@@ -104,7 +104,7 @@ A pause stops new uploads but keeps the account/credential unless the UI clearly
 ### Access/export/delete
 
 - Export account/dog/collar metadata, recordings, raw points (within retention), summaries/provenance, configuration revisions/outcomes, and membership in a documented machine-readable format.
-- Permit owner deletion of a recording, dog, collar association, or account at the appropriate scope, with strong confirmation and reauthentication for destructive account/dog deletion.
+- Core v1 provides owner dog/account deletion with strong confirmation and reauthentication, plus collar revocation that preserves history. Recording-only deletion is deferred; do not advertise it as implemented.
 - Remove active data within 24 hours, show job state/failure/retry, retain only a coordinate-free deletion receipt, and disclose encrypted backup expiry.
 - Restores must replay deletion tombstones/jobs before exposing restored data.
 
@@ -139,7 +139,7 @@ Before adding a field, processor, or log:
 - data export/deletion and backup-restore deletion drill pass;
 - production provider/region/subprocessor/retention details are filled in;
 - network/log/bundle scans contain no prohibited field or route coordinate;
-- map privacy network capture passes and non-map fallback exists;
+- if optional tiles are enabled, provider privacy/network checks pass; the core SVG/table view remains available without them;
 - privacy/terms/contact copy receives operator/legal review appropriate to launch jurisdictions.
 
 ## References

@@ -1,6 +1,6 @@
 # Dog-RGB Home Terminal: plan maestro del portal cloud
 
-> **Document status:** Optional long-range proposal (Spanish), not implemented. The supported product remains local-first and fully usable without a backend. Review [Roadmap](../roadmap.md) before expanding scope.
+> **Historical / superseded:** this is the 2026-08-01 proposal, not the current architecture, implementation status or backlog. Use the [active master execution plan](2026-08-13_web-platform-bidirectional-sync-plan.md), reconciled 2026-10-02. In particular, device ingestion now targets Supabase Edge Functions, Auth uses email/password, and MapLibre tiles are optional; the Vercel device API, passwordless Auth and Google Maps proposal below are not current decisions.
 
 > Estado: propuesta detallada, lista para revisión técnica antes de implementar  
 > Fecha de investigación y redacción: 2026-08-01  
@@ -137,7 +137,7 @@ GET /api/track.geojson        exportación GeoJSON
 Los endpoints se registran en
 [`portal_http.cpp`](../../Platformio/Dog-RGB/src/web/portal_http.cpp), y la UI
 embebida CRT vive en
-[`pages.cpp`](../../Platformio/Dog-RGB/src/web/pages.cpp).
+`pages.cpp` (ruta histórica; las fuentes actuales están en [`webui/src`](../../webui/src/)).
 
 ### 2.3 Wi-Fi actual
 

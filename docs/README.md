@@ -93,7 +93,8 @@ The firmware and tests are the final source of truth. A document must never turn
 
 | Document | Status | Notes |
 | --- | --- | --- |
-| [Web portal product spec](web_portal_spec.md) | Current | User-facing pages, states, accessibility, and offline constraints |
+| [Embedded AP portal product spec](web_portal_spec.md) | Current, collar-local | AP pages/states/accessibility; separate from the Next.js website |
+| [Next.js website execution plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) | Active; local implementation, release incomplete | Authoritative website status, missing user paths, dependencies and completion gates |
 | [Wi-Fi/AP behavior](wifi_portal_spec.md) | Current | AP/STA policy, scanning, captive portal, retries, and persistence |
 | [Wi-Fi state diagram](wifi_portal_state_diagram.md) | Current | Simplified state and policy flow |
 | [Portal preview tool](../tools/ap_portal_preview/README.md) | Current | Build and serve the same generated bundles represented by the firmware arrays |
@@ -120,7 +121,7 @@ The firmware and tests are the final source of truth. A document must never turn
 | [Portal configuration presets](portal_config_presets.md) | Proposed | Whole-runtime profiles distinct from implemented visual scenes; no selector/config-preset persistence |
 | [WLED lessons and implementation plan](analisis-wled-y-plan-implementacion.md) | Phases 0–5 implemented in software; physical-HIL acceptance remains separate, Spanish | Current-limiting, effect-registry, palette, segment, scene, and web-asset roadmap |
 | [App wireframe and data flow](flow_wireframe.md) | Proposed | Companion-app concept, separate from the implemented local portal |
-| [Cloud platform and bidirectional sync plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) | Active optional workstream; M2A host accepted, M2B firmware foundation in progress | Local owner portal M1.1–M1.16 and device-v1 48/48 are validated. Isolated native firmware increments are tracked separately; runtime integration, physical storage and hosted deployment remain open. |
+| [Cloud platform and bidirectional sync plan](PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) | Active, partially implemented | Same master plan as the website entry above; web completion is independent of physical firmware and optional map credentials |
 | [Cloud portal master plan](PLANS/2026-08-01_cloud-portal-master-plan.md) | Superseded proposed snapshot | Older upload-oriented design retained for history |
 | [Software area](../software/README.md) | Proposed | Placeholder and boundaries for future companion/cloud software |
 

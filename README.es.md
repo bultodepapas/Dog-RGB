@@ -17,7 +17,7 @@ Dog-RGB es un collar inteligente DIY con tiras LED RGBW, GNSS y un XIAO ESP32-S3
 - Persistencia robusta con registros A/B y CRC, incluido un banco independiente de escenas; partición NVS dedicada para rutas.
 - Resumen BLE de 16 bytes implementado, pero desactivado por defecto por coexistencia de radio con SoftAP.
 
-No están implementados: nube, cuentas, app móvil, IMU, ritmo cardíaco, telemetría de batería ni OTA.
+El portal Next.js y el backend Supabase locales ya incluyen cuentas, vinculación con simulador, Hoy, historial/detalle, brillo y revocación. Faltan el regreso a perfiles existentes, la analítica y gestión de datos completas y los controles de cierre; no hay sitio alojado ni sincronización cloud del collar físico. Sigue el [plan web activo](docs/PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md). App móvil, IMU, ritmo cardíaco, telemetría de batería y OTA siguen pendientes.
 
 ## Inicio rápido
 

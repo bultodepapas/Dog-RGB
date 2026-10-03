@@ -1,6 +1,6 @@
 # Optional cloud documentation
 
-**Status:** Phase 0 evidence and explicitly authorized local Phase 1 implementation. Dog-RGB still has no deployed production website or firmware cloud sync.
+**Status — 2026-10-02:** local backend and owner portal implemented, website incomplete. The [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md) owns current status, next tasks and release gates; this directory indexes evidence, not a second backlog. No hosted production website or firmware cloud sync is claimed.
 
 | Document | Purpose |
 | --- | --- |
@@ -22,6 +22,7 @@
 | [M1.12 collar diagnostics/revoke](m112-collar-diagnostics-revoke-evidence.md) | accepted capability and pre-ACK queue truth, owner-only revocation, sync/revoke races, and browser/accessibility proof |
 | [M1.13 Playwright owner journey](m113-playwright-owner-journey-evidence.md) | two independent clean local owner journeys, exact database/protocol checkpoints, Mailpit confirmation, simulator convergence, revoke, logout, and artifact controls |
 | [M1.14 identity/object authorization](m114-identity-object-authorization-evidence.md) | exact protected/Data API surface, two-owner/editor/viewer matrix, crafted objects, deleted-Auth denial, zero-effect digests, and twice-clean Playwright evidence |
+| [M1.16 privacy/cache](m116-privacy-cache-evidence.md) | twice-clean local browser/build/log/cache/artifact gate; hosted logging and new surfaces need separate verification |
 | [M1.15 deterministic transport/faults](m115-deterministic-fault-evidence.md) | committed-response loss, exact restart replay, conflict/telemetry/config/revocation faults, forced lock ordering, and twice-clean state/ACK evidence |
 | [Phase 1 deletion drill](phase1-deletion-drill.md) | owner-authorized dog job, bounded worker/retry, durable tombstone/receipt, cascade inventory, and backup-lag boundary |
 | [Phase 1 restore drill](phase1-restore-drill.md) | dual isolated logical restore, coordinate-free manifests, tamper-resistant deletion-tombstone replay, Auth/function/RLS equivalence, and hosted boundary |
@@ -31,4 +32,4 @@
 | [Retention policy](retention-policy.md) | exact initial lifetimes, purge jobs, backup/restore deletion behavior |
 | [Credential checklist](credential-checklist.md) | environment-specific credentials, permitted storage, provisioning/rotation/incident gates |
 
-Accepted decisions are indexed in [`docs/adr`](../adr/README.md). Implementation order and unresolved Phase 0 exit gates are in the [roadmap](../roadmap.md#optional-cloud-workstream--local-product-slice-implemented-firmware-foundation-open).
+Accepted decisions are indexed in [`docs/adr`](../adr/README.md). Execution dependencies and separate web/physical/production closures are in the [master plan](../PLANS/2026-08-13_web-platform-bidirectional-sync-plan.md#7-dependency-order). Historical Phase 0 gates are not a universal block on web work.
